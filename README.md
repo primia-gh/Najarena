@@ -11,6 +11,13 @@ npm install
 npm run dev
 ```
 
+```bash
+npm test
+```
+
+Lance la suite de tests automatisés (logique pure : Glicko-2, placement
+de bracket, classement) — à faire passer avant tout déploiement.
+
 Nécessite un fichier `.env.local` (non committé, voir `.gitignore`) —
 demander les valeurs à qui a déployé le projet, ou suivre la liste
 ci-dessous pour les créer soi-même.
