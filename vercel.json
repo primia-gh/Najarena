@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/recherche-resultats",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 5 * * *"
     }
   ]
 }

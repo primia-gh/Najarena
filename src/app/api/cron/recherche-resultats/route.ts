@@ -2,10 +2,18 @@ import { NextResponse } from "next/server";
 import { traiterRechercheResultats } from "@/lib/rapprochement";
 
 // Tâche planifiée (docs/moteur-resultats.md §6 — "Recherche de résultats",
-// cadence cible 1 min). Vercel Cron ne descend pas sous 1 min en pratique
-// (et le plan Hobby restreint fortement la fréquence des tâches planifiées
-// à un déclenchement par jour) — voir vercel.json pour la cadence
-// réellement configurée, et le mémo du projet pour le compromis retenu.
+// cadence cible 1 min). Vercel Cron ne descend pas sous 1 min même sur le
+// plan Pro, et le plan Hobby (gratuit) refuse purement et simplement de
+// déployer toute tâche planifiée plus fréquente qu'une fois par jour
+// (échec au déploiement, pas une simple restriction silencieuse — vérifié
+// dans la doc Vercel). vercel.json configure donc "une fois par jour" par
+// défaut pour rester déployable sans compte payant ; le résultat reste
+// correct dans tous les cas (on ne renonce qu'en latence, jamais en
+// fiabilité — un vrai résultat Riot est retrouvé même avec un jour de
+// retard, et à défaut le litige est ouvert comme prévu). Passer à un
+// compte Pro pour retrouver une cadence proche de la cible (ex.
+// "*/5 * * * *") une fois le site prêt à être utilisé en conditions
+// réelles.
 // Même mécanisme d'authentification que les autres routes /api/cron/*.
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
