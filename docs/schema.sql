@@ -691,3 +691,51 @@ begin
   return true;
 end;
 $$;
+
+-- Décroissance mensuelle du RD par inactivité (docs/moteur-resultats.md §4
+-- et §6). Le calcul (formule Glicko-2 "aucun match") est fait en TypeScript
+-- (src/lib/glicko2.ts, mettreAJourJoueur avec une liste vide) — cette
+-- fonction ne fait aucun calcul, elle écrit de façon atomique et
+-- idempotente ce qu'on lui donne, exactement comme cloturer_rating_joueur.
+-- Même règle de sécurité : aucun grant à authenticated, uniquement
+-- service_role depuis le worker planifié.
+create or replace function public.appliquer_decroissance_rd(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_season_id uuid,
+  p_rating numeric,
+  p_rd_avant numeric,
+  p_rd_apres numeric,
+  p_volatilite numeric
+)
+returns boolean -- true si écrit, false si déjà appliqué aujourd'hui (idempotence)
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from rating_events
+    where profile_id = p_profile_id
+      and game_id = p_game_id
+      and season_id = p_season_id
+      and motif = 'inactivite'
+      and cree_le >= now() - interval '1 day'
+  ) then
+    return false;
+  end if;
+
+  insert into rating_events (
+    profile_id, game_id, season_id, tournament_id, match_id, motif,
+    rating_avant, rd_avant, rating_apres, rd_apres, adversaire_id
+  ) values (
+    p_profile_id, p_game_id, p_season_id, null, null, 'inactivite',
+    p_rating, p_rd_avant, p_rating, p_rd_apres, null
+  );
+
+  update ratings
+  set rd = p_rd_apres, volatilite = p_volatilite, maj_le = now()
+  where profile_id = p_profile_id and game_id = p_game_id and season_id = p_season_id;
+
+  return true;
+end;
+$$;

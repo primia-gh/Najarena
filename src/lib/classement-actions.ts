@@ -9,6 +9,8 @@ import {
   type ResultatMatch,
 } from "@/lib/glicko2";
 
+const SEUIL_INACTIVITE_JOURS = 30;
+
 type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 
 const NIVEAUX_COMPTES = ["code_tournoi", "historique"] as const;
@@ -186,4 +188,62 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
       p_motif: "tournoi",
     });
   }
+}
+
+/**
+ * Décroissance mensuelle du RD par inactivité (docs/moteur-resultats.md
+ * §4 et §6 — "Joueur inactif" / "Décroissance d'inactivité"). Pour tout
+ * joueur dont le rating n'a pas bougé depuis 30 jours (`ratings.maj_le`,
+ * mis à jour aussi bien par une clôture de tournoi que par cette tâche
+ * elle-même — chaque application repousse naturellement l'échéance des
+ * 30 jours suivants, sans état supplémentaire à tenir), le RD remonte
+ * selon la formule Glicko-2 "aucun match" ; le rating ne bouge jamais.
+ *
+ * Destinée à être appelée par un déclencheur planifié (voir
+ * src/app/api/cron/decroissance-rd/route.ts) — jamais par le client.
+ * Idempotente : `appliquer_decroissance_rd` refuse toute deuxième
+ * écriture pour le même joueur dans la même journée.
+ */
+export async function appliquerDecroissanceInactivite(): Promise<{
+  traites: number;
+  ignores: number;
+}> {
+  const supabase = await createClient();
+  const admin = creerClientAdmin();
+  if (!admin) {
+    // Pas de SUPABASE_SERVICE_ROLE_KEY configurée : on ne contourne pas
+    // la règle CLAUDE.md §6.1, on abandonne proprement.
+    return { traites: 0, ignores: 0 };
+  }
+
+  const seuil = new Date(Date.now() - SEUIL_INACTIVITE_JOURS * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: candidats } = await supabase
+    .from("ratings")
+    .select("profile_id, game_id, season_id, rating, rd, volatilite")
+    .lt("maj_le", seuil)
+    .lt("rd", RD_MAX);
+
+  let traites = 0;
+  let ignores = 0;
+
+  for (const c of candidats ?? []) {
+    const avant: EtatGlicko = { rating: c.rating, rd: c.rd, volatilite: c.volatilite };
+    const apres = mettreAJourJoueur(avant, []);
+
+    const { data: ecrit } = await admin.rpc("appliquer_decroissance_rd", {
+      p_profile_id: c.profile_id,
+      p_game_id: c.game_id,
+      p_season_id: c.season_id,
+      p_rating: avant.rating,
+      p_rd_avant: avant.rd,
+      p_rd_apres: apres.rd,
+      p_volatilite: apres.volatilite,
+    });
+
+    if (ecrit) traites += 1;
+    else ignores += 1;
+  }
+
+  return { traites, ignores };
 }

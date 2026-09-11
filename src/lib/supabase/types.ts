@@ -789,6 +789,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      appliquer_decroissance_rd: {
+        Args: {
+          p_game_id: number
+          p_profile_id: string
+          p_rating: number
+          p_rd_apres: number
+          p_rd_avant: number
+          p_season_id: string
+          p_volatilite: number
+        }
+        Returns: boolean
+      }
       cloturer_rating_joueur: {
         Args: {
           p_game_id: number
