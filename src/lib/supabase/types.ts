@@ -173,6 +173,24 @@ export type Database = {
         }
         Relationships: []
       }
+      login_attempts: {
+        Row: {
+          cree_le: string
+          email: string
+          id: number
+        }
+        Insert: {
+          cree_le?: string
+          email: string
+          id?: never
+        }
+        Update: {
+          cree_le?: string
+          email?: string
+          id?: never
+        }
+        Relationships: []
+      }
       match_participants: {
         Row: {
           est_gagnant: boolean | null

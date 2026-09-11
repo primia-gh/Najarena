@@ -878,3 +878,18 @@ begin
   where id = p_nouvelle_saison_id;
 end;
 $$;
+
+-- ---------- Anti-brute-force sur /connexion (audit du 2026-09-11) ----------
+-- Journalise uniquement les tentatives de connexion échouées. Jamais
+-- exposée au client (comme ratings/match_verdicts) : aucune policy RLS,
+-- seul le service_role y écrit et y lit, depuis src/lib/auth-actions.ts.
+-- Une policy ou un grant public ici permettrait à quiconque de lire les
+-- e-mails ayant échoué à se connecter, ou de purger ses propres tentatives
+-- pour contourner la limite.
+create table login_attempts (
+  id      bigint generated always as identity primary key,
+  email   text not null,
+  cree_le timestamptz not null default now()
+);
+create index login_attempts_email_cree_le_idx on login_attempts (email, cree_le);
+alter table login_attempts enable row level security;

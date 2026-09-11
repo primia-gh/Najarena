@@ -2,9 +2,44 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { creerClientAdmin } from "@/lib/supabase/admin";
 import { slugifier } from "@/lib/slug";
 
 const PSEUDO_REGEX = /^[a-zA-Z0-9 _-]{3,20}$/;
+
+// Anti-brute-force sur la connexion (audit du 2026-09-11 §10 Sécurité).
+// Repli gracieux identique aux autres usages du service_role : sans
+// SUPABASE_SERVICE_ROLE_KEY, on ne bloque jamais personne plutôt que de
+// bloquer tout le monde par erreur.
+const FENETRE_LIMITE_MINUTES = 15;
+const SEUIL_TENTATIVES = 5;
+const RETENTION_HEURES = 24;
+
+async function tropDeTentatives(email: string): Promise<boolean> {
+  const admin = creerClientAdmin();
+  if (!admin) return false;
+
+  const emailNormalise = email.toLowerCase();
+
+  await admin
+    .from("login_attempts")
+    .delete()
+    .lt("cree_le", new Date(Date.now() - RETENTION_HEURES * 60 * 60 * 1000).toISOString());
+
+  const { count } = await admin
+    .from("login_attempts")
+    .select("*", { count: "exact", head: true })
+    .eq("email", emailNormalise)
+    .gte("cree_le", new Date(Date.now() - FENETRE_LIMITE_MINUTES * 60 * 1000).toISOString());
+
+  return (count ?? 0) >= SEUIL_TENTATIVES;
+}
+
+async function enregistrerTentativeEchouee(email: string): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  await admin.from("login_attempts").insert({ email: email.toLowerCase() });
+}
 
 function traduireErreurAuth(message: string): string {
   const m = message.toLowerCase();
@@ -87,6 +122,14 @@ export async function seConnecter(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const motDePasse = String(formData.get("mot_de_passe") ?? "");
 
+  if (email && (await tropDeTentatives(email))) {
+    redirect(
+      `/connexion?erreur=${encodeURIComponent(
+        "Trop de tentatives échouées pour cette adresse. Réessaie dans quelques minutes.",
+      )}`,
+    );
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -94,6 +137,7 @@ export async function seConnecter(formData: FormData) {
   });
 
   if (error) {
+    await enregistrerTentativeEchouee(email);
     redirect(`/connexion?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`);
   }
 
