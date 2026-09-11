@@ -80,6 +80,23 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
           />
         </label>
 
+        <label className="flex items-start gap-2 text-sm text-ardoise">
+          <input
+            name="age_confirme"
+            type="checkbox"
+            required
+            className="mt-0.5 accent-sceau"
+          />
+          <span>
+            J&apos;ai au moins 15 ans, ou j&apos;ai l&apos;autorisation de mon
+            représentant légal (voir les{" "}
+            <Link href="/cgu" className="text-encre underline underline-offset-3">
+              CGU
+            </Link>
+            ).
+          </span>
+        </label>
+
         <button
           type="submit"
           className="mt-2 rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"

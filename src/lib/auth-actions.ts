@@ -34,6 +34,15 @@ export async function sInscrire(formData: FormData) {
   const pseudo = String(formData.get("pseudo") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const motDePasse = String(formData.get("mot_de_passe") ?? "");
+  const ageConfirme = formData.get("age_confirme") === "on";
+
+  if (!ageConfirme) {
+    redirect(
+      `/inscription?erreur=${encodeURIComponent(
+        "Tu dois confirmer avoir au moins 15 ans, ou l'autorisation de ton représentant légal.",
+      )}`,
+    );
+  }
 
   if (!PSEUDO_REGEX.test(pseudo)) {
     redirect(

@@ -47,7 +47,6 @@ export default function ConfidentialitePage() {
           <ul className="mt-2 flex flex-col gap-1.5 text-ardoise">
             <li>Adresse e-mail et mot de passe (le mot de passe n&apos;est jamais stocké en clair, seul son hachage l&apos;est).</li>
             <li>Pseudo, identifiant public (slug), pays si renseigné.</li>
-            <li>Identifiant Discord, si renseigné.</li>
             <li>Riot ID (nom de jeu, tag, région) et identifiant Riot stable (puuid), une fois lié.</li>
             <li>Historique de tournois, de matchs et de résultats.</li>
             <li>Journal des variations de classement (public par nature, cf. CGU).</li>
@@ -60,9 +59,8 @@ export default function ConfidentialitePage() {
           </h2>
           <p className="mt-2 text-ardoise">
             Ces données sont utilisées pour créer et gérer ton compte,
-            t&apos;inscrire à des tournois, calculer et afficher ton
-            classement, et t&apos;envoyer des notifications liées aux
-            tournois (Discord). Ce traitement repose sur l&apos;exécution du
+            t&apos;inscrire à des tournois, et calculer et afficher ton
+            classement. Ce traitement repose sur l&apos;exécution du
             contrat qui te lie à Najarena (les{" "}
             <Link href="/cgu" className="text-encre underline underline-offset-3">
               CGU
@@ -86,10 +84,6 @@ export default function ConfidentialitePage() {
             <li>
               <strong className="text-encre">Riot Games, Inc.</strong> (États-Unis) — pour
               résoudre ton Riot ID et lire les données de jeu officielles.
-            </li>
-            <li>
-              <strong className="text-encre">Discord Inc.</strong> — pour les notifications de
-              tournoi, si tu as lié ton identifiant Discord.
             </li>
             <li>
               <strong className="text-encre">Vercel Inc.</strong> — hébergement du site (voir
