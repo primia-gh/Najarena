@@ -56,6 +56,31 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const litigesOuverts = litiges.filter((l) => !l.resolution);
   const litigesResolus = litiges.filter((l) => l.resolution);
 
+  const [
+    { count: totalJoueurs },
+    { count: tournoisActifs },
+    { count: tournoisTotal },
+    { count: matchsEnregistres },
+    { data: derniersInscrits },
+  ] = await Promise.all([
+    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase
+      .from("tournaments")
+      .select("*", { count: "exact", head: true })
+      .in("statut", ["ouvert", "checkin", "en_cours"]),
+    supabase.from("tournaments").select("*", { count: "exact", head: true }),
+    supabase.from("match_verdicts").select("*", { count: "exact", head: true }).eq("est_definitif", true),
+    supabase
+      .from("profiles")
+      .select(
+        "id, pseudo, slug, pays, created_at, game_accounts(verifie_le), admins(profile_id)",
+      )
+      .order("created_at", { ascending: false })
+      .limit(15),
+  ]);
+
+  const comptes = derniersInscrits ?? [];
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
       <Link
@@ -75,6 +100,102 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           {erreur}
         </p>
       )}
+
+      <section className="mt-10">
+        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
+          Vue d&apos;ensemble
+        </h2>
+        <div className="mt-3 grid grid-cols-2 border border-trait bg-carte sm:grid-cols-4">
+          <div className="border-r border-b border-trait p-4 sm:border-b-0">
+            <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
+              Joueurs
+            </div>
+            <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
+              {totalJoueurs ?? 0}
+            </div>
+          </div>
+          <div className="border-b border-trait p-4 sm:border-r sm:border-b-0">
+            <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
+              Tournois actifs
+            </div>
+            <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
+              {tournoisActifs ?? 0}
+            </div>
+          </div>
+          <div className="border-r border-trait p-4">
+            <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
+              Tournois créés
+            </div>
+            <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
+              {tournoisTotal ?? 0}
+            </div>
+          </div>
+          <div className="p-4">
+            <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
+              Matchs enregistrés
+            </div>
+            <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
+              {matchsEnregistres ?? 0}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
+          Derniers inscrits
+        </h2>
+        {comptes.length === 0 ? (
+          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+            Aucun compte pour l&apos;instant.
+          </p>
+        ) : (
+          <div className="mt-3 overflow-x-auto border border-trait bg-carte">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-trait">
+                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                    Joueur
+                  </th>
+                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                    Inscrit le
+                  </th>
+                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                    Riot ID
+                  </th>
+                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                    Rôle
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {comptes.map((c) => (
+                  <tr key={c.id} className="border-b border-trait last:border-b-0">
+                    <td className="px-4 py-2">
+                      <Link href={`/joueur/${c.slug}`} className="font-medium text-encre hover:underline">
+                        {c.pseudo}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2 font-mono text-[0.72rem] text-ardoise">
+                      {formaterDate(c.created_at)}
+                    </td>
+                    <td className="px-4 py-2 font-mono text-[0.72rem]">
+                      {c.game_accounts.some((g) => g.verifie_le) ? (
+                        <span className="text-atteste">Vérifié</span>
+                      ) : (
+                        <span className="text-ardoise">Non lié</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 font-mono text-[0.72rem] text-ardoise">
+                      {c.admins ? "Admin" : "Joueur"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section className="mt-10">
         <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
