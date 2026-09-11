@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-encre: #12161d;
+  --color-papier: #e7e6e1;
+  --color-sceau: #7e2233;
+  --color-laiton: #b08334;
+  --color-atteste: #1f6f4a;
+  --color-ardoise: #5b6672;
+
+  /* Structure du registre clair (voir docs/direction-artistique.html) */
+  --color-fond-2: #dedad7;
+  --color-trait: #c6c5be;
+  --color-carte: #f2f1ed;
+
+  --font-display: var(--font-bricolage), system-ui, sans-serif;
+  --font-body: var(--font-inter-tight), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+/* Le site est clair par défaut — seule la page d'accueil est sombre (voir .accueil). */
+:root {
+  --background: var(--color-papier);
+  --foreground: var(--color-encre);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+/* Variante nuit — nuances éclaircies pour rester lisibles sur fond encre,
+   utilisée uniquement dans le hero de la page d'accueil. */
+.accueil {
+  --nuit-encre: #0b0e14;
+  --nuit-papier: #e7e6e1;
+  --nuit-sceau: #c4485c;
+  --nuit-laiton: #d2a257;
+  --nuit-atteste: #3e9c6e;
+  --nuit-ardoise: #8a94a1;
+}

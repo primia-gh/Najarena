@@ -1,0 +1,231 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Najarena — Fonds animés</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Inter+Tight:wght@400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --encre:#0B0E14; --papier:#E7E6E1; --sceau:#C4485C;
+  --laiton:#D2A257; --atteste:#3E9C6E; --ardoise:#8A94A1;
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --corps:"Inter Tight",system-ui,sans-serif;
+  --machine:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0; background:var(--encre); color:var(--papier); font-family:var(--corps)}
+
+.hero{position:relative; min-height:100svh; display:flex; flex-direction:column;
+      justify-content:center; padding:24px; overflow:hidden}
+#bg{position:absolute; inset:0; width:100%; height:100%; display:block}
+.voile{position:absolute; inset:0;
+  background:radial-gradient(ellipse at 50% 60%, rgba(11,14,20,.15) 0%, rgba(11,14,20,.82) 72%);}
+.contenu{position:relative; max-width:720px; margin:0 auto; width:100%}
+
+.eyebrow{font-family:var(--machine); font-size:.64rem; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--ardoise)}
+h1{font-family:var(--display); font-weight:800; letter-spacing:-.035em; line-height:.98;
+   font-size:clamp(2.8rem,10vw,5.2rem); margin:14px 0 0}
+h1 em{font-style:normal; color:var(--sceau)}
+.sous{color:#B9BFC7; max-width:46ch; margin-top:18px; font-size:1.02rem}
+
+.cta{display:flex; gap:10px; margin-top:26px; flex-wrap:wrap}
+.btn{font-family:var(--corps); font-weight:600; font-size:.95rem; padding:13px 22px;
+     border-radius:3px; border:1px solid transparent; cursor:pointer}
+.btn-1{background:var(--sceau); color:#14090C}
+.btn-2{background:rgba(231,230,225,.06); color:var(--papier); border-color:rgba(231,230,225,.22)}
+:focus-visible{outline:2px solid var(--sceau); outline-offset:3px}
+
+/* panneau de contrôle */
+.panneau{position:fixed; left:0; right:0; bottom:0; z-index:9;
+  background:rgba(11,14,20,.9); backdrop-filter:blur(8px);
+  border-top:1px solid rgba(231,230,225,.14); padding:11px 14px;
+  display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center}
+.opt{font-family:var(--machine); font-size:.66rem; letter-spacing:.1em; text-transform:uppercase;
+  background:transparent; color:var(--ardoise); border:1px solid rgba(231,230,225,.2);
+  border-radius:3px; padding:8px 12px; cursor:pointer}
+.opt[aria-pressed="true"]{color:var(--papier); border-color:var(--sceau); background:rgba(196,72,92,.14)}
+.mesure{font-family:var(--machine); font-size:.66rem; color:var(--ardoise); margin-left:6px}
+.mesure b{color:var(--atteste)}
+.mesure.chaud b{color:var(--laiton)}
+.mesure.mauvais b{color:var(--sceau)}
+
+.notice{position:relative; max-width:720px; margin:0 auto; padding:40px 24px 110px; color:#9AA3AD; font-size:.9rem}
+.notice h2{font-family:var(--display); color:var(--papier); font-size:1.3rem; margin:0 0 10px}
+.notice li{margin-bottom:7px}
+@media (prefers-reduced-motion:reduce){#bg{display:none}}
+</style>
+
+<section class="hero">
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <div class="voile"></div>
+  <div class="contenu">
+    <span class="eyebrow">League of Legends · Saison 3 ouverte</span>
+    <h1>Ton niveau,<br><em>vérifié.</em></h1>
+    <p class="sous">Des tournois quotidiens en 1v1. Les résultats sont lus dans la partie officielle — aucune capture d'écran, aucun litige. Ton classement devient une preuve.</p>
+    <div class="cta">
+      <button class="btn btn-1">Rejoindre le tournoi de ce soir</button>
+      <button class="btn btn-2">Voir le classement</button>
+    </div>
+  </div>
+</section>
+
+<div class="notice">
+  <h2>Ce que tu regardes</h2>
+  <ul>
+    <li><b>Encre</b> — diffusion lente, prolonge l'identité papier/encre du reste du site.</li>
+    <li><b>Bracket</b> — des nœuds se cherchent et s'affrontent ; c'est ton produit, en mouvement.</li>
+    <li><b>Arène</b> — sol en perspective, profondeur sans 3D réelle.</li>
+  </ul>
+  <p>Aucune bibliothèque externe : tout est dessiné directement, environ 6 Ko. Le rendu s'interrompt quand l'onglet passe en arrière-plan, et disparaît si le système demande de réduire les animations.</p>
+</div>
+
+<div class="panneau">
+  <button class="opt" data-m="encre" aria-pressed="true">Encre</button>
+  <button class="opt" data-m="bracket" aria-pressed="false">Bracket</button>
+  <button class="opt" data-m="arene" aria-pressed="false">Arène</button>
+  <button class="opt" data-m="aucun" aria-pressed="false">Aucun</button>
+  <span class="mesure" id="fps">— fps</span>
+</div>
+
+<script>
+(function(){
+  const cv = document.getElementById('bg'), ctx = cv.getContext('2d');
+  const fpsEl = document.getElementById('fps');
+  let mode = 'encre', W = 0, H = 0, dpr = 1, t = 0, raf = null, actif = true;
+
+  function taille(){
+    dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    init();
+  }
+
+  // ---------- données par mode ----------
+  let blobs = [], noeuds = [];
+  function init(){
+    blobs = [];
+    const teintes = [[196,72,92],[210,162,87],[62,156,110],[70,86,120]];
+    for (let i = 0; i < 7; i++){
+      const c = teintes[i % teintes.length];
+      blobs.push({
+        x: Math.random()*W, y: Math.random()*H,
+        r: Math.min(W,H) * (0.28 + Math.random()*0.34),
+        vx:(Math.random()-.5)*0.12, vy:(Math.random()-.5)*0.12,
+        c, a: 0.07 + Math.random()*0.06,
+        ph: Math.random()*Math.PI*2
+      });
+    }
+    const n = W < 700 ? 26 : 46;
+    noeuds = [];
+    for (let i = 0; i < n; i++){
+      noeuds.push({ x:Math.random()*W, y:Math.random()*H,
+        vx:(Math.random()-.5)*0.28, vy:(Math.random()-.5)*0.28,
+        r: Math.random() < .12 ? 2.6 : 1.4 });
+    }
+  }
+
+  // ---------- rendus ----------
+  function encre(){
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const b of blobs){
+      b.x += b.vx + Math.sin(t*0.0004 + b.ph)*0.22;
+      b.y += b.vy + Math.cos(t*0.0003 + b.ph)*0.18;
+      if (b.x < -b.r) b.x = W + b.r; if (b.x > W + b.r) b.x = -b.r;
+      if (b.y < -b.r) b.y = H + b.r; if (b.y > H + b.r) b.y = -b.r;
+      const pulse = b.r * (1 + Math.sin(t*0.0005 + b.ph)*0.07);
+      const g = ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,pulse);
+      g.addColorStop(0, `rgba(${b.c[0]},${b.c[1]},${b.c[2]},${b.a})`);
+      g.addColorStop(1, `rgba(${b.c[0]},${b.c[1]},${b.c[2]},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x,b.y,pulse,0,6.283); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function bracket(){
+    ctx.clearRect(0,0,W,H);
+    const D = W < 700 ? 130 : 165;
+    for (const p of noeuds){
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+    }
+    for (let i = 0; i < noeuds.length; i++){
+      for (let j = i+1; j < noeuds.length; j++){
+        const a = noeuds[i], b = noeuds[j];
+        const dx = a.x-b.x, dy = a.y-b.y, d2 = dx*dx + dy*dy;
+        if (d2 < D*D){
+          const o = (1 - Math.sqrt(d2)/D);
+          ctx.strokeStyle = `rgba(196,72,92,${o*0.34})`;
+          ctx.lineWidth = o * 1.15;
+          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        }
+      }
+    }
+    for (const p of noeuds){
+      ctx.fillStyle = p.r > 2 ? 'rgba(210,162,87,.85)' : 'rgba(231,230,225,.45)';
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.283); ctx.fill();
+    }
+  }
+
+  function arene(){
+    ctx.clearRect(0,0,W,H);
+    const hz = H * 0.42, defile = (t*0.018) % 1;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 22; i++){
+      const k = (i + defile)/22, y = hz + (H-hz) * (k*k);
+      const o = 0.05 + k*0.22;
+      ctx.strokeStyle = `rgba(196,72,92,${o})`;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    }
+    for (let i = -14; i <= 14; i++){
+      const x = W/2 + i * (W/9);
+      ctx.strokeStyle = `rgba(231,230,225,${0.055 + Math.abs(i)<3 ? .05 : .02})`;
+      ctx.beginPath(); ctx.moveTo(W/2, hz); ctx.lineTo(x, H); ctx.stroke();
+    }
+    const g = ctx.createLinearGradient(0,hz-90,0,hz+40);
+    g.addColorStop(0,'rgba(11,14,20,0)'); g.addColorStop(1,'rgba(196,72,92,.11)');
+    ctx.fillStyle = g; ctx.fillRect(0,hz-90,W,130);
+  }
+
+  // ---------- boucle + mesure ----------
+  let cadre = 0, dernier = performance.now();
+  function boucle(now){
+    raf = requestAnimationFrame(boucle);
+    if (!actif) return;
+    t = now;
+    if (mode === 'encre') encre();
+    else if (mode === 'bracket') bracket();
+    else if (mode === 'arene') arene();
+    else ctx.clearRect(0,0,W,H);
+
+    cadre++;
+    if (now - dernier > 500){
+      const f = Math.round(cadre * 1000 / (now - dernier));
+      fpsEl.innerHTML = '<b>' + f + '</b> fps';
+      fpsEl.className = 'mesure' + (f < 30 ? ' mauvais' : f < 50 ? ' chaud' : '');
+      cadre = 0; dernier = now;
+    }
+  }
+
+  document.querySelectorAll('.opt').forEach(b => {
+    b.addEventListener('click', () => {
+      mode = b.dataset.m;
+      document.querySelectorAll('.opt').forEach(o =>
+        o.setAttribute('aria-pressed', String(o === b)));
+    });
+  });
+
+  document.addEventListener('visibilitychange', () => { actif = !document.hidden; });
+  window.addEventListener('resize', taille);
+
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    taille(); raf = requestAnimationFrame(boucle);
+  } else {
+    fpsEl.textContent = 'animations désactivées';
+  }
+})();
+</script>

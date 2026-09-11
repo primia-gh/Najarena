@@ -1,0 +1,283 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Najarena — Direction artistique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --encre:#12161D; --papier:#E7E6E1; --sceau:#7E2233;
+  --laiton:#B08334; --atteste:#1F6F4A; --ardoise:#5B6672;
+
+  --fond:var(--papier); --fond-2:#DEDDD7; --texte:var(--encre);
+  --texte-2:var(--ardoise); --trait:#C6C5BE; --carte:#F2F1ED;
+
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --corps:"Inter Tight",system-ui,sans-serif;
+  --machine:"JetBrains Mono",ui-monospace,monospace;
+
+  --u:8px; --r:3px;
+}
+[data-theme="nuit"]{
+  --fond:#0D1016; --fond-2:#141A22; --texte:#E7E6E1;
+  --texte-2:#8A94A1; --trait:#242C36; --carte:#151B24;
+  --sceau:#C4485C; --laiton:#D2A257; --atteste:#3E9C6E;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--fond); color:var(--texte);
+  font-family:var(--corps); font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:960px; margin:0 auto; padding:calc(var(--u)*5) calc(var(--u)*3) calc(var(--u)*10)}
+
+h1,h2,h3{font-family:var(--display); font-weight:800; letter-spacing:-.03em; line-height:1.05; margin:0}
+h1{font-size:clamp(2.4rem,7vw,4rem)}
+h2{font-size:1.55rem; margin-bottom:calc(var(--u)*2)}
+h3{font-size:1.05rem; font-weight:600}
+
+.eyebrow{
+  font-family:var(--machine); font-size:.66rem; font-weight:500;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--texte-2);
+}
+.rule{height:1px; background:var(--trait); border:0; margin:calc(var(--u)*5) 0}
+section{margin-top:calc(var(--u)*6)}
+p{max-width:62ch; color:var(--texte-2)}
+
+/* ---------- barre de mode ---------- */
+.topbar{display:flex; justify-content:space-between; align-items:center; gap:var(--u)}
+.toggle{
+  font-family:var(--machine); font-size:.7rem; letter-spacing:.12em; text-transform:uppercase;
+  background:transparent; color:var(--texte); border:1px solid var(--trait);
+  border-radius:var(--r); padding:8px 14px; cursor:pointer;
+}
+.toggle:hover{border-color:var(--sceau); color:var(--sceau)}
+:focus-visible{outline:2px solid var(--sceau); outline-offset:3px}
+
+/* ---------- palette ---------- */
+.palette{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:var(--u)}
+.sw{border:1px solid var(--trait); border-radius:var(--r); overflow:hidden}
+.sw i{display:block; height:56px}
+.sw span{display:block; padding:7px 10px; font-family:var(--machine); font-size:.68rem; color:var(--texte-2)}
+.sw b{display:block; color:var(--texte); font-family:var(--corps); font-size:.8rem; font-weight:600}
+
+/* ---------- FICHE JOUEUR (signature) ---------- */
+.fiche{
+  background:var(--carte); border:1px solid var(--trait); border-radius:var(--r);
+  position:relative; overflow:hidden;
+}
+.fiche::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0 3px,rgba(0,0,0,.014) 3px 4px);
+}
+.fiche-tete{
+  display:flex; justify-content:space-between; align-items:flex-start; gap:calc(var(--u)*2);
+  padding:calc(var(--u)*3); border-bottom:1px solid var(--trait);
+}
+.fiche-tete h2{font-size:2rem; margin:0}
+.riotid{font-family:var(--machine); font-size:.8rem; color:var(--texte-2); margin-top:4px}
+.palier{
+  font-family:var(--display); font-weight:800; font-size:1.1rem;
+  color:var(--laiton); letter-spacing:-.02em;
+}
+
+/* le sceau */
+.sceau-bloc{display:flex; flex-direction:column; align-items:center; gap:6px; flex:none}
+.sceau-svg{width:104px; height:104px; display:block}
+.sceau-legende{font-family:var(--machine); font-size:.6rem; letter-spacing:.14em; color:var(--texte-2); text-transform:uppercase}
+
+/* chiffres clés */
+.stats{display:grid; grid-template-columns:repeat(3,1fr); border-bottom:1px solid var(--trait)}
+.stat{padding:calc(var(--u)*2.5) calc(var(--u)*3); border-right:1px solid var(--trait)}
+.stat:last-child{border-right:0}
+.stat .k{font-family:var(--machine); font-size:.62rem; letter-spacing:.18em; text-transform:uppercase; color:var(--texte-2)}
+.stat .v{font-family:var(--machine); font-weight:700; font-size:1.75rem; letter-spacing:-.02em; margin-top:2px}
+
+/* registre des matchs */
+.registre{padding:calc(var(--u)*2) 0}
+.ligne{
+  display:grid; grid-template-columns:auto 1fr auto auto; align-items:center;
+  gap:calc(var(--u)*2); padding:11px calc(var(--u)*3);
+  border-bottom:1px solid var(--trait); font-size:.9rem;
+}
+.ligne:last-child{border-bottom:0}
+.date{font-family:var(--machine); font-size:.72rem; color:var(--texte-2)}
+.adv{font-weight:500}
+.adv small{font-family:var(--machine); color:var(--texte-2); font-size:.72rem; margin-left:7px}
+.delta{font-family:var(--machine); font-weight:700; font-size:.9rem; text-align:right; min-width:58px}
+.gain{color:var(--atteste)} .perte{color:var(--sceau)}
+
+/* niveau de verdict */
+.niv{
+  font-family:var(--machine); font-size:.58rem; letter-spacing:.1em; text-transform:uppercase;
+  padding:3px 7px; border-radius:2px; border:1px solid currentColor; white-space:nowrap;
+}
+.niv-3{color:var(--atteste)} .niv-2{color:var(--laiton)} .niv-1{color:var(--texte-2)}
+
+/* ---------- boutons ---------- */
+.btns{display:flex; gap:var(--u); flex-wrap:wrap}
+.btn{
+  font-family:var(--corps); font-weight:600; font-size:.92rem;
+  padding:11px 20px; border-radius:var(--r); border:1px solid transparent; cursor:pointer;
+}
+.btn-1{background:var(--sceau); color:#F6F2EE}
+.btn-1:hover{filter:brightness(1.12)}
+.btn-2{background:transparent; color:var(--texte); border-color:var(--trait)}
+.btn-2:hover{border-color:var(--texte)}
+.btn-3{background:transparent; color:var(--texte-2); border-color:transparent; text-decoration:underline; text-underline-offset:3px}
+
+/* ---------- échelle typo ---------- */
+.echelle > div{padding:10px 0; border-bottom:1px solid var(--trait)}
+.echelle .lbl{font-family:var(--machine); font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--texte-2); margin-bottom:3px}
+
+@media (max-width:640px){
+  .fiche-tete{flex-direction:column; align-items:flex-start}
+  .stats{grid-template-columns:1fr; }
+  .stat{border-right:0; border-bottom:1px solid var(--trait)}
+  .ligne{grid-template-columns:1fr auto; row-gap:5px}
+  .date{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <span class="eyebrow">Najarena · Direction artistique v1</span>
+    <button class="toggle" id="t">Mode nuit</button>
+  </div>
+
+  <hr class="rule">
+
+  <h1>Le classement<br>fait foi.</h1>
+  <p style="margin-top:16px">Registre officiel, pas arène à néons. Chaque chiffre qui constitue la preuve est composé en caractères machine ; le commentaire humain reste en texte. La distinction s'apprend sans être expliquée.</p>
+
+  <section>
+    <span class="eyebrow">Palette</span>
+    <h2>Six couleurs, pas une de plus</h2>
+    <div class="palette">
+      <div class="sw"><i style="background:#12161D"></i><span><b>Encre</b>#12161D</span></div>
+      <div class="sw"><i style="background:#E7E6E1"></i><span><b>Papier</b>#E7E6E1</span></div>
+      <div class="sw"><i style="background:#7E2233"></i><span><b>Sceau</b>#7E2233</span></div>
+      <div class="sw"><i style="background:#B08334"></i><span><b>Laiton</b>#B08334</span></div>
+      <div class="sw"><i style="background:#1F6F4A"></i><span><b>Attesté</b>#1F6F4A</span></div>
+      <div class="sw"><i style="background:#5B6672"></i><span><b>Ardoise</b>#5B6672</span></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Élément signature</span>
+    <h2>La Fiche joueur</h2>
+    <p style="margin-bottom:20px">Le sceau se referme à mesure que le classement se fiabilise. Ici : calibrage à 78 %.</p>
+
+    <article class="fiche">
+      <header class="fiche-tete">
+        <div>
+          <h2>Kaelis</h2>
+          <div class="riotid">Kaelis#EUW · League of Legends · EUW</div>
+          <div class="palier" style="margin-top:10px">Platine II</div>
+        </div>
+
+        <div class="sceau-bloc">
+          <svg class="sceau-svg" viewBox="0 0 120 120" role="img" aria-label="Sceau de fiabilité : calibrage 78 %">
+            <g id="ticks"></g>
+            <circle cx="60" cy="60" r="41" fill="none" stroke="var(--sceau)" stroke-width="2" opacity=".78"/>
+            <circle cx="60" cy="60" r="35.5" fill="none" stroke="var(--sceau)" stroke-width="1" opacity=".5"/>
+            <text x="60" y="55" text-anchor="middle" font-family="JetBrains Mono, monospace"
+                  font-size="19" font-weight="700" fill="var(--sceau)" opacity=".85">78%</text>
+            <text x="60" y="71" text-anchor="middle" font-family="JetBrains Mono, monospace"
+                  font-size="7.5" letter-spacing="1.6" fill="var(--sceau)" opacity=".6">CALIBRÉ</text>
+          </svg>
+          <span class="sceau-legende">RD 158</span>
+        </div>
+      </header>
+
+      <div class="stats">
+        <div class="stat"><div class="k">Rating</div><div class="v">1 684</div></div>
+        <div class="stat"><div class="k">Matchs</div><div class="v">23</div></div>
+        <div class="stat"><div class="k">Victoires</div><div class="v">61%</div></div>
+      </div>
+
+      <div class="registre">
+        <div class="ligne">
+          <span class="date">22.08 · 21:14</span>
+          <span class="adv">Sorven <small>1712</small></span>
+          <span class="niv niv-3">Code tournoi</span>
+          <span class="delta gain">+31</span>
+        </div>
+        <div class="ligne">
+          <span class="date">22.08 · 20:47</span>
+          <span class="adv">Mirko <small>1598</small></span>
+          <span class="niv niv-3">Code tournoi</span>
+          <span class="delta gain">+18</span>
+        </div>
+        <div class="ligne">
+          <span class="date">19.08 · 21:02</span>
+          <span class="adv">Thanea <small>1741</small></span>
+          <span class="niv niv-2">Historique</span>
+          <span class="delta perte">−24</span>
+        </div>
+        <div class="ligne">
+          <span class="date">19.08 · 20:30</span>
+          <span class="adv">Vael <small>1490</small></span>
+          <span class="niv niv-1">Manuel</span>
+          <span class="delta" style="color:var(--texte-2)">0</span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section>
+    <span class="eyebrow">Composants</span>
+    <h2>Actions</h2>
+    <div class="btns">
+      <button class="btn btn-1">Rejoindre le tournoi</button>
+      <button class="btn btn-2">Voir le bracket</button>
+      <button class="btn btn-3">Partager ma fiche</button>
+    </div>
+    <p style="margin-top:14px; font-size:.88rem">Un verbe, une action. Le bouton qui dit « Rejoindre » produit une confirmation qui dit « Rejoint ».</p>
+  </section>
+
+  <section>
+    <span class="eyebrow">Typographie</span>
+    <h2>Trois rôles, une règle</h2>
+    <div class="echelle">
+      <div><div class="lbl">Display — Bricolage Grotesque 800</div>
+        <div style="font-family:var(--display); font-weight:800; font-size:2.1rem; letter-spacing:-.03em">Saison 3 · Classement</div></div>
+      <div><div class="lbl">Corps — Inter Tight 400</div>
+        <div style="font-size:1rem">Le résultat est lu dans la partie officielle. Aucune capture d'écran n'est demandée.</div></div>
+      <div><div class="lbl">Machine — JetBrains Mono 700 · la preuve</div>
+        <div style="font-family:var(--machine); font-weight:700; font-size:1.3rem">1684 ±158 · EUW · 23 matchs</div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+  <p style="font-size:.82rem">Grille de 8 px · rayon 3 px · focus clavier visible · mouvement réduit respecté · testé jusqu'à 360 px.</p>
+</div>
+
+<script>
+// sceau : couronne de crans dont le remplissage traduit le calibrage (100 − RD normalisé)
+(function(){
+  const g = document.getElementById('ticks'), N = 48, pct = .78;
+  for (let i = 0; i < N; i++){
+    const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+    const on = i < Math.round(N * pct);
+    const r1 = 46, r2 = on ? 53 : 50;
+    const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1', 60 + Math.cos(a) * r1); l.setAttribute('y1', 60 + Math.sin(a) * r1);
+    l.setAttribute('x2', 60 + Math.cos(a) * r2); l.setAttribute('y2', 60 + Math.sin(a) * r2);
+    l.setAttribute('stroke','var(--sceau)');
+    l.setAttribute('stroke-width', on ? 2.4 : 1);
+    l.setAttribute('opacity', on ? .85 : .18);
+    g.appendChild(l);
+  }
+})();
+
+const b = document.getElementById('t');
+b.addEventListener('click', () => {
+  const nuit = document.documentElement.getAttribute('data-theme') === 'nuit';
+  document.documentElement.setAttribute('data-theme', nuit ? '' : 'nuit');
+  b.textContent = nuit ? 'Mode nuit' : 'Mode jour';
+});
+</script>
