@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -33,10 +34,22 @@ export async function resoudreLitigeAdmin(formData: FormData) {
     redirect(`/admin?erreur=${encodeURIComponent("La résolution ne peut pas être vide.")}`);
   }
 
-  await supabase
+  const { data: litige } = await supabase
     .from("disputes")
     .update({ resolution, resolu_par: utilisateur.id, resolu_le: new Date().toISOString() })
-    .eq("id", disputeId);
+    .eq("id", disputeId)
+    .select("ouvert_par, match:matches(tournament:tournaments(nom, slug))")
+    .maybeSingle();
+
+  if (litige?.match?.tournament) {
+    await notifierJoueur(
+      litige.ouvert_par,
+      `Litige résolu — ${litige.match.tournament.nom}`,
+      "Un administrateur a répondu à ton litige",
+      `<p>Résolution : ${resolution}</p>
+       <p><a href="${URL_SITE}/lol/tournois/${litige.match.tournament.slug}">Voir le tournoi</a></p>`,
+    );
+  }
 
   redirect("/admin");
 }

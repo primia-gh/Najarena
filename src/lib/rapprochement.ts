@@ -7,6 +7,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { trouverRegion, recupererIdsMatchsRecents, recupererDetailsMatch, type Continent } from "@/lib/riot";
+import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 
 // Cadence de recherche : pas avant T+8 (l'historique Riot n'est pas
 // immédiat), litige si rien trouvé à T+25.
@@ -106,7 +107,9 @@ export async function traiterRechercheResultats(): Promise<{
 
   const { data: candidats } = await supabase
     .from("matches")
-    .select("id, demarre_le, tournament:tournaments(game_id), match_participants(profile_id)")
+    .select(
+      "id, demarre_le, tournament:tournaments(game_id, nom, slug), match_participants(profile_id)",
+    )
     .eq("statut", "en_cours")
     .lte("demarre_le", seuilRecherche);
 
@@ -164,6 +167,18 @@ export async function traiterRechercheResultats(): Promise<{
 
       if (ecrit) {
         trouves += 1;
+        if (m.tournament) {
+          for (const profileId of participantIds) {
+            const aGagne = profileId === gagnantId;
+            await notifierJoueur(
+              profileId,
+              `Résultat trouvé — ${m.tournament.nom}`,
+              aGagne ? "Victoire confirmée dans l'historique Riot" : "Résultat confirmé dans l'historique Riot",
+              `<p>La partie officielle a été retrouvée automatiquement dans l'historique Riot.</p>
+               <p><a href="${URL_SITE}/lol/tournois/${m.tournament.slug}">Voir le bracket</a></p>`,
+            );
+          }
+        }
         continue;
       }
     }

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 
 export async function ouvrirLitige(formData: FormData) {
   const matchId = String(formData.get("match_id") ?? "");
@@ -31,6 +32,22 @@ export async function ouvrirLitige(formData: FormData) {
   if (error) {
     redirect(
       `/lol/tournois/${slug}?erreur=${encodeURIComponent("Impossible d'enregistrer ce litige pour l'instant.")}`,
+    );
+  }
+
+  const { data: t } = await supabase
+    .from("tournaments")
+    .select("nom, organisateur_id")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (t) {
+    await notifierJoueur(
+      t.organisateur_id,
+      `Nouveau litige — ${t.nom}`,
+      "Un joueur a signalé un litige",
+      `<p>Motif : ${motif}</p>
+       <p><a href="${URL_SITE}/moi">Voir mon tableau de bord</a></p>`,
     );
   }
 

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { cloturerTournoi } from "@/lib/classement-actions";
+import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -28,13 +29,28 @@ export async function confirmerInscription(formData: FormData) {
   const tournamentId = String(formData.get("tournament_id") ?? "");
 
   const supabase = await createClient();
-  await verifierOrganisateur(supabase, tournamentId);
+  const { tournoi } = await verifierOrganisateur(supabase, tournamentId);
 
-  await supabase
+  const { data: inscription } = await supabase
     .from("registrations")
     .update({ statut: "confirme", confirme_le: new Date().toISOString() })
     .eq("id", registrationId)
-    .eq("tournament_id", tournamentId);
+    .eq("tournament_id", tournamentId)
+    .select("profile_id")
+    .maybeSingle();
+
+  if (inscription) {
+    const { data: t } = await supabase.from("tournaments").select("nom, slug").eq("id", tournoi.id).maybeSingle();
+    if (t) {
+      await notifierJoueur(
+        inscription.profile_id,
+        `Inscription confirmée — ${t.nom}`,
+        "Ta présence est confirmée",
+        `<p>L'organisateur a confirmé ton inscription au tournoi <strong>${t.nom}</strong>.</p>
+         <p><a href="${URL_SITE}/lol/tournois/${t.slug}">Voir le tournoi</a></p>`,
+      );
+    }
+  }
 
   redirect(`/moi/organisation/${tournamentId}`);
 }
@@ -266,9 +282,25 @@ export async function enregistrerResultat(formData: FormData) {
   // resultats.md §4 — jamais match par match, seulement à la clôture).
   const { data: matchDecide } = await supabase
     .from("matches")
-    .select("match_suivant_id")
+    .select("match_suivant_id, tournament:tournaments(nom, slug), match_participants(profile_id, profile:profiles(pseudo))")
     .eq("id", matchId)
     .maybeSingle();
+
+  if (matchDecide?.tournament) {
+    const gagnant = matchDecide.match_participants.find((p) => p.profile_id === gagnantId);
+    const nomGagnant = gagnant?.profile?.pseudo ?? "le vainqueur";
+    for (const p of matchDecide.match_participants) {
+      const aGagne = p.profile_id === gagnantId;
+      await notifierJoueur(
+        p.profile_id,
+        `Résultat enregistré — ${matchDecide.tournament.nom}`,
+        aGagne ? "Tu as gagné ce match" : "Résultat de ton match",
+        `<p>${aGagne ? "Tu remportes" : `${nomGagnant} remporte`} ce match du tournoi <strong>${matchDecide.tournament.nom}</strong>.</p>
+         <p>Motif : ${motif}</p>
+         <p><a href="${URL_SITE}/lol/tournois/${matchDecide.tournament.slug}">Voir le bracket</a></p>`,
+      );
+    }
+  }
 
   if (matchDecide && matchDecide.match_suivant_id === null) {
     await cloturerTournoi(tournamentId);
@@ -291,10 +323,25 @@ export async function resoudreLitige(formData: FormData) {
     );
   }
 
-  await supabase
+  const { data: litige } = await supabase
     .from("disputes")
     .update({ resolution, resolu_par: utilisateur.id, resolu_le: new Date().toISOString() })
-    .eq("id", disputeId);
+    .eq("id", disputeId)
+    .select("ouvert_par")
+    .maybeSingle();
+
+  if (litige) {
+    const { data: t } = await supabase.from("tournaments").select("nom, slug").eq("id", tournamentId).maybeSingle();
+    if (t) {
+      await notifierJoueur(
+        litige.ouvert_par,
+        `Litige résolu — ${t.nom}`,
+        "L'organisateur a répondu à ton litige",
+        `<p>Résolution : ${resolution}</p>
+         <p><a href="${URL_SITE}/lol/tournois/${t.slug}">Voir le tournoi</a></p>`,
+      );
+    }
+  }
 
   redirect(`/moi/organisation/${tournamentId}`);
 }
