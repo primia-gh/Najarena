@@ -144,6 +144,30 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
   const victoires = historique.filter((h) => h.estGagnant).length;
   const tauxVictoire = matchsCalibres > 0 ? Math.round((victoires / matchsCalibres) * 100) : null;
 
+  // Face-à-face : uniquement les adversaires affrontés au moins deux fois —
+  // une seule rencontre n'est pas une rivalité, juste un match.
+  const rivalites = Array.from(
+    historique.reduce((carte, h) => {
+      if (!h.adversaire) return carte;
+      const existant = carte.get(h.adversaire.slug);
+      if (existant) {
+        existant.victoires += h.estGagnant ? 1 : 0;
+        existant.defaites += h.estGagnant ? 0 : 1;
+      } else {
+        carte.set(h.adversaire.slug, {
+          pseudo: h.adversaire.pseudo,
+          slug: h.adversaire.slug,
+          victoires: h.estGagnant ? 1 : 0,
+          defaites: h.estGagnant ? 0 : 1,
+        });
+      }
+      return carte;
+    }, new Map<string, { pseudo: string; slug: string; victoires: number; defaites: number }>())
+      .values(),
+  )
+    .filter((r) => r.victoires + r.defaites >= 2)
+    .sort((a, b) => b.victoires + b.defaites - (a.victoires + a.defaites));
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
       <Link
@@ -211,6 +235,34 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
           </div>
         </div>
       </div>
+
+      {rivalites.length > 0 && (
+        <section className="mt-10">
+          <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
+            Face-à-face
+          </h2>
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {rivalites.map((r) => (
+              <li
+                key={r.slug}
+                className="flex items-center justify-between gap-3 rounded-[3px] border border-trait bg-carte px-4 py-3"
+              >
+                <Link
+                  href={`/joueur/${r.slug}`}
+                  className="font-medium text-encre hover:underline"
+                >
+                  {r.pseudo}
+                </Link>
+                <span className="font-mono text-sm font-bold text-ardoise">
+                  <span className="text-atteste">{r.victoires}V</span>
+                  {" — "}
+                  <span className="text-sceau">{r.defaites}D</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="mt-10">
         <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
