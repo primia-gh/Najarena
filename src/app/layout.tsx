@@ -21,10 +21,20 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "700"],
 });
 
+// À définir avec le vrai domaine avant mise en production (voir
+// .env.local) — repli sur localhost en dev, jamais un domaine inventé.
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(BASE_URL),
   title: "Najarena — Ton niveau, vérifié.",
   description:
     "Tournois League of Legends en 1v1, quotidiens. Les résultats sont lus dans la donnée officielle Riot : un classement incontestable, un profil joueur vérifié.",
+  openGraph: {
+    siteName: "Najarena",
+    locale: "fr_FR",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

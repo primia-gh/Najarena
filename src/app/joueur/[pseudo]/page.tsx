@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import SceauFiabilite from "@/components/SceauFiabilite";
-import { calibrationPct, RD_INITIAL } from "@/lib/classement";
+import { calibrationPct, arrondir, RD_INITIAL } from "@/lib/classement";
 import { LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
 
 interface JoueurPageProps {
@@ -180,7 +180,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
         <div className="flex flex-col items-center gap-1">
           <SceauFiabilite calibrationPct={pct} />
           <span className="font-mono text-[0.6rem] tracking-[0.14em] text-ardoise uppercase">
-            {rating ? `RD ${rating.rd}` : `RD ${RD_INITIAL}`}
+            {rating ? `RD ${arrondir(rating.rd)}` : `RD ${RD_INITIAL}`}
           </span>
         </div>
       </div>
@@ -191,7 +191,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
             Rating
           </div>
           <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
-            {rating ? rating.rating : "—"}
+            {rating ? arrondir(rating.rating) : "—"}
           </div>
         </div>
         <div className="border-r border-trait p-4">

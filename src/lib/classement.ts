@@ -6,6 +6,14 @@ export const RATING_INITIAL = 1500;
 export const RD_INITIAL = 350;
 export const RD_SEUIL_CLASSEMENT = 150;
 
+// Le moteur calcule en `numeric(7,2)` (précision nécessaire au calcul,
+// cf. CLAUDE.md §11), mais aucun affichage public n'a besoin des
+// décimales — un rating ou un RD arrondi reste tout aussi vérifiable
+// (le détail exact reste dans `rating_events`, jamais caché).
+export function arrondir(n: number): number {
+  return Math.round(n);
+}
+
 export function calibrationPct(rd: number): number {
   const pct = ((RD_INITIAL - rd) / (RD_INITIAL - RD_SEUIL_CLASSEMENT)) * 100;
   return Math.max(0, Math.min(100, Math.round(pct)));

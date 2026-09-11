@@ -5,6 +5,7 @@ import { seConnecter } from "@/lib/auth-actions";
 export const metadata: Metadata = {
   title: "Connexion — Najarena",
   description: "Connecte-toi à ton compte Najarena.",
+  robots: { index: false, follow: false },
 };
 
 interface ConnexionPageProps {

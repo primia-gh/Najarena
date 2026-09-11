@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { trouverPalier } from "@/lib/classement";
+import { trouverPalier, arrondir } from "@/lib/classement";
 
 export const metadata: Metadata = {
   title: "Classement LoL — Najarena",
@@ -109,7 +109,7 @@ export default async function ClassementPage() {
                   <span className="font-display text-sm font-extrabold text-laiton">
                     {palier?.nom ?? "—"}
                   </span>
-                  <span className="font-mono text-base font-bold text-encre">{r.rating}</span>
+                  <span className="font-mono text-base font-bold text-encre">{arrondir(r.rating)}</span>
                   <span className="font-mono text-[0.72rem] text-ardoise">
                     {r.matchs_joues} matchs
                   </span>

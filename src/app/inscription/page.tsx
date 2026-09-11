@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Inscription — Najarena",
   description:
     "Crée ton compte Najarena pour t'inscrire aux tournois League of Legends et construire ton profil vérifié.",
+  robots: { index: false, follow: false },
 };
 
 interface InscriptionPageProps {
