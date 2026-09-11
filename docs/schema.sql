@@ -893,3 +893,30 @@ create table login_attempts (
 );
 create index login_attempts_email_cree_le_idx on login_attempts (email, cree_le);
 alter table login_attempts enable row level security;
+
+-- ---------- Notifications push web (audit du 2026-09-11, item 10) ----------
+-- Complète les notifications e-mail (src/lib/notifications.ts) sur le
+-- canal mobile. Un joueur peut avoir plusieurs abonnements (un par
+-- appareil/navigateur).
+create table push_subscriptions (
+  id          uuid primary key default gen_random_uuid(),
+  profile_id  uuid not null references profiles(id) on delete cascade,
+  endpoint    text not null unique,
+  p256dh      text not null,
+  auth        text not null,
+  cree_le     timestamptz not null default now()
+);
+create index push_subscriptions_profile_id_idx on push_subscriptions (profile_id);
+
+alter table push_subscriptions enable row level security;
+
+-- Un joueur gère uniquement SES PROPRES abonnements (créés depuis son
+-- propre navigateur au moment de l'activation). La lecture croisée
+-- (notifier un AUTRE joueur, ex. l'adversaire qui gagne un match) passe
+-- exclusivement par le client service_role côté serveur — jamais par une
+-- policy publique, même lecture seule, sinon n'importe qui pourrait lister
+-- les abonnements push d'un autre joueur.
+create policy "un joueur gere ses propres abonnements push"
+  on push_subscriptions for all
+  using (profile_id = auth.uid())
+  with check (profile_id = auth.uid());

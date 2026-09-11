@@ -6,10 +6,22 @@
 // panne ou mal configuré.
 
 import { Resend } from "resend";
+import webpush, { WebPushError } from "web-push";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 
 const cle = process.env.RESEND_API_KEY;
 const resend = cle ? new Resend(cle) : null;
+
+// Notifications push web — contrairement à Resend/Sentry, aucun compte
+// externe requis : la paire de clés VAPID s'auto-génère localement (voir
+// .env.local). Repli gracieux identique si absentes malgré tout.
+const clePubliqueVapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const clePriveeVapid = process.env.VAPID_PRIVATE_KEY;
+const sujetVapid = process.env.VAPID_SUBJECT;
+const vapidConfigure = Boolean(clePubliqueVapid && clePriveeVapid && sujetVapid);
+if (vapidConfigure) {
+  webpush.setVapidDetails(sujetVapid!, clePubliqueVapid!, clePriveeVapid!);
+}
 
 // Domaine d'envoi non vérifié tant que le site n'est pas déployé sur un
 // vrai domaine — voir .env.local. Resend refusera l'envoi avec ce repli
@@ -31,12 +43,67 @@ function enveloppe(titre: string, corps: string): string {
   `;
 }
 
+function texteBrut(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Chaque appelant de notifierJoueur inclut toujours exactement un lien
+// (voir organisation-actions.ts/litige-actions.ts/admin-actions.ts/
+// rapprochement.ts) — sert de cible de clic pour la notification push,
+// sans avoir à faire passer une URL séparée dans chaque appel existant.
+function extraireLien(html: string): string {
+  const trouve = html.match(/href="([^"]+)"/);
+  return trouve ? trouve[1] : URL_SITE;
+}
+
 /**
- * Envoie un e-mail de notification à un joueur (par son profile_id).
- * N'agit pas si RESEND_API_KEY ou SUPABASE_SERVICE_ROLE_KEY sont absentes
- * (mêmes principe de repli gracieux que creerClientAdmin) : l'absence de
- * configuration ne doit jamais faire échouer l'action qui déclenche la
- * notification.
+ * Envoie une notification push à tous les appareils abonnés d'un joueur.
+ * N'agit pas si les clés VAPID sont absentes. Un abonnement expiré/révoqué
+ * (statut 404/410 du service de push) est supprimé silencieusement plutôt
+ * que retenté indéfiniment.
+ */
+async function envoyerPush(profileId: string, titre: string, corpsHtml: string): Promise<void> {
+  if (!vapidConfigure) return;
+
+  const admin = creerClientAdmin();
+  if (!admin) return;
+
+  const { data: abonnements } = await admin
+    .from("push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .eq("profile_id", profileId);
+
+  if (!abonnements || abonnements.length === 0) return;
+
+  const payload = JSON.stringify({
+    titre,
+    corps: texteBrut(corpsHtml),
+    url: extraireLien(corpsHtml),
+  });
+
+  await Promise.all(
+    abonnements.map(async (s) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          payload,
+        );
+      } catch (err) {
+        if (err instanceof WebPushError && (err.statusCode === 404 || err.statusCode === 410)) {
+          await admin.from("push_subscriptions").delete().eq("id", s.id);
+        }
+        // Toute autre erreur (réseau, service de push temporairement
+        // indisponible...) ne doit jamais remonter à l'appelant.
+      }
+    }),
+  );
+}
+
+/**
+ * Envoie une notification (e-mail + push) à un joueur (par son profile_id).
+ * N'agit pas si les secrets correspondants sont absents (même principe de
+ * repli gracieux que creerClientAdmin) : l'absence de configuration ne
+ * doit jamais faire échouer l'action qui déclenche la notification.
  */
 export async function notifierJoueur(
   profileId: string,
@@ -44,23 +111,28 @@ export async function notifierJoueur(
   titre: string,
   corpsHtml: string,
 ): Promise<void> {
-  if (!resend) return;
+  await Promise.all([
+    envoyerPush(profileId, titre, corpsHtml),
+    (async () => {
+      if (!resend) return;
 
-  const admin = creerClientAdmin();
-  if (!admin) return;
+      const admin = creerClientAdmin();
+      if (!admin) return;
 
-  try {
-    const { data } = await admin.auth.admin.getUserById(profileId);
-    const email = data.user?.email;
-    if (!email) return;
+      try {
+        const { data } = await admin.auth.admin.getUserById(profileId);
+        const email = data.user?.email;
+        if (!email) return;
 
-    await resend.emails.send({
-      from: EXPEDITEUR,
-      to: email,
-      subject: sujet,
-      html: enveloppe(titre, corpsHtml),
-    });
-  } catch {
-    // Une notification qui échoue ne doit jamais remonter à l'appelant.
-  }
+        await resend.emails.send({
+          from: EXPEDITEUR,
+          to: email,
+          subject: sujet,
+          html: enveloppe(titre, corpsHtml),
+        });
+      } catch {
+        // Une notification qui échoue ne doit jamais remonter à l'appelant.
+      }
+    })(),
+  ]);
 }

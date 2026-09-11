@@ -366,6 +366,41 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          cree_le: string
+          endpoint: string
+          id: string
+          p256dh: string
+          profile_id: string
+        }
+        Insert: {
+          auth: string
+          cree_le?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          profile_id: string
+        }
+        Update: {
+          auth?: string
+          cree_le?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rating_events: {
         Row: {
           adversaire_id: string | null

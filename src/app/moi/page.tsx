@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { seDeconnecter } from "@/lib/auth-actions";
 import { LABEL_STATUT, COULEUR_STATUT, formaterDate, type StatutPublic } from "@/lib/tournois";
+import PushOptIn from "@/components/PushOptIn";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
@@ -132,6 +133,13 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             </Link>
           </div>
         )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
+          Notifications
+        </h2>
+        <PushOptIn />
       </section>
 
       <section className="mt-10">
