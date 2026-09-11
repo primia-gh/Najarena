@@ -739,3 +739,77 @@ begin
   return true;
 end;
 $$;
+
+-- Soft reset de saison (docs/moteur-resultats.md §4 "Changement de saison"
+-- et §6 "Rotation de saison"). Le calcul (formule Glicko-2, 15% vers 1500,
+-- RD × 1.8) est fait en TypeScript (src/lib/glicko2.ts, softResetSaison) —
+-- ces fonctions ne calculent rien, elles écrivent de façon atomique et
+-- idempotente ce qu'on leur donne, exactement comme cloturer_rating_joueur
+-- et appliquer_decroissance_rd. Même frontière de sécurité : aucun grant à
+-- authenticated, uniquement service_role depuis le worker planifié.
+
+create or replace function public.appliquer_soft_reset_saison(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_season_id uuid, -- la NOUVELLE saison que le joueur rejoint
+  p_rating_avant numeric,
+  p_rd_avant numeric,
+  p_volatilite numeric,
+  p_rating_apres numeric,
+  p_rd_apres numeric
+)
+returns boolean -- true si écrit, false si déjà traité pour cette saison (idempotence)
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from rating_events
+    where profile_id = p_profile_id
+      and season_id = p_season_id
+      and motif = 'soft_reset'
+  ) then
+    return false;
+  end if;
+
+  insert into rating_events (
+    profile_id, game_id, season_id, tournament_id, match_id, motif,
+    rating_avant, rd_avant, rating_apres, rd_apres, adversaire_id
+  ) values (
+    p_profile_id, p_game_id, p_season_id, null, null, 'soft_reset',
+    p_rating_avant, p_rd_avant, p_rating_apres, p_rd_apres, null
+  );
+
+  insert into ratings (profile_id, game_id, season_id, rating, rd, volatilite, matchs_joues, maj_le)
+  values (p_profile_id, p_game_id, p_season_id, p_rating_apres, p_rd_apres, p_volatilite, 0, now())
+  on conflict (profile_id, game_id, season_id) do update set
+    rating = excluded.rating,
+    rd = excluded.rd,
+    volatilite = excluded.volatilite,
+    matchs_joues = 0,
+    maj_le = now();
+
+  return true;
+end;
+$$;
+
+-- Bascule atomique du drapeau "saison courante" pour un jeu : évite qu'un
+-- lecteur voie un instant sans aucune saison courante (ou deux à la fois)
+-- pendant la rotation. Idempotent par nature (mettre un drapeau à sa
+-- valeur déjà en place ne change rien).
+create or replace function public.activer_saison(
+  p_game_id smallint,
+  p_nouvelle_saison_id uuid
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update seasons set est_courante = false
+  where game_id = p_game_id and est_courante = true and id != p_nouvelle_saison_id;
+
+  update seasons set est_courante = true
+  where id = p_nouvelle_saison_id;
+end;
+$$;

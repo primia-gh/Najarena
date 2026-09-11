@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/decroissance-rd",
       "schedule": "0 3 1 * *"
+    },
+    {
+      "path": "/api/cron/rotation-saison",
+      "schedule": "0 4 1 * *"
     }
   ]
 }

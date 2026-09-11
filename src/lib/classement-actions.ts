@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import {
   mettreAJourJoueur,
+  softResetSaison,
   VOLATILITE_INITIALE,
   RD_MAX,
   GLICKO_BASE,
@@ -246,4 +247,87 @@ export async function appliquerDecroissanceInactivite(): Promise<{
   }
 
   return { traites, ignores };
+}
+
+/**
+ * Rotation de saison (docs/moteur-resultats.md §4 "Changement de saison"
+ * et §6 "Rotation de saison"). Ne décide JAMAIS quand une saison commence
+ * ou finit — ça reste une vraie décision produit (création de la ligne
+ * `seasons`, avec ses dates, faite ailleurs). Cette fonction se contente
+ * de réagir mécaniquement aux dates déjà en base : pour chaque jeu, si une
+ * saison existe dont `debut_le` est déjà passé mais qui n'est pas encore
+ * marquée `est_courante`, elle fait basculer le classement dessus — soft
+ * reset de chaque joueur de l'ancienne saison (formule Glicko-2, jamais
+ * une remise à zéro), puis bascule atomique du drapeau `est_courante`.
+ *
+ * Destinée à être appelée par un déclencheur planifié (voir
+ * src/app/api/cron/rotation-saison/route.ts) — jamais par le client.
+ * Idempotente : `appliquer_soft_reset_saison` refuse toute deuxième
+ * écriture pour le même joueur dans la même saison, et `activer_saison`
+ * est un simple changement de drapeau, sans effet s'il est déjà en place.
+ */
+export async function appliquerRotationSaisons(): Promise<{
+  saisonsActivees: number;
+  joueursTraites: number;
+}> {
+  const supabase = await createClient();
+  const admin = creerClientAdmin();
+  if (!admin) {
+    return { saisonsActivees: 0, joueursTraites: 0 };
+  }
+
+  const { data: saisons } = await supabase
+    .from("seasons")
+    .select("id, game_id, numero, debut_le, est_courante");
+
+  const parJeu = new Map<number, NonNullable<typeof saisons>>();
+  for (const s of saisons ?? []) {
+    const liste = parJeu.get(s.game_id) ?? [];
+    liste.push(s);
+    parJeu.set(s.game_id, liste);
+  }
+
+  let saisonsActivees = 0;
+  let joueursTraites = 0;
+  const maintenant = Date.now();
+
+  for (const [gameId, liste] of parJeu) {
+    const courante = liste.find((s) => s.est_courante) ?? null;
+    const cible = liste
+      .filter((s) => new Date(s.debut_le).getTime() <= maintenant)
+      .sort((a, b) => b.numero - a.numero)[0];
+
+    if (!cible || cible.id === courante?.id) continue;
+
+    if (courante) {
+      const { data: ratingsPrecedents } = await supabase
+        .from("ratings")
+        .select("profile_id, rating, rd, volatilite")
+        .eq("game_id", gameId)
+        .eq("season_id", courante.id);
+
+      for (const r of ratingsPrecedents ?? []) {
+        const avant: EtatGlicko = { rating: r.rating, rd: r.rd, volatilite: r.volatilite };
+        const apres = softResetSaison(avant);
+
+        const { data: ecrit } = await admin.rpc("appliquer_soft_reset_saison", {
+          p_profile_id: r.profile_id,
+          p_game_id: gameId,
+          p_season_id: cible.id,
+          p_rating_avant: avant.rating,
+          p_rd_avant: avant.rd,
+          p_volatilite: apres.volatilite,
+          p_rating_apres: apres.rating,
+          p_rd_apres: apres.rd,
+        });
+
+        if (ecrit) joueursTraites += 1;
+      }
+    }
+
+    await admin.rpc("activer_saison", { p_game_id: gameId, p_nouvelle_saison_id: cible.id });
+    saisonsActivees += 1;
+  }
+
+  return { saisonsActivees, joueursTraites };
 }
