@@ -369,15 +369,26 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                           >
                             <input type="hidden" name="match_id" value={m.id} />
                             <input type="hidden" name="slug" value={tournoi.slug} />
-                            <input
-                              name="motif"
-                              type="text"
-                              required
-                              placeholder="Signaler un litige sur ce résultat (motif obligatoire)"
-                              className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
-                            />
+                            <label>
+                              <span className="sr-only">
+                                Motif du litige —{" "}
+                                {m.match_participants
+                                  .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                  .join(" vs ")}
+                              </span>
+                              <input
+                                name="motif"
+                                type="text"
+                                required
+                                placeholder="Signaler un litige sur ce résultat (motif obligatoire)"
+                                className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+                              />
+                            </label>
                             <button
                               type="submit"
+                              aria-label={`Signaler un litige — ${m.match_participants
+                                .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                .join(" vs ")}`}
                               className="self-start font-mono text-[0.66rem] text-sceau underline underline-offset-3"
                             >
                               Signaler un litige

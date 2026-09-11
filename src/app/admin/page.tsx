@@ -109,15 +109,24 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <p className="mt-1 text-sm text-ardoise">{l.motif}</p>
                 <form action={resoudreLitigeAdmin} className="mt-3 flex flex-col gap-2">
                   <input type="hidden" name="dispute_id" value={l.id} />
-                  <input
-                    name="resolution"
-                    type="text"
-                    required
-                    placeholder="Résolution (obligatoire)"
-                    className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
-                  />
+                  <label>
+                    <span className="sr-only">
+                      Résolution du litige
+                      {l.match?.tournament
+                        ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}`
+                        : ""}
+                    </span>
+                    <input
+                      name="resolution"
+                      type="text"
+                      required
+                      placeholder="Résolution (obligatoire)"
+                      className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+                    />
+                  </label>
                   <button
                     type="submit"
+                    aria-label={`Résoudre le litige${l.match?.tournament ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}` : ""}`}
                     className="self-start rounded-[3px] bg-sceau px-3 py-1.5 text-[0.8rem] font-semibold text-papier transition hover:brightness-110"
                   >
                     Résoudre

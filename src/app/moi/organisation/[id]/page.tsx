@@ -166,6 +166,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       <input type="hidden" name="tournament_id" value={tournoi.id} />
                       <button
                         type="submit"
+                        aria-label={`Confirmer l'inscription de ${i.profile?.pseudo ?? "ce joueur"}`}
                         className="font-mono text-[0.62rem] text-atteste underline underline-offset-3"
                       >
                         Confirmer
@@ -178,6 +179,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       <input type="hidden" name="tournament_id" value={tournoi.id} />
                       <button
                         type="submit"
+                        aria-label={`Marquer ${i.profile?.pseudo ?? "ce joueur"} comme absent`}
                         className="font-mono text-[0.62rem] text-sceau underline underline-offset-3"
                       >
                         Absent
@@ -296,16 +298,22 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                                   {p.profile?.pseudo ?? "Joueur inconnu"}
                                 </label>
                               ))}
+                              <input
+                                name="motif"
+                                type="text"
+                                required
+                                aria-label={`Motif — ${participants
+                                  .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                  .join(" vs ")}`}
+                                placeholder="Motif (obligatoire, affiché publiquement)"
+                                className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+                              />
                             </fieldset>
-                            <input
-                              name="motif"
-                              type="text"
-                              required
-                              placeholder="Motif (obligatoire, affiché publiquement)"
-                              className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
-                            />
                             <button
                               type="submit"
+                              aria-label={`Enregistrer le résultat — ${participants
+                                .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                .join(" vs ")}`}
                               className="self-start rounded-[3px] bg-sceau px-3 py-1.5 text-[0.8rem] font-semibold text-papier transition hover:brightness-110"
                             >
                               Enregistrer le résultat
@@ -338,15 +346,21 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                 <form action={resoudreLitige} className="mt-3 flex flex-col gap-2">
                   <input type="hidden" name="dispute_id" value={l.id} />
                   <input type="hidden" name="tournament_id" value={tournoi.id} />
-                  <input
-                    name="resolution"
-                    type="text"
-                    required
-                    placeholder="Résolution (obligatoire)"
-                    className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
-                  />
+                  <label>
+                    <span className="sr-only">
+                      Résolution du litige ouvert par {l.ouvert_par?.pseudo ?? "un joueur"}
+                    </span>
+                    <input
+                      name="resolution"
+                      type="text"
+                      required
+                      placeholder="Résolution (obligatoire)"
+                      className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+                    />
+                  </label>
                   <button
                     type="submit"
+                    aria-label={`Résoudre le litige ouvert par ${l.ouvert_par?.pseudo ?? "un joueur"}`}
                     className="self-start rounded-[3px] bg-sceau px-3 py-1.5 text-[0.8rem] font-semibold text-papier transition hover:brightness-110"
                   >
                     Résoudre
