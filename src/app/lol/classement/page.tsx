@@ -106,7 +106,7 @@ export default async function ClassementPage() {
                       "Joueur inconnu"
                     )}
                   </span>
-                  <span className="font-display text-sm font-extrabold text-laiton">
+                  <span className="font-display text-sm font-extrabold text-laiton-texte">
                     {palier?.nom ?? "—"}
                   </span>
                   <span className="font-mono text-base font-bold text-encre">{arrondir(r.rating)}</span>

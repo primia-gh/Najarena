@@ -115,7 +115,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             </span>
             <span
               className={`font-mono text-[0.62rem] tracking-[0.1em] uppercase ${
-                comptesRiot.verifie_le ? "text-atteste" : "text-laiton"
+                comptesRiot.verifie_le ? "text-atteste" : "text-laiton-texte"
               }`}
             >
               {comptesRiot.verifie_le ? "Vérifié" : "Vérification en attente"}

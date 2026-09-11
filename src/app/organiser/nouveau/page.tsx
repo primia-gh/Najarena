@@ -61,7 +61,7 @@ export default async function OrganiserNouveauPage({
             minLength={3}
             maxLength={60}
             placeholder="Ex. Tournoi du jeudi soir"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
           />
         </label>
 
@@ -112,7 +112,7 @@ export default async function OrganiserNouveauPage({
             name="checkin_ouvre_le"
             type="datetime-local"
             required
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
           />
         </label>
 
@@ -124,14 +124,14 @@ export default async function OrganiserNouveauPage({
             name="debute_le"
             type="datetime-local"
             required
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
           />
         </label>
 
         <fieldset className="flex flex-col gap-2">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <legend className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
             Statut initial
-          </span>
+          </legend>
           <label className="flex items-center gap-2 text-sm text-encre">
             <input
               type="radio"

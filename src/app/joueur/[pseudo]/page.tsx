@@ -172,7 +172,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
           {profil.pays && (
             <div className="mt-1 text-sm text-ardoise">{profil.pays}</div>
           )}
-          <div className="mt-3 font-display text-lg font-extrabold text-laiton">
+          <div className="mt-3 font-display text-lg font-extrabold text-laiton-texte">
             {rating?.est_classe ? "Classé" : "Non classé"}
           </div>
         </div>

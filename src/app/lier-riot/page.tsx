@@ -82,7 +82,7 @@ function EtapeSaisie() {
             type="text"
             required
             placeholder="Pseudo#TAG"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
           />
         </label>
 

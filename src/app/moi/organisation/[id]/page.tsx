@@ -274,30 +274,35 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                           >
                             <input type="hidden" name="match_id" value={m.id} />
                             <input type="hidden" name="tournament_id" value={tournoi.id} />
-                            <span className="font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
-                              Déclarer le vainqueur
-                            </span>
-                            {participants.map((p) => (
-                              <label
-                                key={p.profile_id}
-                                className="flex items-center gap-2 text-sm text-encre"
-                              >
-                                <input
-                                  type="radio"
-                                  name="gagnant_id"
-                                  value={p.profile_id}
-                                  required
-                                  className="accent-sceau"
-                                />
-                                {p.profile?.pseudo ?? "Joueur inconnu"}
-                              </label>
-                            ))}
+                            <fieldset className="flex flex-col gap-2">
+                              <legend className="font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                                Déclarer le vainqueur —{" "}
+                                {participants
+                                  .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                  .join(" vs ")}
+                              </legend>
+                              {participants.map((p) => (
+                                <label
+                                  key={p.profile_id}
+                                  className="flex items-center gap-2 text-sm text-encre"
+                                >
+                                  <input
+                                    type="radio"
+                                    name="gagnant_id"
+                                    value={p.profile_id}
+                                    required
+                                    className="accent-sceau"
+                                  />
+                                  {p.profile?.pseudo ?? "Joueur inconnu"}
+                                </label>
+                              ))}
+                            </fieldset>
                             <input
                               name="motif"
                               type="text"
                               required
                               placeholder="Motif (obligatoire, affiché publiquement)"
-                              className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+                              className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
                             />
                             <button
                               type="submit"
@@ -338,7 +343,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                     type="text"
                     required
                     placeholder="Résolution (obligatoire)"
-                    className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+                    className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
                   />
                   <button
                     type="submit"

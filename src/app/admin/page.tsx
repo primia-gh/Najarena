@@ -114,7 +114,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     type="text"
                     required
                     placeholder="Résolution (obligatoire)"
-                    className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+                    className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
                   />
                   <button
                     type="submit"

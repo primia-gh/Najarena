@@ -374,7 +374,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                               type="text"
                               required
                               placeholder="Signaler un litige sur ce résultat (motif obligatoire)"
-                              className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+                              className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
                             />
                             <button
                               type="submit"

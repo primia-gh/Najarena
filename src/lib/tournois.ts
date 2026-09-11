@@ -22,7 +22,7 @@ export const LABEL_STATUT: Record<StatutPublic, string> = {
 
 export const COULEUR_STATUT: Record<StatutPublic, string> = {
   ouvert: "text-atteste",
-  checkin: "text-laiton",
+  checkin: "text-laiton-texte",
   en_cours: "text-sceau",
   termine: "text-ardoise",
   annule: "text-ardoise",
@@ -47,7 +47,7 @@ export const LABEL_NIVEAU: Record<NiveauVerdict, string> = {
 
 export const COULEUR_NIVEAU: Record<NiveauVerdict, string> = {
   code_tournoi: "text-atteste",
-  historique: "text-laiton",
+  historique: "text-laiton-texte",
   manuel: "text-ardoise",
 };
 

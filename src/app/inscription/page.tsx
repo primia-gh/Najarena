@@ -50,7 +50,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             minLength={3}
             maxLength={20}
             autoComplete="username"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
           />
         </label>
 
@@ -63,7 +63,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             type="email"
             required
             autoComplete="email"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
           />
         </label>
 
@@ -77,7 +77,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             required
             minLength={6}
             autoComplete="new-password"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
           />
         </label>
 
