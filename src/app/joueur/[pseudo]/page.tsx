@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import SceauFiabilite from "@/components/SceauFiabilite";
 import { calibrationPct, arrondir, RD_INITIAL } from "@/lib/classement";
 import { LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
+import { JsonLd } from "@/lib/json-ld";
+
+// Même repli que layout.tsx/robots.ts/sitemap.ts — jamais un domaine inventé.
+const URL_SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 interface JoueurPageProps {
   params: Promise<{ pseudo: string }>;
@@ -170,6 +174,25 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
+      {/* schema.org ProfilePage — type explicitement pris en charge par les
+          rich results Google pour une page de profil public (vérifié dans
+          leur doc avant de l'ajouter, contrairement au SportsEvent envisagé
+          pour les tournois : Google exclut explicitement les événements
+          purement virtuels sans lieu physique, donc pas ajouté là-bas). */}
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "ProfilePage",
+          dateCreated: profil.created_at,
+          mainEntity: {
+            "@type": "Person",
+            name: profil.pseudo,
+            identifier: profil.slug,
+            url: `${URL_SITE}/joueur/${profil.slug}`,
+          },
+        }}
+      />
+
       <Link
         href="/"
         className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
