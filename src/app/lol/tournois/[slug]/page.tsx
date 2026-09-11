@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { sInscrireATournoi } from "@/lib/inscription-actions";
+import { ouvrirLitige } from "@/lib/litige-actions";
 import {
   LABEL_STATUT,
   COULEUR_STATUT,
@@ -15,7 +16,7 @@ import {
 
 interface TournoiPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
 async function chargerTournoi(slug: string) {
@@ -73,6 +74,15 @@ async function chargerTournoi(slug: string) {
 
   const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
 
+  const { data: litigesData } =
+    matchIds.length > 0 && userData.user
+      ? await supabase
+          .from("disputes")
+          .select("match_id, ouvert_par, resolution")
+          .in("match_id", matchIds)
+      : { data: [] };
+  const litigeParMatch = new Map((litigesData ?? []).map((l) => [l.match_id, l]));
+
   return {
     statut: "ok" as const,
     tournoi,
@@ -80,6 +90,7 @@ async function chargerTournoi(slug: string) {
     inscriptions: inscriptionsData ?? [],
     matchs: matchsData ?? [],
     verdictParMatch,
+    litigeParMatch,
     utilisateur: userData.user,
   };
 }
@@ -102,7 +113,7 @@ export async function generateMetadata({
 
 export default async function TournoiPage({ params, searchParams }: TournoiPageProps) {
   const { slug } = await params;
-  const { erreur } = await searchParams;
+  const { erreur, message } = await searchParams;
   const donnees = await chargerTournoi(slug);
 
   if (donnees.statut === "introuvable") {
@@ -120,7 +131,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     );
   }
 
-  const { tournoi, organisateur, inscriptions, matchs, verdictParMatch, utilisateur } = donnees;
+  const { tournoi, organisateur, inscriptions, matchs, verdictParMatch, litigeParMatch, utilisateur } =
+    donnees;
   const statut = tournoi.statut as StatutPublic;
   const estOrganisateur = utilisateur?.id === tournoi.organisateur_id;
   const inscriptionActuelle = utilisateur
@@ -178,6 +190,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       {erreur && (
         <p className="mt-4 rounded-[3px] border border-sceau/30 bg-sceau/10 p-3 text-sm text-sceau">
           {erreur}
+        </p>
+      )}
+
+      {message && (
+        <p className="mt-4 rounded-[3px] border border-atteste/30 bg-atteste/10 p-3 text-sm text-atteste">
+          {message}
         </p>
       )}
 
@@ -267,6 +285,11 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 <ul className="mt-2 flex flex-col gap-2">
                   {rounds.get(tour)!.map((m) => {
                     const verdict = verdictParMatch.get(m.id);
+                    const litige = litigeParMatch.get(m.id);
+                    const estParticipantDuMatch = utilisateur
+                      ? m.match_participants.some((p) => p.profile_id === utilisateur.id)
+                      : false;
+                    const peutSignalerLitige = estParticipantDuMatch && verdict && !litige;
                     return (
                       <li
                         key={m.id}
@@ -325,6 +348,35 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                               </span>
                             )}
                           </div>
+                        )}
+
+                        {litige && (
+                          <p className="mt-2 border-t border-trait pt-2 font-mono text-[0.68rem] text-sceau uppercase">
+                            {litige.resolution ? "Litige résolu" : "Litige signalé — en attente de l'organisateur"}
+                          </p>
+                        )}
+
+                        {peutSignalerLitige && (
+                          <form
+                            action={ouvrirLitige}
+                            className="mt-3 flex flex-col gap-2 border-t border-trait pt-3"
+                          >
+                            <input type="hidden" name="match_id" value={m.id} />
+                            <input type="hidden" name="slug" value={tournoi.slug} />
+                            <input
+                              name="motif"
+                              type="text"
+                              required
+                              placeholder="Signaler un litige sur ce résultat (motif obligatoire)"
+                              className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre"
+                            />
+                            <button
+                              type="submit"
+                              className="self-start font-mono text-[0.66rem] text-sceau underline underline-offset-3"
+                            >
+                              Signaler un litige
+                            </button>
+                          </form>
                         )}
                       </li>
                     );
