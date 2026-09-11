@@ -162,6 +162,24 @@ export async function genererBracket(formData: FormData) {
     });
   }
 
+  // Un match du tour 1 dont les deux places sont occupées par de vrais
+  // joueurs démarre immédiatement (pas de bye à résoudre) : c'est le
+  // déclencheur de la recherche de résultat niveau 2 (docs/moteur-
+  // resultats.md §3 — la fenêtre T+8/.../T+25 se compte depuis ce moment).
+  for (let position = 1; position <= capacite / 2; position++) {
+    const seedA = ordre[(position - 1) * 2];
+    const seedB = ordre[(position - 1) * 2 + 1];
+    if (seedA > joueurs.length || seedB > joueurs.length) continue;
+
+    const matchId = idParTourPosition.get(`1-${position}`);
+    if (!matchId) continue;
+
+    await supabase
+      .from("matches")
+      .update({ statut: "en_cours", demarre_le: new Date().toISOString() })
+      .eq("id", matchId);
+  }
+
   // Résout les byes tour par tour, dans l'ordre : un match encore à un seul
   // participant après cette répartition avance son joueur directement au
   // tour suivant (motif consigné, comme tout verdict manuel). Comme les
@@ -173,21 +191,24 @@ export async function genererBracket(formData: FormData) {
   // place restante peut dépendre d'un VRAI match du tour précédent pas
   // encore joué (ex. tour 1 : un bye + un match à 2 joueurs ; le vainqueur
   // du match à 2 joueurs affrontera plus tard le joueur avancé par bye).
-  // On ne résout donc un match que si aucun de ses matchs précédents
-  // (`match_suivant_id` pointant vers lui) n'est encore `en_attente`.
+  // On ne résout donc un match que si tous ses matchs précédents
+  // (`match_suivant_id` pointant vers lui) sont déjà décidés — un vrai
+  // match non résolu vaut `en_attente` OU `en_cours` (démarré ci-dessus),
+  // jamais seulement `en_attente` depuis qu'un match réel du tour 1
+  // passe `en_cours` dès sa génération.
   for (let tour = 1; tour < nbTours; tour++) {
     const nbMatchsCeTour = capacite / 2 ** tour;
     for (let position = 1; position <= nbMatchsCeTour; position++) {
       const matchId = idParTourPosition.get(`${tour}-${position}`);
       if (!matchId) continue;
 
-      const { count: precedentsEnAttente } = await supabase
+      const { count: precedentsNonDecides } = await supabase
         .from("matches")
         .select("id", { count: "exact", head: true })
         .eq("match_suivant_id", matchId)
-        .eq("statut", "en_attente");
+        .neq("statut", "termine");
 
-      if (precedentsEnAttente && precedentsEnAttente > 0) continue;
+      if (precedentsNonDecides && precedentsNonDecides > 0) continue;
 
       const { data: participants } = await supabase
         .from("match_participants")

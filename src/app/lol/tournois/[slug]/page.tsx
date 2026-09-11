@@ -335,6 +335,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                           </div>
                         )}
 
+                        {!verdict && m.statut === "litige" && (
+                          <p className="mt-2 border-t border-trait pt-2 font-mono text-[0.68rem] text-sceau uppercase">
+                            Résultat non retrouvé automatiquement — en attente de l&apos;organisateur
+                          </p>
+                        )}
+
                         {verdict && (
                           <div className="mt-2 flex items-center gap-2 border-t border-trait pt-2">
                             <span

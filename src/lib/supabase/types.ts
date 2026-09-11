@@ -818,6 +818,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      avancer_vainqueur: {
+        Args: { p_gagnant_id: string; p_match_id: string }
+        Returns: undefined
+      }
       cloturer_rating_joueur: {
         Args: {
           p_game_id: number
@@ -832,6 +836,14 @@ export type Database = {
           p_tournament_id: string
           p_volatilite_apres: number
           p_volatilite_avant: number
+        }
+        Returns: boolean
+      }
+      enregistrer_verdict_historique: {
+        Args: {
+          p_gagnant_id: string
+          p_match_id: string
+          p_riot_match_id: string
         }
         Returns: boolean
       }

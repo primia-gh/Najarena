@@ -545,6 +545,51 @@ create trigger on_registration_created
 -- match_verdicts n'existe : c'est volontaire, cette fonction est le seul
 -- chemin d'écriture. Elle revérifie elle-même que l'appelant est bien
 -- l'organisateur du tournoi concerné — jamais un paramètre client de confiance.
+-- Rapprochement par historique (niveau 2) — docs/moteur-resultats.md §3.
+-- Factorise la logique "faire avancer un vainqueur" (utilisée par
+-- enregistrer_verdict_manuel ET enregistrer_verdict_historique), pour que
+-- les deux niveaux de verdict fassent démarrer le match suivant (statut
+-- en_cours + demarre_le) dès que ses deux vraies places sont connues —
+-- c'est le déclencheur de la recherche de résultat pour le tour suivant.
+-- Fonction interne, jamais grantée : appelée uniquement depuis d'autres
+-- fonctions security definer.
+create or replace function public.avancer_vainqueur(p_match_id uuid, p_gagnant_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_match_suivant_id uuid;
+  v_slot_libre smallint;
+  v_nb_participants int;
+begin
+  update match_participants
+  set est_gagnant = (profile_id = p_gagnant_id)
+  where match_id = p_match_id;
+
+  update matches set statut = 'termine' where id = p_match_id;
+
+  select match_suivant_id into v_match_suivant_id from matches where id = p_match_id;
+  if v_match_suivant_id is null then
+    return;
+  end if;
+
+  select case
+    when exists (select 1 from match_participants where match_id = v_match_suivant_id and slot = 1)
+    then 2 else 1
+  end into v_slot_libre;
+
+  insert into match_participants (match_id, profile_id, slot)
+  values (v_match_suivant_id, p_gagnant_id, v_slot_libre)
+  on conflict (match_id, profile_id) do nothing;
+
+  select count(*) into v_nb_participants from match_participants where match_id = v_match_suivant_id;
+  if v_nb_participants = 2 then
+    update matches set statut = 'en_cours', demarre_le = now() where id = v_match_suivant_id;
+  end if;
+end;
+$$;
+
 create or replace function public.enregistrer_verdict_manuel(
   p_match_id uuid,
   p_gagnant_id uuid,
@@ -556,11 +601,9 @@ security definer set search_path = public
 as $$
 declare
   v_organisateur_id uuid;
-  v_match_suivant_id uuid;
-  v_slot_libre smallint;
 begin
-  select t.organisateur_id, m.match_suivant_id
-  into v_organisateur_id, v_match_suivant_id
+  select t.organisateur_id
+  into v_organisateur_id
   from public.matches m
   join public.tournaments t on t.id = m.tournament_id
   where m.id = p_match_id;
@@ -583,26 +626,48 @@ begin
   insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
   values (p_match_id, 'manuel', p_gagnant_id, auth.uid(), p_motif, true);
 
-  update public.match_participants
-  set est_gagnant = (profile_id = p_gagnant_id)
-  where match_id = p_match_id;
-
-  update public.matches set statut = 'termine' where id = p_match_id;
-
-  if v_match_suivant_id is not null then
-    select case
-      when exists (select 1 from public.match_participants where match_id = v_match_suivant_id and slot = 1)
-      then 2 else 1
-    end into v_slot_libre;
-
-    insert into public.match_participants (match_id, profile_id, slot)
-    values (v_match_suivant_id, p_gagnant_id, v_slot_libre)
-    on conflict (match_id, profile_id) do nothing;
-  end if;
+  perform public.avancer_vainqueur(p_match_id, p_gagnant_id);
 end;
 $$;
 
 grant execute on function public.enregistrer_verdict_manuel(uuid, uuid, text) to authenticated;
+
+-- Écriture d'un verdict niveau 2 (partie retrouvée dans l'historique Riot).
+-- Le gagnant vient d'une partie Riot réelle parsée côté serveur, pas d'un
+-- choix humain structurellement re-vérifiable par SQL — même frontière de
+-- sécurité que cloturer_rating_joueur : AUCUN grant à authenticated,
+-- uniquement service_role depuis le worker planifié.
+create or replace function public.enregistrer_verdict_historique(
+  p_match_id uuid,
+  p_gagnant_id uuid,
+  p_riot_match_id text
+)
+returns boolean -- true si écrit, false si déjà décidé (idempotence)
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from match_verdicts where match_id = p_match_id and est_definitif
+  ) then
+    return false;
+  end if;
+
+  if not exists (
+    select 1 from match_participants
+    where match_id = p_match_id and profile_id = p_gagnant_id
+  ) then
+    raise exception 'GAGNANT_INVALIDE';
+  end if;
+
+  insert into match_verdicts (match_id, niveau, gagnant_id, riot_match_id, est_definitif)
+  values (p_match_id, 'historique', p_gagnant_id, p_riot_match_id, true);
+
+  perform avancer_vainqueur(p_match_id, p_gagnant_id);
+
+  return true;
+end;
+$$;
 
 -- ---------- Administration (modération, litiges) ----------
 -- Distinction admin/joueur absente jusque-là du schéma. Table séparée de

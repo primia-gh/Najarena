@@ -104,6 +104,39 @@ export async function recupererInvocateur(
   return appelRiot<InvocateurRiot>(url);
 }
 
+export interface ParticipantMatchRiot {
+  puuid: string;
+  win: boolean;
+}
+
+export interface DetailsMatchRiot {
+  info: {
+    gameStartTimestamp: number; // ms epoch
+    gameDuration: number; // secondes
+    queueId: number; // 0 = partie personnalisée
+    participants: ParticipantMatchRiot[];
+  };
+}
+
+// match-v5 — historique de matchs (niveau 2, docs/moteur-resultats.md §3).
+// Routage continental, comme account-v1.
+export async function recupererIdsMatchsRecents(
+  puuid: string,
+  continent: Continent,
+  depuisSecondes: number,
+): Promise<string[]> {
+  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?startTime=${depuisSecondes}&count=20`;
+  return appelRiot<string[]>(url);
+}
+
+export async function recupererDetailsMatch(
+  matchId: string,
+  continent: Continent,
+): Promise<DetailsMatchRiot> {
+  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/${encodeURIComponent(matchId)}`;
+  return appelRiot<DetailsMatchRiot>(url);
+}
+
 // Data Dragon : CDN statique public, ni clé ni quota — sert uniquement à
 // afficher l'image de l'icône-défi, aucune donnée de compte n'y transite.
 const VERSION_DDRAGON_PAR_DEFAUT = "14.1.1";
