@@ -1,7 +1,37 @@
 import Link from "next/link";
 import BracketBackground from "@/components/BracketBackground";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
+async function chargerPreuveSociale() {
+  const supabase = await createClient();
+
+  const [{ count: tournois }, { count: matchs }, { count: joueurs }] = await Promise.all([
+    supabase.from("tournaments").select("*", { count: "exact", head: true }).eq("statut", "termine"),
+    supabase
+      .from("match_verdicts")
+      .select("*", { count: "exact", head: true })
+      .eq("est_definitif", true),
+    supabase.from("ratings").select("*", { count: "exact", head: true }).eq("est_classe", true),
+  ]);
+
+  return {
+    tournois: tournois ?? 0,
+    matchs: matchs ?? 0,
+    joueurs: joueurs ?? 0,
+  };
+}
+
+export default async function Home() {
+  const preuve = await chargerPreuveSociale();
+  // Jamais de chiffre inventé : chaque statistique vient d'un vrai compte en
+  // base, et une statistique à zéro ne s'affiche pas plutôt que d'afficher
+  // "0" (qui découragerait sans rien prouver).
+  const stats = [
+    { valeur: preuve.joueurs, libelle: "joueurs classés" },
+    { valeur: preuve.tournois, libelle: "tournois joués" },
+    { valeur: preuve.matchs, libelle: "matchs enregistrés" },
+  ].filter((s) => s.valeur > 0);
+
   return (
     <section className="accueil relative isolate flex min-h-screen flex-col justify-center overflow-hidden bg-[var(--nuit-encre)] px-6 py-24">
       <BracketBackground />
@@ -46,6 +76,21 @@ export default function Home() {
             Voir le classement
           </Link>
         </div>
+
+        {stats.length > 0 && (
+          <dl className="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/10 pt-6">
+            {stats.map((s) => (
+              <div key={s.libelle}>
+                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--nuit-papier)]">
+                  {s.valeur}
+                </dd>
+                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--nuit-ardoise)] uppercase">
+                  {s.libelle}
+                </dt>
+              </div>
+            ))}
+          </dl>
+        )}
       </div>
     </section>
   );
