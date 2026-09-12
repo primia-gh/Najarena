@@ -99,6 +99,35 @@ async function envoyerPush(profileId: string, titre: string, corpsHtml: string):
   );
 }
 
+// Notification Discord vers un serveur (CLAUDE.md §5 — canal de
+// notification principal, jamais construit jusqu'ici, cf. mémoire du
+// 2026-09-11). Contrairement à notifierJoueur (personnel, par joueur),
+// celle-ci annonce un événement à toute la communauté sur un salon —
+// aucun compte externe complexe requis, juste un webhook créé en 30
+// secondes depuis les paramètres d'un salon Discord (Intégrations >
+// Webhooks). Repli gracieux identique aux autres secrets.
+const webhookDiscord = process.env.DISCORD_WEBHOOK_URL;
+
+/**
+ * Poste un message sur le serveur Discord configuré. N'agit pas si
+ * DISCORD_WEBHOOK_URL est absente ; une panne du webhook ne doit jamais
+ * faire échouer l'action métier qui l'appelle (même contrat que
+ * notifierJoueur).
+ */
+export async function notifierDiscord(contenu: string): Promise<void> {
+  if (!webhookDiscord) return;
+
+  try {
+    await fetch(webhookDiscord, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: contenu }),
+    });
+  } catch {
+    // Idem : jamais remonté à l'appelant.
+  }
+}
+
 /**
  * Envoie une notification (e-mail + push) à un joueur (par son profile_id).
  * N'agit pas si les secrets correspondants sont absents (même principe de

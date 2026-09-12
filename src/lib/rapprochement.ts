@@ -7,7 +7,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { trouverRegion, recupererIdsMatchsRecents, recupererDetailsMatch, type Continent } from "@/lib/riot";
-import { notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
+import { cloturerTournoi } from "@/lib/classement-actions";
 
 // Cadence de recherche : pas avant T+8 (l'historique Riot n'est pas
 // immédiat), litige si rien trouvé à T+25.
@@ -108,7 +109,7 @@ export async function traiterRechercheResultats(): Promise<{
   const { data: candidats } = await supabase
     .from("matches")
     .select(
-      "id, demarre_le, tournament:tournaments(game_id, nom, slug), match_participants(profile_id)",
+      "id, tournament_id, match_suivant_id, demarre_le, tournament:tournaments(game_id, nom, slug), match_participants(profile_id, profile:profiles(pseudo))",
     )
     .eq("statut", "en_cours")
     .lte("demarre_le", seuilRecherche);
@@ -176,6 +177,21 @@ export async function traiterRechercheResultats(): Promise<{
               aGagne ? "Victoire confirmée dans l'historique Riot" : "Résultat confirmé dans l'historique Riot",
               `<p>La partie officielle a été retrouvée automatiquement dans l'historique Riot.</p>
                <p><a href="${URL_SITE}/lol/tournois/${m.tournament.slug}">Voir le bracket</a></p>`,
+            );
+          }
+
+          // Même logique que enregistrerResultat (organisation-actions.ts) :
+          // aucun match_suivant_id = c'était la finale. Avant ce correctif,
+          // ce chemin (verdict niveau 2, celui qui compte vraiment pour le
+          // classement — CLAUDE.md §3) ne déclenchait jamais la clôture du
+          // tournoi ni le calcul Glicko-2, contrairement au verdict manuel.
+          if (m.match_suivant_id === null) {
+            await cloturerTournoi(m.tournament_id);
+            const nomGagnant =
+              m.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ??
+              "le vainqueur";
+            await notifierDiscord(
+              `🏆 **${nomGagnant}** remporte **${m.tournament.nom}** — résultat confirmé dans l'historique Riot.\n${URL_SITE}/lol/tournois/${m.tournament.slug}`,
             );
           }
         }
