@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { AnimatePresence, motion } from "motion/react";
 
 const LIENS = [
@@ -37,16 +38,14 @@ export default function NavbarArene() {
           : "border-b border-transparent py-5"
       }`}
     >
-      <Link href="/" className={`flex items-center gap-2.5 ${FOCUS}`}>
-        <span
-          aria-hidden="true"
-          className="h-8 w-8 shrink-0 rounded-[3px]"
-          style={{
-            backgroundImage: "url('/logo-najarena.jpg')",
-            backgroundSize: "260% 170%",
-            backgroundPosition: "43% 42%",
-            mixBlendMode: "screen",
-          }}
+      <Link href="/" className={`flex items-center gap-2 ${FOCUS}`}>
+        <Image
+          src="/logo-najarena-marque.png"
+          alt=""
+          width={32}
+          height={41}
+          className="h-8 w-auto shrink-0"
+          priority
         />
         <span className="font-mono text-[0.78rem] tracking-[0.18em] text-[var(--nuit-papier)] uppercase">Najarena</span>
       </Link>
