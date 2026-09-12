@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { seConnecter, seConnecterAvecDiscord } from "@/lib/auth-actions";
+import { classeCarte, classeBoutonPrimaire, classeBoutonSecondaire } from "@/lib/ui";
 
 export const metadata: Metadata = {
   title: "Connexion — Najarena",
@@ -29,15 +30,11 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
       </h1>
 
       {message && (
-        <p className="mt-6 rounded-[3px] border border-atteste/30 bg-atteste/10 p-3 text-sm text-atteste">
-          {message}
-        </p>
+        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
       )}
 
       {erreur && (
-        <p className="mt-6 rounded-[3px] border border-sceau/30 bg-sceau/10 p-3 text-sm text-sceau">
-          {erreur}
-        </p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
 
       <form action={seConnecter} className="mt-6 flex flex-col gap-4">
@@ -67,10 +64,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
           />
         </label>
 
-        <button
-          type="submit"
-          className="mt-2 rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
-        >
+        <button type="submit" className={"mt-2 " + classeBoutonPrimaire()}>
           Se connecter
         </button>
       </form>
@@ -93,10 +87,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
             ).
           </span>
         </label>
-        <button
-          type="submit"
-          className="w-full rounded-[3px] border border-trait bg-carte px-4 py-2 text-sm font-semibold text-encre transition hover:border-encre"
-        >
+        <button type="submit" className={"w-full " + classeBoutonSecondaire()}>
           Continuer avec Discord
         </button>
       </form>

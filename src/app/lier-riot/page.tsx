@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { lierRiotId, verifierRiotId } from "@/lib/riot-actions";
 import { REGIONS, obtenirVersionDDragon, urlIconeProfil } from "@/lib/riot";
+import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
 
 export const metadata: Metadata = {
   title: "Lier mon Riot ID — Najarena",
@@ -45,13 +46,11 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
       </h1>
 
       {erreur && (
-        <p className="mt-6 rounded-[3px] border border-sceau/30 bg-sceau/10 p-3 text-sm text-sceau">
-          {erreur}
-        </p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
 
       {compte?.verifie_le ? (
-        <div className="mt-6 rounded-[3px] border border-atteste/30 bg-atteste/10 p-4">
+        <div className={"mt-6 " + classeCarte("atteste")}>
           <p className="font-mono text-sm text-atteste">
             Vérifié : {compte.riot_game_name}#{compte.riot_tag_line} · {compte.region}
           </p>
@@ -107,10 +106,7 @@ function EtapeSaisie() {
           </select>
         </label>
 
-        <button
-          type="submit"
-          className="mt-2 rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
-        >
+        <button type="submit" className={"mt-2 " + classeBoutonPrimaire()}>
           Continuer
         </button>
       </form>
@@ -146,10 +142,7 @@ async function EtapeVerification({
 
       <form action={verifierRiotId} className="mt-6">
         <input type="hidden" name="puuid" value={puuid} />
-        <button
-          type="submit"
-          className="rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
-        >
+        <button type="submit" className={classeBoutonPrimaire()}>
           J&apos;ai changé mon icône, vérifier
         </button>
       </form>

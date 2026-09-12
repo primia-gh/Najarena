@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { sInscrireATournoi } from "@/lib/inscription-actions";
 import { ouvrirLitige } from "@/lib/litige-actions";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
+import { classeCarte, classeBoutonPrimaire, accentDepuisCouleur } from "@/lib/ui";
+import Badge from "@/components/ui/Badge";
+import SectionTitre from "@/components/ui/SectionTitre";
 import {
   LABEL_STATUT,
   COULEUR_STATUT,
@@ -124,7 +127,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   if (donnees.statut === "erreur") {
     return (
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <p className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-6 text-sm text-sceau">
+        <p className={classeCarte("sceau") + " text-sm text-sceau"}>
           Impossible de charger ce tournoi pour l&apos;instant. Réessaie dans
           un instant.
         </p>
@@ -163,8 +166,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         ← Tournois
       </Link>
 
-      <div className="mt-6 flex items-start justify-between gap-4">
-        <div>
+      <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
           <span className="font-mono text-[0.64rem] tracking-[0.22em] text-ardoise uppercase">
             League of Legends
           </span>
@@ -172,11 +175,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             {tournoi.nom}
           </h1>
         </div>
-        <span
-          className={`shrink-0 font-mono text-[0.62rem] tracking-[0.1em] uppercase ${COULEUR_STATUT[statut]}`}
-        >
+        <Badge couleur={COULEUR_STATUT[statut]} className="shrink-0">
           {LABEL_STATUT[statut]}
-        </span>
+        </Badge>
       </div>
 
       <div className="mt-3 font-mono text-[0.78rem] text-ardoise">
@@ -195,23 +196,16 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       )}
 
       {erreur && (
-        <p className="mt-4 rounded-[3px] border border-sceau/30 bg-sceau/10 p-3 text-sm text-sceau">
-          {erreur}
-        </p>
+        <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
 
       {message && (
-        <p className="mt-4 rounded-[3px] border border-atteste/30 bg-atteste/10 p-3 text-sm text-atteste">
-          {message}
-        </p>
+        <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
       )}
 
       <div className="mt-4">
         {estOrganisateur ? (
-          <Link
-            href={`/moi/organisation/${tournoi.id}`}
-            className="inline-block rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
-          >
+          <Link href={`/moi/organisation/${tournoi.id}`} className={classeBoutonPrimaire()}>
             Gérer ce tournoi
           </Link>
         ) : inscriptionActuelle ? (
@@ -223,10 +217,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             <form action={sInscrireATournoi}>
               <input type="hidden" name="tournament_id" value={tournoi.id} />
               <input type="hidden" name="slug" value={tournoi.slug} />
-              <button
-                type="submit"
-                className="rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
-              >
+              <button type="submit" className={classeBoutonPrimaire()}>
                 S&apos;inscrire
               </button>
             </form>
@@ -242,20 +233,15 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       </div>
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Inscrits
-        </h2>
+        <SectionTitre>Inscrits</SectionTitre>
         {inscriptions.length === 0 ? (
-          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Aucune inscription pour l&apos;instant.
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {inscriptions.map((i) => (
-              <li
-                key={i.id}
-                className="flex items-center justify-between rounded-[3px] border border-trait bg-carte px-4 py-2"
-              >
+              <li key={i.id} className={"flex items-center justify-between " + classeCarte("none")}>
                 <span className="text-sm font-medium text-encre">
                   {i.profile ? (
                     <Link href={`/joueur/${i.profile.slug}`} className="hover:underline">
@@ -275,11 +261,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       </section>
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Bracket
-        </h2>
+        <SectionTitre>Bracket</SectionTitre>
         {toursOrdonnes.length === 0 ? (
-          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Le bracket n&apos;a pas encore été généré.
           </p>
         ) : (
@@ -297,11 +281,16 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                       ? m.match_participants.some((p) => p.profile_id === utilisateur.id)
                       : false;
                     const peutSignalerLitige = estParticipantDuMatch && verdict && !litige;
+                    const accentMatch =
+                      litige && !litige.resolution
+                        ? "sceau"
+                        : !verdict && m.statut === "litige"
+                          ? "sceau"
+                          : verdict
+                            ? accentDepuisCouleur(COULEUR_NIVEAU[verdict.niveau])
+                            : "none";
                     return (
-                      <li
-                        key={m.id}
-                        className="rounded-[3px] border border-trait bg-carte p-4"
-                      >
+                      <li key={m.id} className={classeCarte(accentMatch)}>
                         {m.match_participants.length === 0 ? (
                           <span className="text-sm text-ardoise">
                             Match à venir
@@ -350,11 +339,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
                         {verdict && (
                           <div className="mt-2 flex items-center gap-2 border-t border-trait pt-2">
-                            <span
-                              className={`font-mono text-[0.58rem] tracking-[0.1em] uppercase ${COULEUR_NIVEAU[verdict.niveau]}`}
-                            >
-                              {LABEL_NIVEAU[verdict.niveau]}
-                            </span>
+                            <Badge couleur={COULEUR_NIVEAU[verdict.niveau]}>{LABEL_NIVEAU[verdict.niveau]}</Badge>
                             {verdict.niveau === "manuel" && verdict.motif && (
                               <span className="text-[0.72rem] text-ardoise">
                                 {verdict.motif}

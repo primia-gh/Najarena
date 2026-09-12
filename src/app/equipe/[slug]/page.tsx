@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { inviterMembre, retirerMembre, refuserInvitation } from "@/lib/equipe-actions";
+import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import SectionTitre from "@/components/ui/SectionTitre";
 
 interface EquipePageProps {
   params: Promise<{ slug: string }>;
@@ -115,15 +117,11 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
       </Link>
 
       {erreur && (
-        <p className="mt-4 rounded-[3px] border border-sceau/30 bg-sceau/10 p-3 text-sm text-sceau">
-          {erreur}
-        </p>
+        <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
 
       {message && (
-        <p className="mt-4 rounded-[3px] border border-atteste/30 bg-atteste/10 p-3 text-sm text-atteste">
-          {message}
-        </p>
+        <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
       )}
 
       <div className="mt-6 flex items-center gap-3">
@@ -151,20 +149,15 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
       )}
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Membres
-        </h2>
+        <SectionTitre>Membres</SectionTitre>
         {membres.length === 0 ? (
-          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Aucun autre membre pour l&apos;instant.
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {membres.map((m) => (
-              <li
-                key={m.profile_id}
-                className="flex items-center justify-between rounded-[3px] border border-trait bg-carte px-4 py-2"
-              >
+              <li key={m.profile_id} className={"flex items-center justify-between " + classeCarte("none")}>
                 <span className="text-sm font-medium text-encre">
                   {m.profile ? (
                     <Link href={`/joueur/${m.profile.slug}`} className="hover:underline">
@@ -215,9 +208,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
 
       {estCapitaine && (
         <section className="mt-10">
-          <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-            Gérer l&apos;équipe
-          </h2>
+          <SectionTitre>Gérer l&apos;équipe</SectionTitre>
 
           <form action={inviterMembre} className="mt-3 flex flex-col gap-2 sm:flex-row">
             <input type="hidden" name="team_id" value={equipe.id} />
@@ -232,10 +223,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
               />
             </label>
-            <button
-              type="submit"
-              className="rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
-            >
+            <button type="submit" className={classeBoutonPrimaire()}>
               Inviter
             </button>
           </form>
@@ -247,10 +235,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
               </h3>
               <ul className="mt-2 flex flex-col gap-2">
                 {invitesEnAttente.map((m) => (
-                  <li
-                    key={m.profile_id}
-                    className="flex items-center justify-between rounded-[3px] border border-trait bg-carte px-4 py-2"
-                  >
+                  <li key={m.profile_id} className={"flex items-center justify-between " + classeCarte("none")}>
                     <span className="text-sm text-ardoise">
                       {m.profile?.pseudo ?? "Joueur inconnu"}
                     </span>

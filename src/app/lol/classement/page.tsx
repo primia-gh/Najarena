@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { trouverPalier, arrondir } from "@/lib/classement";
+import { classeCarte } from "@/lib/ui";
+import Badge from "@/components/ui/Badge";
 
 export const metadata: Metadata = {
   title: "Classement LoL — Najarena",
@@ -73,30 +75,35 @@ export default async function ClassementPage() {
 
       <div className="mt-8">
         {!saison ? (
-          <p className="rounded-[3px] border border-trait bg-carte p-6 text-sm text-ardoise">
+          <p className={classeCarte("none") + " text-sm text-ardoise"}>
             Le classement n&apos;est pas encore ouvert — aucune saison n&apos;est
             en cours pour l&apos;instant.
           </p>
         ) : erreurClassement ? (
-          <p className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-6 text-sm text-sceau">
+          <p className={classeCarte("sceau") + " text-sm text-sceau"}>
             Impossible de charger le classement pour l&apos;instant. Réessaie
             dans un instant.
           </p>
         ) : classement.length === 0 ? (
-          <p className="rounded-[3px] border border-trait bg-carte p-6 text-sm text-ardoise">
+          <p className={classeCarte("none") + " text-sm text-ardoise"}>
             Aucun joueur classé pour l&apos;instant. L&apos;entrée au
             classement demande une dizaine de matchs joués.
           </p>
         ) : (
-          <ol className="flex flex-col">
+          <ol className="overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
             {classement.map((r, i) => {
               const palier = trouverPalier(r.rating, paliers);
+              const podium = i < 3;
               return (
                 <li
                   key={r.profile?.slug ?? i}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 border-b border-trait px-1 py-3 text-sm last:border-b-0"
+                  className={`grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 border-b border-trait px-4 py-3 text-sm last:border-b-0 ${
+                    podium ? "bg-laiton/8" : ""
+                  }`}
                 >
-                  <span className="font-mono text-[0.8rem] text-ardoise">#{i + 1}</span>
+                  <span className={`font-mono text-[0.8rem] ${podium ? "font-bold text-laiton-texte" : "text-ardoise"}`}>
+                    #{i + 1}
+                  </span>
                   <span className="font-medium text-encre">
                     {r.profile ? (
                       <Link href={`/joueur/${r.profile.slug}`} className="hover:underline">
@@ -106,9 +113,11 @@ export default async function ClassementPage() {
                       "Joueur inconnu"
                     )}
                   </span>
-                  <span className="font-display text-sm font-extrabold text-laiton-texte">
-                    {palier?.nom ?? "—"}
-                  </span>
+                  {palier ? (
+                    <Badge couleur="text-laiton-texte">{palier.nom}</Badge>
+                  ) : (
+                    <span className="text-ardoise">—</span>
+                  )}
                   <span className="font-mono text-base font-bold text-encre">{arrondir(r.rating)}</span>
                   <span className="font-mono text-[0.72rem] text-ardoise">
                     {r.matchs_joues} matchs

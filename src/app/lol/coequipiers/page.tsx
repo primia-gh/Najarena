@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { publierRechercheCoequipier, retirerRechercheCoequipier } from "@/lib/coequipier-actions";
 import { inviterMembre } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
+import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import SectionTitre from "@/components/ui/SectionTitre";
 
 export const metadata: Metadata = {
   title: "Trouver un coéquipier — Najarena",
@@ -69,18 +71,14 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
       </p>
 
       {erreur && (
-        <p className="mt-6 rounded-[3px] border border-sceau/30 bg-sceau/10 p-3 text-sm text-sceau">
-          {erreur}
-        </p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
       {message && (
-        <p className="mt-6 rounded-[3px] border border-atteste/30 bg-atteste/10 p-3 text-sm text-atteste">
-          {message}
-        </p>
+        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
       )}
 
       {utilisateur ? (
-        <form action={publierRechercheCoequipier} className="mt-6 flex flex-col gap-2 rounded-[3px] border border-trait bg-carte p-4">
+        <form action={publierRechercheCoequipier} className={"mt-6 flex flex-col gap-2 " + classeCarte("none")}>
           <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
             {monAnnonce ? "Modifier mon annonce" : "Se déclarer disponible"}
           </span>
@@ -93,10 +91,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
             className="resize-none rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
           />
           <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              className="rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
-            >
+            <button type="submit" className={classeBoutonPrimaire()}>
               {monAnnonce ? "Mettre à jour" : "Publier mon annonce"}
             </button>
             {monAnnonce && (
@@ -111,7 +106,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
           </div>
         </form>
       ) : (
-        <p className="mt-6 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+        <p className={"mt-6 " + classeCarte("none") + " text-sm text-ardoise"}>
           <Link href="/connexion" className="text-encre underline underline-offset-3">
             Connecte-toi
           </Link>{" "}
@@ -120,17 +115,15 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
       )}
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Joueurs disponibles
-        </h2>
+        <SectionTitre>Joueurs disponibles</SectionTitre>
         {annonces.length === 0 ? (
-          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Personne ne s&apos;est encore déclaré disponible.
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-3">
             {annonces.map((a) => (
-              <li key={a.profile_id} className="rounded-[3px] border border-trait bg-carte p-4">
+              <li key={a.profile_id} className={classeCarte("none")}>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-sm font-semibold text-encre">
                     {a.profile ? (

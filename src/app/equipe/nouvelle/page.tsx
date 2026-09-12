@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerEquipe } from "@/lib/equipe-actions";
+import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
 
 export const metadata: Metadata = {
   title: "Créer une équipe — Najarena",
@@ -40,9 +41,7 @@ export default async function EquipeNouvellePage({ searchParams }: EquipeNouvell
       </p>
 
       {erreur && (
-        <p className="mt-6 rounded-[3px] border border-sceau/30 bg-sceau/10 p-3 text-sm text-sceau">
-          {erreur}
-        </p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
 
       <form action={creerEquipe} className="mt-6 flex flex-col gap-4">
@@ -76,10 +75,7 @@ export default async function EquipeNouvellePage({ searchParams }: EquipeNouvell
           />
         </label>
 
-        <button
-          type="submit"
-          className="mt-2 rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
-        >
+        <button type="submit" className={"mt-2 " + classeBoutonPrimaire()}>
           Créer l&apos;équipe
         </button>
       </form>

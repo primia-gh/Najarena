@@ -11,6 +11,9 @@ import {
 } from "@/lib/organisation-actions";
 import { LABEL_STATUT, COULEUR_STATUT, LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
+import { classeCarte, classeBoutonPrimaire, accentDepuisCouleur } from "@/lib/ui";
+import Badge from "@/components/ui/Badge";
+import SectionTitre from "@/components/ui/SectionTitre";
 
 export const metadata: Metadata = {
   title: "Cockpit organisateur — Najarena",
@@ -110,8 +113,8 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
         ← Mon compte
       </Link>
 
-      <div className="mt-6 flex items-start justify-between gap-4">
-        <div>
+      <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
           <span className="font-mono text-[0.64rem] tracking-[0.22em] text-ardoise uppercase">
             Cockpit organisateur
           </span>
@@ -119,13 +122,12 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
             {tournoi.nom}
           </h1>
         </div>
-        <span
-          className={`shrink-0 font-mono text-[0.62rem] tracking-[0.1em] uppercase ${
-            COULEUR_STATUT[tournoi.statut as keyof typeof COULEUR_STATUT] ?? "text-ardoise"
-          }`}
+        <Badge
+          couleur={COULEUR_STATUT[tournoi.statut as keyof typeof COULEUR_STATUT] ?? "text-ardoise"}
+          className="shrink-0"
         >
           {LABEL_STATUT[tournoi.statut as keyof typeof LABEL_STATUT] ?? tournoi.statut}
-        </span>
+        </Badge>
       </div>
 
       <div className="mt-3 font-mono text-[0.78rem] text-ardoise">
@@ -140,26 +142,19 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       </Link>
 
       {erreur && (
-        <p className="mt-6 rounded-[3px] border border-sceau/30 bg-sceau/10 p-3 text-sm text-sceau">
-          {erreur}
-        </p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Inscrits et check-in
-        </h2>
+        <SectionTitre>Inscrits et check-in</SectionTitre>
         {inscriptions.length === 0 ? (
-          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Aucune inscription pour l&apos;instant.
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {inscriptions.map((i) => (
-              <li
-                key={i.id}
-                className="flex items-center justify-between rounded-[3px] border border-trait bg-carte px-4 py-2"
-              >
+              <li key={i.id} className={"flex items-center justify-between " + classeCarte("none")}>
                 <span className="text-sm font-medium text-encre">
                   {i.profile?.pseudo ?? "Joueur inconnu"}
                 </span>
@@ -201,10 +196,10 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       </section>
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">Bracket</h2>
+        <SectionTitre>Bracket</SectionTitre>
 
         {!bracketGenere ? (
-          <div className="mt-3 rounded-[3px] border border-trait bg-carte p-4">
+          <div className={"mt-3 " + classeCarte("none")}>
             <p className="text-sm text-ardoise">
               {nbConfirmes} joueur{nbConfirmes === 1 ? "" : "s"} confirmé
               {nbConfirmes === 1 ? "" : "s"}. Le tirage se fait aléatoirement
@@ -215,7 +210,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
               <button
                 type="submit"
                 disabled={nbConfirmes < 2}
-                className="rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                className={classeBoutonPrimaire() + " disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"}
               >
                 Générer le bracket
               </button>
@@ -233,9 +228,15 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                     const verdict = verdictParMatch.get(m.id);
                     const participants = [...m.match_participants].sort((a, b) => a.slot - b.slot);
                     const peutDecider = !verdict && participants.length === 2;
+                    const accentMatch =
+                      !verdict && m.statut === "litige"
+                        ? "sceau"
+                        : verdict
+                          ? accentDepuisCouleur(COULEUR_NIVEAU[verdict.niveau])
+                          : "none";
 
                     return (
-                      <li key={m.id} className="rounded-[3px] border border-trait bg-carte p-4">
+                      <li key={m.id} className={classeCarte(accentMatch)}>
                         {participants.length === 0 ? (
                           <span className="text-sm text-ardoise">Match à venir</span>
                         ) : (
@@ -265,11 +266,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
 
                         {verdict && (
                           <div className="mt-2 flex items-center gap-2 border-t border-trait pt-2">
-                            <span
-                              className={`font-mono text-[0.58rem] tracking-[0.1em] uppercase ${COULEUR_NIVEAU[verdict.niveau]}`}
-                            >
-                              {LABEL_NIVEAU[verdict.niveau]}
-                            </span>
+                            <Badge couleur={COULEUR_NIVEAU[verdict.niveau]}>{LABEL_NIVEAU[verdict.niveau]}</Badge>
                             {verdict.motif && (
                               <span className="text-[0.72rem] text-ardoise">{verdict.motif}</span>
                             )}
@@ -321,7 +318,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                               aria-label={`Enregistrer le résultat — ${participants
                                 .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
                                 .join(" vs ")}`}
-                              className="self-start rounded-[3px] bg-sceau px-3 py-1.5 text-[0.8rem] font-semibold text-papier transition hover:brightness-110"
+                              className={"self-start " + classeBoutonPrimaire()}
                             >
                               Enregistrer le résultat
                             </button>
@@ -339,12 +336,10 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
 
       {litigesOuverts.length > 0 && (
         <section className="mt-10">
-          <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-            Litiges ouverts
-          </h2>
+          <SectionTitre>Litiges ouverts</SectionTitre>
           <ul className="mt-3 flex flex-col gap-3">
             {litigesOuverts.map((l) => (
-              <li key={l.id} className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-4">
+              <li key={l.id} className={classeCarte("sceau")}>
                 <p className="text-sm text-encre">
                   Ouvert par{" "}
                   <span className="font-medium">{l.ouvert_par?.pseudo ?? "un joueur"}</span> :{" "}
@@ -368,7 +363,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                   <button
                     type="submit"
                     aria-label={`Résoudre le litige ouvert par ${l.ouvert_par?.pseudo ?? "un joueur"}`}
-                    className="self-start rounded-[3px] bg-sceau px-3 py-1.5 text-[0.8rem] font-semibold text-papier transition hover:brightness-110"
+                    className={"self-start " + classeBoutonPrimaire()}
                   >
                     Résoudre
                   </button>

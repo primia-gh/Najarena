@@ -10,6 +10,8 @@ import {
   formaterDate,
   type StatutPublic,
 } from "@/lib/tournois";
+import { classeCarte, classeBoutonPrimaire, accentDepuisCouleur } from "@/lib/ui";
+import Badge from "@/components/ui/Badge";
 
 export const metadata: Metadata = {
   title: "Tournois LoL — Najarena",
@@ -89,10 +91,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
         Tournois
       </h1>
 
-      <form
-        method="get"
-        className="mt-8 flex flex-wrap items-end gap-4 rounded-[3px] border border-trait bg-carte p-4"
-      >
+      <form method="get" className={`mt-8 flex flex-wrap items-end gap-4 ${classeCarte("none")}`}>
         <label className="flex flex-col gap-1">
           <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
             Statut
@@ -129,10 +128,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
           </select>
         </label>
 
-        <button
-          type="submit"
-          className="rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier hover:brightness-110"
-        >
+        <button type="submit" className={classeBoutonPrimaire()}>
           Filtrer
         </button>
 
@@ -148,12 +144,12 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
 
       <div className="mt-8">
         {erreurConnexion ? (
-          <p className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-6 text-sm text-sceau">
+          <p className={classeCarte("sceau") + " text-sm text-sceau"}>
             Impossible de charger les tournois pour l&apos;instant. Réessaie
             dans un instant.
           </p>
         ) : tournois.length === 0 ? (
-          <p className="rounded-[3px] border border-trait bg-carte p-6 text-sm text-ardoise">
+          <p className={classeCarte("none") + " text-sm text-ardoise"}>
             Aucun tournoi ne correspond à ces critères pour l&apos;instant.
           </p>
         ) : (
@@ -162,17 +158,15 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
               <li key={t.id}>
                 <Link
                   href={`/lol/tournois/${t.slug}`}
-                  className="block rounded-[3px] border border-trait bg-carte p-4 transition hover:border-encre"
+                  className={`block ${classeCarte(accentDepuisCouleur(COULEUR_STATUT[t.statut as StatutPublic]), true)}`}
                 >
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <span className="font-display text-lg font-extrabold tracking-tight text-encre">
                       {t.nom}
                     </span>
-                    <span
-                      className={`font-mono text-[0.6rem] tracking-[0.1em] uppercase ${COULEUR_STATUT[t.statut as StatutPublic]}`}
-                    >
+                    <Badge couleur={COULEUR_STATUT[t.statut as StatutPublic]}>
                       {LABEL_STATUT[t.statut as StatutPublic]}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="mt-2 font-mono text-[0.72rem] text-ardoise">
                     {t.format} · {t.capacite} joueurs · {t.region} ·{" "}

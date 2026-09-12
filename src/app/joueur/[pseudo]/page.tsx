@@ -6,6 +6,9 @@ import SceauFiabilite from "@/components/SceauFiabilite";
 import { calibrationPct, arrondir, RD_INITIAL } from "@/lib/classement";
 import { LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
 import { JsonLd } from "@/lib/json-ld";
+import { classeCarte } from "@/lib/ui";
+import Badge from "@/components/ui/Badge";
+import SectionTitre from "@/components/ui/SectionTitre";
 
 // Même repli que layout.tsx/robots.ts/sitemap.ts — jamais un domaine inventé.
 const URL_SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -134,7 +137,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
   if (donnees.statut === "erreur") {
     return (
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <p className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-6 text-sm text-sceau">
+        <p className={classeCarte("sceau") + " text-sm text-sceau"}>
           Impossible de charger ce profil pour l&apos;instant. Réessaie dans
           un instant.
         </p>
@@ -200,16 +203,18 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
         Najarena
       </Link>
 
-      <div className="mt-6 flex items-start justify-between gap-6 rounded-[3px] border border-trait bg-carte p-6">
-        <div>
+      <div className={"mt-6 flex flex-wrap items-start justify-between gap-6 " + classeCarte("laiton")}>
+        <div className="min-w-0">
           <h1 className="font-display text-4xl font-extrabold tracking-tight text-encre">
             {profil.pseudo}
           </h1>
           {compteRiot ? (
-            <div className="mt-1 font-mono text-[0.8rem] text-ardoise">
-              {compteRiot.riot_game_name}#{compteRiot.riot_tag_line} · League of
-              Legends · {compteRiot.region}
-              {compteRiot.verifie_le && <span className="ml-2 text-atteste">Vérifié</span>}
+            <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[0.8rem] text-ardoise">
+              <span>
+                {compteRiot.riot_game_name}#{compteRiot.riot_tag_line} · League of
+                Legends · {compteRiot.region}
+              </span>
+              {compteRiot.verifie_le && <Badge couleur="text-atteste">Vérifié</Badge>}
             </div>
           ) : (
             <div className="mt-1 font-mono text-[0.8rem] text-ardoise">
@@ -219,8 +224,10 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
           {profil.pays && (
             <div className="mt-1 text-sm text-ardoise">{profil.pays}</div>
           )}
-          <div className="mt-3 font-display text-lg font-extrabold text-laiton-texte">
-            {rating?.est_classe ? "Classé" : "Non classé"}
+          <div className="mt-3">
+            <Badge couleur={rating?.est_classe ? "text-atteste" : "text-ardoise"}>
+              {rating?.est_classe ? "Classé" : "Non classé"}
+            </Badge>
           </div>
         </div>
 
@@ -232,7 +239,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 border border-trait bg-carte">
+      <div className="mt-4 grid grid-cols-3 overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
         <div className="border-r border-trait p-4">
           <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
             Rating
@@ -261,15 +268,10 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
 
       {rivalites.length > 0 && (
         <section className="mt-10">
-          <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-            Face-à-face
-          </h2>
+          <SectionTitre>Face-à-face</SectionTitre>
           <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {rivalites.map((r) => (
-              <li
-                key={r.slug}
-                className="flex items-center justify-between gap-3 rounded-[3px] border border-trait bg-carte px-4 py-3"
-              >
+              <li key={r.slug} className={"flex items-center justify-between gap-3 " + classeCarte("none")}>
                 <Link
                   href={`/joueur/${r.slug}`}
                   className="font-medium text-encre hover:underline"
@@ -288,20 +290,20 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
       )}
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Registre des matchs
-        </h2>
+        <SectionTitre>Registre des matchs</SectionTitre>
 
         {historique.length === 0 ? (
-          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Aucun résultat enregistré pour l&apos;instant.
           </p>
         ) : (
-          <ul className="mt-3 flex flex-col">
+          <ul className="mt-3 overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
             {historique.map((h) => (
               <li
                 key={h.matchId}
-                className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 border-b border-trait px-1 py-3 text-sm last:border-b-0"
+                className={`grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 border-b border-trait px-4 py-3 text-sm last:border-b-0 ${
+                  h.estGagnant ? "bg-atteste/5" : ""
+                }`}
               >
                 <span className="font-mono text-[0.72rem] text-ardoise">
                   {formaterDate(h.creeLe)}
@@ -320,11 +322,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                     </span>
                   )}
                 </span>
-                <span
-                  className={`font-mono text-[0.58rem] tracking-[0.1em] uppercase ${COULEUR_NIVEAU[h.niveau]}`}
-                >
-                  {LABEL_NIVEAU[h.niveau]}
-                </span>
+                <Badge couleur={COULEUR_NIVEAU[h.niveau]}>{LABEL_NIVEAU[h.niveau]}</Badge>
                 <span
                   className={`font-mono text-sm font-bold ${
                     h.estGagnant ? "text-atteste" : "text-sceau"

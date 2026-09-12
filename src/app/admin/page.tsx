@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { resoudreLitigeAdmin } from "@/lib/admin-actions";
 import { formaterDate } from "@/lib/tournois";
+import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import SectionTitre from "@/components/ui/SectionTitre";
 
 export const metadata: Metadata = {
   title: "Administration — Najarena",
@@ -32,7 +34,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   if (!admin) {
     return (
       <main className="mx-auto max-w-md px-6 py-16">
-        <p className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-4 text-sm text-sceau">
+        <p className={classeCarte("sceau") + " text-sm text-sceau"}>
           Accès réservé aux administrateurs.
         </p>
         <Link
@@ -96,16 +98,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <p className="mt-1 font-mono text-[0.72rem] text-ardoise">Modération · Litiges</p>
 
       {erreur && (
-        <p className="mt-6 rounded-[3px] border border-sceau/30 bg-sceau/10 p-3 text-sm text-sceau">
-          {erreur}
-        </p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Vue d&apos;ensemble
-        </h2>
-        <div className="mt-3 grid grid-cols-2 border border-trait bg-carte sm:grid-cols-4">
+        <SectionTitre>Vue d&apos;ensemble</SectionTitre>
+        <div className="mt-3 grid grid-cols-2 overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)] sm:grid-cols-4">
           <div className="border-r border-b border-trait p-4 sm:border-b-0">
             <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
               Joueurs
@@ -142,15 +140,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </section>
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Derniers inscrits
-        </h2>
+        <SectionTitre>Derniers inscrits</SectionTitre>
         {comptes.length === 0 ? (
-          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Aucun compte pour l&apos;instant.
           </p>
         ) : (
-          <div className="mt-3 overflow-x-auto border border-trait bg-carte">
+          <div className="mt-3 overflow-x-auto rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-trait">
@@ -198,22 +194,20 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </section>
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Litiges ouverts ({litigesOuverts.length})
-        </h2>
+        <SectionTitre>Litiges ouverts ({litigesOuverts.length})</SectionTitre>
 
         {erreurLitiges ? (
-          <p className="mt-3 rounded-[3px] border border-sceau/30 bg-sceau/10 p-4 text-sm text-sceau">
+          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-sceau"}>
             Impossible de charger les litiges pour l&apos;instant.
           </p>
         ) : litigesOuverts.length === 0 ? (
-          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Aucun litige ouvert.
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-3">
             {litigesOuverts.map((l) => (
-              <li key={l.id} className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-4">
+              <li key={l.id} className={classeCarte("sceau")}>
                 {l.match?.tournament && (
                   <Link
                     href={`/lol/tournois/${l.match.tournament.slug}`}
@@ -248,7 +242,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <button
                     type="submit"
                     aria-label={`Résoudre le litige${l.match?.tournament ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}` : ""}`}
-                    className="self-start rounded-[3px] bg-sceau px-3 py-1.5 text-[0.8rem] font-semibold text-papier transition hover:brightness-110"
+                    className={"self-start " + classeBoutonPrimaire()}
                   >
                     Résoudre
                   </button>
@@ -260,17 +254,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </section>
 
       <section className="mt-10">
-        <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
-          Litiges résolus
-        </h2>
+        <SectionTitre>Litiges résolus</SectionTitre>
         {litigesResolus.length === 0 ? (
-          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Aucun litige résolu pour l&apos;instant.
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {litigesResolus.map((l) => (
-              <li key={l.id} className="rounded-[3px] border border-trait bg-carte p-4">
+              <li key={l.id} className={classeCarte("atteste")}>
                 {l.match?.tournament && (
                   <span className="font-mono text-[0.66rem] text-ardoise uppercase">
                     {l.match.tournament.nom} · Tour {l.match.tour}
