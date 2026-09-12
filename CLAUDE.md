@@ -96,7 +96,9 @@ Schéma de base de données : `docs/schema.sql`.
 
 Référence complète et jouable : `docs/direction-artistique.html`.
 
-**Principe :** registre officiel, pas arène à néons. Le site est **clair** ; seule la page d'accueil est sombre et atmosphérique. Le contraste est volontaire — on entre par l'arène, on arrive dans le registre.
+**Principe :** registre officiel, pas arène à néons. Le site est **clair** ; seules l'accueil et le hub `/lol` sont sombres et atmosphériques. Le contraste est volontaire — on entre par l'arène, on arrive dans le registre.
+
+*Mise à jour du 12/09/2026 : refonte "arène" dark premium (navbar sticky, animations au scroll, sceau de fiabilité mis en vitrine, paliers et chiffres réels) — décision explicite du porteur du projet de limiter ce traitement aux deux pages de découverte, PAS aux pages preuve (classement, profil, tournoi, cockpit), qui restent dans le registre clair : c'est leur sobriété qui porte la crédibilité du classement. Composants dans `src/components/accueil/`.*
 
 **Couleurs**
 
