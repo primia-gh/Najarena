@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { seDeconnecter } from "@/lib/auth-actions";
 import { LABEL_STATUT, COULEUR_STATUT, formaterDate, type StatutPublic } from "@/lib/tournois";
+import { accepterInvitation, refuserInvitation } from "@/lib/equipe-actions";
 import PushOptIn from "@/components/PushOptIn";
 
 export const metadata: Metadata = {
@@ -57,6 +58,25 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     .order("cree_le", { ascending: false });
 
   const tournoisOrganises = tournoisOrganisesData ?? [];
+
+  const { data: affiliationsData } = await supabase
+    .from("team_members")
+    .select("team_id, accepte_le, team:teams(id, slug, nom, tag, capitaine_id)")
+    .eq("profile_id", utilisateur.id);
+
+  const affiliations = affiliationsData ?? [];
+  const invitationsEnAttente = affiliations.filter((a) => a.accepte_le === null && a.team);
+  const equipesMembre = affiliations.filter(
+    (a) => a.accepte_le !== null && a.team && a.team.capitaine_id !== utilisateur.id,
+  );
+
+  const { data: equipesCapitaineData } = await supabase
+    .from("teams")
+    .select("id, slug, nom, tag")
+    .eq("capitaine_id", utilisateur.id)
+    .order("cree_le", { ascending: false });
+
+  const equipesCapitaine = equipesCapitaineData ?? [];
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
@@ -140,6 +160,96 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           Notifications
         </h2>
         <PushOptIn />
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
+            Mes équipes
+          </h2>
+          <Link
+            href="/equipe/nouvelle"
+            className="font-mono text-[0.7rem] text-sceau underline underline-offset-3"
+          >
+            Créer une équipe
+          </Link>
+        </div>
+
+        {invitationsEnAttente.length > 0 && (
+          <ul className="mt-3 flex flex-col gap-2">
+            {invitationsEnAttente.map((a) => (
+              <li
+                key={a.team_id}
+                className="flex items-center justify-between rounded-[3px] border border-laiton-texte/30 bg-laiton-texte/10 px-4 py-3"
+              >
+                <span className="text-sm text-encre">
+                  <strong>{a.team?.tag}</strong> {a.team?.nom} t&apos;invite
+                </span>
+                <div className="flex items-center gap-3">
+                  <form action={accepterInvitation}>
+                    <input type="hidden" name="team_id" value={a.team_id} />
+                    <button
+                      type="submit"
+                      aria-label={`Accepter l'invitation de ${a.team?.nom}`}
+                      className="font-mono text-[0.66rem] text-atteste underline underline-offset-3"
+                    >
+                      Accepter
+                    </button>
+                  </form>
+                  <form action={refuserInvitation}>
+                    <input type="hidden" name="team_id" value={a.team_id} />
+                    <button
+                      type="submit"
+                      aria-label={`Refuser l'invitation de ${a.team?.nom}`}
+                      className="font-mono text-[0.66rem] text-sceau underline underline-offset-3"
+                    >
+                      Refuser
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {equipesCapitaine.length === 0 && equipesMembre.length === 0 ? (
+          <p className="mt-3 rounded-[3px] border border-trait bg-carte p-4 text-sm text-ardoise">
+            Tu ne fais partie d&apos;aucune équipe pour l&apos;instant.
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {equipesCapitaine.map((e) => (
+              <li key={e.id}>
+                <Link
+                  href={`/equipe/${e.slug}`}
+                  className="flex items-center justify-between rounded-[3px] border border-trait bg-carte px-4 py-2 transition hover:border-encre"
+                >
+                  <span className="text-sm font-medium text-encre">
+                    <strong>{e.tag}</strong> {e.nom}
+                  </span>
+                  <span className="font-mono text-[0.6rem] tracking-[0.1em] text-ardoise uppercase">
+                    Capitaine
+                  </span>
+                </Link>
+              </li>
+            ))}
+            {equipesMembre.map((a) => (
+              <li key={a.team_id}>
+                <Link
+                  href={`/equipe/${a.team!.slug}`}
+                  className="flex items-center justify-between rounded-[3px] border border-trait bg-carte px-4 py-2 transition hover:border-encre"
+                >
+                  <span className="text-sm font-medium text-encre">
+                    <strong>{a.team!.tag}</strong> {a.team!.nom}
+                  </span>
+                  <span className="font-mono text-[0.6rem] tracking-[0.1em] text-ardoise uppercase">
+                    Membre
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="mt-10">
