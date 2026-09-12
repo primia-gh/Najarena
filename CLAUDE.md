@@ -11,7 +11,9 @@ Plateforme de tournois **League of Legends** en français. Les joueurs disputent
 **Promesse :** ton niveau, vérifié.
 Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de conception se tranche par : est-ce que ça renforce ou affaiblit la crédibilité du classement ?
 
-**Périmètre V1 :** LoL, format 1v1 uniquement. La structure est multi-jeux dès le départ, mais un seul jeu est actif.
+**Périmètre V1 :** LoL, formats 1v1 et 5v5. La structure est multi-jeux dès le départ, mais un seul jeu est actif.
+
+*Mise à jour du 12/09/2026 : les équipes/5v5 étaient prévues en Phase 3 (§9) ; leur construction a été avancée en V1 sur décision du porteur du projet, en parallèle du reste plutôt qu'après l'obtention de la clé Riot production.*
 
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
@@ -131,6 +133,7 @@ Si un chiffre fait partie du dossier, il est en caractères machine. Si c'est du
 /lol/classement            leaderboard
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
 /equipe/[slug]             page publique d'équipe
+/equipe/nouvelle           création d'équipe
 /organiser/nouveau         création de tournoi
 /moi                       tableau de bord joueur
 /moi/organisation/[id]     cockpit de tournoi
@@ -152,7 +155,7 @@ Le profil joueur reste **hors** du segment de jeu, avec des onglets par jeu — 
 
 **Phase 2 — clé obtenue.** RSO, rapprochement par historique (niveau 2), synchronisation des Riot ID, demande d'API Tournament, lancement public, saison 1.
 
-**Phase 3.** Codes de tournoi (niveau 3), équipes et 5v5, analyse IA du profil (version progression), matching duo.
+**Phase 3.** Codes de tournoi (niveau 3), analyse IA du profil (version progression), matching duo. *(Équipes et 5v5 avancés en V1 le 12/09/2026 — voir §1.)*
 
 **Phase 4.** Analyse orientée recruteur, scouting, overlay stream, cash prizes sponsorisés.
 
