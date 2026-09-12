@@ -90,6 +90,14 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight text-encre">
           Tournois
         </h1>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[0.78rem] text-ardoise">
+          {STATUTS_PUBLICS.map((s) => (
+            <span key={s} className="inline-flex items-center gap-1.5">
+              <span className={`h-2 w-2 rounded-full bg-current ${COULEUR_STATUT[s]}`} />
+              {LABEL_STATUT[s]}
+            </span>
+          ))}
+        </div>
       </Reveal>
 
       <Reveal delai={0.1}>

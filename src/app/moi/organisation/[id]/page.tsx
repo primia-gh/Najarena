@@ -208,6 +208,22 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       <Reveal delai={0.15}>
       <section className="mt-10">
         <SectionTitre>Bracket</SectionTitre>
+        {bracketGenere && (
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[0.78rem] text-ardoise">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-atteste" />
+              Niveau 2/3 — compte pour le classement
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-ardoise" />
+              Niveau 1 — décision manuelle, hors classement
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-sceau" />
+              Litige — en attente de ta décision
+            </span>
+          </div>
+        )}
 
         {!bracketGenere ? (
           <div className={"mt-3 " + classeCarte("none")}>

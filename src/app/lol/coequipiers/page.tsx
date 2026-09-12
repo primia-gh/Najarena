@@ -69,8 +69,10 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
       <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-encre">
         Trouver un coéquipier
       </h1>
-      <p className="mt-2 text-sm text-ardoise">
-        Pour jouer en 5v5.{" "}
+      <p className="mt-2 max-w-lg text-sm text-ardoise">
+        Pour jouer en 5v5 — une équipe compte jusqu&apos;à {TAILLE_MAX_EQUIPE} joueurs. Publie une
+        annonce pour te rendre visible, ou invite directement un joueur disponible dans une équipe
+        où il reste de la place.{" "}
         <Link href="/equipe/nouvelle" className="text-encre underline underline-offset-3">
           Créer une équipe
         </Link>

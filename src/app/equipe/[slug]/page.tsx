@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { inviterMembre, retirerMembre, refuserInvitation } from "@/lib/equipe-actions";
+import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
 import SectionTitre from "@/components/ui/SectionTitre";
 import FondArene from "@/components/accueil/FondArene";
@@ -138,6 +139,9 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
           {jeu.nom}
         </div>
       )}
+      <div className="mt-1 font-mono text-[0.72rem] text-laiton">
+        {membres.length + 1}/{TAILLE_MAX_EQUIPE} joueurs
+      </div>
 
       {capitaine && (
         <div className="mt-3 font-mono text-[0.78rem] text-ardoise">

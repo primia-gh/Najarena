@@ -47,7 +47,9 @@ export default async function OrganiserNouveauPage({
         Organiser un tournoi
       </h1>
       <p className="mt-2 text-sm text-ardoise">
-        League of Legends · 1v1 — seul format disponible pour l&apos;instant.
+        League of Legends · 1v1 — seul format disponible pour l&apos;instant. Une fois publié, ton
+        tournoi apparaît immédiatement dans la liste et les joueurs peuvent s&apos;inscrire ; en
+        brouillon, lui seul reste visible pour toi.
       </p>
       </Reveal>
 
