@@ -38,7 +38,7 @@ export default function SceauVitrine({ cible = 68 }: SceauVitrineProps) {
 
   return (
     <div ref={ref} className="mx-auto w-fit [&_svg]:h-56 [&_svg]:w-56">
-      <SceauFiabilite calibrationPct={pct} couleur="var(--nuit-laiton)" />
+      <SceauFiabilite calibrationPct={pct} couleur="var(--color-laiton)" />
     </div>
   );
 }

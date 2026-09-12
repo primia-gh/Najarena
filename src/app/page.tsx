@@ -1,21 +1,12 @@
 import Link from "next/link";
 import BracketBackground from "@/components/BracketBackground";
-import NavbarArene from "@/components/accueil/NavbarArene";
 import FondArene from "@/components/accueil/FondArene";
 import Reveal from "@/components/accueil/Reveal";
 import CompteurAnime from "@/components/accueil/CompteurAnime";
 import SceauVitrine from "@/components/accueil/SceauVitrine";
 import CarteMatch from "@/components/accueil/CarteMatch";
 import { createClient } from "@/lib/supabase/server";
-
-const COULEUR_PALIER: Record<string, string> = {
-  bronze: "#8a6a52",
-  argent: "#9aa4ae",
-  or: "var(--nuit-laiton)",
-  platine: "#4fb8ae",
-  diamant: "#6fa8e8",
-  champion: "var(--nuit-sceau)",
-};
+import { COULEUR_PALIER } from "@/lib/paliers";
 
 async function chargerPreuveSociale() {
   const supabase = await createClient();
@@ -67,9 +58,7 @@ export default async function Home() {
   const echelleMax = paliers.length > 0 ? paliers[paliers.length - 1].rating_min * 1.12 : 1;
 
   return (
-    <div className="accueil bg-[var(--nuit-encre)]">
-      <NavbarArene />
-
+    <div className="bg-papier">
       {/* ================= HERO ================= */}
       <section className="relative isolate flex min-h-screen flex-col justify-center overflow-hidden px-6 pt-36 pb-24">
         <BracketBackground />
@@ -85,16 +74,16 @@ export default async function Home() {
 
         <div className="relative mx-auto w-full max-w-2xl">
           <Reveal>
-            <span className="font-mono text-[0.64rem] uppercase tracking-[0.24em] text-[var(--nuit-ardoise)]">
+            <span className="font-mono text-[0.64rem] uppercase tracking-[0.24em] text-[var(--color-ardoise)]">
               League of Legends · 1v1 &amp; 5v5 quotidiens
             </span>
           </Reveal>
 
           <Reveal delai={0.08}>
-            <h1 className="mt-3 font-display text-5xl leading-[0.98] font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-7xl">
+            <h1 className="mt-3 font-display text-5xl leading-[0.98] font-extrabold tracking-tight text-[var(--color-encre)] sm:text-7xl">
               Ton niveau,
               <br />
-              <span className="text-[var(--nuit-sceau)]">vérifié.</span>
+              <span className="text-[var(--color-sceau)]">vérifié.</span>
             </h1>
           </Reveal>
 
@@ -110,14 +99,14 @@ export default async function Home() {
             <div className="mt-6 flex flex-wrap gap-2.5">
               <Link
                 href="/lol/tournois"
-                className="rounded-[2px] bg-[var(--nuit-sceau)] px-5 py-3 text-sm font-semibold text-[#14090C] shadow-[0_8px_24px_-6px_var(--nuit-sceau-lueur)] transition hover:-translate-y-0.5 hover:brightness-110"
+                className="rounded-[2px] bg-[var(--color-sceau)] px-5 py-3 text-sm font-semibold text-[#14090C] shadow-[0_8px_24px_-6px_var(--color-sceau-lueur)] transition hover:-translate-y-0.5 hover:brightness-110"
                 style={{ clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)" }}
               >
                 Voir les tournois
               </Link>
               <Link
                 href="/lol/classement"
-                className="rounded-[2px] border border-white/20 bg-white/6 px-5 py-3 text-sm font-semibold text-[var(--nuit-papier)] transition hover:border-white/40"
+                className="rounded-[2px] border border-white/20 bg-white/6 px-5 py-3 text-sm font-semibold text-[var(--color-encre)] transition hover:border-white/40"
                 style={{ clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)" }}
               >
                 Voir le classement
@@ -128,16 +117,16 @@ export default async function Home() {
           <Reveal delai={0.32}>
             <dl className="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/10 pt-6">
               <div>
-                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--nuit-papier)]">1v1 · 5v5</dd>
-                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--nuit-ardoise)] uppercase">Formats</dt>
+                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--color-encre)]">1v1 · 5v5</dd>
+                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--color-ardoise)] uppercase">Formats</dt>
               </div>
               <div>
-                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--nuit-papier)]">3</dd>
-                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--nuit-ardoise)] uppercase">Niveaux de preuve</dt>
+                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--color-encre)]">3</dd>
+                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--color-ardoise)] uppercase">Niveaux de preuve</dt>
               </div>
               <div>
-                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--nuit-papier)]">24/7</dd>
-                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--nuit-ardoise)] uppercase">Suivi en direct</dt>
+                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--color-encre)]">24/7</dd>
+                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--color-ardoise)] uppercase">Suivi en direct</dt>
               </div>
             </dl>
           </Reveal>
@@ -145,18 +134,18 @@ export default async function Home() {
       </section>
 
       {/* ================= SYSTÈME DE VERDICT ================= */}
-      <section className="relative bg-gradient-to-b from-[var(--nuit-encre)] to-[var(--nuit-fond-1)] px-6 py-28">
+      <section className="relative bg-gradient-to-b from-[var(--color-papier)] to-[var(--color-fond-2)] px-6 py-28">
         <div className="mx-auto grid max-w-5xl items-center gap-16 md:grid-cols-2">
           <Reveal>
-            <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">
+            <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--color-ardoise)] uppercase">
               Le système de verdict
             </span>
-            <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+            <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--color-encre)] sm:text-4xl">
               On n&apos;invente
               <br />
               jamais un résultat.
             </h2>
-            <p className="mt-4 max-w-md text-[var(--nuit-ardoise)]">
+            <p className="mt-4 max-w-md text-[var(--color-ardoise)]">
               Chaque match consomme un verdict qui porte son propre niveau de
               fiabilité, affiché publiquement. En cas de doute, on escalade
               vers l&apos;organisateur — jamais de résultat supposé.
@@ -170,19 +159,19 @@ export default async function Home() {
               ].map((niv) => (
                 <div
                   key={niv.n}
-                  className="flex items-center gap-3.5 border border-[var(--nuit-trait)] bg-[var(--nuit-fond-2)] px-4 py-3"
+                  className="flex items-center gap-3.5 border border-[var(--color-trait)] bg-[var(--color-carte)] px-4 py-3"
                 >
                   <span
-                    className={`w-5 font-mono text-sm font-bold ${niv.compte ? "text-[var(--nuit-atteste)]" : "text-[var(--nuit-ardoise)]"}`}
+                    className={`w-5 font-mono text-sm font-bold ${niv.compte ? "text-[var(--color-atteste)]" : "text-[var(--color-ardoise)]"}`}
                   >
                     {niv.n}
                   </span>
-                  <span className="text-[0.86rem] text-[var(--nuit-papier)]">
+                  <span className="text-[0.86rem] text-[var(--color-encre)]">
                     {niv.l}
-                    <small className="mt-0.5 block text-[0.76rem] text-[var(--nuit-ardoise)]">{niv.s}</small>
+                    <small className="mt-0.5 block text-[0.76rem] text-[var(--color-ardoise)]">{niv.s}</small>
                   </span>
                   <span
-                    className={`ml-auto font-mono text-[0.62rem] tracking-[0.08em] uppercase ${niv.compte ? "text-[var(--nuit-atteste)]" : "text-[var(--nuit-ardoise)]"}`}
+                    className={`ml-auto font-mono text-[0.62rem] tracking-[0.08em] uppercase ${niv.compte ? "text-[var(--color-atteste)]" : "text-[var(--color-ardoise)]"}`}
                   >
                     {niv.compte ? "Compte" : "Hors classement"}
                   </span>
@@ -198,15 +187,15 @@ export default async function Home() {
       </section>
 
       {/* ================= SCEAU DE FIABILITÉ ================= */}
-      <section className="relative bg-[var(--nuit-fond-1)] px-6 py-28 text-center">
+      <section className="relative bg-[var(--color-fond-2)] px-6 py-28 text-center">
         <Reveal className="mx-auto max-w-lg">
-          <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">
+          <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--color-ardoise)] uppercase">
             Élément signature
           </span>
-          <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+          <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--color-encre)] sm:text-4xl">
             Le sceau de fiabilité.
           </h2>
-          <p className="mx-auto mt-3 max-w-md text-[var(--nuit-ardoise)]">
+          <p className="mx-auto mt-3 max-w-md text-[var(--color-ardoise)]">
             Une couronne de crans dont le remplissage traduit le calibrage de
             ton classement (RD). Non calibré, il reste pâle et incomplet — il
             se referme match après match.
@@ -220,21 +209,21 @@ export default async function Home() {
 
       {/* ================= PALIERS ================= */}
       {paliers.length > 0 && (
-        <section className="relative bg-gradient-to-b from-[var(--nuit-fond-1)] to-[var(--nuit-encre)] px-6 py-28">
+        <section className="relative bg-gradient-to-b from-[var(--color-fond-2)] to-[var(--color-papier)] px-6 py-28">
           <div className="mx-auto max-w-4xl">
             <Reveal>
-              <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">
+              <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--color-ardoise)] uppercase">
                 Le classement
               </span>
-              <h2 className="mt-3 max-w-lg font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+              <h2 className="mt-3 max-w-lg font-display text-3xl font-extrabold tracking-tight text-[var(--color-encre)] sm:text-4xl">
                 Glicko-2, seuils fixes, jamais de remise à zéro.
               </h2>
             </Reveal>
 
             <Reveal delai={0.1}>
-              <div className="mt-10 grid grid-cols-2 gap-px border border-[var(--nuit-trait)] bg-[var(--nuit-trait)] sm:grid-cols-3 md:grid-cols-6">
+              <div className="mt-10 grid grid-cols-2 gap-px border border-[var(--color-trait)] bg-[var(--color-trait)] sm:grid-cols-3 md:grid-cols-6">
                 {paliers.map((p, i) => {
-                  const couleur = COULEUR_PALIER[p.nom.toLowerCase()] ?? "var(--nuit-ardoise)";
+                  const couleur = COULEUR_PALIER[p.nom.toLowerCase()] ?? "var(--color-ardoise)";
                   // Le premier palier (Bronze) a rating_min = 0 en base — la
                   // borne qui a du sens à afficher est celle du palier
                   // suivant ("< 1300", cf. CLAUDE.md §4), pas "0".
@@ -244,11 +233,11 @@ export default async function Home() {
                   return (
                     <div
                       key={p.nom}
-                      className="bg-[var(--nuit-fond-2)] px-3.5 py-5 text-center transition-[background-color,transform] duration-300 hover:-translate-y-1 hover:bg-[#1c222c]"
+                      className="bg-[var(--color-carte)] px-3.5 py-5 text-center transition-[background-color,transform] duration-300 hover:-translate-y-1 hover:bg-[#1c222c]"
                     >
-                      <div className="font-mono text-[0.68rem] tracking-[0.1em] text-[var(--nuit-ardoise)] uppercase">{p.nom}</div>
-                      <div className="mt-1.5 font-mono text-lg font-bold text-[var(--nuit-papier)]">{libelle}</div>
-                      <div className="mt-3.5 h-[3px] rounded-full bg-[var(--nuit-trait)]">
+                      <div className="font-mono text-[0.68rem] tracking-[0.1em] text-[var(--color-ardoise)] uppercase">{p.nom}</div>
+                      <div className="mt-1.5 font-mono text-lg font-bold text-[var(--color-encre)]">{libelle}</div>
+                      <div className="mt-3.5 h-[3px] rounded-full bg-[var(--color-trait)]">
                         <div className="h-full rounded-full" style={{ width: `${largeur}%`, background: couleur }} />
                       </div>
                     </div>
@@ -264,8 +253,8 @@ export default async function Home() {
       <section className="relative px-6 pt-8 pb-28">
         <div className="mx-auto max-w-4xl">
           <Reveal>
-            <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">En chiffres</span>
-            <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+            <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--color-ardoise)] uppercase">En chiffres</span>
+            <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--color-encre)] sm:text-4xl">
               La preuve s&apos;accumule.
             </h2>
           </Reveal>
@@ -276,18 +265,18 @@ export default async function Home() {
                 pas encore de vrai trafic) vient s'ajouter en ligne(s)
                 suivante(s) plutôt que de laisser une case vide en bout de
                 grille. */}
-            <div className="mt-10 grid grid-cols-1 gap-px border border-[var(--nuit-trait)] bg-[var(--nuit-trait)] sm:grid-cols-3">
+            <div className="mt-10 grid grid-cols-1 gap-px border border-[var(--color-trait)] bg-[var(--color-trait)] sm:grid-cols-3">
               {[
                 { valeur: 1500, libelle: "Rating initial" },
                 { valeur: 10, libelle: "Matchs avant classement" },
                 { valeur: 3, libelle: "Niveaux de preuve" },
                 ...statsTrafic,
               ].map((s) => (
-                <div key={s.libelle} className="bg-[var(--nuit-encre)] px-5 py-8 text-center">
-                  <div className="font-mono text-3xl font-bold tabular-nums text-[var(--nuit-papier)] sm:text-4xl">
+                <div key={s.libelle} className="bg-[var(--color-papier)] px-5 py-8 text-center">
+                  <div className="font-mono text-3xl font-bold tabular-nums text-[var(--color-encre)] sm:text-4xl">
                     <CompteurAnime valeur={s.valeur} />
                   </div>
-                  <span className="mt-2 block font-mono text-[0.62rem] tracking-[0.12em] text-[var(--nuit-ardoise)] uppercase">
+                  <span className="mt-2 block font-mono text-[0.62rem] tracking-[0.12em] text-[var(--color-ardoise)] uppercase">
                     {s.libelle}
                   </span>
                 </div>
@@ -297,24 +286,24 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ================= CTA FINAL — transition vers le registre clair ================= */}
-      <section className="relative bg-gradient-to-b from-[var(--nuit-encre)] via-[#171b22] to-[var(--color-papier)] px-6 pt-8 pb-36 text-center">
+      {/* ================= CTA FINAL ================= */}
+      <section className="relative bg-gradient-to-b from-[var(--color-papier)] via-[#171b22] to-[var(--color-fond-2)] px-6 pt-8 pb-36 text-center">
         <Reveal className="mx-auto max-w-2xl">
-          <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">Rejoindre</span>
-          <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+          <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--color-ardoise)] uppercase">Rejoindre</span>
+          <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--color-encre)] sm:text-4xl">
             Ton prochain match compte. Pour de vrai.
           </h2>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
               href="/inscription"
-              className="rounded-[2px] bg-[var(--nuit-sceau)] px-6 py-3 text-sm font-semibold text-[#14090C] shadow-[0_8px_24px_-6px_var(--nuit-sceau-lueur)] transition hover:-translate-y-0.5 hover:brightness-110"
+              className="rounded-[2px] bg-[var(--color-sceau)] px-6 py-3 text-sm font-semibold text-[#14090C] shadow-[0_8px_24px_-6px_var(--color-sceau-lueur)] transition hover:-translate-y-0.5 hover:brightness-110"
               style={{ clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)" }}
             >
               Créer mon compte
             </Link>
             <Link
               href="/organiser/nouveau"
-              className="rounded-[2px] border border-white/20 bg-white/6 px-6 py-3 text-sm font-semibold text-[var(--nuit-papier)] transition hover:border-white/40"
+              className="rounded-[2px] border border-white/20 bg-white/6 px-6 py-3 text-sm font-semibold text-[var(--color-encre)] transition hover:border-white/40"
               style={{ clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)" }}
             >
               Organiser un tournoi

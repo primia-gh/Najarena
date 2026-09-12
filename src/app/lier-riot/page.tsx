@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { lierRiotId, verifierRiotId } from "@/lib/riot-actions";
 import { REGIONS, obtenirVersionDDragon, urlIconeProfil } from "@/lib/riot";
 import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import FondArene from "@/components/accueil/FondArene";
+import Reveal from "@/components/accueil/Reveal";
 
 export const metadata: Metadata = {
   title: "Lier mon Riot ID — Najarena",
@@ -33,7 +35,10 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
     .maybeSingle();
 
   return (
-    <main className="mx-auto max-w-md px-6 py-16">
+    <main className="relative mx-auto max-w-md overflow-hidden px-6 pt-28 pb-16">
+      <FondArene />
+      <div className="relative">
+      <Reveal>
       <Link
         href="/moi"
         className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
@@ -60,6 +65,8 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
       ) : (
         <EtapeSaisie />
       )}
+      </Reveal>
+      </div>
     </main>
   );
 }

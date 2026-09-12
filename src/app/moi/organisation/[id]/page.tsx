@@ -14,6 +14,9 @@ import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { classeCarte, classeBoutonPrimaire, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import SectionTitre from "@/components/ui/SectionTitre";
+import FondArene from "@/components/accueil/FondArene";
+import BracketBackground from "@/components/BracketBackground";
+import Reveal from "@/components/accueil/Reveal";
 
 export const metadata: Metadata = {
   title: "Cockpit organisateur — Najarena",
@@ -99,13 +102,17 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const nbConfirmes = inscriptions.filter((i) => i.statut === "confirme").length;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
+    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
       {tournoi.statut !== "termine" && tournoi.statut !== "annule" && (
         <SuiviTempsReel
           canal={`cockpit-${tournoi.id}`}
           tables={["matches", "match_participants", "match_verdicts", "registrations", "disputes"]}
         />
       )}
+      <FondArene />
+      <BracketBackground />
+      <div className="relative">
+      <Reveal>
       <Link
         href="/moi"
         className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
@@ -144,7 +151,9 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       {erreur && (
         <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
+      </Reveal>
 
+      <Reveal delai={0.1}>
       <section className="mt-10">
         <SectionTitre>Inscrits et check-in</SectionTitre>
         {inscriptions.length === 0 ? (
@@ -194,7 +203,9 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
           </ul>
         )}
       </section>
+      </Reveal>
 
+      <Reveal delai={0.15}>
       <section className="mt-10">
         <SectionTitre>Bracket</SectionTitre>
 
@@ -333,8 +344,10 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
           </div>
         )}
       </section>
+      </Reveal>
 
       {litigesOuverts.length > 0 && (
+        <Reveal delai={0.2}>
         <section className="mt-10">
           <SectionTitre>Litiges ouverts</SectionTitre>
           <ul className="mt-3 flex flex-col gap-3">
@@ -372,7 +385,9 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
             ))}
           </ul>
         </section>
+        </Reveal>
       )}
+      </div>
     </main>
   );
 }

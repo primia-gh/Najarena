@@ -6,6 +6,9 @@ import { resoudreLitigeAdmin } from "@/lib/admin-actions";
 import { formaterDate } from "@/lib/tournois";
 import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
 import SectionTitre from "@/components/ui/SectionTitre";
+import FondArene from "@/components/accueil/FondArene";
+import BracketBackground from "@/components/BracketBackground";
+import Reveal from "@/components/accueil/Reveal";
 
 export const metadata: Metadata = {
   title: "Administration — Najarena",
@@ -33,7 +36,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (!admin) {
     return (
-      <main className="mx-auto max-w-md px-6 py-16">
+      <main className="mx-auto max-w-md px-6 pt-28 pb-16">
         <p className={classeCarte("sceau") + " text-sm text-sceau"}>
           Accès réservé aux administrateurs.
         </p>
@@ -84,7 +87,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const comptes = derniersInscrits ?? [];
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
+    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+      <FondArene />
+      <BracketBackground />
+      <div className="relative">
+      <Reveal>
       <Link
         href="/moi"
         className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
@@ -100,7 +107,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       {erreur && (
         <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
+      </Reveal>
 
+      <Reveal delai={0.1}>
       <section className="mt-10">
         <SectionTitre>Vue d&apos;ensemble</SectionTitre>
         <div className="mt-3 grid grid-cols-2 overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)] sm:grid-cols-4">
@@ -138,7 +147,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </div>
         </div>
       </section>
+      </Reveal>
 
+      <Reveal delai={0.15}>
       <section className="mt-10">
         <SectionTitre>Derniers inscrits</SectionTitre>
         {comptes.length === 0 ? (
@@ -192,7 +203,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </div>
         )}
       </section>
+      </Reveal>
 
+      <Reveal delai={0.2}>
       <section className="mt-10">
         <SectionTitre>Litiges ouverts ({litigesOuverts.length})</SectionTitre>
 
@@ -252,7 +265,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </ul>
         )}
       </section>
+      </Reveal>
 
+      <Reveal delai={0.25}>
       <section className="mt-10">
         <SectionTitre>Litiges résolus</SectionTitre>
         {litigesResolus.length === 0 ? (
@@ -277,6 +292,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </ul>
         )}
       </section>
+      </Reveal>
+      </div>
     </main>
   );
 }

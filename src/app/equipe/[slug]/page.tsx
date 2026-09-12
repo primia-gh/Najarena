@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { inviterMembre, retirerMembre, refuserInvitation } from "@/lib/equipe-actions";
 import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
 import SectionTitre from "@/components/ui/SectionTitre";
+import FondArene from "@/components/accueil/FondArene";
+import BracketBackground from "@/components/BracketBackground";
+import Reveal from "@/components/accueil/Reveal";
 
 interface EquipePageProps {
   params: Promise<{ slug: string }>;
@@ -96,7 +99,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
 
   if (donnees.statut === "erreur") {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-16">
+      <main className="mx-auto max-w-3xl px-6 pt-28 pb-16">
         <p className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-6 text-sm text-sceau">
           Impossible de charger cette équipe pour l&apos;instant. Réessaie
           dans un instant.
@@ -108,14 +111,10 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
   const { equipe, jeu, capitaine, membres, invitesEnAttente, estCapitaine, peutQuitter } = donnees;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <Link
-        href="/"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
-      >
-        Najarena
-      </Link>
-
+    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+      <FondArene />
+      <BracketBackground />
+      <div className="relative">
       {erreur && (
         <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
@@ -124,7 +123,8 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
         <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
       )}
 
-      <div className="mt-6 flex items-center gap-3">
+      <Reveal>
+      <div className="flex items-center gap-3">
         <span className="rounded-[3px] bg-laiton px-2 py-1 font-mono text-sm font-bold text-papier">
           {equipe.tag}
         </span>
@@ -147,7 +147,9 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
           </Link>
         </div>
       )}
+      </Reveal>
 
+      <Reveal delai={0.1}>
       <section className="mt-10">
         <SectionTitre>Membres</SectionTitre>
         {membres.length === 0 ? (
@@ -205,8 +207,10 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
           </form>
         )}
       </section>
+      </Reveal>
 
       {estCapitaine && (
+        <Reveal delai={0.15}>
         <section className="mt-10">
           <SectionTitre>Gérer l&apos;équipe</SectionTitre>
 
@@ -257,7 +261,9 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
             </div>
           )}
         </section>
+        </Reveal>
       )}
+      </div>
     </main>
   );
 }

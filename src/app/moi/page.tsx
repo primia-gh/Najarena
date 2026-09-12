@@ -9,6 +9,9 @@ import PushOptIn from "@/components/PushOptIn";
 import { classeCarte, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import SectionTitre from "@/components/ui/SectionTitre";
+import FondArene from "@/components/accueil/FondArene";
+import BracketBackground from "@/components/BracketBackground";
+import Reveal from "@/components/accueil/Reveal";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
@@ -82,19 +85,16 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
   const equipesCapitaine = equipesCapitaineData ?? [];
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <Link
-        href="/"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
-      >
-        Najarena
-      </Link>
-
+    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+      <FondArene />
+      <BracketBackground />
+      <div className="relative">
       {message && (
-        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
+        <p className={"mb-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
       )}
 
-      <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
+      <Reveal>
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-4xl font-extrabold tracking-tight text-encre break-words">
             {profil?.pseudo ?? "Mon compte"}
@@ -124,7 +124,9 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           Voir mon profil public
         </Link>
       )}
+      </Reveal>
 
+      <Reveal delai={0.08}>
       <section className="mt-10">
         <SectionTitre>Riot ID</SectionTitre>
         {comptesRiot ? (
@@ -149,14 +151,18 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           </div>
         )}
       </section>
+      </Reveal>
 
+      <Reveal delai={0.12}>
       <section className="mt-10">
         <SectionTitre>Notifications</SectionTitre>
         <div className="mt-3">
           <PushOptIn />
         </div>
       </section>
+      </Reveal>
 
+      <Reveal delai={0.16}>
       <section className="mt-10">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SectionTitre>Mes équipes</SectionTitre>
@@ -239,7 +245,9 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           </ul>
         )}
       </section>
+      </Reveal>
 
+      <Reveal delai={0.2}>
       <section className="mt-10">
         <SectionTitre>Mes inscriptions</SectionTitre>
 
@@ -285,7 +293,9 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           </ul>
         )}
       </section>
+      </Reveal>
 
+      <Reveal delai={0.24}>
       <section className="mt-10">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SectionTitre>Tournois que j&apos;organise</SectionTitre>
@@ -335,6 +345,8 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           </ul>
         )}
       </section>
+      </Reveal>
+      </div>
     </main>
   );
 }

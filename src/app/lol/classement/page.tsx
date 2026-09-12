@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { trouverPalier, arrondir } from "@/lib/classement";
 import { classeCarte } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
+import FondArene from "@/components/accueil/FondArene";
+import BracketBackground from "@/components/BracketBackground";
+import Reveal from "@/components/accueil/Reveal";
 
 export const metadata: Metadata = {
   title: "Classement LoL — Najarena",
@@ -55,24 +58,23 @@ export default async function ClassementPage() {
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <Link
-        href="/"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
-      >
-        Najarena
-      </Link>
+    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+      <FondArene />
+      <BracketBackground />
+      <div className="relative">
+      <Reveal>
+        <span className="block font-mono text-[0.66rem] tracking-[0.22em] text-ardoise uppercase">
+          League of Legends
+        </span>
+        <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight text-encre">
+          Classement
+        </h1>
+        {saison?.nom && (
+          <p className="mt-1 font-mono text-[0.72rem] text-ardoise">{saison.nom}</p>
+        )}
+      </Reveal>
 
-      <span className="mt-6 block font-mono text-[0.66rem] tracking-[0.22em] text-ardoise uppercase">
-        League of Legends
-      </span>
-      <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight text-encre">
-        Classement
-      </h1>
-      {saison?.nom && (
-        <p className="mt-1 font-mono text-[0.72rem] text-ardoise">{saison.nom}</p>
-      )}
-
+      <Reveal delai={0.1}>
       <div className="mt-8">
         {!saison ? (
           <p className={classeCarte("none") + " text-sm text-ardoise"}>
@@ -127,6 +129,8 @@ export default async function ClassementPage() {
             })}
           </ol>
         )}
+      </div>
+      </Reveal>
       </div>
     </main>
   );

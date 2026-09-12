@@ -12,6 +12,9 @@ import {
 } from "@/lib/tournois";
 import { classeCarte, classeBoutonPrimaire, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
+import FondArene from "@/components/accueil/FondArene";
+import BracketBackground from "@/components/BracketBackground";
+import Reveal from "@/components/accueil/Reveal";
 
 export const metadata: Metadata = {
   title: "Tournois LoL — Najarena",
@@ -76,21 +79,20 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <Link
-        href="/"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
-      >
-        Najarena
-      </Link>
+    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+      <FondArene />
+      <BracketBackground />
+      <div className="relative">
+      <Reveal>
+        <span className="block font-mono text-[0.66rem] tracking-[0.22em] text-ardoise uppercase">
+          League of Legends
+        </span>
+        <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight text-encre">
+          Tournois
+        </h1>
+      </Reveal>
 
-      <span className="mt-6 block font-mono text-[0.66rem] tracking-[0.22em] text-ardoise uppercase">
-        League of Legends
-      </span>
-      <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight text-encre">
-        Tournois
-      </h1>
-
+      <Reveal delai={0.1}>
       <form method="get" className={`mt-8 flex flex-wrap items-end gap-4 ${classeCarte("none")}`}>
         <label className="flex flex-col gap-1">
           <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
@@ -141,7 +143,9 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
           </Link>
         )}
       </form>
+      </Reveal>
 
+      <Reveal delai={0.15}>
       <div className="mt-8">
         {erreurConnexion ? (
           <p className={classeCarte("sceau") + " text-sm text-sceau"}>
@@ -177,6 +181,8 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
             ))}
           </ul>
         )}
+      </div>
+      </Reveal>
       </div>
     </main>
   );

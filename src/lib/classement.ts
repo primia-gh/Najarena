@@ -30,3 +30,23 @@ export function trouverPalier(rating: number, paliers: Palier[]): Palier | null 
   const tries = [...paliers].sort((a, b) => b.ratingMin - a.ratingMin);
   return tries.find((p) => rating >= p.ratingMin) ?? null;
 }
+
+export interface ProgressionPalier {
+  palier: Palier | null;
+  progression: number; // 0-1 vers le palier suivant ; 1 si palier déjà maximal
+}
+
+// Progression vers le palier suivant — alimente l'anneau du "crest" (petit
+// frère du sceau de fiabilité) affiché à côté d'un pseudo.
+export function progressionPalier(rating: number, paliers: Palier[]): ProgressionPalier {
+  const palier = trouverPalier(rating, paliers);
+  if (!palier) return { palier: null, progression: 0 };
+
+  const tries = [...paliers].sort((a, b) => a.ratingMin - b.ratingMin);
+  const index = tries.findIndex((p) => p.nom === palier.nom);
+  const suivant = tries[index + 1];
+  if (!suivant) return { palier, progression: 1 };
+
+  const fraction = (rating - palier.ratingMin) / (suivant.ratingMin - palier.ratingMin);
+  return { palier, progression: Math.max(0, Math.min(1, fraction)) };
+}

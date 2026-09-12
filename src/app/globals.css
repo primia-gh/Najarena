@@ -1,29 +1,37 @@
 @import "tailwindcss";
 
 @theme {
-  --color-encre: #12161d;
-  --color-papier: #e7e6e1;
-  --color-sceau: #7e2233;
-  --color-laiton: #b08334;
-  /* Même teinte, assombrie pour rester lisible en texte (#b08334 ne passe
-     pas WCAG AA en texte sur papier/carte — 2.74:1 / 3.03:1, il faut 4.5:1).
-     Réservé au texte ; #b08334 reste la référence pour tout usage
-     décoratif (bordures, fonds, icônes) où le contraste ne s'applique pas. */
-  --color-laiton-texte: #7a5a23;
-  --color-atteste: #1f6f4a;
-  --color-ardoise: #5b6672;
+  --color-encre: #e7e6e1;
+  --color-papier: #0b0e14;
+  --color-sceau: #c4485c;
+  --color-sceau-lueur: rgba(196, 72, 92, 0.35);
+  --color-laiton: #d2a257;
+  --color-laiton-texte: #d2a257;
+  --color-laiton-lueur: rgba(210, 162, 87, 0.24);
+  --color-atteste: #3e9c6e;
+  --color-atteste-lueur: rgba(62, 156, 110, 0.24);
+  --color-ardoise: #8a94a1;
 
-  /* Structure du registre clair (voir docs/direction-artistique.html) */
-  --color-fond-2: #dedad7;
-  --color-trait: #c6c5be;
-  --color-carte: #f2f1ed;
+  /* Structure du registre (voir docs/direction-artistique.html) : papier =
+     fond de page, fond-2 = fond secondaire (dégradés, survols), carte =
+     surface élevée (cartes, listes) — profondeur croissante. */
+  --color-fond-2: #10141b;
+  --color-trait: rgba(255, 255, 255, 0.08);
+  --color-trait-fort: rgba(255, 255, 255, 0.18);
+  --color-carte: #171c25;
 
   --font-display: var(--font-bricolage), system-ui, sans-serif;
   --font-body: var(--font-inter-tight), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
-/* Le site est clair par défaut — seule la page d'accueil est sombre (voir .accueil). */
+/* Registre nuit unifié pour tout le site (12/09/2026 — voir CLAUDE.md §7,
+   abandon du split clair/sombre). "encre" reste le ton le plus sombre du
+   duo, "papier" le plus clair ; lequel des deux sert de fond ou de texte
+   dépend du sens du registre, pas du nom — c'était déjà vrai avant
+   l'unification (encre = fond / papier = texte côté nuit, l'inverse côté
+   clair), rien ne change dans cette convention, seules les valeurs sont
+   maintenant partagées par tout le site. */
 :root {
   --background: var(--color-papier);
   --foreground: var(--color-encre);
@@ -35,22 +43,19 @@ body {
   font-family: var(--font-body);
 }
 
-/* Variante nuit — nuances éclaircies pour rester lisibles sur fond encre.
-   Registre "arène" : accueil + hub /lol uniquement (décision du 12/09/2026,
-   voir CLAUDE.md §7) — le reste du site (preuve : classement, profil,
-   tournoi, cockpit) reste dans le registre clair, volontairement. */
-.accueil {
-  --nuit-encre: #0b0e14;
-  --nuit-fond-1: #10141b;
-  --nuit-fond-2: #171c25;
-  --nuit-trait: rgba(255, 255, 255, 0.08);
-  --nuit-trait-fort: rgba(255, 255, 255, 0.18);
-  --nuit-papier: #e7e6e1;
-  --nuit-sceau: #c4485c;
-  --nuit-sceau-lueur: rgba(196, 72, 92, 0.35);
-  --nuit-laiton: #d2a257;
-  --nuit-laiton-lueur: rgba(210, 162, 87, 0.24);
-  --nuit-atteste: #3e9c6e;
-  --nuit-atteste-lueur: rgba(62, 156, 110, 0.24);
-  --nuit-ardoise: #8a94a1;
+/* Estampille d'un verdict qui vient d'apparaître — déclenchée une seule
+   fois au montage, jamais en boucle (voir Badge/verdicts sur les pages
+   preuve). */
+@keyframes stampIn {
+  0% { transform: scale(1.5) rotate(-6deg); opacity: 0; }
+  55% { transform: scale(0.94) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.animation-stamp {
+  animation: stampIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animation-stamp {
+    animation: none;
+  }
 }

@@ -6,6 +6,8 @@ import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
 import { AssistantOrganisateur } from "@/components/AssistantOrganisateur";
 import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import FondArene from "@/components/accueil/FondArene";
+import Reveal from "@/components/accueil/Reveal";
 
 export const metadata: Metadata = {
   title: "Organiser un tournoi — Najarena",
@@ -30,7 +32,10 @@ export default async function OrganiserNouveauPage({
   }
 
   return (
-    <main className="mx-auto max-w-md px-6 py-16">
+    <main className="relative mx-auto max-w-md overflow-hidden px-6 pt-28 pb-16">
+      <FondArene />
+      <div className="relative">
+      <Reveal>
       <Link
         href="/moi"
         className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
@@ -44,7 +49,9 @@ export default async function OrganiserNouveauPage({
       <p className="mt-2 text-sm text-ardoise">
         League of Legends · 1v1 — seul format disponible pour l&apos;instant.
       </p>
+      </Reveal>
 
+      <Reveal delai={0.1}>
       {erreur && (
         <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
@@ -163,6 +170,8 @@ export default async function OrganiserNouveauPage({
           Créer le tournoi
         </button>
       </form>
+      </Reveal>
+      </div>
     </main>
   );
 }

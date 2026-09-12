@@ -96,20 +96,24 @@ Schéma de base de données : `docs/schema.sql`.
 
 Référence complète et jouable : `docs/direction-artistique.html`.
 
-**Principe :** registre officiel, pas arène à néons. Le site est **clair** ; seules l'accueil et le hub `/lol` sont sombres et atmosphériques. Le contraste est volontaire — on entre par l'arène, on arrive dans le registre.
+**Principe :** registre officiel, pas arène à néons. Le site est **sombre et atmosphérique dans son ensemble** depuis le 12/09/2026 au soir (voir mises à jour ci-dessous) — la sobriété qui porte la crédibilité du classement s'exprime par la retenue du mouvement sur les pages preuve, pas par un registre clair séparé.
 
-*Mise à jour du 12/09/2026 : refonte "arène" dark premium (navbar sticky, animations au scroll, sceau de fiabilité mis en vitrine, paliers et chiffres réels) — décision explicite du porteur du projet de limiter ce traitement aux deux pages de découverte, PAS aux pages preuve (classement, profil, tournoi, cockpit), qui restent dans le registre clair : c'est leur sobriété qui porte la crédibilité du classement. Composants dans `src/components/accueil/`.*
+*Mise à jour du 12/09/2026, matin : refonte "arène" dark premium (navbar sticky, animations au scroll, sceau de fiabilité mis en vitrine, paliers et chiffres réels) — limitée dans un premier temps aux deux pages de découverte (accueil, hub `/lol`), les pages preuve (classement, profil, tournoi, cockpit) restant dans un registre clair. Composants dans `src/components/accueil/`.*
+
+*Mise à jour du 12/09/2026, soir : le registre clair des pages preuve a été abandonné — jugé plat et sans vie une fois comparé à l'accueil. Toute la palette nuit ci-dessous est désormais partagée par le site entier (jetons `--color-*` uniques dans `globals.css`, plus de scission `--nuit-*` / `.accueil`). `NavbarArene` et le fond animé (`FondArene` + `BracketBackground`) sont rendus une seule fois depuis `src/app/layout.tsx` et repris sur toutes les pages. Ce qui reste propre à l'accueil : l'intensité du mouvement (hero plein écran, animations denses), pas la palette — sur les pages preuve, le fond animé reste confiné à l'en-tête, discret, pour que le contenu reste scannable.*
 
 **Couleurs**
 
 ```
---encre    #12161D    texte, fond nuit
---papier   #E7E6E1    fond jour
---sceau    #7E2233    validation, accent principal
---laiton   #B08334    paliers, palmarès
---atteste  #1F6F4A    verdict niveau 3
---ardoise  #5B6672    libellés, données secondaires
+--encre    #E7E6E1    texte, surfaces claires
+--papier   #0B0E14    fond de page
+--sceau    #C4485C    validation, accent principal
+--laiton   #D2A257    paliers, palmarès
+--atteste  #3E9C6E    verdict niveau 3
+--ardoise  #8A94A1    libellés, données secondaires
 ```
+
+Les noms décrivent un ton (encre = le plus sombre du duo, papier = le plus clair), pas un rôle fixe fond/texte : depuis l'unification du 12/09/2026, encre sert de texte sur un fond papier sombre — c'était déjà l'inverse (encre = fond, papier = texte) côté accueil avant cette date, rien ne change dans la convention elle-même. `fond-2` (#10141B) et `carte` (#171C25) complètent la profondeur (fond secondaire, surfaces élevées).
 
 **Typographie — règle centrale**
 
@@ -121,14 +125,14 @@ Si un chiffre fait partie du dossier, il est en caractères machine. Si c'est du
 
 **Élément signature :** le **sceau de fiabilité** sur la fiche joueur. Une couronne de crans dont le remplissage traduit le calibrage (RD). Un joueur non calibré a un sceau pâle et incomplet ; le tampon se referme à mesure que le classement devient fiable. Remplace toute barre de progression.
 
-**Mouvement :** fond animé sur la page d'accueil, dessiné directement sur canvas, sans bibliothèque externe. Effet retenu : *Bracket* — des nœuds se cherchent et se relient. Référence jouable : `docs/fonds-animes.html`. Aucune animation décorative permanente ailleurs sur le site. `prefers-reduced-motion` respecté partout.
+**Mouvement :** fond animé dessiné directement sur canvas, sans bibliothèque externe (`BracketBackground`). Effet retenu : *Bracket* — des nœuds se cherchent et se relient. Référence jouable : `docs/fonds-animes.html`. Depuis le 12/09/2026 (soir), ce fond n'est plus réservé à l'accueil : repris en toile de fond de l'en-tête des pages preuve, mais confiné à cette zone (pas toute la page défilée) et sans la densité de l'accueil — la sobriété se joue dans l'intensité du mouvement, pas dans son absence. Verdicts et anneaux de palier (`CrestPalier`, petit frère du sceau de fiabilité) s'animent une fois au montage ; le reste du contenu apparaît au défilement (`Reveal`). `prefers-reduced-motion` respecté partout.
 
 ---
 
 ## 8. Arborescence
 
 ```
-/                          accueil (sombre, fond animé)
+/                          accueil (fond animé pleine intensité)
 /lol                       hub du jeu
 /lol/tournois              liste + filtres
 /lol/tournois/[slug]       page tournoi

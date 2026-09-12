@@ -8,6 +8,12 @@ import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { classeCarte, classeBoutonPrimaire, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import SectionTitre from "@/components/ui/SectionTitre";
+import CrestPalier from "@/components/ui/CrestPalier";
+import FondArene from "@/components/accueil/FondArene";
+import BracketBackground from "@/components/BracketBackground";
+import Reveal from "@/components/accueil/Reveal";
+import { progressionPalier } from "@/lib/classement";
+import { COULEUR_PALIER } from "@/lib/paliers";
 import {
   LABEL_STATUT,
   COULEUR_STATUT,
@@ -17,6 +23,11 @@ import {
   formaterDate,
   type StatutPublic,
 } from "@/lib/tournois";
+
+// "Non classé" n'est pas un palier réel (table tiers) : jamais de rating
+// affiché tant que le RD n'est pas descendu sous le seuil de classement
+// (CLAUDE.md §4) — voir joueur/[pseudo] pour le même traitement.
+const COULEUR_NON_CLASSE = "var(--color-ardoise)";
 
 interface TournoiPageProps {
   params: Promise<{ slug: string }>;
@@ -29,7 +40,7 @@ async function chargerTournoi(slug: string) {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -55,6 +66,23 @@ async function chargerTournoi(slug: string) {
     .select("id, statut, seed, profile_id, profile:profiles(pseudo, slug)")
     .eq("tournament_id", tournoi.id)
     .order("seed", { ascending: true, nullsFirst: false });
+
+  const { data: paliersData } = await supabase
+    .from("tiers")
+    .select("nom, rating_min")
+    .eq("game_id", tournoi.game_id);
+  const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
+
+  const profileIds = (inscriptionsData ?? []).map((i) => i.profile_id);
+  const { data: ratingsData } =
+    profileIds.length > 0
+      ? await supabase
+          .from("ratings")
+          .select("profile_id, rating, est_classe")
+          .eq("game_id", tournoi.game_id)
+          .in("profile_id", profileIds)
+      : { data: [] };
+  const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
 
   const { data: matchsData } = await supabase
     .from("matches")
@@ -96,6 +124,26 @@ async function chargerTournoi(slug: string) {
     verdictParMatch,
     litigeParMatch,
     utilisateur: userData.user,
+    paliers,
+    ratingParProfile,
+  };
+}
+
+function crestJoueur(
+  profileId: string,
+  ratingParProfile: Map<string, { rating: number; est_classe: boolean | null }>,
+  paliers: { nom: string; ratingMin: number }[],
+) {
+  const rating = ratingParProfile.get(profileId);
+  if (!rating || !rating.est_classe) {
+    return { nom: "Non classé", couleur: COULEUR_NON_CLASSE, progression: 0 };
+  }
+  const { palier, progression } = progressionPalier(rating.rating, paliers);
+  if (!palier) return { nom: "Non classé", couleur: COULEUR_NON_CLASSE, progression: 0 };
+  return {
+    nom: palier.nom,
+    couleur: COULEUR_PALIER[palier.nom.toLowerCase()] ?? COULEUR_NON_CLASSE,
+    progression,
   };
 }
 
@@ -126,7 +174,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
   if (donnees.statut === "erreur") {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-16">
+      <main className="mx-auto max-w-3xl px-6 pt-28 pb-16">
         <p className={classeCarte("sceau") + " text-sm text-sceau"}>
           Impossible de charger ce tournoi pour l&apos;instant. Réessaie dans
           un instant.
@@ -135,7 +183,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     );
   }
 
-  const { tournoi, organisateur, inscriptions, matchs, verdictParMatch, litigeParMatch, utilisateur } =
+  const { tournoi, organisateur, inscriptions, matchs, verdictParMatch, litigeParMatch, utilisateur, paliers, ratingParProfile } =
     donnees;
   const statut = tournoi.statut as StatutPublic;
   const estOrganisateur = utilisateur?.id === tournoi.organisateur_id;
@@ -152,13 +200,17 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
+    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
       {statut !== "termine" && statut !== "annule" && (
         <SuiviTempsReel
           canal={`tournoi-${tournoi.id}`}
           tables={["matches", "match_participants", "match_verdicts", "registrations", "disputes"]}
         />
       )}
+      <FondArene />
+      <BracketBackground />
+      <div className="relative">
+      <Reveal>
       <Link
         href="/lol/tournois"
         className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
@@ -231,7 +283,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           )
         ) : null}
       </div>
+      </Reveal>
 
+      <Reveal delai={0.1}>
       <section className="mt-10">
         <SectionTitre>Inscrits</SectionTitre>
         {inscriptions.length === 0 ? (
@@ -240,26 +294,45 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
-            {inscriptions.map((i) => (
-              <li key={i.id} className={"flex items-center justify-between " + classeCarte("none")}>
-                <span className="text-sm font-medium text-encre">
-                  {i.profile ? (
-                    <Link href={`/joueur/${i.profile.slug}`} className="hover:underline">
-                      {i.profile.pseudo}
-                    </Link>
-                  ) : (
-                    "Joueur inconnu"
-                  )}
-                </span>
-                <span className="font-mono text-[0.66rem] text-ardoise uppercase">
-                  {i.seed ? `Seed ${i.seed}` : i.statut}
-                </span>
-              </li>
-            ))}
+            {inscriptions.map((i) => {
+              const crest = crestJoueur(i.profile_id, ratingParProfile, paliers);
+              return (
+                <li key={i.id} className={"flex items-center justify-between " + classeCarte("none")}>
+                  <span className="flex items-center gap-3 text-sm font-medium text-encre">
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-[0.8rem] font-extrabold"
+                      style={{
+                        color: crest.couleur,
+                        background: `color-mix(in srgb, ${crest.couleur} 16%, transparent)`,
+                        border: `1px solid color-mix(in srgb, ${crest.couleur} 40%, transparent)`,
+                      }}
+                      aria-hidden="true"
+                    >
+                      {(i.profile?.pseudo ?? "?").charAt(0).toUpperCase()}
+                    </span>
+                    {i.profile ? (
+                      <Link href={`/joueur/${i.profile.slug}`} className="hover:underline">
+                        {i.profile.pseudo}
+                      </Link>
+                    ) : (
+                      "Joueur inconnu"
+                    )}
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <CrestPalier nom={crest.nom} couleur={crest.couleur} progression={crest.progression} />
+                    <span className="font-mono text-[0.66rem] text-ardoise uppercase">
+                      {i.seed ? `Seed ${i.seed}` : i.statut}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
+      </Reveal>
 
+      <Reveal delai={0.15}>
       <section className="mt-10">
         <SectionTitre>Bracket</SectionTitre>
         {toursOrdonnes.length === 0 ? (
@@ -267,13 +340,13 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             Le bracket n&apos;a pas encore été généré.
           </p>
         ) : (
-          <div className="mt-3 flex flex-col gap-6">
+          <div className="mt-3 grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2">
             {toursOrdonnes.map((tour) => (
-              <div key={tour}>
+              <div key={tour} className="flex flex-col gap-3">
                 <span className="font-mono text-[0.64rem] tracking-[0.14em] text-ardoise uppercase">
                   Tour {tour}
                 </span>
-                <ul className="mt-2 flex flex-col gap-2">
+                <ul className="flex flex-col gap-2">
                   {rounds.get(tour)!.map((m) => {
                     const verdict = verdictParMatch.get(m.id);
                     const litige = litigeParMatch.get(m.id);
@@ -339,7 +412,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
                         {verdict && (
                           <div className="mt-2 flex items-center gap-2 border-t border-trait pt-2">
-                            <Badge couleur={COULEUR_NIVEAU[verdict.niveau]}>{LABEL_NIVEAU[verdict.niveau]}</Badge>
+                            <span className="animation-stamp inline-flex">
+                              <Badge couleur={COULEUR_NIVEAU[verdict.niveau]}>{LABEL_NIVEAU[verdict.niveau]}</Badge>
+                            </span>
                             {verdict.niveau === "manuel" && verdict.motif && (
                               <span className="text-[0.72rem] text-ardoise">
                                 {verdict.motif}
@@ -396,6 +471,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           </div>
         )}
       </section>
+      </Reveal>
+      </div>
     </main>
   );
 }

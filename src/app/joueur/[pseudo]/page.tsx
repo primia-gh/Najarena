@@ -9,6 +9,10 @@ import { JsonLd } from "@/lib/json-ld";
 import { classeCarte } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import SectionTitre from "@/components/ui/SectionTitre";
+import FondArene from "@/components/accueil/FondArene";
+import BracketBackground from "@/components/BracketBackground";
+import Reveal from "@/components/accueil/Reveal";
+import CompteurAnime from "@/components/accueil/CompteurAnime";
 
 // Même repli que layout.tsx/robots.ts/sitemap.ts — jamais un domaine inventé.
 const URL_SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -136,7 +140,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
 
   if (donnees.statut === "erreur") {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-16">
+      <main className="mx-auto max-w-3xl px-6 pt-28 pb-16">
         <p className={classeCarte("sceau") + " text-sm text-sceau"}>
           Impossible de charger ce profil pour l&apos;instant. Réessaie dans
           un instant.
@@ -176,7 +180,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     .sort((a, b) => b.victoires + b.defaites - (a.victoires + a.defaites));
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
+    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
       {/* schema.org ProfilePage — type explicitement pris en charge par les
           rich results Google pour une page de profil public (vérifié dans
           leur doc avant de l'ajouter, contrairement au SportsEvent envisagé
@@ -196,14 +200,11 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
         }}
       />
 
-      <Link
-        href="/"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
-      >
-        Najarena
-      </Link>
-
-      <div className={"mt-6 flex flex-wrap items-start justify-between gap-6 " + classeCarte("laiton")}>
+      <FondArene />
+      <BracketBackground />
+      <div className="relative">
+      <Reveal>
+      <div className={"flex flex-wrap items-start justify-between gap-6 " + classeCarte("laiton")}>
         <div className="min-w-0">
           <h1 className="font-display text-4xl font-extrabold tracking-tight text-encre">
             {profil.pseudo}
@@ -238,14 +239,16 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
           </span>
         </div>
       </div>
+      </Reveal>
 
+      <Reveal delai={0.1}>
       <div className="mt-4 grid grid-cols-3 overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
         <div className="border-r border-trait p-4">
           <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
             Rating
           </div>
           <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
-            {rating ? arrondir(rating.rating) : "—"}
+            {rating ? <CompteurAnime valeur={arrondir(rating.rating)} /> : "—"}
           </div>
         </div>
         <div className="border-r border-trait p-4">
@@ -253,7 +256,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
             Matchs
           </div>
           <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
-            {matchsCalibres}
+            <CompteurAnime valeur={matchsCalibres} />
           </div>
         </div>
         <div className="p-4">
@@ -261,12 +264,14 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
             Victoires
           </div>
           <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
-            {tauxVictoire !== null ? `${tauxVictoire}%` : "—"}
+            {tauxVictoire !== null ? <CompteurAnime valeur={tauxVictoire} suffixe="%" /> : "—"}
           </div>
         </div>
       </div>
+      </Reveal>
 
       {rivalites.length > 0 && (
+        <Reveal delai={0.15}>
         <section className="mt-10">
           <SectionTitre>Face-à-face</SectionTitre>
           <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -287,8 +292,10 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
             ))}
           </ul>
         </section>
+        </Reveal>
       )}
 
+      <Reveal delai={0.2}>
       <section className="mt-10">
         <SectionTitre>Registre des matchs</SectionTitre>
 
@@ -335,6 +342,8 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
           </ul>
         )}
       </section>
+      </Reveal>
+      </div>
     </main>
   );
 }

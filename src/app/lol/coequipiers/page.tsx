@@ -6,6 +6,9 @@ import { inviterMembre } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
 import SectionTitre from "@/components/ui/SectionTitre";
+import FondArene from "@/components/accueil/FondArene";
+import BracketBackground from "@/components/BracketBackground";
+import Reveal from "@/components/accueil/Reveal";
 
 export const metadata: Metadata = {
   title: "Trouver un coéquipier — Najarena",
@@ -51,7 +54,11 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
   const { annonces, monAnnonce, mesEquipesAvecPlace, utilisateur } = await chargerCoequipiers();
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
+    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+      <FondArene />
+      <BracketBackground />
+      <div className="relative">
+      <Reveal>
       <Link
         href="/lol"
         className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
@@ -69,6 +76,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
         </Link>
         .
       </p>
+      </Reveal>
 
       {erreur && (
         <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
@@ -114,6 +122,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
         </p>
       )}
 
+      <Reveal delai={0.1}>
       <section className="mt-10">
         <SectionTitre>Joueurs disponibles</SectionTitre>
         {annonces.length === 0 ? (
@@ -160,6 +169,8 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
           </ul>
         )}
       </section>
+      </Reveal>
+      </div>
     </main>
   );
 }

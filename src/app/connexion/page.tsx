@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { seConnecter, seConnecterAvecDiscord } from "@/lib/auth-actions";
 import { classeCarte, classeBoutonPrimaire, classeBoutonSecondaire } from "@/lib/ui";
+import FondArene from "@/components/accueil/FondArene";
+import Reveal from "@/components/accueil/Reveal";
 
 export const metadata: Metadata = {
   title: "Connexion — Najarena",
@@ -17,15 +19,10 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
   const { erreur, message } = await searchParams;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
-      <Link
-        href="/"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
-      >
-        Najarena
-      </Link>
-
-      <h1 className="mt-6 font-display text-3xl font-extrabold tracking-tight text-encre">
+    <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center overflow-hidden px-6 py-16">
+      <FondArene />
+      <Reveal className="relative">
+      <h1 className="font-display text-3xl font-extrabold tracking-tight text-encre">
         Se connecter
       </h1>
 
@@ -98,6 +95,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
           S&apos;inscrire
         </Link>
       </p>
+      </Reveal>
     </main>
   );
 }
