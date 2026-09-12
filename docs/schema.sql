@@ -956,3 +956,107 @@ revoke execute on function public.enregistrer_verdict_manuel from public, anon;
 revoke execute on function public.lier_compte_riot from public, anon;
 revoke execute on function public.handle_new_user from public, anon, authenticated;
 revoke execute on function public.verrouiller_tournoi_si_premier_inscrit from public, anon, authenticated;
+
+-- ---------- Optimisations de performance (advisor Supabase, 2026-09-12) ----------
+-- Sans impact sur la sécurité — appliquées à la suite du correctif
+-- critique ci-dessus, en profitant d'être déjà dans les policies.
+
+-- `auth.uid()` appelé nu dans une policy RLS est réévalué à CHAQUE ligne.
+-- L'envelopper dans `(select auth.uid())` permet au planificateur de ne
+-- l'évaluer qu'une fois par requête (InitPlan) — même résultat, juste plus
+-- rapide à l'échelle. Chaque condition ci-dessous est rigoureusement
+-- identique à l'originale (vérifiée via pg_policies avant d'écrire ce
+-- correctif), seul l'appel à auth.uid() change. Revérifié en réel de bout
+-- en bout après coup (création de tournoi, inscription, confirmation,
+-- bracket, verdict manuel, litige ouvert et résolu) avec un compte de
+-- test : rien de cassé.
+alter policy "verifier son propre statut admin" on admins
+  using (profile_id = (select auth.uid()));
+alter policy "admin resout tous les litiges" on disputes
+  using (exists (select 1 from admins where admins.profile_id = (select auth.uid())));
+alter policy "admin voit tous les litiges" on disputes
+  using (exists (select 1 from admins where admins.profile_id = (select auth.uid())));
+alter policy "litige visible par les concernes" on disputes
+  using (
+    (ouvert_par = (select auth.uid()))
+    or exists (select 1 from match_participants mp where mp.match_id = disputes.match_id and mp.profile_id = (select auth.uid()))
+    or exists (select 1 from matches m join tournaments t on t.id = m.tournament_id where m.id = disputes.match_id and t.organisateur_id = (select auth.uid()))
+  );
+alter policy "organisateur resout le litige" on disputes
+  using (exists (select 1 from matches m join tournaments t on t.id = m.tournament_id where m.id = disputes.match_id and t.organisateur_id = (select auth.uid())));
+alter policy "un participant ouvre un litige" on disputes
+  with check (
+    (ouvert_par = (select auth.uid()))
+    and exists (select 1 from match_participants mp where mp.match_id = disputes.match_id and mp.profile_id = (select auth.uid()))
+  );
+alter policy "organisateur gere les participants" on match_participants
+  with check (exists (select 1 from matches m join tournaments t on t.id = m.tournament_id where m.id = match_participants.match_id and t.organisateur_id = (select auth.uid())));
+alter policy "organisateur modifie les participants" on match_participants
+  using (exists (select 1 from matches m join tournaments t on t.id = m.tournament_id where m.id = match_participants.match_id and t.organisateur_id = (select auth.uid())));
+alter policy "organisateur gere les matchs de son tournoi" on matches
+  with check (exists (select 1 from tournaments t where t.id = matches.tournament_id and t.organisateur_id = (select auth.uid())));
+alter policy "organisateur modifie les matchs de son tournoi" on matches
+  using (exists (select 1 from tournaments t where t.id = matches.tournament_id and t.organisateur_id = (select auth.uid())));
+alter policy "profil modifiable par son proprietaire" on profiles
+  using ((select auth.uid()) = id);
+alter policy "un joueur gere ses propres abonnements push" on push_subscriptions
+  using (profile_id = (select auth.uid()))
+  with check (profile_id = (select auth.uid()));
+alter policy "joueur ou organisateur modifie l inscription" on registrations
+  using (
+    (profile_id = (select auth.uid()))
+    or exists (select 1 from tournaments t where t.id = registrations.tournament_id and t.organisateur_id = (select auth.uid()))
+  );
+alter policy "joueur s inscrit lui meme" on registrations
+  with check (profile_id = (select auth.uid()));
+alter policy "capitaine invite un membre" on team_members
+  with check (exists (select 1 from teams tm where tm.id = team_members.team_id and tm.capitaine_id = (select auth.uid())));
+alter policy "membre accepte ou capitaine gere" on team_members
+  using (
+    (profile_id = (select auth.uid()))
+    or exists (select 1 from teams tm where tm.id = team_members.team_id and tm.capitaine_id = (select auth.uid()))
+  );
+alter policy "membre quitte ou capitaine retire" on team_members
+  using (
+    (profile_id = (select auth.uid()))
+    or exists (select 1 from teams tm where tm.id = team_members.team_id and tm.capitaine_id = (select auth.uid()))
+  );
+alter policy "capitaine cree son equipe" on teams
+  with check (capitaine_id = (select auth.uid()));
+alter policy "capitaine modifie son equipe" on teams
+  using (capitaine_id = (select auth.uid()));
+alter policy "organisateur cree son tournoi" on tournaments
+  with check (organisateur_id = (select auth.uid()));
+alter policy "organisateur modifie son tournoi" on tournaments
+  using (organisateur_id = (select auth.uid()));
+
+-- Index manquants sur des clés étrangères (ralentit les JOIN et les
+-- suppressions en cascade à l'échelle). Pur ajout, aucun changement de
+-- comportement.
+create index if not exists disputes_match_id_idx on disputes (match_id);
+create index if not exists disputes_ouvert_par_idx on disputes (ouvert_par);
+create index if not exists disputes_resolu_par_idx on disputes (resolu_par);
+create index if not exists match_participants_profile_id_idx on match_participants (profile_id);
+create index if not exists match_verdicts_decide_par_idx on match_verdicts (decide_par);
+create index if not exists match_verdicts_gagnant_id_idx on match_verdicts (gagnant_id);
+create index if not exists matches_match_suivant_id_idx on matches (match_suivant_id);
+create index if not exists rating_events_adversaire_id_idx on rating_events (adversaire_id);
+create index if not exists rating_events_game_id_idx on rating_events (game_id);
+create index if not exists rating_events_match_id_idx on rating_events (match_id);
+create index if not exists rating_events_season_id_idx on rating_events (season_id);
+create index if not exists ratings_season_id_idx on ratings (season_id);
+create index if not exists registrations_profile_id_idx on registrations (profile_id);
+create index if not exists team_members_profile_id_idx on team_members (profile_id);
+create index if not exists teams_capitaine_id_idx on teams (capitaine_id);
+create index if not exists teams_game_id_idx on teams (game_id);
+create index if not exists tiers_game_id_idx on tiers (game_id);
+create index if not exists tournaments_organisateur_id_idx on tournaments (organisateur_id);
+create index if not exists tournaments_season_id_idx on tournaments (season_id);
+
+-- Non corrigé délibérément : l'advisor signale aussi des policies
+-- permissives redondantes sur `disputes` (admin + participant/organisateur
+-- se chevauchent pour SELECT/UPDATE) et un index `ratings` non encore
+-- utilisé (normal, aucun vrai trafic de classement pour l'instant, pas une
+-- raison de le supprimer). Fusionner les policies redondantes réduirait la
+-- lisibilité pour un gain de performance nul à l'échelle actuelle — à
+-- reconsidérer si le site a un jour un vrai volume de trafic.
