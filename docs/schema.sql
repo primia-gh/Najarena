@@ -920,3 +920,39 @@ create policy "un joueur gere ses propres abonnements push"
   on push_subscriptions for all
   using (profile_id = auth.uid())
   with check (profile_id = auth.uid());
+
+-- ---------- CORRECTIF DE SÉCURITÉ CRITIQUE (2026-09-12) ----------
+-- Trouvé via l'advisor de sécurité Supabase (jamais consulté avant cette
+-- date malgré sa disponibilité — à exécuter régulièrement après toute
+-- migration, cf. mémoire du projet).
+--
+-- PostgreSQL accorde EXECUTE à PUBLIC par défaut sur toute fonction créée
+-- sans REVOKE explicite. Aucune migration précédente ne faisait ce REVOKE :
+-- les six fonctions ci-dessous, dont la sécurité repose ENTIÈREMENT sur
+-- l'absence de grant (aucune vérification auth.uid() interne — voir les
+-- commentaires sur cloturer_rating_joueur plus haut, CLAUDE.md §6.1),
+-- étaient en réalité exécutables par N'IMPORTE QUI, authentifié ou non,
+-- via /rest/v1/rpc/<nom> avec la seule clé anon publique.
+--
+-- avancer_vainqueur était le cas le plus grave : aucune vérification
+-- d'aucune sorte, n'importe qui pouvait déclarer vainqueur n'importe quel
+-- match. Vérifié par exploitation réelle (inoffensive, match_id bidon)
+-- avant correction, puis reconfirmé bloqué après (permission denied).
+revoke execute on function public.cloturer_rating_joueur from public, anon, authenticated;
+revoke execute on function public.enregistrer_verdict_historique from public, anon, authenticated;
+revoke execute on function public.appliquer_decroissance_rd from public, anon, authenticated;
+revoke execute on function public.appliquer_soft_reset_saison from public, anon, authenticated;
+revoke execute on function public.activer_saison from public, anon, authenticated;
+revoke execute on function public.avancer_vainqueur from public, anon, authenticated;
+
+-- Défense en profondeur : ces quatre fonctions ont leurs propres
+-- vérifications internes (organisateur, propriétaire du compte Riot) ou
+-- sont des déclencheurs qui ne peuvent de toute façon pas s'exécuter en
+-- appel direct — mais retirer la surface d'appel inutile ne coûte rien.
+-- enregistrer_verdict_manuel et lier_compte_riot gardent leur grant
+-- `authenticated` : ce sont les seules fonctions de cette liste appelées
+-- directement par l'app depuis un compte utilisateur normal.
+revoke execute on function public.enregistrer_verdict_manuel from public, anon;
+revoke execute on function public.lier_compte_riot from public, anon;
+revoke execute on function public.handle_new_user from public, anon, authenticated;
+revoke execute on function public.verrouiller_tournoi_si_premier_inscrit from public, anon, authenticated;
