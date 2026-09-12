@@ -232,11 +232,14 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1 text-center">
           <SceauFiabilite calibrationPct={pct} />
           <span className="font-mono text-[0.6rem] tracking-[0.14em] text-ardoise uppercase">
             {rating ? `RD ${arrondir(rating.rd)}` : `RD ${RD_INITIAL}`}
           </span>
+          <p className="mt-1 max-w-[11rem] text-[0.72rem] text-ardoise">
+            Le sceau se referme à mesure que le calibrage devient fiable — classé à partir de RD ≤ 150.
+          </p>
         </div>
       </div>
       </Reveal>
@@ -247,8 +250,8 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
           <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
             Rating
           </div>
-          <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
-            {rating ? <CompteurAnime valeur={arrondir(rating.rating)} /> : "—"}
+          <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-laiton">
+            {rating ? <CompteurAnime valeur={arrondir(rating.rating)} /> : <span className="text-encre">—</span>}
           </div>
         </div>
         <div className="border-r border-trait p-4">
@@ -263,8 +266,8 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
           <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
             Victoires
           </div>
-          <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
-            {tauxVictoire !== null ? <CompteurAnime valeur={tauxVictoire} suffixe="%" /> : "—"}
+          <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-atteste">
+            {tauxVictoire !== null ? <CompteurAnime valeur={tauxVictoire} suffixe="%" /> : <span className="text-encre">—</span>}
           </div>
         </div>
       </div>
@@ -298,6 +301,18 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
       <Reveal delai={0.2}>
       <section className="mt-10">
         <SectionTitre>Registre des matchs</SectionTitre>
+        {historique.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-[0.78rem] text-ardoise">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-atteste" />
+              Niveau 2/3 — compte pour le classement
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-ardoise" />
+              Niveau 1 — décision manuelle, hors classement
+            </span>
+          </div>
+        )}
 
         {historique.length === 0 ? (
           <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>

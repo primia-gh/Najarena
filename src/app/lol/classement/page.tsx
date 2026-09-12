@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { trouverPalier, arrondir } from "@/lib/classement";
+import { progressionPalier, arrondir } from "@/lib/classement";
 import { classeCarte } from "@/lib/ui";
-import Badge from "@/components/ui/Badge";
+import { COULEUR_PALIER } from "@/lib/paliers";
+import CrestPalier from "@/components/ui/CrestPalier";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -56,6 +57,7 @@ export default async function ClassementPage() {
     .eq("game_id", 1);
 
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
+  const paliersTries = [...paliers].sort((a, b) => a.ratingMin - b.ratingMin);
 
   return (
     <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
@@ -71,6 +73,30 @@ export default async function ClassementPage() {
         </h1>
         {saison?.nom && (
           <p className="mt-1 font-mono text-[0.72rem] text-ardoise">{saison.nom}</p>
+        )}
+        <p className="mt-3 max-w-lg text-sm text-ardoise">
+          Calculé en Glicko-2, recalculé à la clôture de chaque tournoi. Un joueur entre au
+          classement une fois son incertitude (RD) descendue sous 150 — une dizaine de matchs ; en
+          dessous, il reste visible mais non classé.
+        </p>
+        {paliersTries.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {paliersTries.map((p, i) => {
+              const suivant = paliersTries[i + 1]?.ratingMin;
+              const seuil = i === 0 && suivant !== undefined ? `< ${suivant}` : String(p.ratingMin);
+              const couleur = COULEUR_PALIER[p.nom.toLowerCase()] ?? "var(--color-ardoise)";
+              return (
+                <span
+                  key={p.nom}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-trait bg-carte px-2.5 py-1 font-mono text-[0.64rem] tracking-[0.06em] uppercase"
+                  style={{ color: couleur }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: couleur }} />
+                  {p.nom} · {seuil}
+                </span>
+              );
+            })}
+          </div>
         )}
       </Reveal>
 
@@ -94,7 +120,7 @@ export default async function ClassementPage() {
         ) : (
           <ol className="overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
             {classement.map((r, i) => {
-              const palier = trouverPalier(r.rating, paliers);
+              const { palier, progression } = progressionPalier(r.rating, paliers);
               const podium = i < 3;
               return (
                 <li
@@ -116,7 +142,11 @@ export default async function ClassementPage() {
                     )}
                   </span>
                   {palier ? (
-                    <Badge couleur="text-laiton-texte">{palier.nom}</Badge>
+                    <CrestPalier
+                      nom={palier.nom}
+                      couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-ardoise)"}
+                      progression={progression}
+                    />
                   ) : (
                     <span className="text-ardoise">—</span>
                   )}
