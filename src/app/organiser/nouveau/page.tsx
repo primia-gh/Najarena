@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
+import { AssistantOrganisateur } from "@/components/AssistantOrganisateur";
 
 export const metadata: Metadata = {
   title: "Organiser un tournoi — Najarena",
@@ -49,12 +50,19 @@ export default async function OrganiserNouveauPage({
         </p>
       )}
 
+      {Boolean(process.env.ANTHROPIC_API_KEY) && (
+        <div className="mt-6">
+          <AssistantOrganisateur />
+        </div>
+      )}
+
       <form action={creerTournoi} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1">
           <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
             Nom du tournoi
           </span>
           <input
+            id="nom"
             name="nom"
             type="text"
             required
@@ -70,6 +78,7 @@ export default async function OrganiserNouveauPage({
             Capacité
           </span>
           <select
+            id="capacite"
             name="capacite"
             required
             defaultValue="8"
@@ -88,6 +97,7 @@ export default async function OrganiserNouveauPage({
             Région
           </span>
           <select
+            id="region"
             name="region"
             required
             defaultValue=""
@@ -109,6 +119,7 @@ export default async function OrganiserNouveauPage({
             Ouverture du check-in
           </span>
           <input
+            id="checkin_ouvre_le"
             name="checkin_ouvre_le"
             type="datetime-local"
             required
@@ -121,6 +132,7 @@ export default async function OrganiserNouveauPage({
             Début du tournoi
           </span>
           <input
+            id="debute_le"
             name="debute_le"
             type="datetime-local"
             required
