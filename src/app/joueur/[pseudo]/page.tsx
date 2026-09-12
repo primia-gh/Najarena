@@ -180,7 +180,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     .sort((a, b) => b.victoires + b.defaites - (a.victoires + a.defaites));
 
   return (
-    <main className="relative overflow-hidden pt-28 pb-16">
+    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
       {/* schema.org ProfilePage — type explicitement pris en charge par les
           rich results Google pour une page de profil public (vérifié dans
           leur doc avant de l'ajouter, contrairement au SportsEvent envisagé

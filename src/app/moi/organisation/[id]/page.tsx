@@ -102,7 +102,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const nbConfirmes = inscriptions.filter((i) => i.statut === "confirme").length;
 
   return (
-    <main className="relative overflow-hidden pt-28 pb-16">
+    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
       {tournoi.statut !== "termine" && tournoi.statut !== "annule" && (
         <SuiviTempsReel
           canal={`cockpit-${tournoi.id}`}

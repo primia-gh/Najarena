@@ -200,7 +200,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
 
   return (
-    <main className="relative overflow-hidden pt-28 pb-16">
+    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
       {statut !== "termine" && statut !== "annule" && (
         <SuiviTempsReel
           canal={`tournoi-${tournoi.id}`}

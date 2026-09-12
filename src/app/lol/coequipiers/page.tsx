@@ -54,7 +54,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
   const { annonces, monAnnonce, mesEquipesAvecPlace, utilisateur } = await chargerCoequipiers();
 
   return (
-    <main className="relative overflow-hidden pt-28 pb-16">
+    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
       <FondArene />
       <BracketBackground />
       <div className="relative mx-auto max-w-3xl px-6">

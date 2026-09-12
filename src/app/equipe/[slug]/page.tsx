@@ -111,7 +111,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
   const { equipe, jeu, capitaine, membres, invitesEnAttente, estCapitaine, peutQuitter } = donnees;
 
   return (
-    <main className="relative overflow-hidden pt-28 pb-16">
+    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
       <FondArene />
       <BracketBackground />
       <div className="relative mx-auto max-w-3xl px-6">
