@@ -58,10 +58,10 @@ export default async function ClassementPage() {
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
 
   return (
-    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+    <main className="relative overflow-hidden pt-28 pb-16">
       <FondArene />
       <BracketBackground />
-      <div className="relative">
+      <div className="relative mx-auto max-w-3xl px-6">
       <Reveal>
         <span className="block font-mono text-[0.66rem] tracking-[0.22em] text-ardoise uppercase">
           League of Legends

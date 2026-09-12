@@ -111,10 +111,10 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
   const { equipe, jeu, capitaine, membres, invitesEnAttente, estCapitaine, peutQuitter } = donnees;
 
   return (
-    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+    <main className="relative overflow-hidden pt-28 pb-16">
       <FondArene />
       <BracketBackground />
-      <div className="relative">
+      <div className="relative mx-auto max-w-3xl px-6">
       {erreur && (
         <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}

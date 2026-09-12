@@ -180,7 +180,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     .sort((a, b) => b.victoires + b.defaites - (a.victoires + a.defaites));
 
   return (
-    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+    <main className="relative overflow-hidden pt-28 pb-16">
       {/* schema.org ProfilePage — type explicitement pris en charge par les
           rich results Google pour une page de profil public (vérifié dans
           leur doc avant de l'ajouter, contrairement au SportsEvent envisagé
@@ -202,7 +202,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
 
       <FondArene />
       <BracketBackground />
-      <div className="relative">
+      <div className="relative mx-auto max-w-3xl px-6">
       <Reveal>
       <div className={"flex flex-wrap items-start justify-between gap-6 " + classeCarte("laiton")}>
         <div className="min-w-0">

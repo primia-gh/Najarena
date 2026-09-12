@@ -200,7 +200,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
 
   return (
-    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+    <main className="relative overflow-hidden pt-28 pb-16">
       {statut !== "termine" && statut !== "annule" && (
         <SuiviTempsReel
           canal={`tournoi-${tournoi.id}`}
@@ -209,7 +209,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       )}
       <FondArene />
       <BracketBackground />
-      <div className="relative">
+      <div className="relative mx-auto max-w-3xl px-6">
       <Reveal>
       <Link
         href="/lol/tournois"

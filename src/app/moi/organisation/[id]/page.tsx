@@ -102,7 +102,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const nbConfirmes = inscriptions.filter((i) => i.statut === "confirme").length;
 
   return (
-    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+    <main className="relative overflow-hidden pt-28 pb-16">
       {tournoi.statut !== "termine" && tournoi.statut !== "annule" && (
         <SuiviTempsReel
           canal={`cockpit-${tournoi.id}`}
@@ -111,7 +111,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       )}
       <FondArene />
       <BracketBackground />
-      <div className="relative">
+      <div className="relative mx-auto max-w-3xl px-6">
       <Reveal>
       <Link
         href="/moi"

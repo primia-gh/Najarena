@@ -85,10 +85,10 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
   const equipesCapitaine = equipesCapitaineData ?? [];
 
   return (
-    <main className="relative mx-auto max-w-3xl overflow-hidden px-6 pt-28 pb-16">
+    <main className="relative overflow-hidden pt-28 pb-16">
       <FondArene />
       <BracketBackground />
-      <div className="relative">
+      <div className="relative mx-auto max-w-3xl px-6">
       {message && (
         <p className={"mb-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
       )}

@@ -20,9 +20,9 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
   const { erreur } = await searchParams;
 
   return (
-    <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center overflow-hidden px-6 py-16">
+    <main className="relative flex min-h-screen flex-col justify-center overflow-hidden py-16">
       <FondArene />
-      <Reveal className="relative">
+      <Reveal className="relative mx-auto w-full max-w-md px-6">
       <h1 className="font-display text-3xl font-extrabold tracking-tight text-encre">
         Créer un compte
       </h1>

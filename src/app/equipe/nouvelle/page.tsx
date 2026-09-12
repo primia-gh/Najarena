@@ -26,9 +26,9 @@ export default async function EquipeNouvellePage({ searchParams }: EquipeNouvell
   }
 
   return (
-    <main className="relative mx-auto max-w-md overflow-hidden px-6 pt-28 pb-16">
+    <main className="relative overflow-hidden pt-28 pb-16">
       <FondArene />
-      <div className="relative">
+      <div className="relative mx-auto max-w-md px-6">
       <Reveal>
       <Link
         href="/moi"
