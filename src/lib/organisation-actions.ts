@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { cloturerTournoi } from "@/lib/classement-actions";
-import { notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { ordreDesSeeds, calculerByesEnCascade } from "@/lib/bracket";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
@@ -261,6 +261,14 @@ export async function enregistrerResultat(formData: FormData) {
 
   if (matchDecide && matchDecide.match_suivant_id === null) {
     await cloturerTournoi(tournamentId);
+    if (matchDecide.tournament) {
+      const nomGagnant =
+        matchDecide.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ??
+        "le vainqueur";
+      await notifierDiscord(
+        `🏆 **${nomGagnant}** remporte **${matchDecide.tournament.nom}** (verdict manuel — ${motif}).\n${URL_SITE}/lol/tournois/${matchDecide.tournament.slug}`,
+      );
+    }
   }
 
   redirect(`/moi/organisation/${tournamentId}`);

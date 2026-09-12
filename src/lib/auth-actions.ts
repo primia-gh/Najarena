@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { slugifier } from "@/lib/slug";
+import { URL_SITE } from "@/lib/notifications";
 
 const PSEUDO_REGEX = /^[a-zA-Z0-9 _-]{3,20}$/;
 
@@ -142,6 +143,42 @@ export async function seConnecter(formData: FormData) {
   }
 
   redirect("/moi");
+}
+
+// Ne fonctionne que si le provider "Discord" est activé dans Authentication
+// > Providers du tableau de bord Supabase (Client ID/Secret d'une
+// application créée sur discord.com/developers/applications) — pas
+// possible à faire depuis le code, comme la protection anti-mots de passe
+// compromis. Tant que ce n'est pas fait, Supabase renvoie une erreur
+// explicite plutôt qu'un blocage silencieux.
+export async function seConnecterAvecDiscord(formData: FormData) {
+  // Même case à cocher que sInscrire — un compte créé via Discord au
+  // premier clic ne passe jamais par /inscription, donc sans ça le
+  // consentement d'âge (CGU) ne serait jamais capturé pour ce chemin.
+  const ageConfirme = formData.get("age_confirme") === "on";
+  if (!ageConfirme) {
+    redirect(
+      `/connexion?erreur=${encodeURIComponent(
+        "Tu dois confirmer avoir au moins 15 ans, ou l'autorisation de ton représentant légal.",
+      )}`,
+    );
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "discord",
+    options: { redirectTo: `${URL_SITE}/auth/callback` },
+  });
+
+  if (error || !data.url) {
+    redirect(
+      `/connexion?erreur=${encodeURIComponent(
+        "Connexion Discord indisponible pour l'instant.",
+      )}`,
+    );
+  }
+
+  redirect(data.url);
 }
 
 export async function seDeconnecter() {

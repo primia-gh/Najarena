@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { seConnecter } from "@/lib/auth-actions";
+import { seConnecter, seConnecterAvecDiscord } from "@/lib/auth-actions";
 
 export const metadata: Metadata = {
   title: "Connexion — Najarena",
@@ -72,6 +72,32 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
           className="mt-2 rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
         >
           Se connecter
+        </button>
+      </form>
+
+      <div className="mt-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-trait" />
+        <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">ou</span>
+        <span className="h-px flex-1 bg-trait" />
+      </div>
+
+      <form action={seConnecterAvecDiscord} className="mt-6 flex flex-col gap-3">
+        <label className="flex items-start gap-2 text-sm text-ardoise">
+          <input name="age_confirme" type="checkbox" required className="mt-0.5 accent-sceau" />
+          <span>
+            J&apos;ai au moins 15 ans, ou j&apos;ai l&apos;autorisation de mon
+            représentant légal (voir les{" "}
+            <Link href="/cgu" className="text-encre underline underline-offset-3">
+              CGU
+            </Link>
+            ).
+          </span>
+        </label>
+        <button
+          type="submit"
+          className="w-full rounded-[3px] border border-trait bg-carte px-4 py-2 text-sm font-semibold text-encre transition hover:border-encre"
+        >
+          Continuer avec Discord
         </button>
       </form>
 

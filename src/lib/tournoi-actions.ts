@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { slugifier } from "@/lib/slug";
+import { notifierDiscord, URL_SITE } from "@/lib/notifications";
+import { formaterDate } from "@/lib/tournois";
 
 const CAPACITES = [4, 8, 16, 32, 64] as const;
 
@@ -82,6 +84,9 @@ export async function creerTournoi(formData: FormData) {
   }
 
   if (publier) {
+    await notifierDiscord(
+      `📣 Nouveau tournoi ouvert — **${nom}** (${capacite} joueurs, ${region}), débute le ${formaterDate(debuteLe.toISOString())}.\n${URL_SITE}/lol/tournois/${slug}`,
+    );
     redirect(`/lol/tournois/${slug}`);
   }
 

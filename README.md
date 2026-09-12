@@ -46,6 +46,10 @@ ci-dessous pour les créer soi-même.
 |---|---|
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | notifications e-mail (inscription, résultat, litige) |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` | suivi d'erreurs Sentry |
+| `DISCORD_WEBHOOK_URL` | annonces sur un serveur Discord (nouveau tournoi, vainqueur) |
+| `DISCORD_PUBLIC_KEY`, `DISCORD_APPLICATION_ID`, `DISCORD_BOT_TOKEN` | bot Discord interactif (`/classement`, `/tournois`) — lancer `npm run discord:commandes` une fois configurées |
+
+La **connexion via Discord (OAuth)** ne se configure pas ici : Client ID/Secret se renseignent directement dans le tableau de bord Supabase (Authentication → Providers → Discord). Détails des trois volets dans les commentaires de `.env.local`.
 
 ## Déployer sur Vercel
 

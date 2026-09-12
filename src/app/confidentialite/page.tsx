@@ -46,6 +46,7 @@ export default function ConfidentialitePage() {
           </h2>
           <ul className="mt-2 flex flex-col gap-1.5 text-ardoise">
             <li>Adresse e-mail et mot de passe (le mot de passe n&apos;est jamais stocké en clair, seul son hachage l&apos;est).</li>
+            <li>Si tu te connectes via Discord : ton identifiant Discord, ton nom d&apos;utilisateur et l&apos;e-mail associé à ton compte Discord.</li>
             <li>Pseudo, identifiant public (slug), pays si renseigné.</li>
             <li>Riot ID (nom de jeu, tag, région) et identifiant Riot stable (puuid), une fois lié.</li>
             <li>Historique de tournois, de matchs et de résultats.</li>
@@ -88,6 +89,14 @@ export default function ConfidentialitePage() {
             <li>
               <strong className="text-encre">Vercel Inc.</strong> — hébergement du site (voir
               les mentions légales).
+            </li>
+            <li>
+              <strong className="text-encre">Discord Inc.</strong> (États-Unis) — uniquement si
+              tu utilises la connexion via Discord. Par ailleurs, l&apos;annonce d&apos;un
+              nouveau tournoi ou de son vainqueur peut être publiée sur un
+              serveur Discord communautaire ; ce message ne contient que des
+              informations déjà publiques sur le site (nom du tournoi,
+              pseudo, résultat), jamais ton e-mail ni tes données de compte.
             </li>
           </ul>
           <p className="mt-2 text-ardoise">
