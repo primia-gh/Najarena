@@ -247,6 +247,14 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         </div>
       )}
 
+      <p className="mt-4 max-w-lg text-sm text-ardoise">
+        Format {tournoi.format}
+        {tournoi.best_of > 1 ? `, meilleur des ${tournoi.best_of}` : ""}, {tournoi.capacite} joueurs. Le
+        vainqueur de chaque match est déterminé automatiquement dans l&apos;historique de partie Riot ; en
+        l&apos;absence de résultat retrouvé, {organisateur?.pseudo ?? "l'organisateur"} tranche manuellement
+        et affiche son motif — jamais un résultat supposé.
+      </p>
+
       {erreur && (
         <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
       )}
@@ -288,6 +296,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       <Reveal delai={0.1}>
       <section className="mt-10">
         <SectionTitre>Inscrits</SectionTitre>
+        {inscriptions.length > 0 && (
+          <p className="mt-2 text-[0.8rem] text-ardoise">
+            L&apos;anneau à côté du pseudo indique le palier actuel du joueur — comme le sceau de
+            fiabilité, il se referme à mesure que son classement devient fiable.
+          </p>
+        )}
         {inscriptions.length === 0 ? (
           <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Aucune inscription pour l&apos;instant.
@@ -335,6 +349,20 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       <Reveal delai={0.15}>
       <section className="mt-10">
         <SectionTitre>Bracket</SectionTitre>
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[0.78rem] text-ardoise">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-atteste" />
+            Niveau 2/3 — compte pour le classement
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-ardoise" />
+            Niveau 1 — décision manuelle, hors classement
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-sceau" />
+            Litige — en attente de l&apos;organisateur
+          </span>
+        </div>
         {toursOrdonnes.length === 0 ? (
           <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
             Le bracket n&apos;a pas encore été généré.

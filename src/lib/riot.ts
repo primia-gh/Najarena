@@ -157,6 +157,12 @@ export function urlIconeProfil(version: string, iconeId: number): string {
   return `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${iconeId}.png`;
 }
 
+// Identifiant Data Dragon du champion (ex. "Kaisa", "Zed") — pas son nom
+// affiché en jeu, voir la liste `championFull.json` du CDN.
+export function urlIconeChampion(version: string, championId: string): string {
+  return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${championId}.png`;
+}
+
 export function traduireErreurRiot(e: unknown): string {
   if (e instanceof ErreurRiot) {
     switch (e.code) {
