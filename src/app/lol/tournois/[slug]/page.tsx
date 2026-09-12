@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { sInscrireATournoi } from "@/lib/inscription-actions";
 import { ouvrirLitige } from "@/lib/litige-actions";
+import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import {
   LABEL_STATUT,
   COULEUR_STATUT,
@@ -149,6 +150,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
+      {statut !== "termine" && statut !== "annule" && (
+        <SuiviTempsReel
+          canal={`tournoi-${tournoi.id}`}
+          tables={["matches", "match_participants", "match_verdicts", "registrations", "disputes"]}
+        />
+      )}
       <Link
         href="/lol/tournois"
         className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"

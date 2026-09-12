@@ -1053,6 +1053,16 @@ create index if not exists tiers_game_id_idx on tiers (game_id);
 create index if not exists tournaments_organisateur_id_idx on tournaments (organisateur_id);
 create index if not exists tournaments_season_id_idx on tournaments (season_id);
 
+-- ---------- Temps réel (2026-09-12) ----------
+-- Bracket/match/inscriptions/litiges vivaient uniquement en rechargement de
+-- page. Ajout à la publication `supabase_realtime` — la lecture des
+-- événements reste filtrée par les policies SELECT déjà en place ci-dessus
+-- (publiques pour matches/match_participants/match_verdicts/registrations,
+-- restreinte aux concernés + admin pour disputes), donc aucune nouvelle
+-- policy n'est nécessaire pour ce changement.
+alter publication supabase_realtime add table
+  matches, match_participants, match_verdicts, registrations, disputes;
+
 -- Non corrigé délibérément : l'advisor signale aussi des policies
 -- permissives redondantes sur `disputes` (admin + participant/organisateur
 -- se chevauchent pour SELECT/UPDATE) et un index `ratings` non encore

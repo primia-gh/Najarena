@@ -10,6 +10,7 @@ import {
   resoudreLitige,
 } from "@/lib/organisation-actions";
 import { LABEL_STATUT, COULEUR_STATUT, LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
+import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 
 export const metadata: Metadata = {
   title: "Cockpit organisateur — Najarena",
@@ -96,6 +97,12 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
+      {tournoi.statut !== "termine" && tournoi.statut !== "annule" && (
+        <SuiviTempsReel
+          canal={`cockpit-${tournoi.id}`}
+          tables={["matches", "match_participants", "match_verdicts", "registrations", "disputes"]}
+        />
+      )}
       <Link
         href="/moi"
         className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
