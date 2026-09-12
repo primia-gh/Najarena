@@ -1,6 +1,21 @@
 import Link from "next/link";
 import BracketBackground from "@/components/BracketBackground";
+import NavbarArene from "@/components/accueil/NavbarArene";
+import FondArene from "@/components/accueil/FondArene";
+import Reveal from "@/components/accueil/Reveal";
+import CompteurAnime from "@/components/accueil/CompteurAnime";
+import SceauVitrine from "@/components/accueil/SceauVitrine";
+import CarteMatch from "@/components/accueil/CarteMatch";
 import { createClient } from "@/lib/supabase/server";
+
+const COULEUR_PALIER: Record<string, string> = {
+  bronze: "#8a6a52",
+  argent: "#9aa4ae",
+  or: "var(--nuit-laiton)",
+  platine: "#4fb8ae",
+  diamant: "#6fa8e8",
+  champion: "var(--nuit-sceau)",
+};
 
 async function chargerPreuveSociale() {
   const supabase = await createClient();
@@ -21,77 +36,292 @@ async function chargerPreuveSociale() {
   };
 }
 
+async function chargerPaliers() {
+  const supabase = await createClient();
+  const { data: jeu } = await supabase.from("games").select("id").eq("slug", "lol").maybeSingle();
+  if (!jeu) return [];
+
+  const { data } = await supabase
+    .from("tiers")
+    .select("nom, rating_min, ordre")
+    .eq("game_id", jeu.id)
+    .order("ordre", { ascending: true });
+
+  return data ?? [];
+}
+
 export default async function Home() {
-  const preuve = await chargerPreuveSociale();
-  // Jamais de chiffre inventé : chaque statistique vient d'un vrai compte en
-  // base, et une statistique à zéro ne s'affiche pas plutôt que d'afficher
-  // "0" (qui découragerait sans rien prouver).
-  const stats = [
+  const [preuve, paliers] = await Promise.all([chargerPreuveSociale(), chargerPaliers()]);
+
+  // Jamais de chiffre inventé : chaque statistique de trafic vient d'un
+  // vrai compte en base, et une statistique à zéro ne s'affiche pas plutôt
+  // que d'afficher "0" (qui découragerait sans rien prouver). Les
+  // constantes du moteur (rating initial, seuil de classement, niveaux de
+  // preuve), elles, sont vraies dès le premier jour, sans trafic.
+  const statsTrafic = [
     { valeur: preuve.joueurs, libelle: "joueurs classés" },
     { valeur: preuve.tournois, libelle: "tournois joués" },
     { valeur: preuve.matchs, libelle: "matchs enregistrés" },
   ].filter((s) => s.valeur > 0);
 
+  const echelleMax = paliers.length > 0 ? paliers[paliers.length - 1].rating_min * 1.12 : 1;
+
   return (
-    <section className="accueil relative isolate flex min-h-screen flex-col justify-center overflow-hidden bg-[var(--nuit-encre)] px-6 py-24">
-      <BracketBackground />
+    <div className="accueil bg-[var(--nuit-encre)]">
+      <NavbarArene />
 
-      <div
-        aria-hidden="true"
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 60%, rgba(11,14,20,.15) 0%, rgba(11,14,20,.82) 72%)",
-        }}
-      />
+      {/* ================= HERO ================= */}
+      <section className="relative isolate flex min-h-screen flex-col justify-center overflow-hidden px-6 pt-36 pb-24">
+        <BracketBackground />
+        <FondArene />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 60%, rgba(11,14,20,.15) 0%, rgba(11,14,20,.82) 72%)",
+          }}
+        />
 
-      <div className="relative mx-auto w-full max-w-2xl">
-        <span className="font-mono text-[0.64rem] uppercase tracking-[0.24em] text-[var(--nuit-ardoise)]">
-          League of Legends · 1v1 quotidien
-        </span>
+        <div className="relative mx-auto w-full max-w-2xl">
+          <Reveal>
+            <span className="font-mono text-[0.64rem] uppercase tracking-[0.24em] text-[var(--nuit-ardoise)]">
+              League of Legends · 1v1 &amp; 5v5 quotidiens
+            </span>
+          </Reveal>
 
-        <h1 className="mt-3 font-display text-5xl leading-[0.98] font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-7xl">
-          Ton niveau,
-          <br />
-          <span className="text-[var(--nuit-sceau)]">vérifié.</span>
-        </h1>
+          <Reveal delai={0.08}>
+            <h1 className="mt-3 font-display text-5xl leading-[0.98] font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-7xl">
+              Ton niveau,
+              <br />
+              <span className="text-[var(--nuit-sceau)]">vérifié.</span>
+            </h1>
+          </Reveal>
 
-        <p className="mt-4 max-w-md text-[1.02rem] text-[#B9BFC7]">
-          Des tournois quotidiens en 1v1. Les résultats sont lus dans la partie
-          officielle — aucune capture d&apos;écran, aucun litige. Ton
-          classement devient une preuve.
-        </p>
+          <Reveal delai={0.16}>
+            <p className="mt-4 max-w-md text-[1.02rem] text-[#B9BFC7]">
+              Des tournois quotidiens en 1v1 et 5v5. Les résultats sont lus
+              dans la partie officielle — aucune capture d&apos;écran, aucun
+              litige. Ton classement devient une preuve.
+            </p>
+          </Reveal>
 
-        <div className="mt-6 flex flex-wrap gap-2.5">
-          <Link
-            href="/lol/tournois"
-            className="rounded-[3px] bg-[var(--nuit-sceau)] px-5 py-3 text-sm font-semibold text-[#14090C] transition hover:brightness-110"
-          >
-            Voir les tournois
-          </Link>
-          <Link
-            href="/lol/classement"
-            className="rounded-[3px] border border-white/20 bg-white/6 px-5 py-3 text-sm font-semibold text-[var(--nuit-papier)] transition hover:border-white/40"
-          >
-            Voir le classement
-          </Link>
-        </div>
+          <Reveal delai={0.24}>
+            <div className="mt-6 flex flex-wrap gap-2.5">
+              <Link
+                href="/lol/tournois"
+                className="rounded-[2px] bg-[var(--nuit-sceau)] px-5 py-3 text-sm font-semibold text-[#14090C] shadow-[0_8px_24px_-6px_var(--nuit-sceau-lueur)] transition hover:-translate-y-0.5 hover:brightness-110"
+                style={{ clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)" }}
+              >
+                Voir les tournois
+              </Link>
+              <Link
+                href="/lol/classement"
+                className="rounded-[2px] border border-white/20 bg-white/6 px-5 py-3 text-sm font-semibold text-[var(--nuit-papier)] transition hover:border-white/40"
+                style={{ clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)" }}
+              >
+                Voir le classement
+              </Link>
+            </div>
+          </Reveal>
 
-        {stats.length > 0 && (
-          <dl className="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/10 pt-6">
-            {stats.map((s) => (
-              <div key={s.libelle}>
-                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--nuit-papier)]">
-                  {s.valeur}
-                </dd>
-                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--nuit-ardoise)] uppercase">
-                  {s.libelle}
-                </dt>
+          <Reveal delai={0.32}>
+            <dl className="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/10 pt-6">
+              <div>
+                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--nuit-papier)]">1v1 · 5v5</dd>
+                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--nuit-ardoise)] uppercase">Formats</dt>
               </div>
-            ))}
-          </dl>
-        )}
-      </div>
-    </section>
+              <div>
+                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--nuit-papier)]">3</dd>
+                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--nuit-ardoise)] uppercase">Niveaux de preuve</dt>
+              </div>
+              <div>
+                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--nuit-papier)]">24/7</dd>
+                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--nuit-ardoise)] uppercase">Suivi en direct</dt>
+              </div>
+            </dl>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ================= SYSTÈME DE VERDICT ================= */}
+      <section className="relative bg-gradient-to-b from-[var(--nuit-encre)] to-[var(--nuit-fond-1)] px-6 py-28">
+        <div className="mx-auto grid max-w-5xl items-center gap-16 md:grid-cols-2">
+          <Reveal>
+            <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">
+              Le système de verdict
+            </span>
+            <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+              On n&apos;invente
+              <br />
+              jamais un résultat.
+            </h2>
+            <p className="mt-4 max-w-md text-[var(--nuit-ardoise)]">
+              Chaque match consomme un verdict qui porte son propre niveau de
+              fiabilité, affiché publiquement. En cas de doute, on escalade
+              vers l&apos;organisateur — jamais de résultat supposé.
+            </p>
+
+            <div className="mt-6 flex flex-col gap-2.5">
+              {[
+                { n: "03", l: "Code de tournoi Riot", s: "Lecture directe de l'API — la preuve la plus forte", compte: true },
+                { n: "02", l: "Retrouvé dans l'historique", s: "Rapproché automatiquement depuis les parties Riot", compte: true },
+                { n: "01", l: "Décision manuelle", s: "Tranchée par l'organisateur, motif affiché", compte: false },
+              ].map((niv) => (
+                <div
+                  key={niv.n}
+                  className="flex items-center gap-3.5 border border-[var(--nuit-trait)] bg-[var(--nuit-fond-2)] px-4 py-3"
+                >
+                  <span
+                    className={`w-5 font-mono text-sm font-bold ${niv.compte ? "text-[var(--nuit-atteste)]" : "text-[var(--nuit-ardoise)]"}`}
+                  >
+                    {niv.n}
+                  </span>
+                  <span className="text-[0.86rem] text-[var(--nuit-papier)]">
+                    {niv.l}
+                    <small className="mt-0.5 block text-[0.76rem] text-[var(--nuit-ardoise)]">{niv.s}</small>
+                  </span>
+                  <span
+                    className={`ml-auto font-mono text-[0.62rem] tracking-[0.08em] uppercase ${niv.compte ? "text-[var(--nuit-atteste)]" : "text-[var(--nuit-ardoise)]"}`}
+                  >
+                    {niv.compte ? "Compte" : "Hors classement"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+
+          <Reveal delai={0.1}>
+            <CarteMatch />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ================= SCEAU DE FIABILITÉ ================= */}
+      <section className="relative bg-[var(--nuit-fond-1)] px-6 py-28 text-center">
+        <Reveal className="mx-auto max-w-lg">
+          <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">
+            Élément signature
+          </span>
+          <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+            Le sceau de fiabilité.
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-[var(--nuit-ardoise)]">
+            Une couronne de crans dont le remplissage traduit le calibrage de
+            ton classement (RD). Non calibré, il reste pâle et incomplet — il
+            se referme match après match.
+          </p>
+        </Reveal>
+
+        <Reveal delai={0.15} className="mt-10">
+          <SceauVitrine cible={68} />
+        </Reveal>
+      </section>
+
+      {/* ================= PALIERS ================= */}
+      {paliers.length > 0 && (
+        <section className="relative bg-gradient-to-b from-[var(--nuit-fond-1)] to-[var(--nuit-encre)] px-6 py-28">
+          <div className="mx-auto max-w-4xl">
+            <Reveal>
+              <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">
+                Le classement
+              </span>
+              <h2 className="mt-3 max-w-lg font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+                Glicko-2, seuils fixes, jamais de remise à zéro.
+              </h2>
+            </Reveal>
+
+            <Reveal delai={0.1}>
+              <div className="mt-10 grid grid-cols-2 gap-px border border-[var(--nuit-trait)] bg-[var(--nuit-trait)] sm:grid-cols-3 md:grid-cols-6">
+                {paliers.map((p, i) => {
+                  const couleur = COULEUR_PALIER[p.nom.toLowerCase()] ?? "var(--nuit-ardoise)";
+                  // Le premier palier (Bronze) a rating_min = 0 en base — la
+                  // borne qui a du sens à afficher est celle du palier
+                  // suivant ("< 1300", cf. CLAUDE.md §4), pas "0".
+                  const seuilSuivant = paliers[i + 1]?.rating_min;
+                  const libelle = i === 0 && seuilSuivant ? `< ${seuilSuivant}` : String(p.rating_min);
+                  const largeur = Math.max(6, Math.min(100, Math.round((p.rating_min / echelleMax) * 100)));
+                  return (
+                    <div
+                      key={p.nom}
+                      className="bg-[var(--nuit-fond-2)] px-3.5 py-5 text-center transition-[background-color,transform] duration-300 hover:-translate-y-1 hover:bg-[#1c222c]"
+                    >
+                      <div className="font-mono text-[0.68rem] tracking-[0.1em] text-[var(--nuit-ardoise)] uppercase">{p.nom}</div>
+                      <div className="mt-1.5 font-mono text-lg font-bold text-[var(--nuit-papier)]">{libelle}</div>
+                      <div className="mt-3.5 h-[3px] rounded-full bg-[var(--nuit-trait)]">
+                        <div className="h-full rounded-full" style={{ width: `${largeur}%`, background: couleur }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Reveal>
+          </div>
+        </section>
+      )}
+
+      {/* ================= EN CHIFFRES ================= */}
+      <section className="relative px-6 pt-8 pb-28">
+        <div className="mx-auto max-w-4xl">
+          <Reveal>
+            <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">En chiffres</span>
+            <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+              La preuve s&apos;accumule.
+            </h2>
+          </Reveal>
+
+          <Reveal delai={0.1}>
+            {/* 3 colonnes, pas 4 : les constantes du moteur sont toujours
+                exactement 3, et statsTrafic (0 à 3 de plus tant qu'il n'y a
+                pas encore de vrai trafic) vient s'ajouter en ligne(s)
+                suivante(s) plutôt que de laisser une case vide en bout de
+                grille. */}
+            <div className="mt-10 grid grid-cols-1 gap-px border border-[var(--nuit-trait)] bg-[var(--nuit-trait)] sm:grid-cols-3">
+              {[
+                { valeur: 1500, libelle: "Rating initial" },
+                { valeur: 10, libelle: "Matchs avant classement" },
+                { valeur: 3, libelle: "Niveaux de preuve" },
+                ...statsTrafic,
+              ].map((s) => (
+                <div key={s.libelle} className="bg-[var(--nuit-encre)] px-5 py-8 text-center">
+                  <div className="font-mono text-3xl font-bold tabular-nums text-[var(--nuit-papier)] sm:text-4xl">
+                    <CompteurAnime valeur={s.valeur} />
+                  </div>
+                  <span className="mt-2 block font-mono text-[0.62rem] tracking-[0.12em] text-[var(--nuit-ardoise)] uppercase">
+                    {s.libelle}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ================= CTA FINAL — transition vers le registre clair ================= */}
+      <section className="relative bg-gradient-to-b from-[var(--nuit-encre)] via-[#171b22] to-[var(--color-papier)] px-6 pt-8 pb-36 text-center">
+        <Reveal className="mx-auto max-w-2xl">
+          <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--nuit-ardoise)] uppercase">Rejoindre</span>
+          <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-[var(--nuit-papier)] sm:text-4xl">
+            Ton prochain match compte. Pour de vrai.
+          </h2>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/inscription"
+              className="rounded-[2px] bg-[var(--nuit-sceau)] px-6 py-3 text-sm font-semibold text-[#14090C] shadow-[0_8px_24px_-6px_var(--nuit-sceau-lueur)] transition hover:-translate-y-0.5 hover:brightness-110"
+              style={{ clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)" }}
+            >
+              Créer mon compte
+            </Link>
+            <Link
+              href="/organiser/nouveau"
+              className="rounded-[2px] border border-white/20 bg-white/6 px-6 py-3 text-sm font-semibold text-[var(--nuit-papier)] transition hover:border-white/40"
+              style={{ clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)" }}
+            >
+              Organiser un tournoi
+            </Link>
+          </div>
+        </Reveal>
+      </section>
+    </div>
   );
 }

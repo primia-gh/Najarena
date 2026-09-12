@@ -35,13 +35,22 @@ body {
   font-family: var(--font-body);
 }
 
-/* Variante nuit — nuances éclaircies pour rester lisibles sur fond encre,
-   utilisée uniquement dans le hero de la page d'accueil. */
+/* Variante nuit — nuances éclaircies pour rester lisibles sur fond encre.
+   Registre "arène" : accueil + hub /lol uniquement (décision du 12/09/2026,
+   voir CLAUDE.md §7) — le reste du site (preuve : classement, profil,
+   tournoi, cockpit) reste dans le registre clair, volontairement. */
 .accueil {
   --nuit-encre: #0b0e14;
+  --nuit-fond-1: #10141b;
+  --nuit-fond-2: #171c25;
+  --nuit-trait: rgba(255, 255, 255, 0.08);
+  --nuit-trait-fort: rgba(255, 255, 255, 0.18);
   --nuit-papier: #e7e6e1;
   --nuit-sceau: #c4485c;
+  --nuit-sceau-lueur: rgba(196, 72, 92, 0.35);
   --nuit-laiton: #d2a257;
+  --nuit-laiton-lueur: rgba(210, 162, 87, 0.24);
   --nuit-atteste: #3e9c6e;
+  --nuit-atteste-lueur: rgba(62, 156, 110, 0.24);
   --nuit-ardoise: #8a94a1;
 }
