@@ -10,6 +10,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
+import { createClient } from "@/lib/supabase/client";
 
 const LIENS = [
   { href: "/lol/tournois", label: "Tournois" },
@@ -23,9 +24,9 @@ const FOCUS =
 
 export default function NavbarArene() {
   const pathname = usePathname();
-  const surPageConnexion = pathname === "/connexion";
   const [defile, setDefile] = useState(false);
   const [menuOuvert, setMenuOuvert] = useState(false);
+  const [connecte, setConnecte] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setDefile(window.scrollY > 40);
@@ -33,6 +34,36 @@ export default function NavbarArene() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    // Revérifie la session à chaque changement de page. La connexion se
+    // fait via une Server Action (redirect() côté serveur) : le layout
+    // racine — donc cette navbar — n'est pas remonté par ce type de
+    // navigation, un effet [] au montage ne se rejouerait jamais après une
+    // connexion réussie et la navbar resterait bloquée sur "Se connecter".
+    // `pathname` en dépendance force la revérification exactement au
+    // moment où le symptôme apparaissait ("dès que je change de page").
+    createClient()
+      .auth.getSession()
+      .then(({ data }) => setConnecte(!!data.session));
+  }, [pathname]);
+
+  useEffect(() => {
+    // Complément pour les changements décidés par le client dans la même
+    // page (ex. déconnexion sans navigation) — sans dépendance à pathname,
+    // un seul abonnement pour la durée de vie du composant.
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setConnecte(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const cibleCompte = connecte ? "/moi" : "/connexion";
+  const libelleCompte = connecte ? "Mon compte" : "Se connecter";
+  const masquerCta = pathname === cibleCompte;
 
   return (
     <nav
@@ -67,12 +98,12 @@ export default function NavbarArene() {
         ))}
       </div>
 
-      {!surPageConnexion && (
+      {!masquerCta && (
         <Link
-          href="/connexion"
+          href={cibleCompte}
           className={`hidden rounded-[2px] bg-encre px-4 py-2 text-[0.8rem] font-semibold text-papier transition hover:brightness-95 sm:inline-block ${FOCUS}`}
         >
-          Se connecter
+          {libelleCompte}
         </Link>
       )}
 
@@ -107,13 +138,13 @@ export default function NavbarArene() {
                 {l.label}
               </Link>
             ))}
-            {!surPageConnexion && (
+            {!masquerCta && (
               <Link
-                href="/connexion"
+                href={cibleCompte}
                 onClick={() => setMenuOuvert(false)}
                 className={`mt-2 rounded-[2px] bg-encre px-4 py-2 text-center text-sm font-semibold text-papier ${FOCUS}`}
               >
-                Se connecter
+                {libelleCompte}
               </Link>
             )}
           </motion.div>
