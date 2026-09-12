@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
-import { ordreDesSeeds } from "@/lib/bracket";
+import { ordreDesSeeds, calculerByesEnCascade } from "@/lib/bracket";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -181,49 +181,21 @@ export async function genererBracket(formData: FormData) {
       .eq("id", matchId);
   }
 
-  // Résout les byes tour par tour, dans l'ordre : un match encore à un seul
-  // participant après cette répartition avance son joueur directement au
-  // tour suivant (motif consigné, comme tout verdict manuel). Comme les
-  // tours se traitent dans l'ordre, l'avancée d'un bye au tour N remplit
-  // déjà le tour N+1 avant qu'on ne l'examine à son tour — une chaîne de
-  // byes sur plusieurs tours se résout donc naturellement.
-  //
-  // Piège : un match à un seul participant n'est pas forcément un bye — sa
-  // place restante peut dépendre d'un VRAI match du tour précédent pas
-  // encore joué (ex. tour 1 : un bye + un match à 2 joueurs ; le vainqueur
-  // du match à 2 joueurs affrontera plus tard le joueur avancé par bye).
-  // On ne résout donc un match que si tous ses matchs précédents
-  // (`match_suivant_id` pointant vers lui) sont déjà décidés — un vrai
-  // match non résolu vaut `en_attente` OU `en_cours` (démarré ci-dessus),
-  // jamais seulement `en_attente` depuis qu'un match réel du tour 1
-  // passe `en_cours` dès sa génération.
-  for (let tour = 1; tour < nbTours; tour++) {
-    const nbMatchsCeTour = capacite / 2 ** tour;
-    for (let position = 1; position <= nbMatchsCeTour; position++) {
-      const matchId = idParTourPosition.get(`${tour}-${position}`);
-      if (!matchId) continue;
+  // Résout les byes en cascade (logique pure testée dans bracket.test.ts —
+  // cf. les commentaires de calculerByesEnCascade pour l'historique des
+  // trois bugs déjà trouvés sur cette logique). Chaque résolution avance
+  // le joueur directement au tour suivant, motif consigné comme tout
+  // verdict manuel.
+  const byes = calculerByesEnCascade(capacite, joueurs.length);
+  for (const bye of byes) {
+    const matchId = idParTourPosition.get(`${bye.tour}-${bye.position}`);
+    if (!matchId) continue;
 
-      const { count: precedentsNonDecides } = await supabase
-        .from("matches")
-        .select("id", { count: "exact", head: true })
-        .eq("match_suivant_id", matchId)
-        .neq("statut", "termine");
-
-      if (precedentsNonDecides && precedentsNonDecides > 0) continue;
-
-      const { data: participants } = await supabase
-        .from("match_participants")
-        .select("profile_id")
-        .eq("match_id", matchId);
-
-      if (participants && participants.length === 1) {
-        await supabase.rpc("enregistrer_verdict_manuel", {
-          p_match_id: matchId,
-          p_gagnant_id: participants[0].profile_id,
-          p_motif: "Bye — moins d'inscrits confirmés que de places dans le bracket.",
-        });
-      }
-    }
+    await supabase.rpc("enregistrer_verdict_manuel", {
+      p_match_id: matchId,
+      p_gagnant_id: joueurs[bye.gagnantSeed - 1],
+      p_motif: "Bye — moins d'inscrits confirmés que de places dans le bracket.",
+    });
   }
 
   await supabase.from("tournaments").update({ statut: "en_cours" }).eq("id", tournamentId);
