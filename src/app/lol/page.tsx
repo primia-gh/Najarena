@@ -69,6 +69,12 @@ export default async function LolHubPage() {
         >
           Voir le classement
         </Link>
+        <Link
+          href="/lol/coequipiers"
+          className="rounded-[3px] border border-trait px-4 py-2 text-sm font-semibold text-encre transition hover:border-encre"
+        >
+          Trouver un coéquipier
+        </Link>
       </div>
 
       <section className="mt-12">

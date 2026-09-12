@@ -550,6 +550,32 @@ export type Database = {
           },
         ]
       }
+      recherches_coequipiers: {
+        Row: {
+          cree_le: string
+          message: string | null
+          profile_id: string
+        }
+        Insert: {
+          cree_le?: string
+          message?: string | null
+          profile_id: string
+        }
+        Update: {
+          cree_le?: string
+          message?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recherches_coequipiers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       registrations: {
         Row: {
           confirme_le: string | null

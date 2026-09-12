@@ -167,12 +167,20 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           <h2 className="font-display text-xl font-extrabold tracking-tight text-encre">
             Mes équipes
           </h2>
-          <Link
-            href="/equipe/nouvelle"
-            className="font-mono text-[0.7rem] text-sceau underline underline-offset-3"
-          >
-            Créer une équipe
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/lol/coequipiers"
+              className="font-mono text-[0.7rem] text-ardoise underline underline-offset-3 hover:text-encre"
+            >
+              Trouver un coéquipier
+            </Link>
+            <Link
+              href="/equipe/nouvelle"
+              className="font-mono text-[0.7rem] text-sceau underline underline-offset-3"
+            >
+              Créer une équipe
+            </Link>
+          </div>
         </div>
 
         {invitationsEnAttente.length > 0 && (

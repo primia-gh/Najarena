@@ -1063,6 +1063,69 @@ create index if not exists tournaments_season_id_idx on tournaments (season_id);
 alter publication supabase_realtime add table
   matches, match_participants, match_verdicts, registrations, disputes;
 
+-- ---------- Recherche de coéquipiers (2026-09-12) ----------
+-- Dernier point de la demande "matchmaking" du 12/09 — un joueur s'annonce
+-- disponible pour rejoindre une équipe, visible de tous (comme les
+-- inscriptions/équipes). Auto-gérée : chaque joueur ne touche que sa
+-- propre ligne (`for all`, comme push_subscriptions), une seule annonce
+-- possible par joueur (profile_id en clé primaire — republier revient à
+-- mettre à jour la même ligne, pas à en empiler une nouvelle).
+create table recherches_coequipiers (
+  profile_id  uuid primary key references profiles(id) on delete cascade,
+  message     text check (char_length(message) <= 200),
+  cree_le     timestamptz not null default now()
+);
+
+alter table recherches_coequipiers enable row level security;
+
+create policy "annonces lisibles par tous"
+  on recherches_coequipiers for select using (true);
+
+create policy "un joueur gere sa propre annonce"
+  on recherches_coequipiers for all
+  using (profile_id = (select auth.uid()))
+  with check (profile_id = (select auth.uid()));
+
+-- ---------- Discord : capture de l'identifiant à l'inscription (2026-09-12) ----------
+-- handle_new_user (§1) republié en entier : `create or replace function`
+-- ne réécrit pas la fonction par petits bouts. Ajoute uniquement la
+-- capture de discord_id pour un compte créé via l'OAuth Discord — colonne
+-- déjà présente dans le schéma (§1) mais jamais écrite faute d'intégration
+-- Discord réelle jusqu'ici. Ne sert PAS à choisir le pseudo par défaut :
+-- le nom d'affichage Discord n'est pas unique (contrainte `pseudo unique`
+-- ci-dessus), l'utiliser directement ferait échouer toute la création de
+-- compte au premier doublon de nom.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_pseudo text;
+  v_slug text;
+  v_discord_id text;
+begin
+  v_pseudo := new.raw_user_meta_data->>'pseudo';
+  v_slug := new.raw_user_meta_data->>'slug';
+
+  if v_pseudo is null or v_slug is null then
+    v_pseudo := 'Joueur-' || substr(new.id::text, 1, 8);
+    v_slug := lower(v_pseudo);
+  end if;
+
+  if new.raw_app_meta_data->>'provider' = 'discord' then
+    v_discord_id := coalesce(
+      new.raw_user_meta_data->>'provider_id',
+      new.raw_user_meta_data->>'sub'
+    );
+  end if;
+
+  insert into public.profiles (id, pseudo, slug, discord_id)
+  values (new.id, v_pseudo, v_slug, v_discord_id);
+  return new;
+end;
+$$;
+
 -- Non corrigé délibérément : l'advisor signale aussi des policies
 -- permissives redondantes sur `disputes` (admin + participant/organisateur
 -- se chevauchent pour SELECT/UPDATE) et un index `ratings` non encore

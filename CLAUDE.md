@@ -131,6 +131,7 @@ Si un chiffre fait partie du dossier, il est en caractères machine. Si c'est du
 /lol/tournois              liste + filtres
 /lol/tournois/[slug]       page tournoi
 /lol/classement            leaderboard
+/lol/coequipiers           recherche de coéquipiers (5v5)
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
 /equipe/[slug]             page publique d'équipe
 /equipe/nouvelle           création d'équipe
@@ -155,7 +156,7 @@ Le profil joueur reste **hors** du segment de jeu, avec des onglets par jeu — 
 
 **Phase 2 — clé obtenue.** RSO, rapprochement par historique (niveau 2), synchronisation des Riot ID, demande d'API Tournament, lancement public, saison 1.
 
-**Phase 3.** Codes de tournoi (niveau 3), analyse IA du profil (version progression), matching duo. *(Équipes et 5v5 avancés en V1 le 12/09/2026 — voir §1.)*
+**Phase 3.** Codes de tournoi (niveau 3), analyse IA du profil (version progression), matching duo. *(Équipes et 5v5, recherche de coéquipiers, temps réel, Discord et assistant IA organisateur avancés en V1 le 12/09/2026 — voir §1.)*
 
 **Phase 4.** Analyse orientée recruteur, scouting, overlay stream, cash prizes sponsorisés.
 

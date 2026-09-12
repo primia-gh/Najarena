@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { slugifier } from "@/lib/slug";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 
 // 2 à 5 lettres/chiffres, convention standard des tags d'équipe esport.
 const TAG_REGEX = /^[A-Za-z0-9]{2,5}$/;
@@ -87,6 +88,23 @@ export async function inviterMembre(formData: FormData) {
 
   if (!profil) {
     redirect(`/equipe/${slug}?erreur=${encodeURIComponent("Aucun joueur avec ce pseudo.")}`);
+  }
+
+  // Vérification applicative, en plus de la policy RLS "capitaine invite un
+  // membre" (qui revérifie elle-même l'identité du capitaine) : rien côté
+  // base n'empêche encore un roster de dépasser 5 joueurs, et
+  // /lol/coequipiers affiche maintenant "de la place" comme un fait sur
+  // lequel on s'engage.
+  const { count } = await supabase
+    .from("team_members")
+    .select("*", { count: "exact", head: true })
+    .eq("team_id", teamId)
+    .not("accepte_le", "is", null);
+
+  if ((count ?? 0) >= TAILLE_MAX_EQUIPE) {
+    redirect(
+      `/equipe/${slug}?erreur=${encodeURIComponent(`Équipe déjà complète (${TAILLE_MAX_EQUIPE} joueurs pour un format 5v5).`)}`,
+    );
   }
 
   // La policy RLS "capitaine invite un membre" revérifie elle-même que
