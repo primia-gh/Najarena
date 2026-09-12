@@ -1,0 +1,808 @@
+<title>Audit Najarena</title>
+<style>
+  :root {
+    --encre: #12161d;
+    --papier: #e7e6e1;
+    --carte: #f2f1ed;
+    --carte-2: #eae9e4;
+    --trait: #c6c5be;
+    --sceau: #7e2233;
+    --sceau-fond: rgba(126, 34, 51, .08);
+    --laiton: #7a5a23;
+    --laiton-fond: rgba(122, 90, 35, .1);
+    --atteste: #1f6f4a;
+    --atteste-fond: rgba(31, 111, 74, .1);
+    --ardoise: #5b6672;
+
+    --bg: var(--papier);
+    --fg: var(--encre);
+    --surface: var(--carte);
+    --surface-2: var(--carte-2);
+    --border: var(--trait);
+    --muted: var(--ardoise);
+    --accent: var(--sceau);
+    --accent-fond: var(--sceau-fond);
+    --gold: var(--laiton);
+    --gold-fond: var(--laiton-fond);
+    --good: var(--atteste);
+    --good-fond: var(--atteste-fond);
+
+    --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+    --font-body: "Inter Tight", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b0e14;
+      --fg: #e7e6e1;
+      --surface: #12161d;
+      --surface-2: #171c25;
+      --border: #2a3140;
+      --muted: #8a94a1;
+      --accent: #c4485c;
+      --accent-fond: rgba(196, 72, 92, .14);
+      --gold: #d2a257;
+      --gold-fond: rgba(210, 162, 87, .14);
+      --good: #3e9c6e;
+      --good-fond: rgba(62, 156, 110, .14);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0e14;
+    --fg: #e7e6e1;
+    --surface: #12161d;
+    --surface-2: #171c25;
+    --border: #2a3140;
+    --muted: #8a94a1;
+    --accent: #c4485c;
+    --accent-fond: rgba(196, 72, 92, .14);
+    --gold: #d2a257;
+    --gold-fond: rgba(210, 162, 87, .14);
+    --good: #3e9c6e;
+    --good-fond: rgba(62, 156, 110, .14);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    line-height: 1.6;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.01em; text-wrap: balance; color: var(--fg); }
+  .mono, table, .badge, .score, .kpi, code, .toc a[href^="#"] .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .shell { display: grid; grid-template-columns: 280px minmax(0,1fr); gap: 0; max-width: 1280px; margin: 0 auto; }
+  @media (max-width: 880px) { .shell { grid-template-columns: 1fr; } }
+
+  /* ---- TOC rail ---- */
+  .rail { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; padding: 28px 20px 40px 28px; border-right: 1px solid var(--border); }
+  @media (max-width: 880px) { .rail { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 20px; } }
+  .rail-brand { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+  .rail-title { font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; margin-top: 4px; }
+  .toc { margin-top: 22px; display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; }
+  .toc-group { margin-top: 14px; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .toc a { display: flex; gap: 8px; padding: 5px 8px; border-radius: 3px; color: var(--fg); text-decoration: none; }
+  .toc a:hover { background: var(--surface); }
+  .toc a .num { color: var(--muted); font-size: 0.7rem; min-width: 1.4em; }
+
+  /* ---- main column ---- */
+  main { padding: 40px clamp(20px, 5vw, 64px) 120px; min-width: 0; }
+  .cover { padding-bottom: 32px; border-bottom: 1px solid var(--border); margin-bottom: 40px; display: flex; gap: 32px; align-items: flex-end; flex-wrap: wrap; }
+  .cover-text .eyebrow { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+  .cover-text h1 { font-size: clamp(2rem, 4vw, 2.8rem); margin: 6px 0 10px; }
+  .cover-text p { max-width: 46ch; color: var(--muted); font-size: 0.95rem; }
+  .cover-meta { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-top: 14px; display: flex; gap: 18px; flex-wrap: wrap; }
+
+  section { margin-bottom: 56px; scroll-margin-top: 20px; }
+  section > h2 { font-size: 1.5rem; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  section > h2 .n { color: var(--muted); font-family: var(--font-mono); font-weight: 500; font-size: 0.9rem; margin-right: 10px; }
+  h3 { font-size: 1.12rem; margin: 26px 0 10px; }
+  p { max-width: 74ch; }
+  ul, ol { max-width: 74ch; padding-left: 1.3em; }
+  li { margin: 4px 0; }
+  strong { color: var(--fg); }
+
+  .lead { font-size: 1.05rem; color: var(--fg); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-fond); padding: 14px 18px; border-radius: 0 4px 4px 0; margin: 18px 0; max-width: 74ch; }
+  .callout.good { border-color: var(--good); background: var(--good-fond); }
+  .callout.gold { border-color: var(--gold); background: var(--gold-fond); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .tag { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card { border: 1px solid var(--border); background: var(--surface); border-radius: 4px; padding: 16px 18px; }
+  .card h4 { font-size: 0.95rem; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  .card ul { padding-left: 1.1em; font-size: 0.9rem; }
+
+  /* ---- score seal (reuses Najarena's own sceau motif) ---- */
+  .seal-wrap { display: flex; align-items: center; gap: 16px; }
+  .seal-num { font-family: var(--font-display); font-size: 2.6rem; font-weight: 800; }
+  .seal-label { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); max-width: 16ch; }
+
+  /* ---- tables ---- */
+  .table-wrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--border); border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 560px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-family: var(--font-body); font-weight: 600; font-size: 0.72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--surface); position: sticky; top: 0; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.62rem; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 100px; white-space: nowrap; font-weight: 600; }
+  .b-critique { background: var(--accent-fond); color: var(--accent); }
+  .b-eleve { background: var(--gold-fond); color: var(--gold); }
+  .b-modere { background: var(--surface-2); color: var(--muted); }
+  .b-bon { background: var(--good-fond); color: var(--good); }
+
+  .persona { border: 1px solid var(--border); border-radius: 4px; padding: 18px 20px; margin: 14px 0; background: var(--surface); }
+  .persona h4 { margin: 0 0 4px; font-size: 1rem; }
+  .persona .role { font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .persona p { margin-top: 10px; font-size: 0.92rem; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 4px; margin: 18px 0; overflow: hidden; }
+  .kpi { background: var(--surface); padding: 14px 16px; }
+  .kpi .v { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; }
+  .kpi .l { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+
+  .tree { font-family: var(--font-mono); font-size: 0.8rem; white-space: pre; overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 16px 20px; line-height: 1.7; }
+
+  blockquote { border-left: 3px solid var(--border); margin: 16px 0; padding-left: 16px; color: var(--muted); font-style: italic; max-width: 68ch; }
+
+  .sources { font-size: 0.78rem; color: var(--muted); }
+  .sources li { margin: 3px 0; }
+
+  footer.doc-end { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    .cover { align-items: flex-start; }
+    table { font-size: 0.76rem; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<div class="shell">
+  <nav class="rail" aria-label="Sommaire">
+    <div class="rail-brand">Najarena</div>
+    <div class="rail-title">Dossier d'audit</div>
+    <div class="toc">
+      <div class="toc-group">Cadrage</div>
+      <a href="#resume"><span class="num">00</span>Résumé exécutif</a>
+      <a href="#etat-reel"><span class="num">01</span>État réel vérifié</a>
+      <a href="#forces-faiblesses"><span class="num">02</span>Forces · faiblesses · critiques</a>
+
+      <div class="toc-group">Expérience</div>
+      <a href="#ux-personas"><span class="num">03</span>UX par persona</a>
+      <a href="#mobile"><span class="num">04</span>Mobile</a>
+      <a href="#conversion"><span class="num">05</span>Conversion</a>
+      <a href="#retention"><span class="num">06</span>Rétention &amp; engagement</a>
+      <a href="#communaute"><span class="num">07</span>Communauté</a>
+
+      <div class="toc-group">Technique</div>
+      <a href="#seo"><span class="num">08</span>SEO</a>
+      <a href="#performance"><span class="num">09</span>Performance</a>
+      <a href="#securite"><span class="num">10</span>Sécurité &amp; anti-abus</a>
+      <a href="#archi-actuelle"><span class="num">11</span>Architecture actuelle</a>
+      <a href="#riot"><span class="num">12</span>Riot Games / LoL</a>
+
+      <div class="toc-group">Stratégie</div>
+      <a href="#manquant"><span class="num">13</span>Fonctionnalités manquantes</a>
+      <a href="#ia"><span class="num">14</span>IA &amp; automatisation</a>
+      <a href="#matchmaking"><span class="num">15</span>Matchmaking</a>
+      <a href="#concurrence"><span class="num">16</span>Analyse concurrentielle</a>
+      <a href="#innovations"><span class="num">17</span>Innovations</a>
+      <a href="#business"><span class="num">18</span>Opportunités business</a>
+
+      <div class="toc-group">Plan</div>
+      <a href="#nouvelle-archi"><span class="num">19</span>Nouvelle architecture</a>
+      <a href="#homepage"><span class="num">20</span>Nouvelle homepage</a>
+      <a href="#stack"><span class="num">21</span>Stack technologique</a>
+      <a href="#roadmap"><span class="num">22</span>Roadmap P1 · P2 · P3</a>
+      <a href="#couts"><span class="num">23</span>Estimation des coûts</a>
+      <a href="#conclusion"><span class="num">24</span>Conclusion</a>
+      <a href="#top10"><span class="num">25</span>Top 10 des actions</a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="cover">
+      <div class="cover-text">
+        <span class="eyebrow">Audit stratégique &amp; technique</span>
+        <h1>Najarena — dossier d'audit</h1>
+        <p>Plateforme de tournois League of Legends 1v1. Deuxième passage : analyse de l'état réel du produit un jour après le premier audit, ce qui a changé depuis, et ce qui reste vrai.</p>
+        <div class="cover-meta">
+          <span>12 septembre 2026 — mise à jour</span>
+          <span>·</span>
+          <span>Périmètre : produit, technique, business</span>
+          <span>·</span>
+          <span>Statut : pré-lancement, non déployé publiquement</span>
+        </div>
+      </div>
+      <div class="seal-wrap">
+        <svg viewBox="0 0 120 120" role="img" aria-label="Note globale : 54 sur 100" style="width:88px;height:88px;flex-shrink:0">
+          <g id="seal-crown"></g>
+          <circle cx="60" cy="60" r="41" fill="none" stroke="var(--accent)" stroke-width="2" opacity=".78"/>
+          <circle cx="60" cy="60" r="35.5" fill="none" stroke="var(--accent)" stroke-width="1" opacity=".5"/>
+          <text x="60" y="56" text-anchor="middle" font-family="var(--font-mono)" font-size="20" font-weight="700" fill="var(--accent)">54</text>
+          <text x="60" y="71" text-anchor="middle" font-family="var(--font-mono)" font-size="7" letter-spacing="1.4" fill="var(--accent)" opacity=".75">SUR 100</text>
+        </svg>
+        <div class="seal-label">Note globale — voir méthodologie en§ 00 (+7 depuis le 11/09)</div>
+      </div>
+    </div>
+
+    <section id="resume">
+      <h2><span class="n">00</span>Résumé exécutif</h2>
+      <p class="lead">Vingt-quatre heures et 25 commits après le premier audit, Najarena a fait des progrès réels et vérifiables — et reste, structurellement, exactement là où elle était : un produit qui n'a toujours rencontré aucun utilisateur en dehors de son fondateur.</p>
+      <p>Ce qui a changé : notifications e-mail et push, PWA installable, suivi d'erreurs et analytics, protection anti-brute-force, données structurées SEO, tableau de bord admin étoffé, historique de rivalité entre joueurs, préparation du déploiement Vercel, et une première suite de 42 tests automatisés sur la logique la plus sensible (classement, bracket). C'est, presque au bullet point près, la moitié de la liste des « 10 actions les plus importantes » du premier rapport.</p>
+      <div class="callout">
+        <span class="tag">Le fait le plus important de cette mise à jour</span>
+        <p>En exécutant enfin l'outil d'audit de sécurité natif de Supabase — disponible depuis le premier jour, jamais lancé avant le 12 septembre — six fonctions qui écrivent directement sur le classement, dont celle qui déclare le vainqueur d'un match, se sont révélées exécutables par <strong>n'importe qui, authentifié ou non</strong>, via un simple appel à l'API publique. Contredit frontalement la promesse même du produit. Vérifié par exploitation réelle (inoffensive) avant correction, puis reconfirmé bloqué après. Aucune preuve d'exploitation malveillante — le site n'étant pas public, seule une personne connaissant l'URL locale aurait pu le faire. Traité en détail en §10.</p>
+      </div>
+      <p>Ce qui n'a pas changé : toujours aucune équipe/5v5, toujours aucun paiement, toujours aucun temps réel, toujours aucune clé production Riot, et surtout — toujours aucun déploiement public. La recommandation du premier rapport reste entière : rien de ce qui est mesuré dans ce document (conversion, SEO, rétention réelle) n'aura de sens tant que Najarena n'a pas rencontré un vrai visiteur.</p>
+
+      <div class="kpi-row">
+        <div class="kpi"><div class="v">1</div><div class="l">Compte réel total</div></div>
+        <div class="kpi"><div class="v">0</div><div class="l">Tournois publics tenus</div></div>
+        <div class="kpi"><div class="v">25</div><div class="l">Commits depuis le 11/09</div></div>
+        <div class="kpi"><div class="v">42</div><div class="l">Tests automatisés</div></div>
+      </div>
+
+      <div class="callout">
+        <span class="tag">Méthodologie de la note</span>
+        <p>54/100 (+7) = même moyenne pondérée sur 6 axes que le 11/09. Progression réelle sur 4 axes : Fondations techniques &amp; sécurité (élevé → très élevé — la faille trouvée ET corrigée avant tout déploiement en est la preuve, pas la contradiction), Rétention/communauté (quasi nul → faible — notifications et rivalité existent enfin), Acquisition/SEO (faible → faible à modéré — données structurées ajoutées avec discernement, cf. §08), Complétude fonctionnelle (très faible → faible — toujours pas d'équipes ni de paiement). Deux axes strictement inchangés : Fiabilité du classement (déjà élevé) et Statut de lancement (toujours nul — produit non public). C'est ce dernier axe qui plafonne la note autour de 50-55 quel que soit le volume de travail : la note mesure la distance à un lancement réel, pas la compétence de l'exécution.</p>
+      </div>
+    </section>
+
+    <section id="etat-reel">
+      <h2><span class="n">01</span>État réel vérifié — ce qui existe, ce qui n'existe pas</h2>
+      <p>Conformément à la consigne de ne rien considérer comme acquis, voici l'inventaire vérifié directement dans le code et la base (pas une supposition sur ce qu'un site « de ce type » devrait avoir).</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h4>✅ Existe et fonctionne</h4>
+          <ul>
+            <li>Inscription / connexion (email + mot de passe, Supabase Auth) — <strong>désormais protégée contre le brute-force</strong> (5 échecs/15 min par adresse)</li>
+            <li>Case de consentement d'âge (15 ans, RGPD)</li>
+            <li>Liaison Riot ID par preuve d'icône de profil (méthode transitoire)</li>
+            <li>Création de tournoi (1v1, 4 capacités), check-in, verrouillage au 1er inscrit</li>
+            <li>Génération de bracket à élimination simple, seeding standard, byes en cascade — <strong>un 3e bug réel trouvé et corrigé</strong> (bracket bloqué quand les inscrits sont très en dessous de la capacité), et la logique de décision est maintenant testée automatiquement</li>
+            <li>Verdict manuel (niveau 1) par l'organisateur, avec motif public</li>
+            <li>Verdict niveau 2 (rapprochement historique Riot) — moteur construit, jamais alimenté par un vrai match réel</li>
+            <li>Moteur Glicko-2 complet, désormais couvert par des tests automatisés vérifiés contre l'implémentation de référence</li>
+            <li>Système de litige (ouverture par un joueur, résolution par l'organisateur ou un admin) — <strong>notifie maintenant les deux parties</strong></li>
+            <li>Profil joueur public (CV e-sport), classement, sceau de fiabilité, <strong>historique de face-à-face entre deux joueurs</strong></li>
+            <li><strong>Notifications e-mail et push web</strong> (inscription confirmée, résultat, litige) — clés auto-générées, aucun compte externe requis pour le push</li>
+            <li><strong>PWA installable</strong> (manifest + icône reprenant le sceau de fiabilité)</li>
+            <li><strong>Suivi d'erreurs (Sentry) et analytics (Vercel)</strong> — installés en repli gracieux, inactifs tant que non configurés en production</li>
+            <li><strong>Dashboard admin étoffé</strong> : vue d'ensemble (joueurs, tournois, matchs) + derniers inscrits, au-delà des seuls litiges</li>
+            <li><strong>Données structurées SEO</strong> (schema.org) sur les profils joueurs</li>
+            <li>Pages légales (mentions, CGU, confidentialité)</li>
+            <li>robots.txt + sitemap.xml dynamique</li>
+            <li><strong>Suite de tests automatisés</strong> (42 tests, Vitest) sur le classement, le bracket, le classement de palier</li>
+            <li><strong>Déploiement Vercel préparé</strong> (variables documentées, cron ajusté pour rester compatible avec un compte gratuit) — pas encore fait</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>❌ N'existe toujours pas</h4>
+          <ul>
+            <li><strong>Équipes / 5v5</strong> — table en base, aucune page ni action pour en créer une (Phase 3, volontairement pas commencée malgré la pression de l'audit précédent — cf. §02)</li>
+            <li><strong>RSO</strong> (connexion officielle Riot) — bloqué par la clé de dev actuelle</li>
+            <li><strong>Discord</strong> — toujours pas construit</li>
+            <li><strong>Paiement / cash prize</strong> — aucune intégration, aucun champ de prix</li>
+            <li><strong>Temps réel</strong> — aucun WebSocket, tout est en rechargement de page</li>
+            <li><strong>Recherche de coéquipiers / matchmaking</strong> — inexistant au-delà de l'inscription à un tournoi</li>
+            <li><strong>IA</strong> — aucune fonctionnalité, nulle part</li>
+            <li><strong>2FA, CAPTCHA, protection mots de passe compromis</strong> — cette dernière s'active en 2 minutes depuis le tableau de bord Supabase, pas encore fait</li>
+            <li><strong>Déploiement public</strong> — le site tourne uniquement en local, jamais mis en ligne. Inchangé depuis le premier audit — voir pourquoi ça reste le vrai sujet en §24.</li>
+          </ul>
+        </div>
+      </div>
+      <p style="font-size:.85rem;color:var(--muted)">Certains points ne sont vérifiables qu'en l'état du code auquel j'ai accès directement (dépôt Git local) — voir la note en § 11 sur ce qui reste <em>non vérifiable depuis l'extérieur</em> une fois le site en ligne.</p>
+    </section>
+
+    <section id="forces-faiblesses">
+      <h2><span class="n">02</span>Forces, faiblesses, problèmes critiques</h2>
+      <h3>Forces</h3>
+      <ul>
+        <li><strong>La confiance dans le résultat est l'architecture, pas une fonctionnalité.</strong> Aucune policy client n'écrit sur <code>ratings</code>/<code>rating_events</code> ; toute écriture sensible passe par une fonction SQL security-definer non accessible à un rôle authentifié. C'est exactement la bonne architecture pour un produit dont la promesse est « ton niveau, vérifié » — la plupart des concurrents amateurs (Challonge, Toornament en usage libre) laissent l'organisateur saisir un score sans aucune vérification structurelle.</li>
+        <li><strong>Le moteur Glicko-2 est correct, pas approximatif.</strong> Convergence de volatilité par méthode d'Illinois, plafond anti-abus (3 victoires/24h), décroissance d'inactivité, soft reset de saison — vérifiés numériquement contre l'implémentation de référence. Beaucoup de plateformes amateures utilisent encore un simple ELO ou un comptage de victoires.</li>
+        <li><strong>Le système de niveaux de preuve (manuel / historique / code de tournoi) est une vraie idée de différenciation</strong>, rarement formalisée aussi explicitement ailleurs — la plupart des plateformes affichent un résultat sans jamais dire d'où il vient.</li>
+        <li>Accessibilité et hygiène de code au-dessus de la moyenne pour ce stade (RLS systématique, focus clavier, contraste WCAG, noms accessibles).</li>
+        <li><strong>Une faille de sécurité critique a été trouvée et corrigée avant tout déploiement public.</strong> Six fonctions qui écrivent sur le classement étaient exécutables par n'importe qui via l'API publique (détail en §10) — trouvées en exécutant enfin l'audit de sécurité natif de Supabase, disponible mais jamais lancé jusqu'ici. C'est une force parce que c'est corrigé <em>avant</em> qu'un vrai utilisateur externe n'ait pu en profiter, mais ça révèle aussi que les audits automatisés doivent devenir un réflexe systématique après chaque migration, pas une vérification de fin de projet.</li>
+        <li>Une première suite de <strong>42 tests automatisés</strong> couvre maintenant la logique la plus sensible (Glicko-2, placement de bracket) — jusqu'ici entièrement dépendante de vérifications manuelles en conditions réelles à chaque session.</li>
+      </ul>
+      <h3>Faiblesses</h3>
+      <ul>
+        <li>Les mécanismes de rétention de base existent enfin (notifications, historique de rivalité) mais <strong>n'ont jamais été éprouvés par un vrai utilisateur</strong> — ce sont des hypothèses correctement construites, pas des résultats observés.</li>
+        <li>Le format est <strong>1v1 uniquement</strong> — or l'écosystème compétitif LoL amateur est très majoritairement en 5v5. C'est un choix de scope volontaire (Phase 3), mais il limite fortement l'audience adressable tant qu'il dure. Le premier audit le classait « élevé » en priorité 6 sur 10 ; il n'a délibérément pas été construit depuis, la Phase 3 de CLAUDE.md restant la référence qui prime sur ce rapport.</li>
+        <li>Aucune donnée réelle n'existe pour valider quoi que ce soit côté conversion/rétention — toutes les recommandations de ces sections sont des hypothèses de bonnes pratiques, pas des optimisations sur données observées.</li>
+      </ul>
+      <h3>Problèmes critiques</h3>
+      <div class="callout">
+        <span class="tag">Critique — bloquant business</span>
+        <p><strong>Le site n'est pas déployé.</strong> Aucune des analyses de conversion, SEO ou rétention n'a de sens tant qu'il n'y a pas d'URL publique, pas de trafic, pas d'indexation possible. C'est la priorité 0 avant toute autre action de ce rapport.</p>
+      </div>
+      <div class="callout">
+        <span class="tag">Critique — conformité</span>
+        <p>Les mentions légales elles-mêmes signalent deux points non tranchés : statut « particulier » suffisant ou immatriculation nécessaire, et garanties de transfert international pour Riot Games Inc. (États-Unis). Lancer publiquement sans réponse à ces deux questions est un risque juridique réel, pas théorique, dès le premier euro encaissé ou la première réclamation RGPD.</p>
+      </div>
+    </section>
+
+    <section id="ux-personas">
+      <h2><span class="n">03</span>UX/UI — six regards sur le produit</h2>
+      <p>Analyse du parcours réel (pages et actions existantes), pas d'une maquette imaginée.</p>
+
+      <div class="persona">
+        <span class="role">Joueur découvrant la plateforme</span>
+        <h4>La homepage répond « quoi » en une phrase, pas « comment »</h4>
+        <p>« Ton niveau, vérifié » + le sous-titre expliquent la promesse en 3 secondes — c'est net et ça se différencie déjà d'un simple site de brackets. Mais rien sur la page ne répond à « et je fais quoi maintenant, concrètement, avec 0 tournoi ouvert affiché » : le hub <code>/lol</code> affiche honnêtement « aucun tournoi ouvert » quand c'est le cas, ce qui est honnête mais froid pour un premier visiteur. Sans preuve sociale (aucun joueur classé, aucun tournoi tenu), l'inscription demande un acte de foi.</p>
+      </div>
+      <div class="persona">
+        <span class="role">Joueur expérimenté cherchant un tournoi</span>
+        <h4>Le chemin est court — s'il y a quelque chose à trouver</h4>
+        <p><code>/lol/tournois</code> liste et filtre correctement les tournois publics. Le vrai problème n'est pas la page, c'est qu'elle sera vide tant qu'il n'y a pas d'organisateurs actifs — un problème de <em>liquidité</em> (offre/demande), pas d'UX.</p>
+      </div>
+      <div class="persona">
+        <span class="role">Capitaine cherchant à inscrire une équipe</span>
+        <h4>Impossible — l'équipe n'existe pas</h4>
+        <p>Il n'y a littéralement aucune page pour créer une équipe (<code>/equipe/[slug]</code> renvoie 404 pour tout slug). Un capitaine venant pour du 5v5 rebondit immédiatement. Pour l'instant, Najarena n'a que des joueurs individuels en 1v1.</p>
+      </div>
+      <div class="persona">
+        <span class="role">Organisateur créant un tournoi</span>
+        <h4>Le formulaire est simple ; le cockpit est efficace mais austère</h4>
+        <p>Créer un tournoi prend moins d'une minute (nom, capacité, région, deux dates, statut). Le cockpit organisateur permet de confirmer les inscrits, générer le bracket, déclarer les résultats et traiter les litiges — fonctionnellement complet pour du 1v1, et <strong>chaque étape notifie maintenant les joueurs concernés</strong> (e-mail + push) : confirmation d'inscription, résultat, litige. L'organisateur n'a plus à tout relayer lui-même en dehors du site.</p>
+      </div>
+      <div class="persona">
+        <span class="role">Spectateur suivant une compétition</span>
+        <h4>Il n'y a rien à suivre en direct</h4>
+        <p>La page tournoi publique affiche le bracket et les verdicts, mais se recharge — aucune mise à jour live, aucun flux de match, aucun stream intégré. Un spectateur doit rafraîchir la page à la main pour voir un résultat. Inchangé depuis le premier audit.</p>
+      </div>
+      <div class="persona">
+        <span class="role">Administrateur</span>
+        <h4>Une vue d'ensemble existe ; la gestion reste limitée</h4>
+        <p>Le dashboard affiche maintenant des compteurs (joueurs, tournois actifs/créés, matchs) et les derniers inscrits, en plus de la liste des litiges — un vrai progrès depuis le premier audit. Il manque encore une gestion des comptes (suspendre, promouvoir un admin), une modération de contenu, et des statistiques dans le temps (courbes, tendances).</p>
+      </div>
+
+      <h3>Ce qui pourrait faire quitter le site aujourd'hui</h3>
+      <ul>
+        <li>Aucun tournoi ouvert au premier passage (pas de solution produit — c'est un problème d'amorçage, traité en § 18).</li>
+        <li>Vouloir jouer en équipe et découvrir que ce n'est pas possible.</li>
+        <li>Aucune preuve que quelqu'un d'autre utilise la plateforme (0 joueur classé affiché, 0 tournoi tenu).</li>
+      </ul>
+    </section>
+
+    <section id="mobile">
+      <h2><span class="n">04</span>Mobile</h2>
+      <p>Vérifié en émulation mobile (375px) sur la homepage et un profil joueur : le layout ne casse pas, le texte reste lisible, les boutons ont une taille tactile correcte, le fond animé de la homepage se désactive bien avec <code>prefers-reduced-motion</code>. C'est un socle responsive propre — Tailwind + une mise en page en colonne unique y aide beaucoup.</p>
+      <p><strong>Mis à jour depuis le premier audit</strong> : Najarena est maintenant une PWA installable (manifest avec icône dédiée générée par code, reprenant le motif du sceau de fiabilité) et propose des notifications push web sur `/moi` (activation, résultat, litige) — sans coût d'app native, exactement la recommandation du premier rapport. Ce qui reste vrai :</p>
+      <ul>
+        <li><strong>Le clic « Activer » n'a jamais été testé par un vrai geste utilisateur</strong> — seul le code serveur et la détection de compatibilité ont été vérifiés en conditions réelles ; un environnement de test automatisé ne peut pas accorder de vraie permission de notification. À valider sur un vrai téléphone.</li>
+        <li>Aucun mode « prochain match » compact — un joueur en déplacement veut une seule information (suis-je attendu, contre qui, où) en un coup d'œil, pas naviguer jusqu'au bracket complet.</li>
+        <li>Aucun cache hors-ligne dans le service worker — délibéré : Najarena est un produit de données en direct (check-in, bracket, résultats), et une page mise en cache par erreur serait pire qu'une absence de cache.</li>
+      </ul>
+    </section>
+
+    <section id="conversion">
+      <h2><span class="n">05</span>Conversion</h2>
+      <div class="callout">
+        <span class="tag">Non vérifiable depuis l'extérieur</span>
+        <p>Aucun taux de conversion réel n'existe (0 visiteur externe à ce jour). Tout ce qui suit est une évaluation qualitative du parcours, pas une optimisation sur données. <strong>Pour le vérifier après lancement</strong> : installer Vercel Analytics ou Plausible/PostHog (respectueux RGPD, cohérent avec la politique de cookies déjà écrite dans les CGU) et suivre le funnel visite → inscription → premier tournoi rejoint.</p>
+      </div>
+      <p>Frictions identifiées dans le parcours actuel :</p>
+      <ul>
+        <li><strong>La preuve sociale existe désormais sur la homepage</strong> (joueurs classés, tournois joués, matchs enregistrés) — mais reste invisible aujourd'hui, exactement comme prévu : les trois compteurs sont à zéro, donc le bloc entier est masqué plutôt que d'afficher des zéros décourageants. C'est la bonne implémentation, elle n'a juste rien à montrer pour l'instant.</li>
+        <li>Le CTA d'inscription ne dit pas ce qu'on obtient immédiatement après (pas de « rejoins un tournoi en 2 minutes », juste « créer un compte »).</li>
+        <li>Pas d'urgence légitime possible tant qu'il n'y a pas de vrais tournois avec de vraies places limitées — un compte à rebours ou un compteur de places sur un tournoi vide serait contre-productif, pas juste inutile.</li>
+      </ul>
+      <h3>Recommandations concrètes</h3>
+      <ol>
+        <li>Sur la page tournoi, afficher clairement les places restantes une fois qu'il y a de vrais inscrits (« 6/8 places ») — c'est une urgence réelle, pas fabriquée.</li>
+        <li>Simplifier le premier geste : proposer « voir un tournoi de démo » ou un tournoi hebdomadaire permanent et gratuit comme porte d'entrée systématique, plutôt que de dépendre d'organisateurs tiers dès le premier jour.</li>
+      </ol>
+    </section>
+
+    <section id="retention">
+      <h2><span class="n">06</span>Rétention et engagement</h2>
+      <p>Le classement Glicko-2 et le sceau de fiabilité sont déjà, en eux-mêmes, une mécanique de rétention légitime : la progression du RD vers « calibré » donne une raison intrinsèque de rejouer, sans artifice ajouté. C'est le bon type de gamification — liée à la valeur réelle du produit (la preuve), pas décorative.</p>
+      <div class="callout">
+        <span class="tag">Ce qu'il ne faut pas ajouter</span>
+        <p>Pas de badges cosmétiques, pas de streaks de connexion quotidienne, pas de points bonus sans lien avec le jeu réel. Sur une plateforme dont la promesse est « une preuve, pas du spectacle », une couche de gamification artificielle contredirait le positionnement — et un audit honnête doit le dire même si la gamification est à la mode.</p>
+      </div>
+      <h3>Fait depuis le premier audit</h3>
+      <ul>
+        <li><strong>Notifications</strong> (e-mail + push) sur l'inscription confirmée, le résultat et le litige — le rappel le plus basique qui manquait le plus est en place.</li>
+        <li><strong>Historique de face-à-face</strong> sur les profils publics (« 1V — 1D » contre un adversaire affronté au moins deux fois) — dérivé des données déjà existantes, aucune mécanique artificielle ajoutée.</li>
+      </ul>
+      <h3>Ce qui manque encore</h3>
+      <ul>
+        <li><strong>Saisons visibles</strong> : le soft reset de saison existe côté moteur, mais rien ne le rend visible ou anticipé côté joueur — et aucune vraie saison 1 n'existe encore en base (décision de dates volontairement pas prise à ma place).</li>
+        <li><strong>Un tournoi récurrent fixe</strong> (ex. « le mardi soir ») donne un rendez-vous prévisible — la littérature sur la rétention gaming confirme que la régularité prévisible retient mieux qu'une récompense aléatoire pour ce type d'usage.</li>
+      </ul>
+    </section>
+
+    <section id="communaute">
+      <h2><span class="n">07</span>Communauté</h2>
+      <p>Il n'y a aujourd'hui aucun espace communautaire : pas de commentaires, pas de chat, pas de discussion, pas de Discord (volontairement retiré du discours produit cette semaine tant qu'il n'est pas construit). Pour un produit à un seul utilisateur réel, c'est cohérent — construire une fonctionnalité sociale sans personne à qui parler produit un espace vide, pire qu'une absence.</p>
+      <h3>Ce qui serait réellement utile (par ordre de priorité)</h3>
+      <ul>
+        <li><strong>Un salon Discord officiel</strong>, externe au site dans un premier temps — coût quasi nul, et c'est là que la communauté LoL amateur vit déjà. Construire un chat interne avant d'avoir une communauté Discord active serait inverser l'ordre naturel.</li>
+        <li><strong>Profils publics enrichis</strong> (déjà en place) + un lien « défier » entre deux profils une fois le matchmaking construit (§ 15).</li>
+        <li><strong>Un flux d'activité de plateforme</strong> (« X vient de rejoindre le tournoi Y ») — utile seulement à partir d'un volume d'activité réel, sinon il expose la faiblesse du volume plutôt que de la cacher.</li>
+      </ul>
+      <h3>Ce qui ajouterait du bruit sans valeur, à ce stade</h3>
+      <ul>
+        <li>Commentaires publics sous les tournois (modération lourde, risque de toxicité, pour un bénéfice faible avant d'avoir une masse critique).</li>
+        <li>Système de « followers » entre joueurs avant qu'il y ait des profils qui vaillent la peine d'être suivis.</li>
+      </ul>
+    </section>
+
+    <section id="seo">
+      <h2><span class="n">08</span>SEO</h2>
+      <p>La fondation technique (robots.txt, sitemap dynamique, metadataBase, noindex sur les pages privées) reste correcte. Depuis le premier audit, les profils joueurs portent des données structurées <code>schema.org</code> (<code>ProfilePage</code>/<code>Person</code>) — <strong>vérifié dans la documentation Google avant d'être construit</strong>, pas deviné : c'est un type explicitement éligible aux rich results pour une page de profil public.</p>
+      <div class="callout gold">
+        <span class="tag">Décision prise avec discernement, pas par facilité</span>
+        <p>Le premier audit suggérait aussi un balisage <code>SportsEvent</code> sur les pages tournoi. Vérification faite : Google exclut explicitement les événements purement virtuels sans lieu physique de ses rich results — un tournoi 100 % en ligne n'en aurait tiré aucun bénéfice réel. Volontairement pas construit. Documenter une non-décision est aussi important que documenter une décision.</p>
+      </div>
+      <p>Ce qui manque toujours :</p>
+      <ul>
+        <li><strong>Aucun contenu éditorial</strong> (guides, actualités) — le SEO d'un site 100 % transactionnel (pages tournoi/joueur générées automatiquement) plafonne sans contenu qui répond à une intention informationnelle (« comment participer à un tournoi LoL amateur »).</li>
+        <li><strong>Zéro page indexée à ce jour</strong> puisque le site n'est pas déployé — le sitemap et les données structurées ne servent à rien tant que Google ne peut pas les atteindre.</li>
+        <li>Le maillage interne est cohérent (chaque tournoi lie vers les profils joueurs et vice-versa) mais repose entièrement sur le volume de tournois réels, qui est à zéro.</li>
+      </ul>
+      <div class="callout gold">
+        <span class="tag">Priorité SEO réelle</span>
+        <p>Le meilleur investissement SEO à ce stade n'est pas technique, c'est le déploiement + un premier volume réel de tournois et de profils : le SEO programmatique (une page par tournoi, par joueur) ne produit de la valeur qu'une fois qu'il y a des dizaines de pages réelles à indexer.</p>
+      </div>
+    </section>
+
+    <section id="performance">
+      <h2><span class="n">09</span>Performance</h2>
+      <p>Next.js 16 en rendu serveur, Tailwind, pas de bibliothèque JS lourde ajoutée sans raison : l'architecture ne présente pas de dette de performance identifiable dans le code. Turbopack en dev démarre en moins d'une seconde.</p>
+      <div class="callout">
+        <span class="tag">Non vérifiable depuis l'extérieur</span>
+        <p>Les Core Web Vitals réels (LCP, INP, CLS) ne peuvent être mesurés que sur un déploiement public réel, sous charge réelle et sur un vrai CDN. <strong>Pour le vérifier après déploiement</strong> : PageSpeed Insights / Lighthouse CI sur l'URL Vercel de production, puis surveillance continue via Vercel Speed Insights.</p>
+      </div>
+      <p>Point d'attention structurel : la génération de bracket effectue plusieurs aller-retours séquentiels vers Supabase. La décision de résolution des byes a été extraite en une fonction pure et calculée en une seule fois (au lieu d'un aller-retour par match), ce qui a mécaniquement réduit le nombre de requêtes — pas un problème à l'échelle actuelle, mais mieux qu'avant.</p>
+      <p><strong>Fait depuis le premier audit</strong> : les 21 règles de sécurité RLS qui appelaient <code>auth.uid()</code> directement (réévalué à chaque ligne) l'appellent maintenant via <code>(select auth.uid())</code>, évalué une seule fois par requête — recommandation standard de Supabase, sans impact sur le comportement (revérifié en conditions réelles après coup). 19 clés étrangères sans index de couverture ont été indexées.</p>
+    </section>
+
+    <section id="securite">
+      <h2><span class="n">10</span>Sécurité, anti-abus, anti-triche</h2>
+
+      <div class="callout">
+        <span class="tag">Critique — trouvée et corrigée le 12 septembre</span>
+        <p><strong>Six fonctions qui écrivent directement sur le classement étaient exécutables par n'importe qui, authentifié ou non</strong>, via un simple appel à l'API REST publique de Supabase avec la clé <code>anon</code> déjà exposée côté client. En cause : PostgreSQL accorde par défaut l'exécution d'une fonction à tout le monde tant qu'elle n'est pas explicitement retirée — aucune migration ne l'avait jamais fait. La plus grave, <code>avancer_vainqueur</code>, n'avait <em>aucune</em> vérification interne : n'importe qui pouvait déclarer vainqueur n'importe quel match du site. Ça contredisait frontalement la règle de conception non négociable du projet (« le client n'écrit jamais sur le classement ») et la promesse même du produit.</p>
+        <p>Trouvée en exécutant enfin l'audit de sécurité natif de Supabase — outil disponible gratuitement depuis le premier jour, jamais lancé avant cette date. Vérifiée par exploitation réelle (un appel inoffensif, sans conséquence) avant correction pour s'assurer que ce n'était pas un faux positif, puis reconfirmée bloquée après (« permission denied »). Le correctif a ensuite été revalidé sur l'intégralité du parcours normal (inscription, bracket, résultat, litige) pour s'assurer qu'aucun utilisateur légitime n'était affecté — rien ne l'était.</p>
+        <p><strong>Aucune preuve d'exploitation malveillante</strong> : le site n'ayant jamais été déployé publiquement, seule une personne connaissant l'adresse locale et la structure de l'API aurait pu en profiter.</p>
+      </div>
+
+      <h3>Déjà bien géré</h3>
+      <ul>
+        <li>RLS activée sur toutes les tables contenant des données utilisateur, avec un principe cohérent : lecture publique pour tout ce qui nourrit le CV e-sport, écriture strictement au propriétaire/organisateur — et depuis le 12/09, les 21 règles concernées sont aussi optimisées pour la performance sans changer leur comportement (§09).</li>
+        <li>Aucune policy d'écriture sur <code>ratings</code>/<code>rating_events</code> côté RLS — et depuis le 12/09, l'accès direct aux fonctions qui écrivent dessus est <strong>lui aussi</strong> explicitement fermé (voir ci-dessus), fermant le trou que la seule RLS ne couvrait pas.</li>
+        <li>Les fonctions RPC volontairement exposées au client (<code>enregistrer_verdict_manuel</code>, <code>lier_compte_riot</code>) re-vérifient elles-mêmes les faits structurels (l'appelant est-il l'organisateur, le gagnant est-il bien participant) plutôt que de faire confiance à un paramètre.</li>
+        <li>Plafond anti-abus explicite : 3 victoires max contre le même adversaire par 24h, forfait à zéro point des deux côtés, verdict manuel exclu du calcul.</li>
+        <li><strong>Nouveau</strong> — protection anti-brute-force sur la connexion : 5 échecs en 15 minutes par adresse e-mail bloquent la tentative suivante avant même d'appeler Supabase Auth.</li>
+      </ul>
+      <h3>Manquant</h3>
+      <ul>
+        <li><strong>Protection contre les mots de passe compromis</strong> (vérification HaveIBeenPwned, native à Supabase Auth, gratuite) — désactivée. S'active en 2 minutes depuis le tableau de bord Supabase (Authentication → Policies), pas modifiable par du code.</li>
+        <li><strong>Pas de CAPTCHA</strong> sur inscription/connexion — risque de faux comptes en masse dès qu'il y a un premier système de récompense à abuser.</li>
+        <li><strong>Pas de 2FA</strong>, même optionnelle.</li>
+        <li><strong>Pas de détection de multi-comptes / smurfing</strong> — un joueur peut créer plusieurs comptes Najarena tant qu'il utilise des e-mails différents ; seule la liaison Riot ID (unique par <code>puuid</code>) offre une limite naturelle, mais uniquement une fois le compte Riot lié.</li>
+        <li><strong>Pas de système de signalement de comportement</strong> (le système de litige actuel ne couvre que la contestation d'un résultat de match, pas le harcèlement ou la toxicité).</li>
+        <li><strong>Pas d'audit trail consultable</strong> pour un admin au-delà des tables brutes — aucune vue « qui a fait quoi et quand » exploitable sans requête SQL directe.</li>
+      </ul>
+      <p>Sur la triche en jeu proprement dite (aim-bot, wallhack) : Najarena ne peut structurellement rien détecter elle-même — c'est le rôle de l'anti-cheat de Riot (côté client du jeu), pas d'une plateforme de tournoi tierce. FACEIT contourne ce problème pour CS2 en exigeant son propre client anti-cheat en kernel-mode pendant le match ; League of Legends n'expose aucun mécanisme équivalent à un tiers, donc cette voie est fermée par construction pour Najarena.</p>
+    </section>
+
+    <section id="archi-actuelle">
+      <h2><span class="n">11</span>Architecture technique actuelle (vérifiée)</h2>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Couche</th><th>Choix actuel</th><th>Évaluation</th></tr>
+          <tr><td>Frontend/backend</td><td>Next.js 16 (App Router), TypeScript strict</td><td class="badge b-bon">Adapté</td></tr>
+          <tr><td>Base de données</td><td>Supabase (Postgres + RLS + Auth)</td><td class="badge b-bon">Adapté</td></tr>
+          <tr><td>Logique sensible</td><td>Fonctions SQL security-definer + client service_role</td><td class="badge b-bon">Bonne pratique</td></tr>
+          <tr><td>Tâches planifiées</td><td>Vercel Cron (décroissance RD, rotation saison, recherche résultats)</td><td class="badge b-bon">Ajusté pour le plan gratuit</td></tr>
+          <tr><td>Temps réel</td><td>Inexistant</td><td class="badge b-critique">Manquant</td></tr>
+          <tr><td>Hébergement</td><td>Aucun (dev local uniquement)</td><td class="badge b-critique">Bloquant</td></tr>
+          <tr><td>Observabilité</td><td>Sentry + Vercel Analytics/Speed Insights installés</td><td class="badge b-eleve">Prêt, inactif sans déploiement</td></tr>
+          <tr><td>Tests automatisés</td><td>Vitest, 42 tests (classement, bracket)</td><td class="badge b-bon">Nouveau</td></tr>
+        </table>
+      </div>
+      <div class="callout good">
+        <span class="tag">Résolu depuis le premier audit</span>
+        <p>La cadence cron réellement souhaitée par le produit (recherche de résultat toutes les minutes) nécessite le plan Pro Vercel — confirmé en consultant directement la documentation Vercel : le plan Hobby refuse purement et simplement de déployer une tâche planifiée plus fréquente qu'une fois par jour (pas juste une restriction silencieuse). Le réglage a été corrigé à une fois par jour par défaut pour rester déployable sans compte payant — ça ne dégrade que la latence de confirmation d'un résultat (jusqu'à un jour au lieu de 25 minutes), jamais la fiabilité : un vrai résultat Riot est toujours retrouvé, et le litige s'ouvre normalement sinon.</p>
+      </div>
+    </section>
+
+    <section id="riot">
+      <h2><span class="n">12</span>Riot Games / League of Legends — ce qui est permis, ce qui est bloqué</h2>
+      <p>Toute recommandation de cette section respecte les politiques publiques du <a href="https://developer.riotgames.com/policies/general" target="_blank" rel="noopener">Riot Developer Portal</a>. Rien ci-dessous ne suggère de contourner ces règles.</p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Fonctionnalité</th><th>Statut</th><th>Dépendance</th></tr>
+          <tr><td>Résolution Riot ID → puuid, données d'invocateur</td><td class="badge b-bon">Disponible</td><td>Clé de dev suffit (déjà utilisé)</td></tr>
+          <tr><td>Vérification de compte par icône de profil</td><td class="badge b-bon">Disponible</td><td>Déjà construit</td></tr>
+          <tr><td>Historique de matchs (match-v5), niveau 2 de preuve</td><td class="badge b-eleve">Disponible mais fragile</td><td>Fonctionne avec la clé de dev, mais celle-ci expire toutes les 24h — inexploitable en continu sans clé production</td></tr>
+          <tr><td>RSO — connexion officielle « Se connecter avec Riot »</td><td class="badge b-critique">Bloqué</td><td>Réservé aux détenteurs d'une clé Production, sur dossier d'approbation séparé</td></tr>
+          <tr><td>Codes de tournoi (niveau 3 de preuve, lobbys officiels)</td><td class="badge b-critique">Bloqué</td><td>Tournament API — demandée seulement après obtention de la clé production, per la politique Riot elle-même</td></tr>
+        </table>
+      </div>
+      <p>La politique Riot confirme explicitement l'usage prévu par Najarena : les clés personnelles/de développement <a href="https://developer.riotgames.com/policies/general" target="_blank" rel="noopener">peuvent demander l'accès aux API Standard mais pas à l'API Tournaments</a>, et l'utilisation « faire tourner des brackets de tournoi avec des joueurs vérifiés » est un cas d'usage explicitement accepté pour une demande de clé production, à condition d'un opt-in des joueurs — ce que Najarena fait déjà via le consentement explicite au moment de la liaison du compte.</p>
+      <p><strong>Ce qui peut être automatisé dès l'obtention de la clé production</strong> : le rapprochement niveau 2 en continu (déjà codé), la synchronisation quotidienne des Riot ID (les pseudos changent), potentiellement la lecture de rang/niveau pour enrichir un profil.</p>
+      <p><strong>Ce qui nécessitera toujours une intervention humaine</strong> : la résolution de litige quand aucune partie ne correspond aux critères (c'est un choix de conception assumé — « on n'invente jamais un résultat »), et toute décision de sanction pour comportement (la donnée Riot ne dit jamais si un joueur a été toxique en dehors de la partie).</p>
+    </section>
+
+    <section id="manquant">
+      <h2><span class="n">13</span>Fonctionnalités manquantes — priorisées</h2>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Manque</th><th>Gravité</th><th>Pourquoi ça compte</th></tr>
+          <tr><td>Déploiement public</td><td class="badge b-critique">Bloquant</td><td>Rien d'autre ne peut être mesuré ni amélioré sans ça — seul point encore au statut « bloquant » du premier audit</td></tr>
+          <tr><td>Équipes (5v5)</td><td class="badge b-eleve">Élevé</td><td>Le format dominant du LoL amateur reste hors de portée</td></tr>
+          <tr><td>Gestion des comptes et modération</td><td class="badge b-modere">Modéré</td><td>Le dashboard admin a maintenant une vue d'ensemble ; il manque encore suspendre/promouvoir un compte et modérer du contenu</td></tr>
+          <tr><td>Paiement / cash prize</td><td class="badge b-modere">Modéré</td><td>Pertinent seulement une fois une base active établie</td></tr>
+          <tr><td>Matchmaking / recherche de coéquipier</td><td class="badge b-modere">Modéré</td><td>Utile surtout à partir d'un volume de joueurs suffisant</td></tr>
+        </table>
+      </div>
+      <p style="font-size:.85rem;color:var(--muted)">Trois lignes du premier audit ont disparu de ce tableau, faites depuis : notifications (e-mail + push), analytics produit (Vercel Analytics/Speed Insights), et le socle PWA.</p>
+    </section>
+
+    <section id="ia">
+      <h2><span class="n">14</span>IA et automatisation</h2>
+      <p>Aucune fonctionnalité IA n'existe. Voici lesquelles auraient un vrai bénéfice — et lesquelles seraient de l'IA gadget à ce stade.</p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Fonctionnalité</th><th>Bénéfice</th><th>Difficulté</th><th>Priorité</th></tr>
+          <tr><td>Résumé automatique de match (à partir des données match-v5)</td><td>Contenu de profil enrichi sans travail manuel</td><td class="badge b-modere">Faible</td><td class="badge b-eleve">Élevée — une fois la clé production obtenue</td></tr>
+          <tr><td>Détection d'anomalies sur le classement (pics suspects, collusion)</td><td>Protège la promesse « classement incontestable »</td><td class="badge b-eleve">Moyenne</td><td class="badge b-eleve">Élevée</td></tr>
+          <tr><td>Assistant organisateur (aide à la configuration d'un tournoi)</td><td>Réduit la friction de création</td><td class="badge b-modere">Faible</td><td class="badge b-modere">Modérée</td></tr>
+          <tr><td>Modération automatique de texte (motifs de litige, chat futur)</td><td>Réduit la charge de modération manuelle</td><td class="badge b-modere">Faible-moyenne</td><td class="badge b-modere">Modérée</td></tr>
+          <tr><td>Recommandation de tournoi personnalisée</td><td>Pertinent seulement avec assez de tournois pour qu'il y ait un choix à faire</td><td class="badge b-modere">Faible</td><td class="badge b-critique">Prématurée</td></tr>
+          <tr><td>Coaching IA façon Mobalytics/OP.GG</td><td>Hors périmètre — Najarena est une plateforme de compétition, pas un outil de progression individuelle</td><td class="badge b-critique">—</td><td class="badge b-critique">À écarter</td></tr>
+        </table>
+      </div>
+      <div class="callout">
+        <span class="tag">Position honnête</span>
+        <p>La détection d'anomalies sur les résultats est la seule fonctionnalité IA qui touche directement à la promesse du produit — c'est la seule à traiter en priorité une fois qu'il y a un volume de matchs réels pour qu'un modèle ait quoi que ce soit à apprendre. Tout le reste est du confort, pas un différenciateur, et ajouter un chatbot ou un « assistant IA » simplement parce que c'est attendu en 2026 serait exactement le type de fonctionnalité gadget que ce rapport doit déconseiller.</p>
+      </div>
+    </section>
+
+    <section id="matchmaking">
+      <h2><span class="n">15</span>Matchmaking</h2>
+      <p>Le seeding de bracket actuel (ordre standard, byes en cascade) n'est pas du matchmaking — c'est un placement en amont d'un tournoi déjà rempli. Un vrai matchmaking (trouver un adversaire, un coéquipier, un tournoi adapté) n'existe pas.</p>
+      <p>Vu le volume actuel (0 joueur actif), construire un algorithme de matchmaking sophistiqué serait prématuré — un matchmaking a besoin d'une masse de joueurs simultanément disponibles pour avoir quelque chose à faire correspondre. La bonne séquence : d'abord un volume réel de joueurs classés, puis un simple filtre par rang/région pour la recherche de tournoi, et seulement ensuite un vrai matchmaking 1-clic basé sur le rating Glicko-2 déjà calculé (le RD donne même une mesure de confiance native pour pondérer l'appariement, un avantage qu'un système ELO simple n'a pas).</p>
+    </section>
+
+    <section id="concurrence">
+      <h2><span class="n">16</span>Analyse concurrentielle</h2>
+      <p>Recherche effectuée en septembre 2026. Sources citées par plateforme.</p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Plateforme</th><th>Positionnement</th><th>Force</th><th>Faiblesse / opportunité pour Najarena</th></tr>
+          <tr>
+            <td><a href="https://battlefy.com" target="_blank" rel="noopener">Battlefy</a></td>
+            <td>Généraliste multi-jeux, gratuit + enterprise</td>
+            <td>Automatisation complète du flux de tournoi, pages de sponsoring intégrées</td>
+            <td>Générique — aucune identité de jeu spécifique, aucune preuve issue de la donnée de jeu officielle</td>
+          </tr>
+          <tr>
+            <td><a href="https://www.start.gg" target="_blank" rel="noopener">start.gg</a></td>
+            <td>Référence FGC, gestion multi-étapes</td>
+            <td>App mobile, gestion de staff/rôles avancée</td>
+            <td>Pensé jeux de combat, pas d'intégration profonde à un jeu compétitif en ligne comme LoL</td>
+          </tr>
+          <tr>
+            <td><a href="https://challonge.com" target="_blank" rel="noopener">Challonge</a></td>
+            <td>Le plus ancien (2009), très générique</td>
+            <td>API publique bien documentée, communauté large</td>
+            <td>Zéro vérification de résultat — 100% déclaratif, exactement l'inverse de la promesse de Najarena</td>
+          </tr>
+          <tr>
+            <td><a href="https://www.faceit.com" target="_blank" rel="noopener">FACEIT</a></td>
+            <td>Matchmaking compétitif CS2, ELO 1-10</td>
+            <td>Anti-cheat kernel-level propre, très haute confiance dans le résultat</td>
+            <td>Modèle irréplicable pour LoL : Riot n'ouvre pas d'équivalent à un tiers — Najarena doit gagner la confiance par la <em>preuve de la donnée officielle</em>, pas par un client anti-cheat</td>
+          </tr>
+          <tr>
+            <td><a href="https://www.toornament.com" target="_blank" rel="noopener">Toornament</a></td>
+            <td>Outil pro pour organisateurs, widgets embarquables</td>
+            <td>Widgets intégrables sur n'importe quel site en une ligne de code</td>
+            <td>Aucun classement persistant entre tournois — chaque tournoi est une île, contrairement au CV e-sport permanent de Najarena</td>
+          </tr>
+          <tr>
+            <td><a href="https://esl.com" target="_blank" rel="noopener">ESL Play</a></td>
+            <td>Pro/semi-pro, marque forte</td>
+            <td>Crédibilité de marque historique, diffusion</td>
+            <td>Hors de portée d'un amateur pour organiser — écart énorme avec le tournoi du mardi soir entre amis</td>
+          </tr>
+          <tr>
+            <td><a href="https://op.gg" target="_blank" rel="noopener">OP.GG</a></td>
+            <td>Stats + assistant IA (chatbot Alli GPT)</td>
+            <td>Reconnaissance de marque LoL massive, IA de conseil in-game</td>
+            <td>Pas une plateforme de tournoi — statistique et coaching uniquement, aucune inscription de compétition</td>
+          </tr>
+          <tr>
+            <td><a href="https://u.gg" target="_blank" rel="noopener">U.GG</a> / <a href="https://mobalytics.gg" target="_blank" rel="noopener">Mobalytics</a></td>
+            <td>Builds optimaux, coaching de progression individuelle</td>
+            <td>Données de masse, scoring de performance (GPI chez Mobalytics)</td>
+            <td>Même remarque qu'OP.GG — complémentaires à Najarena, jamais concurrents directs sur le cœur « tournoi »</td>
+          </tr>
+        </table>
+      </div>
+      <h3>Ce que ça implique</h3>
+      <p>Aucun de ces acteurs ne combine <strong>vérification par donnée officielle + classement permanent inter-tournois + CV e-sport public</strong> pour du LoL amateur. C'est un vrai espace vacant : Battlefy/Challonge/Toornament sont déclaratifs et jetables tournoi par tournoi ; FACEIT vérifie mais uniquement pour CS2 via un mécanisme fermé à LoL ; OP.GG/U.GG/Mobalytics ne font pas de compétition. La différenciation de Najarena n'est pas à inventer — elle existe déjà dans le choix de conception, elle manque seulement d'exécution complète et de public.</p>
+      <p class="sources">Sources : <a href="https://www.softwaresuggest.com/battlefy" target="_blank" rel="noopener">SoftwareSuggest — Battlefy</a> · <a href="https://kb.score7.io/blog/comparisons/best-tournament-bracket-maker-2026/" target="_blank" rel="noopener">Score7 — comparatif brackets 2026</a> · <a href="https://esportsinsider.com/2025/11/faceit-season-7-update-anti-cheat-changes" target="_blank" rel="noopener">Esports Insider — FACEIT Season 7</a> · <a href="https://blog.toornament.com/2025/02/toornament-evolves-with-a-new-tournament-platform-and-products-for-organizers/" target="_blank" rel="noopener">Toornament Blog</a> · <a href="https://help.op.gg/hc/en-us/articles/50542735364761-OP-GG-AI-Chatbot-usage-guide" target="_blank" rel="noopener">OP.GG Help Center</a> · <a href="https://developer.riotgames.com/policies/general" target="_blank" rel="noopener">Riot Developer Portal — Policies</a></p>
+    </section>
+
+    <section id="innovations">
+      <h2><span class="n">17</span>Innovations possibles</h2>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Idée</th><th>Impact</th><th>Différenciation</th><th>Risque</th></tr>
+          <tr><td><strong>Journal public et permanent de classement</strong> (existe déjà côté moteur, jamais mis en avant côté produit)</td><td class="badge b-critique">Très élevé</td><td>Aucun concurrent cité ne l'affiche aussi frontalement</td><td>Faible</td></tr>
+          <tr><td><strong>Badge « vérifié officiellement »</strong> visible partout où un résultat niveau 2/3 existe</td><td class="badge b-critique">Très élevé</td><td>Rend la promesse visible en un coup d'œil, pas seulement vraie en base</td><td>Faible</td></tr>
+          <tr><td><strong>API publique en lecture</strong> (classement, résultats) pour les créateurs de contenu communautaires</td><td class="badge b-eleve">Élevé</td><td>Challonge le fait déjà ; peu de plateformes LoL amateur l'offrent</td><td>Modéré — nécessite une vraie gouvernance de rate limit</td></tr>
+          <tr><td><strong>Score de confiance par match</strong> affiché numériquement (pas juste le niveau) à partir du RD des deux joueurs</td><td class="badge b-eleve">Élevé</td><td>Personne ne le fait — transformer une donnée interne du moteur en argument de vente</td><td>Faible</td></tr>
+          <tr><td><strong>Historique de rivalité entre deux joueurs</strong> sur leurs profils publics</td><td class="badge b-bon">Fait le 11/09</td><td>Donne une raison émotionnelle de rejouer sans gamification artificielle</td><td>—</td></tr>
+          <tr><td><strong>Rejeu vérifié</strong> : lien direct vers la partie officielle Riot associée à un verdict niveau 2/3</td><td class="badge b-eleve">Élevé</td><td>Transforme la preuve en contenu consultable, pas juste en donnée de calcul</td><td>Modéré — dépend du client Riot officiel pour la relecture</td></tr>
+          <tr><td><em>Expérimental</em> — brackets prédictifs communautaires (pronostics sans mise réelle)</td><td class="badge b-modere">Expérimental</td><td>Engagement de spectateur sans les risques réglementaires d'un pari réel</td><td>Modéré — proche de la régulation jeux d'argent si mal cadré</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section id="business">
+      <h2><span class="n">18</span>Opportunités business</h2>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Modèle</th><th>Potentiel</th><th>Complexité</th><th>Avis</th></tr>
+          <tr><td>Frais d'inscription par joueur/équipe</td><td class="badge b-eleve">Élevé</td><td class="badge b-modere">Moyenne</td><td>Le plus naturel une fois un volume établi — nécessite un vrai module de paiement, aucun aujourd'hui</td></tr>
+          <tr><td>Commission sur cash prize</td><td class="badge b-eleve">Élevé</td><td class="badge b-critique">Élevée</td><td>Implique une gestion d'argent tiers (séquestre) — à ne considérer qu'après un volet juridique complet</td></tr>
+          <tr><td>Abonnement organisateur (outils pro)</td><td class="badge b-eleve">Élevé</td><td class="badge b-modere">Moyenne</td><td>Cohérent avec le cockpit déjà construit — ajouter des fonctionnalités pro (notifications en masse, marque personnalisée) comme palier payant</td></tr>
+          <tr><td>Sponsoring / partenariats de marque</td><td class="badge b-modere">Modéré</td><td class="badge b-modere">Moyenne</td><td>Prématuré sans audience — un sponsor paie pour de la visibilité qui n'existe pas encore</td></tr>
+          <tr><td>Freemium joueur (statistiques avancées payantes)</td><td class="badge b-modere">Modéré</td><td class="badge b-eleve">Élevée</td><td>Risque de contredire la promesse « CV e-sport gratuit et vérifié » si le classement de base devenait payant</td></tr>
+        </table>
+      </div>
+      <p>À ce stade (0 utilisateur), la vraie question business n'est pas « quel modèle choisir » mais « comment atteindre 50 à 100 joueurs actifs sans dépenser » — voir l'amorçage en priorité 1 du roadmap.</p>
+    </section>
+
+    <section id="nouvelle-archi">
+      <h2><span class="n">19</span>Nouvelle architecture recommandée</h2>
+      <p>Pas une refonte — une extension. La base (Next.js + Supabase + RLS + Glicko-2) est saine et doit rester. L'arborescence ci-dessous ajoute ce qui manque sans jeter ce qui existe :</p>
+      <div class="tree">/
+├── / (accueil)
+├── /lol
+│   ├── /tournois (tous · à venir · en cours · terminés)
+│   │   └── /[slug] (présentation · équipes · bracket · matchs · résultats)
+│   ├── /classement
+│   └── /equipes            ← nouveau (liste + création, actuellement absent)
+│       └── /[slug]
+├── /joueur/[pseudo]
+├── /organiser/nouveau
+├── /moi
+│   ├── /organisation/[id]
+│   └── /equipe             ← nouveau, seul ajout de cette liste pas encore fait
+├── /connexion · /inscription · /lier-riot
+├── /admin                  ← vue d'ensemble faite, gestion des comptes à ajouter
+└── /api/cron/*</div>
+      <p>Sur trois ajouts structurants identifiés le 11/09, deux sont faits :</p>
+      <ol>
+        <li><strong>Notifications</strong> — <span class="badge b-bon">Fait</span> e-mail + push web, déclenchés par confirmation d'inscription, résultat et litige. Push nécessite encore un vrai test utilisateur sur mobile (§04).</li>
+        <li><strong>Équipes</strong> — <span class="badge b-critique">Pas fait</span>, délibérément (Phase 3 de CLAUDE.md). Les tables <code>teams</code>/<code>team_members</code> existent déjà en base ; il manque les pages et actions serveur, en réutilisant les mêmes principes RLS que le reste du schéma.</li>
+        <li><strong>Observabilité</strong> — <span class="badge b-bon">Fait</span> Sentry + Vercel Analytics installés, en repli gracieux tant qu'ils ne sont pas configurés sur un vrai déploiement.</li>
+      </ol>
+    </section>
+
+    <section id="homepage">
+      <h2><span class="n">20</span>Nouvelle homepage</h2>
+      <p>La homepage actuelle (hero sombre animé + proposition de valeur + deux CTA) est déjà une bonne base — le fond animé « Bracket » et le contraste jour/nuit sont une vraie idée de direction artistique, pas un gabarit générique. Ce qui doit s'ajouter <em>sous</em> le hero, dans cet ordre :</p>
+      <ol>
+        <li><strong>Hero</strong> (existant) — promesse + 2 CTA (voir les tournois / voir le classement).</li>
+        <li><strong>Preuve sociale immédiate</strong> — <span class="badge b-bon">Fait le 11/09</span> nombre de joueurs classés, de tournois joués, de matchs vérifiés, masqué tant que les trois sont à zéro (le cas aujourd'hui). Zéro chiffre inventé, vérifié en réel avec une vraie donnée temporaire pour confirmer que le bloc s'affiche correctement quand il y a quelque chose à montrer.</li>
+        <li><strong>Tournois en cours / à venir</strong> (existe déjà sur le hub jeu — à faire remonter sur l'accueil dès qu'il y a du contenu).</li>
+        <li><strong>Le sceau de fiabilité expliqué</strong> — un encart pédagogique montrant comment un profil se calibre, pour transformer la mécanique interne en argument de conversion visible.</li>
+        <li><strong>Top classement</strong> (3-5 premiers) — preuve sociale + aspiration.</li>
+        <li><strong>FAQ courte</strong> — répond à « c'est gratuit ? », « comment on vérifie le résultat ? », « je peux jouer sans Riot ID lié ? ».</li>
+        <li><strong>Footer</strong> (existant, correct).</li>
+      </ol>
+      <p>Pourquoi cet ordre : chaque section répond à l'objection que la précédente vient de soulever — la promesse, puis la preuve que ce n'est pas juste une promesse, puis l'action concrète, puis la mécanique de confiance, puis l'aspiration, puis les derniers doutes.</p>
+    </section>
+
+    <section id="stack">
+      <h2><span class="n">21</span>Stack technologique recommandée</h2>
+      <p>Aucun changement de fondation recommandé — Next.js et Supabase sont des choix corrects pour ce produit et ce stade, et les remettre en cause maintenant serait un coût pur sans bénéfice. Les ajouts recommandés viennent tous <em>compléter</em> la stack existante :</p>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Besoin</th><th>Recommandation</th><th>Statut</th></tr>
+          <tr><td>Email transactionnel</td><td>Resend</td><td class="badge b-bon">Fait — 11/09</td></tr>
+          <tr><td>Notifications push web</td><td>Web Push (VAPID auto-généré)</td><td class="badge b-bon">Fait — 11/09, sans compte externe</td></tr>
+          <tr><td>Erreurs / monitoring</td><td>Sentry</td><td class="badge b-bon">Fait — 11/09, repli gracieux</td></tr>
+          <tr><td>Analytics produit</td><td>Vercel Analytics/Speed Insights</td><td class="badge b-bon">Fait — 11/09</td></tr>
+          <tr><td>Tests automatisés</td><td>Vitest</td><td class="badge b-bon">Fait — 12/09, 42 tests</td></tr>
+          <tr><td>Temps réel (bracket live, chat futur)</td><td>Supabase Realtime</td><td class="badge b-critique">Pas fait — déjà dans la stack, juste une fonctionnalité Postgres à activer</td></tr>
+          <tr><td>Paiement (futur)</td><td>Stripe</td><td class="badge b-critique">Pas fait — seul acteur qui gère à la fois frais d'inscription et logique de place de marché si la commission sur cash prize est un jour retenue</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <h2><span class="n">22</span>Roadmap</h2>
+      <h3>Priorité 1 — immédiat</h3>
+      <ul>
+        <li>Déployer sur Vercel avec un vrai domaine — la préparation (variables documentées, cron compatible Hobby) est faite, il ne reste que la décision et l'action de déployer</li>
+        <li>Activer la protection mots de passe compromis dans Supabase (2 minutes, tableau de bord)</li>
+        <li>Trancher les deux points juridiques ouverts (immatriculation, transferts RGPD) avant tout encaissement</li>
+        <li>Organiser 3 à 5 vrais tournois avec de vraies personnes pour obtenir la première donnée réelle</li>
+      </ul>
+      <h3>Priorité 2 — rapidement</h3>
+      <ul>
+        <li>Équipes et inscription en 5v5</li>
+        <li>Poursuivre l'étoffement du dashboard admin (gestion des comptes, modération)</li>
+        <li>Demande de clé production Riot (le dossier « prototype fonctionnel » est déjà rempli par ce qui existe)</li>
+        <li>Tester le rapprochement niveau 2 avec une vraie partie jouée entre deux comptes réels (moteur codé, jamais exercé sur un vrai match)</li>
+      </ul>
+      <h3>Priorité 3 — ensuite</h3>
+      <ul>
+        <li>RSO une fois la clé production obtenue</li>
+        <li>Matchmaking basé sur le rating Glicko-2 existant</li>
+        <li>Frais d'inscription payants (Stripe)</li>
+        <li>API publique en lecture pour la communauté</li>
+        <li>Détection d'anomalies IA sur le classement</li>
+      </ul>
+    </section>
+
+    <section id="couts">
+      <h2><span class="n">23</span>Estimation des coûts</h2>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Poste</th><th>Coût</th><th>Nature</th></tr>
+          <tr><td>Hébergement Vercel</td><td class="num">0 à 20 €/mois</td><td>Hobby gratuit au départ, Pro nécessaire pour les crons fréquents</td></tr>
+          <tr><td>Supabase</td><td class="num">0 à 25 €/mois</td><td>Plan gratuit largement suffisant jusqu'à un volume réel</td></tr>
+          <tr><td>Resend (email)</td><td class="num">0 à 20 €/mois</td><td>Intégré le 11/09, gratuit jusqu'à 3 000 emails/mois</td></tr>
+          <tr><td>Notifications push web</td><td class="num">0 €/mois</td><td>Intégré le 11/09 — clés auto-générées, aucun compte externe requis</td></tr>
+          <tr><td>Sentry + Analytics</td><td class="num">0 €/mois</td><td>Intégrés le 11/09, plans gratuits suffisants à ce stade</td></tr>
+          <tr><td>Équipes (développement)</td><td class="num">Moyen</td><td>Réutilise des tables déjà existantes, principalement du temps de développement</td></tr>
+          <tr><td>Paiement Stripe (futur)</td><td class="num">~1,5 % + 0,25 € / transaction</td><td>Coût variable, aucun coût fixe</td></tr>
+          <tr><td>Clé production Riot / RSO</td><td class="num">0 €</td><td>Gratuit — c'est un délai d'approbation, pas un coût</td></tr>
+        </table>
+      </div>
+      <p style="font-size:.85rem;color:var(--muted)">Le vrai coût de cette roadmap est le temps de développement, pas les services tiers — l'infrastructure choisie reste délibérément low-cost jusqu'à preuve de traction.</p>
+    </section>
+
+    <section id="conclusion">
+      <h2><span class="n">24</span>Conclusion</h2>
+      <p>Najarena n'a toujours pas un problème de compétence technique — et la faille de sécurité trouvée puis corrigée le 12 septembre, aussi sérieuse soit-elle en théorie, confirme plutôt la solidité du processus que sa faiblesse : elle a été trouvée en interne, par un outil gratuit, avant tout déploiement, avant qu'un seul utilisateur externe n'ait pu y toucher, et corrigée en quelques minutes sans casser le parcours existant. C'est exactement comme ça qu'un incident de sécurité est censé se dérouler.</p>
+      <p>Le problème reste le même que le 11 septembre : un problème de <strong>séquence</strong>. Vingt-cinq commits plus tard — notifications, PWA, monitoring, tests, un dashboard admin plus complet, une faille corrigée — Najarena est un produit encore plus prêt à être montré à quelqu'un d'autre que le fondateur. Elle n'a toujours montré à personne d'autre.</p>
+      <p>La recommandation la plus importante de ce rapport n'a pas changé : <strong>déployer maintenant</strong>, avec ce qui existe — qui est, très concrètement, plus complet et plus sûr qu'hier — plutôt que d'ajouter une ligne de plus avant que le produit ait rencontré un joueur réel.</p>
+    </section>
+
+    <section id="top10">
+      <h2><span class="n">25</span>Les 10 actions les plus importantes</h2>
+      <p style="font-size:.85rem;color:var(--muted)">Quatre lignes du 11/09 ont disparu de ce classement, faites depuis : analytics + monitoring, notifications e-mail, historique de rivalité, PWA.</p>
+      <div class="table-wrap">
+        <table>
+          <tr><th class="num">#</th><th>Action</th><th>Pourquoi</th><th>Difficulté</th><th>Délai</th></tr>
+          <tr><td class="num mono">1</td><td>Déployer sur Vercel avec un domaine réel</td><td>Rien d'autre n'a de valeur sans ça — préparation déjà faite</td><td class="badge b-modere">Faible</td><td class="mono">1 jour</td></tr>
+          <tr><td class="num mono">2</td><td>Activer la protection mots de passe compromis (Supabase)</td><td>Gratuit, natif, un simple bouton dans le tableau de bord</td><td class="badge b-bon">Triviale</td><td class="mono">2 min</td></tr>
+          <tr><td class="num mono">3</td><td>Trancher immatriculation + transferts RGPD</td><td>Risque juridique réel dès le premier utilisateur externe</td><td class="badge b-eleve">Externe (juriste)</td><td class="mono">1-2 sem.</td></tr>
+          <tr><td class="num mono">4</td><td>Tester le rapprochement niveau 2 avec une vraie partie jouée</td><td>Le moteur existe depuis Phase 2 mais n'a jamais vu un vrai match Riot — la seule inconnue technique qui reste avant de faire confiance au niveau 2 en production</td><td class="badge b-modere">Faible</td><td class="mono">Quelques jours</td></tr>
+          <tr><td class="num mono">5</td><td>Organiser 5 vrais tournois avec de vraies personnes</td><td>Seule façon d'obtenir une donnée de décision réelle</td><td class="badge b-modere">Organisationnelle</td><td class="mono">2-4 sem.</td></tr>
+          <tr><td class="num mono">6</td><td>Construire les équipes (5v5)</td><td>Débloque le format dominant du LoL amateur</td><td class="badge b-eleve">Moyenne-élevée</td><td class="mono">2-3 sem.</td></tr>
+          <tr><td class="num mono">7</td><td>Poursuivre l'étoffement du dashboard admin</td><td>Vue d'ensemble faite ; gestion des comptes et modération encore manquantes</td><td class="badge b-modere">Moyenne</td><td class="mono">1 sem.</td></tr>
+          <tr><td class="num mono">8</td><td>Demander la clé production Riot</td><td>Débloque RSO, niveau 2 fiable en continu, niveau 3</td><td class="badge b-modere">Dossier</td><td class="mono">Délai Riot</td></tr>
+          <tr><td class="num mono">9</td><td>Matchmaking basé sur le rating Glicko-2 existant</td><td>Le RD donne une mesure de confiance native pour l'appariement, déjà calculée</td><td class="badge b-eleve">Modérée</td><td class="mono">1-2 sem.</td></tr>
+          <tr><td class="num mono">10</td><td>Frais d'inscription payants (Stripe)</td><td>Premier modèle de revenu réaliste, mais seulement une fois une base active établie</td><td class="badge b-critique">Élevée</td><td class="mono">2-3 sem.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <footer class="doc-end">Audit Najarena — document de travail interne. Version du 11 septembre 2026, mise à jour le 12 septembre 2026. Sources citées en ligne pour toute affirmation externe.</footer>
+  </main>
+</div>
