@@ -80,6 +80,7 @@ interface CompteRapprochement {
   puuid: string;
   region: string;
   verifie_le: string | null;
+  game_id: number;
 }
 
 /**
@@ -114,6 +115,30 @@ export async function traiterRechercheResultats(): Promise<{
     .eq("statut", "en_cours")
     .lte("demarre_le", seuilRecherche);
 
+  // Un seul aller-retour pour tous les comptes Riot de tous les matchs
+  // candidats, plutôt qu'une requête par match dans la boucle ci-dessous
+  // (correctif du 13/09/2026, même logique que sur l'accueil — ici sous
+  // forme de N+1 plutôt que de série indépendante).
+  const tousLesParticipantIds = Array.from(
+    new Set(
+      (candidats ?? [])
+        .filter((m) => m.match_participants.length === 2 && m.tournament)
+        .flatMap((m) => m.match_participants.map((p) => p.profile_id)),
+    ),
+  );
+
+  const { data: tousLesComptes } =
+    tousLesParticipantIds.length > 0
+      ? await supabase
+          .from("game_accounts")
+          .select("profile_id, puuid, region, verifie_le, game_id")
+          .in("profile_id", tousLesParticipantIds)
+      : { data: [] as CompteRapprochement[] };
+
+  const compteParJoueurEtJeu = new Map(
+    (tousLesComptes ?? []).map((c) => [`${c.profile_id}:${c.game_id}`, c]),
+  );
+
   let trouves = 0;
   let litiges = 0;
   let ignores = 0;
@@ -128,14 +153,8 @@ export async function traiterRechercheResultats(): Promise<{
     let compteB: CompteRapprochement | undefined;
 
     if (participantIds.length === 2 && m.tournament) {
-      const { data: comptes } = await supabase
-        .from("game_accounts")
-        .select("profile_id, puuid, region, verifie_le")
-        .in("profile_id", participantIds)
-        .eq("game_id", m.tournament.game_id);
-
-      compteA = comptes?.find((c) => c.profile_id === participantIds[0]);
-      compteB = comptes?.find((c) => c.profile_id === participantIds[1]);
+      compteA = compteParJoueurEtJeu.get(`${participantIds[0]}:${m.tournament.game_id}`);
+      compteB = compteParJoueurEtJeu.get(`${participantIds[1]}:${m.tournament.game_id}`);
 
       if (compteA?.verifie_le && compteB?.verifie_le && compteA.region === compteB.region) {
         const region = trouverRegion(compteA.region);
@@ -169,16 +188,21 @@ export async function traiterRechercheResultats(): Promise<{
       if (ecrit) {
         trouves += 1;
         if (m.tournament) {
-          for (const profileId of participantIds) {
-            const aGagne = profileId === gagnantId;
-            await notifierJoueur(
-              profileId,
-              `Résultat trouvé — ${m.tournament.nom}`,
-              aGagne ? "Victoire confirmée dans l'historique Riot" : "Résultat confirmé dans l'historique Riot",
-              `<p>La partie officielle a été retrouvée automatiquement dans l'historique Riot.</p>
-               <p><a href="${URL_SITE}/lol/tournois/${m.tournament.slug}">Voir le bracket</a></p>`,
-            );
-          }
+          // Une notification par participant, indépendantes les unes des
+          // autres — lancées en parallèle plutôt qu'en série (correctif du
+          // 13/09/2026, même logique que sur l'accueil).
+          await Promise.all(
+            participantIds.map((profileId) => {
+              const aGagne = profileId === gagnantId;
+              return notifierJoueur(
+                profileId,
+                `Résultat trouvé — ${m.tournament!.nom}`,
+                aGagne ? "Victoire confirmée dans l'historique Riot" : "Résultat confirmé dans l'historique Riot",
+                `<p>La partie officielle a été retrouvée automatiquement dans l'historique Riot.</p>
+               <p><a href="${URL_SITE}/lol/tournois/${m.tournament!.slug}">Voir le bracket</a></p>`,
+              );
+            }),
+          );
 
           // Même logique que enregistrerResultat (organisation-actions.ts) :
           // aucun match_suivant_id = c'était la finale. Avant ce correctif,

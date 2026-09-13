@@ -116,18 +116,14 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
 
   // Plafond anti-abus : au-delà de 3 victoires contre le même adversaire
   // sur 24h (toutes compétitions confondues), les suivantes sont ignorées.
-  const candidatsRetenus: Candidat[] = [];
-  for (const c of candidats) {
-    const nbPrealables = await compterVictoiresRecentes(
-      supabase,
-      c.gagnantId,
-      c.perdantId,
-      c.creeLe,
-    );
-    if (nbPrealables < 3) {
-      candidatsRetenus.push(c);
-    }
-  }
+  // Chaque comptage n'interroge que des verdicts déjà en base (écrits match
+  // par match, avant la clôture) — indépendant des autres candidats de
+  // cette même clôture, donc sans risque à lancer en parallèle plutôt
+  // qu'en série (correctif du 13/09/2026, même logique que sur l'accueil).
+  const compteursPrealables = await Promise.all(
+    candidats.map((c) => compterVictoiresRecentes(supabase, c.gagnantId, c.perdantId, c.creeLe)),
+  );
+  const candidatsRetenus = candidats.filter((_, i) => compteursPrealables[i] < 3);
 
   // État de départ figé de chaque joueur du bracket — jamais l'état
   // courant, qui pourrait déjà refléter un autre match traité juste avant.
