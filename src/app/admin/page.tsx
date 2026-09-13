@@ -51,24 +51,25 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     );
   }
 
-  const { data: litigesData, error: erreurLitiges } = await supabase
-    .from("disputes")
-    .select(
-      "id, motif, resolution, resolu_le, cree_le, match_id, ouvert_par:profiles!disputes_ouvert_par_fkey(pseudo, slug), resolu_par:profiles!disputes_resolu_par_fkey(pseudo, slug), match:matches(tour, tournament:tournaments(nom, slug))",
-    )
-    .order("cree_le", { ascending: false });
-
-  const litiges = litigesData ?? [];
-  const litigesOuverts = litiges.filter((l) => !l.resolution);
-  const litigesResolus = litiges.filter((l) => l.resolution);
-
+  // Six requêtes indépendantes entre elles, lancées en parallèle plutôt
+  // qu'en série (correctif du 13/09/2026, même logique que sur l'accueil).
+  // Regroupées ici, après la vérification `admin` ci-dessus — jamais avant :
+  // ce sont des requêtes coûteuses (comptages, jointures), on évite de les
+  // lancer pour un visiteur non admin qui tombe sur /admin.
   const [
+    { data: litigesData, error: erreurLitiges },
     { count: totalJoueurs },
     { count: tournoisActifs },
     { count: tournoisTotal },
     { count: matchsEnregistres },
     { data: derniersInscrits },
   ] = await Promise.all([
+    supabase
+      .from("disputes")
+      .select(
+        "id, motif, resolution, resolu_le, cree_le, match_id, ouvert_par:profiles!disputes_ouvert_par_fkey(pseudo, slug), resolu_par:profiles!disputes_resolu_par_fkey(pseudo, slug), match:matches(tour, tournament:tournaments(nom, slug))",
+      )
+      .order("cree_le", { ascending: false }),
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase
       .from("tournaments")
@@ -85,6 +86,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .limit(15),
   ]);
 
+  const litiges = litigesData ?? [];
+  const litigesOuverts = litiges.filter((l) => !l.resolution);
+  const litigesResolus = litiges.filter((l) => l.resolution);
   const comptes = derniersInscrits ?? [];
 
   return (
