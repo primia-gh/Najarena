@@ -4,6 +4,15 @@ export default function Footer() {
   return (
     <footer className="mt-auto border-t border-trait bg-papier px-6 py-6">
       <nav className="mx-auto flex max-w-3xl flex-wrap justify-center gap-x-6 gap-y-2 font-mono text-[0.68rem] tracking-[0.1em] text-ardoise uppercase">
+        <Link href="/comment-ca-marche" className="hover:text-encre">
+          Comment ça marche
+        </Link>
+        <Link href="/journal" className="hover:text-encre">
+          Journal de bord
+        </Link>
+        <Link href="/note-du-fondateur" className="hover:text-encre">
+          Le fondateur
+        </Link>
         <Link href="/mentions-legales" className="hover:text-encre">
           Mentions légales
         </Link>

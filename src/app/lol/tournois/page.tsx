@@ -149,7 +149,11 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
           </p>
         ) : tournois.length === 0 ? (
           <p className={classeCarte("none") + " text-sm text-ardoise"}>
-            Aucun tournoi ne correspond à ces critères pour l&apos;instant.
+            Aucun tournoi ne correspond à ces critères pour l&apos;instant.{" "}
+            <Link href="/lol/tournois/demo" className="text-encre underline underline-offset-3">
+              Voir à quoi ressemble un tournoi Najarena
+            </Link>
+            .
           </p>
         ) : (
           <ul className="flex flex-col gap-3">

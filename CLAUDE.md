@@ -139,6 +139,7 @@ Si un chiffre fait partie du dossier, il est en caractères machine. Si c'est du
 /lol                       hub du jeu
 /lol/tournois              liste + filtres
 /lol/tournois/[slug]       page tournoi
+/lol/tournois/demo         tournoi d'exemple (données statiques, jamais en base)
 /lol/classement            leaderboard
 /lol/coequipiers           recherche de coéquipiers (5v5)
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
@@ -149,11 +150,16 @@ Si un chiffre fait partie du dossier, il est en caractères machine. Si c'est du
 /moi/organisation/[id]     cockpit de tournoi
 /connexion /inscription /lier-riot
 /admin                     modération, litiges
+/comment-ca-marche         guide éditorial (verdict, Glicko-2, sceau)
+/journal                   journal de bord public (docs/journal réel, voir src/lib/journal.ts)
+/note-du-fondateur         positionnement produit, en 1ère personne
 ```
 
 Le segment de jeu (`/lol/...`) est obligatoire dès maintenant : sans lui, l'ajout d'un second jeu imposerait une migration d'URL et une perte de référencement.
 
 Le profil joueur reste **hors** du segment de jeu, avec des onglets par jeu — c'est un CV unique qui accumule les jeux.
+
+*Mise à jour du 13/09/2026 : trois pages de contenu ajoutées pour donner de la substance au site indépendamment du trafic réel (`/comment-ca-marche`, `/journal`, `/note-du-fondateur`), plus un tournoi d'exemple aux données statiques, jamais écrites en base (`/lol/tournois/demo`) pour montrer un bracket complet avant le premier vrai tournoi public — ses matchs ne comptent jamais dans les statistiques du site (accueil, admin), contrairement à un vrai tournoi. Décision issue du dossier d'audit du 12/09 (§20) et d'un brainstorm complémentaire non couvert par l'audit.*
 
 ---
 
