@@ -94,7 +94,7 @@ Schéma de base de données : `docs/schema.sql`.
 
 ## 7. Direction artistique
 
-Référence complète et jouable : `docs/direction-artistique.html`.
+Référence complète et jouable : `docs/direction-artistique.html`. Catalogue des composants réutilisables (Bouton, Badge, SectionTitre, CrestPalier, Squelette...) et de leurs états : `docs/design-system.md` — à consulter avant d'écrire un nouveau bouton, une nouvelle carte ou un nouvel état de chargement.
 
 **Principe :** registre officiel, pas arène à néons. Le site est **sombre et atmosphérique dans son ensemble** depuis le 12/09/2026 au soir (voir mises à jour ci-dessous) — la sobriété qui porte la crédibilité du classement s'exprime par la retenue du mouvement sur les pages preuve, pas par un registre clair séparé.
 
