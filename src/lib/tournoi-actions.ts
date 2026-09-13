@@ -57,15 +57,13 @@ export async function creerTournoi(formData: FormData) {
     );
   }
 
-  const { data: jeu } = await supabase.from("games").select("id").eq("slug", "lol").maybeSingle();
-  if (!jeu) {
-    redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Service indisponible pour l'instant.")}`);
-  }
-
   const slug = `${slugifier(nom)}-${Math.random().toString(36).slice(2, 7)}`;
 
+  // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
+  // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
+  // l'id depuis un slug.
   const { error } = await supabase.from("tournaments").insert({
-    game_id: jeu.id,
+    game_id: 1,
     organisateur_id: userData.user.id,
     slug,
     nom,

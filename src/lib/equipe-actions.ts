@@ -31,16 +31,14 @@ export async function creerEquipe(formData: FormData) {
     );
   }
 
-  const { data: jeu } = await supabase.from("games").select("id").eq("slug", "lol").maybeSingle();
-  if (!jeu) {
-    redirect(`/equipe/nouvelle?erreur=${encodeURIComponent("Service indisponible pour l'instant.")}`);
-  }
-
   const slug = `${slugifier(nom)}-${Math.random().toString(36).slice(2, 7)}`;
 
+  // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
+  // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
+  // l'id depuis un slug.
   const { data: equipe, error } = await supabase
     .from("teams")
-    .insert({ game_id: jeu.id, slug, nom, tag, capitaine_id: userData.user.id })
+    .insert({ game_id: 1, slug, nom, tag, capitaine_id: userData.user.id })
     .select("id, slug")
     .single();
 
@@ -80,26 +78,26 @@ export async function inviterMembre(formData: FormData) {
     );
   }
 
-  const { data: profil } = await supabase
-    .from("profiles")
-    .select("id, pseudo")
-    .ilike("pseudo", pseudoInvite)
-    .maybeSingle();
+  // Le pseudo cherché et le comptage de l'effectif sont indépendants l'un
+  // de l'autre — lancés en parallèle plutôt qu'en série (correctif du
+  // 13/09/2026, même logique que sur l'accueil).
+  const [{ data: profil }, { count }] = await Promise.all([
+    supabase.from("profiles").select("id, pseudo").ilike("pseudo", pseudoInvite).maybeSingle(),
+    // Vérification applicative, en plus de la policy RLS "capitaine invite
+    // un membre" (qui revérifie elle-même l'identité du capitaine) : rien
+    // côté base n'empêche encore un roster de dépasser 5 joueurs, et
+    // /lol/coequipiers affiche maintenant "de la place" comme un fait sur
+    // lequel on s'engage.
+    supabase
+      .from("team_members")
+      .select("*", { count: "exact", head: true })
+      .eq("team_id", teamId)
+      .not("accepte_le", "is", null),
+  ]);
 
   if (!profil) {
     redirect(`/equipe/${slug}?erreur=${encodeURIComponent("Aucun joueur avec ce pseudo.")}`);
   }
-
-  // Vérification applicative, en plus de la policy RLS "capitaine invite un
-  // membre" (qui revérifie elle-même l'identité du capitaine) : rien côté
-  // base n'empêche encore un roster de dépasser 5 joueurs, et
-  // /lol/coequipiers affiche maintenant "de la place" comme un fait sur
-  // lequel on s'engage.
-  const { count } = await supabase
-    .from("team_members")
-    .select("*", { count: "exact", head: true })
-    .eq("team_id", teamId)
-    .not("accepte_le", "is", null);
 
   if ((count ?? 0) >= TAILLE_MAX_EQUIPE) {
     redirect(

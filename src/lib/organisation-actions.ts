@@ -246,17 +246,22 @@ export async function enregistrerResultat(formData: FormData) {
   if (matchDecide?.tournament) {
     const gagnant = matchDecide.match_participants.find((p) => p.profile_id === gagnantId);
     const nomGagnant = gagnant?.profile?.pseudo ?? "le vainqueur";
-    for (const p of matchDecide.match_participants) {
-      const aGagne = p.profile_id === gagnantId;
-      await notifierJoueur(
-        p.profile_id,
-        `Résultat enregistré — ${matchDecide.tournament.nom}`,
-        aGagne ? "Tu as gagné ce match" : "Résultat de ton match",
-        `<p>${aGagne ? "Tu remportes" : `${nomGagnant} remporte`} ce match du tournoi <strong>${matchDecide.tournament.nom}</strong>.</p>
-         <p>Motif : ${motif}</p>
-         <p><a href="${URL_SITE}/lol/tournois/${matchDecide.tournament.slug}">Voir le bracket</a></p>`,
-      );
-    }
+    // Une notification par participant, indépendantes les unes des autres —
+    // lancées en parallèle plutôt qu'en série (correctif du 13/09/2026,
+    // même logique que sur l'accueil).
+    await Promise.all(
+      matchDecide.match_participants.map((p) => {
+        const aGagne = p.profile_id === gagnantId;
+        return notifierJoueur(
+          p.profile_id,
+          `Résultat enregistré — ${matchDecide.tournament!.nom}`,
+          aGagne ? "Tu as gagné ce match" : "Résultat de ton match",
+          `<p>${aGagne ? "Tu remportes" : `${nomGagnant} remporte`} ce match du tournoi <strong>${matchDecide.tournament!.nom}</strong>.</p>
+           <p>Motif : ${motif}</p>
+           <p><a href="${URL_SITE}/lol/tournois/${matchDecide.tournament!.slug}">Voir le bracket</a></p>`,
+        );
+      }),
+    );
   }
 
   if (matchDecide && matchDecide.match_suivant_id === null) {

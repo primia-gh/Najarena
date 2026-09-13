@@ -42,11 +42,6 @@ export async function lierRiotId(formData: FormData) {
     redirect("/connexion");
   }
 
-  const { data: jeu } = await supabase.from("games").select("id").eq("slug", "lol").maybeSingle();
-  if (!jeu) {
-    redirect(`/lier-riot?erreur=${encodeURIComponent("Service indisponible pour l'instant.")}`);
-  }
-
   let compte: CompteRiot;
   let invocateur: InvocateurRiot;
   try {
@@ -58,8 +53,11 @@ export async function lierRiotId(formData: FormData) {
 
   const cible = tirerIconeCible(invocateur.profileIconId);
 
+  // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
+  // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
+  // l'id depuis un slug.
   const { error } = await supabase.rpc("lier_compte_riot", {
-    p_game_id: jeu.id,
+    p_game_id: 1,
     p_puuid: compte.puuid,
     p_riot_game_name: compte.gameName,
     p_riot_tag_line: compte.tagLine,
