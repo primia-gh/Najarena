@@ -48,13 +48,13 @@ function verifierSignature(corps: string, signature: string | null, timestamp: s
 async function repondreClassement(): Promise<string> {
   const supabase = await createClient();
 
-  const { data: jeu } = await supabase.from("games").select("id").eq("slug", "lol").maybeSingle();
-  if (!jeu) return "Classement indisponible pour l'instant.";
-
+  // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
+  // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
+  // l'id depuis un slug.
   const { data: saison } = await supabase
     .from("seasons")
     .select("id")
-    .eq("game_id", jeu.id)
+    .eq("game_id", 1)
     .eq("est_courante", true)
     .maybeSingle();
   if (!saison) return "Le classement n'est pas encore ouvert — pas encore de saison en cours.";
@@ -63,12 +63,12 @@ async function repondreClassement(): Promise<string> {
     supabase
       .from("ratings")
       .select("rating, profile:profiles(pseudo)")
-      .eq("game_id", jeu.id)
+      .eq("game_id", 1)
       .eq("season_id", saison.id)
       .eq("est_classe", true)
       .order("rating", { ascending: false })
       .limit(5),
-    supabase.from("tiers").select("nom, rating_min").eq("game_id", jeu.id),
+    supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
   ]);
 
   if (!classement || classement.length === 0) {
