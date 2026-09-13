@@ -23,12 +23,16 @@ interface CoequipiersPageProps {
 
 async function chargerCoequipiers() {
   const supabase = await createClient();
-  const { data: userData } = await supabase.auth.getUser();
 
-  const { data: annoncesData } = await supabase
-    .from("recherches_coequipiers")
-    .select("profile_id, message, cree_le, profile:profiles(pseudo, slug)")
-    .order("cree_le", { ascending: false });
+  // Indépendantes l'une de l'autre — lancées en parallèle plutôt qu'en
+  // série (correctif du 13/09/2026, même logique que sur l'accueil).
+  const [{ data: userData }, { data: annoncesData }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("recherches_coequipiers")
+      .select("profile_id, message, cree_le, profile:profiles(pseudo, slug)")
+      .order("cree_le", { ascending: false }),
+  ]);
 
   const annonces = annoncesData ?? [];
   const monAnnonce = userData.user

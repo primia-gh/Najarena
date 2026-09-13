@@ -33,26 +33,21 @@ async function chargerEquipe(slug: string) {
     return { statut: "introuvable" as const };
   }
 
-  const { data: userData } = await supabase.auth.getUser();
-
-  const { data: jeu } = await supabase
-    .from("games")
-    .select("nom")
-    .eq("id", equipe.game_id)
-    .maybeSingle();
-
-  const { data: capitaine } = await supabase
-    .from("profiles")
-    .select("pseudo, slug")
-    .eq("id", equipe.capitaine_id)
-    .maybeSingle();
-
-  // Un membre invité mais pas encore accepté n'apparaît pas publiquement —
-  // on n'affiche jamais une affiliation qu'un joueur n'a pas confirmée.
-  const { data: membresData } = await supabase
-    .from("team_members")
-    .select("profile_id, role, accepte_le, profile:profiles(pseudo, slug)")
-    .eq("team_id", equipe.id);
+  // Quatre requêtes indépendantes entre elles, ne dépendant que de l'équipe
+  // déjà chargée — lancées en parallèle plutôt qu'en série (correctif du
+  // 13/09/2026, même logique que sur l'accueil).
+  const [{ data: userData }, { data: jeu }, { data: capitaine }, { data: membresData }] =
+    await Promise.all([
+      supabase.auth.getUser(),
+      supabase.from("games").select("nom").eq("id", equipe.game_id).maybeSingle(),
+      supabase.from("profiles").select("pseudo, slug").eq("id", equipe.capitaine_id).maybeSingle(),
+      // Un membre invité mais pas encore accepté n'apparaît pas publiquement —
+      // on n'affiche jamais une affiliation qu'un joueur n'a pas confirmée.
+      supabase
+        .from("team_members")
+        .select("profile_id, role, accepte_le, profile:profiles(pseudo, slug)")
+        .eq("team_id", equipe.id),
+    ]);
 
   const tousLesMembres = membresData ?? [];
   const membres = tousLesMembres.filter(

@@ -34,53 +34,59 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
 
   const utilisateur = userData.user;
 
-  const { data: profil } = await supabase
-    .from("profiles")
-    .select("pseudo, slug, created_at")
-    .eq("id", utilisateur.id)
-    .maybeSingle();
-
-  const { data: comptesRiot } = await supabase
-    .from("game_accounts")
-    .select("riot_game_name, riot_tag_line, region, verifie_le")
-    .eq("profile_id", utilisateur.id)
-    .eq("est_principal", true)
-    .maybeSingle();
-
-  const { data: inscriptionsData, error: erreurInscriptions } = await supabase
-    .from("registrations")
-    .select(
-      "id, statut, inscrit_le, tournament:tournaments(slug, nom, statut, debute_le, region, format)",
-    )
-    .eq("profile_id", utilisateur.id)
-    .order("inscrit_le", { ascending: false });
+  // Les six requêtes ci-dessous sont indépendantes les unes des autres —
+  // toutes lancées en parallèle plutôt qu'enchaînées en série (correctif
+  // du 13/09/2026, même logique que sur l'accueil).
+  const [
+    { data: profil },
+    { data: comptesRiot },
+    { data: inscriptionsData, error: erreurInscriptions },
+    { data: tournoisOrganisesData },
+    { data: affiliationsData },
+    { data: equipesCapitaineData },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("pseudo, slug, created_at")
+      .eq("id", utilisateur.id)
+      .maybeSingle(),
+    supabase
+      .from("game_accounts")
+      .select("riot_game_name, riot_tag_line, region, verifie_le")
+      .eq("profile_id", utilisateur.id)
+      .eq("est_principal", true)
+      .maybeSingle(),
+    supabase
+      .from("registrations")
+      .select(
+        "id, statut, inscrit_le, tournament:tournaments(slug, nom, statut, debute_le, region, format)",
+      )
+      .eq("profile_id", utilisateur.id)
+      .order("inscrit_le", { ascending: false }),
+    supabase
+      .from("tournaments")
+      .select("id, slug, nom, statut, debute_le, region, format")
+      .eq("organisateur_id", utilisateur.id)
+      .order("cree_le", { ascending: false }),
+    supabase
+      .from("team_members")
+      .select("team_id, accepte_le, team:teams(id, slug, nom, tag, capitaine_id)")
+      .eq("profile_id", utilisateur.id),
+    supabase
+      .from("teams")
+      .select("id, slug, nom, tag")
+      .eq("capitaine_id", utilisateur.id)
+      .order("cree_le", { ascending: false }),
+  ]);
 
   const inscriptions = inscriptionsData ?? [];
-
-  const { data: tournoisOrganisesData } = await supabase
-    .from("tournaments")
-    .select("id, slug, nom, statut, debute_le, region, format")
-    .eq("organisateur_id", utilisateur.id)
-    .order("cree_le", { ascending: false });
-
   const tournoisOrganises = tournoisOrganisesData ?? [];
-
-  const { data: affiliationsData } = await supabase
-    .from("team_members")
-    .select("team_id, accepte_le, team:teams(id, slug, nom, tag, capitaine_id)")
-    .eq("profile_id", utilisateur.id);
 
   const affiliations = affiliationsData ?? [];
   const invitationsEnAttente = affiliations.filter((a) => a.accepte_le === null && a.team);
   const equipesMembre = affiliations.filter(
     (a) => a.accepte_le !== null && a.team && a.team.capitaine_id !== utilisateur.id,
   );
-
-  const { data: equipesCapitaineData } = await supabase
-    .from("teams")
-    .select("id, slug, nom, tag")
-    .eq("capitaine_id", utilisateur.id)
-    .order("cree_le", { ascending: false });
 
   const equipesCapitaine = equipesCapitaineData ?? [];
 

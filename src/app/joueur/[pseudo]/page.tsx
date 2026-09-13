@@ -40,49 +40,52 @@ async function chargerJoueur(slug: string) {
     return { statut: "introuvable" as const };
   }
 
-  const { data: compteRiot } = await supabase
-    .from("game_accounts")
-    .select("riot_game_name, riot_tag_line, region, verifie_le")
-    .eq("profile_id", profil.id)
-    .eq("est_principal", true)
-    .maybeSingle();
-
-  const { data: rating } = await supabase
-    .from("ratings")
-    .select("rating, rd, matchs_joues, est_classe")
-    .eq("profile_id", profil.id)
-    .eq("game_id", 1)
-    .order("maj_le", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const { data: participationsData } = await supabase
-    .from("match_participants")
-    .select(
-      "match_id, score, est_gagnant, match:matches(tour, tournament:tournaments(nom, slug))",
-    )
-    .eq("profile_id", profil.id);
+  // Étage 1 : ne dépendent que de profil.id, indépendantes entre elles —
+  // lancées en parallèle plutôt qu'en série (correctif du 13/09/2026).
+  const [{ data: compteRiot }, { data: rating }, { data: participationsData }] = await Promise.all([
+    supabase
+      .from("game_accounts")
+      .select("riot_game_name, riot_tag_line, region, verifie_le")
+      .eq("profile_id", profil.id)
+      .eq("est_principal", true)
+      .maybeSingle(),
+    supabase
+      .from("ratings")
+      .select("rating, rd, matchs_joues, est_classe")
+      .eq("profile_id", profil.id)
+      .eq("game_id", 1)
+      .order("maj_le", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("match_participants")
+      .select(
+        "match_id, score, est_gagnant, match:matches(tour, tournament:tournaments(nom, slug))",
+      )
+      .eq("profile_id", profil.id),
+  ]);
 
   const participations = participationsData ?? [];
   const matchIds = participations.map((p) => p.match_id);
 
-  const { data: verdictsData } =
+  // Étage 2 : dépendent de matchIds (issu de l'étage 1), indépendantes
+  // l'une de l'autre.
+  const [{ data: verdictsData }, { data: autresParticipantsData }] = await Promise.all([
     matchIds.length > 0
-      ? await supabase
+      ? supabase
           .from("match_verdicts")
           .select("match_id, niveau, motif, cree_le")
           .in("match_id", matchIds)
           .eq("est_definitif", true)
-      : { data: [] };
-
-  const { data: autresParticipantsData } =
+      : Promise.resolve({ data: [] }),
     matchIds.length > 0
-      ? await supabase
+      ? supabase
           .from("match_participants")
           .select("match_id, profile:profiles(pseudo, slug)")
           .in("match_id", matchIds)
           .neq("profile_id", profil.id)
-      : { data: [] };
+      : Promise.resolve({ data: [] }),
+  ]);
 
   const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
   const adversaireParMatch = new Map(

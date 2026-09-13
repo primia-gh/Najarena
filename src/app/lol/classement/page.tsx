@@ -18,16 +18,19 @@ export const metadata: Metadata = {
 export default async function ClassementPage() {
   const supabase = await createClient();
 
-  const { data: jeu } = await supabase.from("games").select("id").eq("slug", "lol").maybeSingle();
-
-  const { data: saison } = jeu
-    ? await supabase
-        .from("seasons")
-        .select("id, nom, numero")
-        .eq("game_id", jeu.id)
-        .eq("est_courante", true)
-        .maybeSingle()
-    : { data: null };
+  // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
+  // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
+  // l'id depuis un slug. `saison` et `paliers` sont indépendants l'un de
+  // l'autre, lancés en parallèle plutôt qu'en série.
+  const [{ data: saison }, { data: paliersData }] = await Promise.all([
+    supabase
+      .from("seasons")
+      .select("id, nom, numero")
+      .eq("game_id", 1)
+      .eq("est_courante", true)
+      .maybeSingle(),
+    supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
+  ]);
 
   let classement: Array<{
     rating: number;
@@ -37,11 +40,11 @@ export default async function ClassementPage() {
   }> = [];
   let erreurClassement = false;
 
-  if (jeu && saison) {
+  if (saison) {
     const { data, error } = await supabase
       .from("ratings")
       .select("rating, rd, matchs_joues, profile:profiles(pseudo, slug)")
-      .eq("game_id", jeu.id)
+      .eq("game_id", 1)
       .eq("season_id", saison.id)
       .eq("est_classe", true)
       .order("rating", { ascending: false })
@@ -50,11 +53,6 @@ export default async function ClassementPage() {
     classement = data ?? [];
     if (error) erreurClassement = true;
   }
-
-  const { data: paliersData } = await supabase
-    .from("tiers")
-    .select("nom, rating_min")
-    .eq("game_id", 1);
 
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
   const paliersTries = [...paliers].sort((a, b) => a.ratingMin - b.ratingMin);

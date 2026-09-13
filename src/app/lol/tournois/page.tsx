@@ -34,13 +34,27 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
 
   const supabase = await createClient();
 
-  const { data: jeu } = await supabase
-    .from("games")
-    .select("id")
-    .eq("slug", "lol")
-    .single();
+  // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
+  // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
+  // l'id depuis un slug. La liste des tournois et celle des régions sont
+  // indépendantes l'une de l'autre, lancées en parallèle plutôt qu'en série.
+  let requete = supabase
+    .from("tournaments")
+    .select("id, slug, nom, format, capacite, region, statut, debute_le")
+    .eq("game_id", 1)
+    .in("statut", STATUTS_PUBLICS)
+    .order("debute_le", { ascending: true })
+    .limit(50);
 
-  let tournois: Array<{
+  if (statutFiltre) requete = requete.eq("statut", statutFiltre);
+  if (regionFiltre) requete = requete.eq("region", regionFiltre);
+
+  const [{ data, error }, { data: regionsData }] = await Promise.all([
+    requete,
+    supabase.from("tournaments").select("region").eq("game_id", 1).in("statut", STATUTS_PUBLICS),
+  ]);
+
+  const tournois: Array<{
     id: string;
     slug: string;
     nom: string;
@@ -49,35 +63,9 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
     region: string;
     statut: Statut;
     debute_le: string;
-  }> = [];
-  let regions: string[] = [];
-  let erreurConnexion = false;
-
-  if (jeu) {
-    let requete = supabase
-      .from("tournaments")
-      .select("id, slug, nom, format, capacite, region, statut, debute_le")
-      .eq("game_id", jeu.id)
-      .in("statut", STATUTS_PUBLICS)
-      .order("debute_le", { ascending: true })
-      .limit(50);
-
-    if (statutFiltre) requete = requete.eq("statut", statutFiltre);
-    if (regionFiltre) requete = requete.eq("region", regionFiltre);
-
-    const { data, error } = await requete;
-    tournois = data ?? [];
-    if (error) erreurConnexion = true;
-
-    const { data: regionsData } = await supabase
-      .from("tournaments")
-      .select("region")
-      .eq("game_id", jeu.id)
-      .in("statut", STATUTS_PUBLICS);
-    regions = Array.from(new Set((regionsData ?? []).map((r) => r.region))).sort();
-  } else {
-    erreurConnexion = true;
-  }
+  }> = data ?? [];
+  const erreurConnexion = Boolean(error);
+  const regions = Array.from(new Set((regionsData ?? []).map((r) => r.region))).sort();
 
   return (
     <main className="relative min-h-screen overflow-hidden pt-28 pb-16">

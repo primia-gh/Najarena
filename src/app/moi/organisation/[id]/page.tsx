@@ -34,17 +34,22 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const { erreur } = await searchParams;
 
   const supabase = await createClient();
-  const { data: userData } = await supabase.auth.getUser();
+
+  // L'utilisateur et le tournoi ne dépendent pas l'un de l'autre — lancés
+  // en parallèle plutôt qu'en série (correctif du 13/09/2026, même logique
+  // que sur l'accueil).
+  const [{ data: userData }, { data: tournoi }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("tournaments")
+      .select("id, slug, nom, statut, capacite, region, debute_le, checkin_ouvre_le, organisateur_id")
+      .eq("id", id)
+      .maybeSingle(),
+  ]);
+
   if (!userData.user) {
     redirect("/connexion");
   }
-
-  const { data: tournoi } = await supabase
-    .from("tournaments")
-    .select("id, slug, nom, statut, capacite, region, debute_le, checkin_ouvre_le, organisateur_id")
-    .eq("id", id)
-    .maybeSingle();
-
   if (!tournoi) {
     notFound();
   }
@@ -52,43 +57,43 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     redirect("/moi");
   }
 
-  const { data: inscriptionsData } = await supabase
-    .from("registrations")
-    .select("id, statut, profile:profiles(pseudo, slug)")
-    .eq("tournament_id", id)
-    .order("inscrit_le", { ascending: true });
+  const [{ data: inscriptionsData }, { data: matchsData }] = await Promise.all([
+    supabase
+      .from("registrations")
+      .select("id, statut, profile:profiles(pseudo, slug)")
+      .eq("tournament_id", id)
+      .order("inscrit_le", { ascending: true }),
+    supabase
+      .from("matches")
+      .select(
+        "id, tour, position, statut, match_participants(profile_id, slot, est_gagnant, profile:profiles(pseudo, slug))",
+      )
+      .eq("tournament_id", id)
+      .order("tour", { ascending: true })
+      .order("position", { ascending: true }),
+  ]);
   const inscriptions = inscriptionsData ?? [];
-
-  const { data: matchsData } = await supabase
-    .from("matches")
-    .select(
-      "id, tour, position, statut, match_participants(profile_id, slot, est_gagnant, profile:profiles(pseudo, slug))",
-    )
-    .eq("tournament_id", id)
-    .order("tour", { ascending: true })
-    .order("position", { ascending: true });
   const matchs = matchsData ?? [];
 
   const matchIds = matchs.map((m) => m.id);
 
-  const { data: verdictsData } =
+  const [{ data: verdictsData }, { data: litigesData }] = await Promise.all([
     matchIds.length > 0
-      ? await supabase
+      ? supabase
           .from("match_verdicts")
           .select("match_id, niveau, motif")
           .in("match_id", matchIds)
           .eq("est_definitif", true)
-      : { data: [] };
-  const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
-
-  const { data: litigesData } =
+      : Promise.resolve({ data: [] }),
     matchIds.length > 0
-      ? await supabase
+      ? supabase
           .from("disputes")
           .select("id, motif, resolution, match_id, ouvert_par:profiles!disputes_ouvert_par_fkey(pseudo)")
           .in("match_id", matchIds)
           .order("cree_le", { ascending: false })
-      : { data: [] };
+      : Promise.resolve({ data: [] }),
+  ]);
+  const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
   const litiges = litigesData ?? [];
   const litigesOuverts = litiges.filter((l) => !l.resolution);
 

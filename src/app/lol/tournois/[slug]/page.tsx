@@ -54,66 +54,62 @@ async function chargerTournoi(slug: string) {
     return { statut: "introuvable" as const };
   }
 
-  const { data: organisateur } = await supabase
-    .from("profiles")
-    .select("pseudo, slug")
-    .eq("id", tournoi.organisateur_id)
-    .maybeSingle();
+  // Étage 1 : ces cinq requêtes ne dépendent que du tournoi déjà chargé,
+  // jamais les unes des autres — lancées en parallèle plutôt qu'en série
+  // (correctif du 13/09/2026, même logique que sur l'accueil).
+  const [
+    { data: organisateur },
+    { data: userData },
+    { data: inscriptionsData },
+    { data: paliersData },
+    { data: matchsData },
+  ] = await Promise.all([
+    supabase.from("profiles").select("pseudo, slug").eq("id", tournoi.organisateur_id).maybeSingle(),
+    supabase.auth.getUser(),
+    supabase
+      .from("registrations")
+      .select("id, statut, seed, profile_id, profile:profiles(pseudo, slug)")
+      .eq("tournament_id", tournoi.id)
+      .order("seed", { ascending: true, nullsFirst: false }),
+    supabase.from("tiers").select("nom, rating_min").eq("game_id", tournoi.game_id),
+    supabase
+      .from("matches")
+      .select(
+        "id, tour, position, statut, match_participants(profile_id, slot, score, est_gagnant, profile:profiles(pseudo, slug))",
+      )
+      .eq("tournament_id", tournoi.id)
+      .order("tour", { ascending: true })
+      .order("position", { ascending: true }),
+  ]);
 
-  const { data: userData } = await supabase.auth.getUser();
-
-  const { data: inscriptionsData } = await supabase
-    .from("registrations")
-    .select("id, statut, seed, profile_id, profile:profiles(pseudo, slug)")
-    .eq("tournament_id", tournoi.id)
-    .order("seed", { ascending: true, nullsFirst: false });
-
-  const { data: paliersData } = await supabase
-    .from("tiers")
-    .select("nom, rating_min")
-    .eq("game_id", tournoi.game_id);
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
-
   const profileIds = (inscriptionsData ?? []).map((i) => i.profile_id);
-  const { data: ratingsData } =
+  const matchIds = (matchsData ?? []).map((m) => m.id);
+
+  // Étage 2 : dépendent des résultats de l'étage 1 (profileIds, matchIds,
+  // userData) mais pas les unes des autres — parallélisées de même.
+  const [{ data: ratingsData }, { data: verdictsData }, { data: litigesData }] = await Promise.all([
     profileIds.length > 0
-      ? await supabase
+      ? supabase
           .from("ratings")
           .select("profile_id, rating, est_classe")
           .eq("game_id", tournoi.game_id)
           .in("profile_id", profileIds)
-      : { data: [] };
-  const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
-
-  const { data: matchsData } = await supabase
-    .from("matches")
-    .select(
-      "id, tour, position, statut, match_participants(profile_id, slot, score, est_gagnant, profile:profiles(pseudo, slug))",
-    )
-    .eq("tournament_id", tournoi.id)
-    .order("tour", { ascending: true })
-    .order("position", { ascending: true });
-
-  const matchIds = (matchsData ?? []).map((m) => m.id);
-
-  const { data: verdictsData } =
+      : Promise.resolve({ data: [] }),
     matchIds.length > 0
-      ? await supabase
+      ? supabase
           .from("match_verdicts")
           .select("match_id, niveau, motif, gagnant_id")
           .in("match_id", matchIds)
           .eq("est_definitif", true)
-      : { data: [] };
-
-  const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
-
-  const { data: litigesData } =
+      : Promise.resolve({ data: [] }),
     matchIds.length > 0 && userData.user
-      ? await supabase
-          .from("disputes")
-          .select("match_id, ouvert_par, resolution")
-          .in("match_id", matchIds)
-      : { data: [] };
+      ? supabase.from("disputes").select("match_id, ouvert_par, resolution").in("match_id", matchIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
+  const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
   const litigeParMatch = new Map((litigesData ?? []).map((l) => [l.match_id, l]));
 
   return {

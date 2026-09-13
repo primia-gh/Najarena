@@ -90,9 +90,18 @@ export default async function LolHubPage() {
   const supabase = await createClient();
   const versionDDragon = await obtenirVersionDDragon();
 
-  const { data: jeu } = await supabase.from("games").select("id").eq("slug", "lol").maybeSingle();
+  // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
+  // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
+  // l'id depuis un slug.
+  const { data } = await supabase
+    .from("tournaments")
+    .select("slug, nom, format, capacite, region, statut, debute_le")
+    .eq("game_id", 1)
+    .in("statut", ["ouvert", "checkin"])
+    .order("debute_le", { ascending: true })
+    .limit(6);
 
-  let prochainsTournois: Array<{
+  const prochainsTournois = (data ?? []) as Array<{
     slug: string;
     nom: string;
     format: string;
@@ -100,18 +109,7 @@ export default async function LolHubPage() {
     region: string;
     statut: StatutPublic;
     debute_le: string;
-  }> = [];
-
-  if (jeu) {
-    const { data } = await supabase
-      .from("tournaments")
-      .select("slug, nom, format, capacite, region, statut, debute_le")
-      .eq("game_id", jeu.id)
-      .in("statut", ["ouvert", "checkin"])
-      .order("debute_le", { ascending: true })
-      .limit(6);
-    prochainsTournois = (data ?? []) as typeof prochainsTournois;
-  }
+  }>;
 
   return (
     <div className="min-h-screen bg-papier">
