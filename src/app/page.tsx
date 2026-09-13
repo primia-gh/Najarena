@@ -29,13 +29,16 @@ async function chargerPreuveSociale() {
 
 async function chargerPaliers() {
   const supabase = await createClient();
-  const { data: jeu } = await supabase.from("games").select("id").eq("slug", "lol").maybeSingle();
-  if (!jeu) return [];
 
+  // game_id=1 est LoL — seule ligne de `games` en V1 (même convention que
+  // /lol/classement). Évite un aller-retour supplémentaire pour résoudre
+  // l'id depuis le slug avant de pouvoir requêter les paliers ; c'était
+  // le vrai goulot de l'accueil (chargerPreuveSociale, en revanche, est
+  // déjà bien parallélisée).
   const { data } = await supabase
     .from("tiers")
     .select("nom, rating_min, ordre")
-    .eq("game_id", jeu.id)
+    .eq("game_id", 1)
     .order("ordre", { ascending: true });
 
   return data ?? [];
