@@ -156,7 +156,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
       <Reveal delai={0.15}>
       <div className="mt-8">
         {erreurConnexion ? (
-          <p className={classeCarte("sceau") + " text-sm text-sceau"}>
+          <p className={classeCarte("sceau") + " text-sm text-sceau-texte"}>
             Impossible de charger les tournois pour l&apos;instant. Réessaie
             dans un instant.
           </p>

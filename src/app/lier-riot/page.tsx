@@ -51,7 +51,7 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
       </h1>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
       )}
 
       {compte?.verifie_le ? (

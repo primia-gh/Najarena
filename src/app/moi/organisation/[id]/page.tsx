@@ -149,7 +149,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       </Link>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
       )}
       </Reveal>
 
@@ -191,7 +191,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       <button
                         type="submit"
                         aria-label={`Marquer ${i.profile?.pseudo ?? "ce joueur"} comme absent`}
-                        className="font-mono text-[0.62rem] text-sceau underline underline-offset-3"
+                        className="font-mono text-[0.62rem] text-sceau-texte underline underline-offset-3"
                       >
                         Absent
                       </button>
@@ -286,7 +286,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                         )}
 
                         {!verdict && m.statut === "litige" && (
-                          <p className="mt-2 border-t border-trait pt-2 font-mono text-[0.68rem] text-sceau uppercase">
+                          <p className="mt-2 border-t border-trait pt-2 font-mono text-[0.68rem] text-sceau-texte uppercase">
                             Résultat non retrouvé automatiquement — décision manuelle requise
                           </p>
                         )}

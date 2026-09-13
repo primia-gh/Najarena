@@ -81,7 +81,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
       </Reveal>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
       )}
       {message && (
         <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
@@ -108,7 +108,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
               <button
                 type="submit"
                 formAction={retirerRechercheCoequipier}
-                className="font-mono text-[0.66rem] text-sceau underline underline-offset-3"
+                className="font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
               >
                 Retirer mon annonce
               </button>

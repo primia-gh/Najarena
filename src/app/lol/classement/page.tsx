@@ -108,7 +108,7 @@ export default async function ClassementPage() {
             en cours pour l&apos;instant.
           </p>
         ) : erreurClassement ? (
-          <p className={classeCarte("sceau") + " text-sm text-sceau"}>
+          <p className={classeCarte("sceau") + " text-sm text-sceau-texte"}>
             Impossible de charger le classement pour l&apos;instant. Réessaie
             dans un instant.
           </p>

@@ -31,7 +31,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
       </p>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
       )}
 
       <form action={sInscrire} className="mt-6 flex flex-col gap-4">

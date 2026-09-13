@@ -62,7 +62,7 @@ export function AssistantOrganisateur() {
         placeholder="Ex. « Samedi soir, une trentaine de joueurs, EUW »"
         className="mt-3 w-full resize-none rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
       />
-      {erreur && <p className="mt-2 text-sm text-sceau">{erreur}</p>}
+      {erreur && <p className="mt-2 text-sm text-sceau-texte">{erreur}</p>}
       {applique && !erreur && (
         <p className="mt-2 text-sm text-atteste">
           Formulaire prérempli — vérifie les champs avant de créer le tournoi.

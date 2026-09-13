@@ -175,7 +175,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   if (donnees.statut === "erreur") {
     return (
       <main className="mx-auto max-w-3xl px-6 pt-28 pb-16">
-        <p className={classeCarte("sceau") + " text-sm text-sceau"}>
+        <p className={classeCarte("sceau") + " text-sm text-sceau-texte"}>
           Impossible de charger ce tournoi pour l&apos;instant. Réessaie dans
           un instant.
         </p>
@@ -256,7 +256,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       </p>
 
       {erreur && (
-        <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
+        <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
       )}
 
       {message && (
@@ -284,7 +284,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           ) : (
             <Link
               href="/connexion"
-              className="font-mono text-[0.72rem] text-sceau underline underline-offset-3"
+              className="font-mono text-[0.72rem] text-sceau-texte underline underline-offset-3"
             >
               Se connecter pour s&apos;inscrire
             </Link>
@@ -433,7 +433,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                         )}
 
                         {!verdict && m.statut === "litige" && (
-                          <p className="mt-2 border-t border-trait pt-2 font-mono text-[0.68rem] text-sceau uppercase">
+                          <p className="mt-2 border-t border-trait pt-2 font-mono text-[0.68rem] text-sceau-texte uppercase">
                             Résultat non retrouvé automatiquement — en attente de l&apos;organisateur
                           </p>
                         )}
@@ -452,7 +452,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                         )}
 
                         {litige && (
-                          <p className="mt-2 border-t border-trait pt-2 font-mono text-[0.68rem] text-sceau uppercase">
+                          <p className="mt-2 border-t border-trait pt-2 font-mono text-[0.68rem] text-sceau-texte uppercase">
                             {litige.resolution ? "Litige résolu" : "Litige signalé — en attente de l'organisateur"}
                           </p>
                         )}
@@ -484,7 +484,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                               aria-label={`Signaler un litige — ${m.match_participants
                                 .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
                                 .join(" vs ")}`}
-                              className="self-start font-mono text-[0.66rem] text-sceau underline underline-offset-3"
+                              className="self-start font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
                             >
                               Signaler un litige
                             </button>

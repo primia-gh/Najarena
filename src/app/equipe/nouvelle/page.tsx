@@ -46,7 +46,7 @@ export default async function EquipeNouvellePage({ searchParams }: EquipeNouvell
       </p>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
       )}
 
       <form action={creerEquipe} className="mt-6 flex flex-col gap-4">

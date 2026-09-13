@@ -55,7 +55,7 @@ export default async function OrganiserNouveauPage({
 
       <Reveal delai={0.1}>
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
       )}
 
       {Boolean(process.env.ANTHROPIC_API_KEY) && (

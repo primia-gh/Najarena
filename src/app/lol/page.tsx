@@ -29,7 +29,7 @@ function IconeEtape({ chemin }: { chemin: keyof typeof ICONE_ETAPE }) {
 // code source. Même principe que BORDURE_ACCENT dans lib/ui.ts.
 const ACCENT_ETAPE = {
   laiton: { bordure: "border-t-laiton", icone: "bg-laiton/15 text-laiton", label: "text-laiton" },
-  sceau: { bordure: "border-t-sceau", icone: "bg-sceau/15 text-sceau", label: "text-sceau" },
+  sceau: { bordure: "border-t-sceau", icone: "bg-sceau/15 text-sceau-texte", label: "text-sceau-texte" },
   atteste: { bordure: "border-t-atteste", icone: "bg-atteste/15 text-atteste", label: "text-atteste" },
 } as const;
 

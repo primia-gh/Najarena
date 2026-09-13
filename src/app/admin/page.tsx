@@ -37,7 +37,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   if (!admin) {
     return (
       <main className="mx-auto max-w-md px-6 pt-28 pb-16">
-        <p className={classeCarte("sceau") + " text-sm text-sceau"}>
+        <p className={classeCarte("sceau") + " text-sm text-sceau-texte"}>
           Accès réservé aux administrateurs.
         </p>
         <Link
@@ -105,7 +105,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <p className="mt-1 font-mono text-[0.72rem] text-ardoise">Modération · Litiges</p>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
       )}
       </Reveal>
 
@@ -210,7 +210,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <SectionTitre>Litiges ouverts ({litigesOuverts.length})</SectionTitre>
 
         {erreurLitiges ? (
-          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-sceau"}>
+          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>
             Impossible de charger les litiges pour l&apos;instant.
           </p>
         ) : litigesOuverts.length === 0 ? (

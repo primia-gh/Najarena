@@ -23,7 +23,7 @@ export const LABEL_STATUT: Record<StatutPublic, string> = {
 export const COULEUR_STATUT: Record<StatutPublic, string> = {
   ouvert: "text-atteste",
   checkin: "text-laiton-texte",
-  en_cours: "text-sceau",
+  en_cours: "text-sceau-texte",
   termine: "text-ardoise",
   annule: "text-ardoise",
 };

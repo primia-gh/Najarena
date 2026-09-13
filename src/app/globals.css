@@ -5,6 +5,12 @@
   --color-papier: #0b0e14;
   --color-sceau: #c4485c;
   --color-sceau-lueur: rgba(196, 72, 92, 0.35);
+  /* #C4485C ne passe pas WCAG AA en texte sur papier/carte (3.6-4.07:1,
+     il faut 4.5:1) — même piège que laiton-texte sur l'ancien registre
+     clair, revérifié le 13/09/2026. Réservé au texte ; #c4485c reste la
+     référence pour tout usage décoratif (bordures, fonds, icônes,
+     focus ring) où le seuil est 3:1, déjà largement passé. */
+  --color-sceau-texte: #cd6374;
   --color-laiton: #d2a257;
   --color-laiton-texte: #d2a257;
   --color-laiton-lueur: rgba(210, 162, 87, 0.24);

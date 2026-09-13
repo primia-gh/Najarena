@@ -141,7 +141,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
   if (donnees.statut === "erreur") {
     return (
       <main className="mx-auto max-w-3xl px-6 pt-28 pb-16">
-        <p className={classeCarte("sceau") + " text-sm text-sceau"}>
+        <p className={classeCarte("sceau") + " text-sm text-sceau-texte"}>
           Impossible de charger ce profil pour l&apos;instant. Réessaie dans
           un instant.
         </p>
@@ -289,7 +289,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                 <span className="font-mono text-sm font-bold text-ardoise">
                   <span className="text-atteste">{r.victoires}V</span>
                   {" — "}
-                  <span className="text-sceau">{r.defaites}D</span>
+                  <span className="text-sceau-texte">{r.defaites}D</span>
                 </span>
               </li>
             ))}
@@ -347,7 +347,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                 <Badge couleur={COULEUR_NIVEAU[h.niveau]}>{LABEL_NIVEAU[h.niveau]}</Badge>
                 <span
                   className={`font-mono text-sm font-bold ${
-                    h.estGagnant ? "text-atteste" : "text-sceau"
+                    h.estGagnant ? "text-atteste" : "text-sceau-texte"
                   }`}
                 >
                   {h.estGagnant ? "V" : "D"}

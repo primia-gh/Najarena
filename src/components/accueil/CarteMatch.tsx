@@ -8,7 +8,7 @@ export default function CarteMatch() {
       style={{ clipPath: "polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%)" }}
     >
       <div className="mb-4 flex items-center justify-between">
-        <span className="flex items-center gap-2 font-mono text-[0.62rem] tracking-[0.12em] text-sceau uppercase">
+        <span className="flex items-center gap-2 font-mono text-[0.62rem] tracking-[0.12em] text-sceau-texte uppercase">
           <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sceau opacity-60" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sceau" />

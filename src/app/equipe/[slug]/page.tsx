@@ -101,7 +101,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
   if (donnees.statut === "erreur") {
     return (
       <main className="mx-auto max-w-3xl px-6 pt-28 pb-16">
-        <p className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-6 text-sm text-sceau">
+        <p className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-6 text-sm text-sceau-texte">
           Impossible de charger cette équipe pour l&apos;instant. Réessaie
           dans un instant.
         </p>
@@ -117,7 +117,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
       <BracketBackground />
       <div className="relative mx-auto max-w-3xl px-6">
       {erreur && (
-        <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau"}>{erreur}</p>
+        <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
       )}
 
       {message && (
@@ -187,7 +187,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                       <button
                         type="submit"
                         aria-label={`Retirer ${m.profile?.pseudo ?? "ce membre"} de l'équipe`}
-                        className="font-mono text-[0.64rem] text-sceau underline underline-offset-3"
+                        className="font-mono text-[0.64rem] text-sceau-texte underline underline-offset-3"
                       >
                         Retirer
                       </button>
@@ -204,7 +204,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
             <input type="hidden" name="team_id" value={equipe.id} />
             <button
               type="submit"
-              className="font-mono text-[0.66rem] text-sceau underline underline-offset-3"
+              className="font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
             >
               Quitter l&apos;équipe
             </button>
@@ -254,7 +254,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                       <button
                         type="submit"
                         aria-label={`Annuler l'invitation de ${m.profile?.pseudo ?? "ce joueur"}`}
-                        className="font-mono text-[0.64rem] text-sceau underline underline-offset-3"
+                        className="font-mono text-[0.64rem] text-sceau-texte underline underline-offset-3"
                       >
                         Annuler
                       </button>

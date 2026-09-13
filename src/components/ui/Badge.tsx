@@ -8,7 +8,7 @@ const FOND: Record<string, string> = {
   "text-atteste": "bg-atteste/10 border-atteste/25",
   "text-laiton-texte": "bg-laiton/12 border-laiton/30",
   "text-ardoise": "bg-ardoise/10 border-ardoise/25",
-  "text-sceau": "bg-sceau/10 border-sceau/25",
+  "text-sceau-texte": "bg-sceau/10 border-sceau/25",
 };
 
 interface BadgeProps {
