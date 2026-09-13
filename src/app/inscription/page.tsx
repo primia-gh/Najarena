@@ -26,6 +26,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
       <h1 className="font-display text-3xl font-extrabold tracking-tight text-encre">
         Créer un compte
       </h1>
+      <p className="mt-1 text-sm text-ardoise">Ton niveau, vérifié — dès ton premier tournoi.</p>
       <p className="mt-2 text-sm text-ardoise">
         Le Riot ID se lie ensuite, depuis ton profil.
       </p>

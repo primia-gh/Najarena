@@ -6,6 +6,7 @@ import { inviterMembre, retirerMembre, refuserInvitation } from "@/lib/equipe-ac
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
 import SectionTitre from "@/components/ui/SectionTitre";
+import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -184,13 +185,14 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                       <input type="hidden" name="team_id" value={equipe.id} />
                       <input type="hidden" name="profile_id" value={m.profile_id} />
                       <input type="hidden" name="slug" value={equipe.slug} />
-                      <button
+                      <BoutonConfirmation
                         type="submit"
+                        confirmation={`Retirer ${m.profile?.pseudo ?? "ce joueur"} de l'équipe ?`}
                         aria-label={`Retirer ${m.profile?.pseudo ?? "ce membre"} de l'équipe`}
                         className="font-mono text-[0.64rem] text-sceau-texte underline underline-offset-3"
                       >
                         Retirer
-                      </button>
+                      </BoutonConfirmation>
                     </form>
                   )}
                 </div>
@@ -202,12 +204,13 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
         {peutQuitter && (
           <form action={refuserInvitation} className="mt-3">
             <input type="hidden" name="team_id" value={equipe.id} />
-            <button
+            <BoutonConfirmation
               type="submit"
+              confirmation="Quitter cette équipe ? Il faudra une nouvelle invitation pour la rejoindre à nouveau."
               className="font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
             >
               Quitter l&apos;équipe
-            </button>
+            </BoutonConfirmation>
           </form>
         )}
       </section>

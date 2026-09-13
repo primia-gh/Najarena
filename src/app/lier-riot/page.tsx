@@ -49,6 +49,10 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
       <h1 className="mt-6 font-display text-3xl font-extrabold tracking-tight text-encre">
         Lier mon Riot ID
       </h1>
+      <p className="mt-1 text-sm text-ardoise">
+        Cette vérification prouve que le compte t&apos;appartient — elle sert de base à ton CV
+        e-sport vérifié.
+      </p>
 
       {erreur && (
         <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>

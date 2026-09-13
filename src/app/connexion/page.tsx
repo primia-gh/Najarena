@@ -25,6 +25,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
       <h1 className="font-display text-3xl font-extrabold tracking-tight text-encre">
         Se connecter
       </h1>
+      <p className="mt-1 text-sm text-ardoise">Retrouve ton classement vérifié.</p>
 
       {message && (
         <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>

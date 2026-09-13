@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerEquipe } from "@/lib/equipe-actions";
+import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
 import FondArene from "@/components/accueil/FondArene";
 import Reveal from "@/components/accueil/Reveal";
@@ -42,7 +43,7 @@ export default async function EquipeNouvellePage({ searchParams }: EquipeNouvell
       </h1>
       <p className="mt-2 text-sm text-ardoise">
         League of Legends · pour jouer en 5v5. Tu en es automatiquement le
-        capitaine.
+        capitaine, avec jusqu&apos;à {TAILLE_MAX_EQUIPE - 1} coéquipiers à inviter ensuite.
       </p>
 
       {erreur && (
