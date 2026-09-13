@@ -105,15 +105,18 @@ Référence complète et jouable : `docs/direction-artistique.html`.
 **Couleurs**
 
 ```
---encre    #E7E6E1    texte, surfaces claires
---papier   #0B0E14    fond de page
---sceau    #C4485C    validation, accent principal
---laiton   #D2A257    paliers, palmarès
---atteste  #3E9C6E    verdict niveau 3
---ardoise  #8A94A1    libellés, données secondaires
+--encre        #E7E6E1    texte, surfaces claires
+--papier       #0B0E14    fond de page
+--sceau        #C4485C    validation, accent principal — décoratif uniquement (bordures, fonds, focus ring)
+--sceau-texte  #CD6374    sceau en texte — #C4485C ne passe pas 4.5:1 sur papier/carte (voir ci-dessous)
+--laiton       #D2A257    paliers, palmarès
+--atteste      #3E9C6E    verdict niveau 3
+--ardoise      #8A94A1    libellés, données secondaires
 ```
 
 Les noms décrivent un ton (encre = le plus sombre du duo, papier = le plus clair), pas un rôle fixe fond/texte : depuis l'unification du 12/09/2026, encre sert de texte sur un fond papier sombre — c'était déjà l'inverse (encre = fond, papier = texte) côté accueil avant cette date, rien ne change dans la convention elle-même. `fond-2` (#10141B) et `carte` (#171C25) complètent la profondeur (fond secondaire, surfaces élevées).
+
+*Mise à jour du 13/09/2026 : audit d'accessibilité du registre nuit (jamais refait depuis l'unification du 12/09) — `sceau` en texte normal ne passait que 3,6 à 4,07:1 selon le fond (seuil AA : 4,5:1), calculé par luminance relative, pas à l'œil. `sceau-texte` ajouté pour tout texte réellement lu (messages d'erreur, liens, libellés de litige) ; `sceau` reste la référence pour tout usage décoratif (bordures, fonds de badge à faible opacité, focus ring, `accent-color`), où le seuil est 3:1 et déjà largement passé. `laiton`, `atteste`, `ardoise`, `encre` passent tous 4,5:1 sur `papier` et `carte` sans modification.*
 
 **Typographie — règle centrale**
 
