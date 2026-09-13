@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { publierRechercheCoequipier, retirerRechercheCoequipier } from "@/lib/coequipier-actions";
 import { inviterMembre } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
-import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import { classeCarte } from "@/lib/ui";
+import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
@@ -101,9 +102,9 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
             className="resize-none rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
           />
           <div className="flex items-center gap-3">
-            <button type="submit" className={classeBoutonPrimaire()}>
+            <Bouton libelleEnCours="Envoi…">
               {monAnnonce ? "Mettre à jour" : "Publier mon annonce"}
-            </button>
+            </Bouton>
             {monAnnonce && (
               <button
                 type="submit"

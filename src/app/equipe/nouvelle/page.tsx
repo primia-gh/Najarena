@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerEquipe } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
-import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import { classeCarte } from "@/lib/ui";
+import Bouton from "@/components/ui/Bouton";
 import FondArene from "@/components/accueil/FondArene";
 import Reveal from "@/components/accueil/Reveal";
 
@@ -81,9 +82,9 @@ export default async function EquipeNouvellePage({ searchParams }: EquipeNouvell
           />
         </label>
 
-        <button type="submit" className={"mt-2 " + classeBoutonPrimaire()}>
+        <Bouton libelleEnCours="Création…" className="mt-2">
           Créer l&apos;équipe
-        </button>
+        </Bouton>
       </form>
       </Reveal>
       </div>

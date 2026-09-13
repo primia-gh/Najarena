@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { seConnecter, seConnecterAvecDiscord } from "@/lib/auth-actions";
-import { classeCarte, classeBoutonPrimaire, classeBoutonSecondaire } from "@/lib/ui";
+import { classeCarte } from "@/lib/ui";
+import Bouton from "@/components/ui/Bouton";
 import FondArene from "@/components/accueil/FondArene";
 import Reveal from "@/components/accueil/Reveal";
 
@@ -62,9 +63,9 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
           />
         </label>
 
-        <button type="submit" className={"mt-2 " + classeBoutonPrimaire()}>
+        <Bouton libelleEnCours="Connexion…" className="mt-2">
           Se connecter
-        </button>
+        </Bouton>
       </form>
 
       <div className="mt-6 flex items-center gap-3">
@@ -85,9 +86,9 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
             ).
           </span>
         </label>
-        <button type="submit" className={"w-full " + classeBoutonSecondaire()}>
+        <Bouton variante="secondaire" libelleEnCours="Redirection…" className="w-full">
           Continuer avec Discord
-        </button>
+        </Bouton>
       </form>
 
       <p className="mt-6 text-sm text-ardoise">

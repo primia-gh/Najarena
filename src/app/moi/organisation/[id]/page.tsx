@@ -11,8 +11,9 @@ import {
 } from "@/lib/organisation-actions";
 import { LABEL_STATUT, COULEUR_STATUT, LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
-import { classeCarte, classeBoutonPrimaire, accentDepuisCouleur } from "@/lib/ui";
+import { classeCarte, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
+import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
@@ -234,13 +235,9 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
             </p>
             <form action={genererBracket} className="mt-3">
               <input type="hidden" name="tournament_id" value={tournoi.id} />
-              <button
-                type="submit"
-                disabled={nbConfirmes < 2}
-                className={classeBoutonPrimaire() + " disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"}
-              >
+              <Bouton disabled={nbConfirmes < 2} libelleEnCours="Génération…">
                 Générer le bracket
-              </button>
+              </Bouton>
             </form>
           </div>
         ) : (
@@ -340,15 +337,15 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                                 className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
                               />
                             </fieldset>
-                            <button
-                              type="submit"
+                            <Bouton
                               aria-label={`Enregistrer le résultat — ${participants
                                 .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
                                 .join(" vs ")}`}
-                              className={"self-start " + classeBoutonPrimaire()}
+                              libelleEnCours="Enregistrement…"
+                              className="self-start"
                             >
                               Enregistrer le résultat
-                            </button>
+                            </Bouton>
                           </form>
                         )}
                       </li>
@@ -389,13 +386,13 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
                     />
                   </label>
-                  <button
-                    type="submit"
+                  <Bouton
                     aria-label={`Résoudre le litige ouvert par ${l.ouvert_par?.pseudo ?? "un joueur"}`}
-                    className={"self-start " + classeBoutonPrimaire()}
+                    libelleEnCours="Résolution…"
+                    className="self-start"
                   >
                     Résoudre
-                  </button>
+                  </Bouton>
                 </form>
               </li>
             ))}

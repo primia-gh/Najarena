@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { sInscrire, seConnecterAvecDiscord } from "@/lib/auth-actions";
-import { classeCarte, classeBoutonPrimaire, classeBoutonSecondaire } from "@/lib/ui";
+import { classeCarte } from "@/lib/ui";
+import Bouton from "@/components/ui/Bouton";
 import FondArene from "@/components/accueil/FondArene";
 import Reveal from "@/components/accueil/Reveal";
 
@@ -95,9 +96,9 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
           </span>
         </label>
 
-        <button type="submit" className={"mt-2 " + classeBoutonPrimaire()}>
+        <Bouton libelleEnCours="Création…" className="mt-2">
           Créer mon compte
-        </button>
+        </Bouton>
       </form>
 
       <div className="mt-6 flex items-center gap-3">
@@ -118,9 +119,9 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             ).
           </span>
         </label>
-        <button type="submit" className={"w-full " + classeBoutonSecondaire()}>
+        <Bouton variante="secondaire" libelleEnCours="Redirection…" className="w-full">
           Continuer avec Discord
-        </button>
+        </Bouton>
       </form>
 
       <p className="mt-6 text-sm text-ardoise">

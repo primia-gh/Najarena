@@ -10,8 +10,9 @@ import {
   formaterDate,
   type StatutPublic,
 } from "@/lib/tournois";
-import { classeCarte, classeBoutonPrimaire, accentDepuisCouleur } from "@/lib/ui";
+import { classeCarte, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
+import Bouton from "@/components/ui/Bouton";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -138,9 +139,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
           </select>
         </label>
 
-        <button type="submit" className={classeBoutonPrimaire()}>
-          Filtrer
-        </button>
+        <Bouton>Filtrer</Bouton>
 
         {(statutFiltre || regionFiltre) && (
           <Link

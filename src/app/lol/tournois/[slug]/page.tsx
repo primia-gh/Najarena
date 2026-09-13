@@ -7,6 +7,7 @@ import { ouvrirLitige } from "@/lib/litige-actions";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { classeCarte, classeBoutonPrimaire, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
+import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import CrestPalier from "@/components/ui/CrestPalier";
 import FondArene from "@/components/accueil/FondArene";
@@ -277,9 +278,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             <form action={sInscrireATournoi}>
               <input type="hidden" name="tournament_id" value={tournoi.id} />
               <input type="hidden" name="slug" value={tournoi.slug} />
-              <button type="submit" className={classeBoutonPrimaire()}>
-                S&apos;inscrire
-              </button>
+              <Bouton libelleEnCours="Inscription…">S&apos;inscrire</Bouton>
             </form>
           ) : (
             <Link

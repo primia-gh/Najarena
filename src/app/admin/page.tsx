@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { resoudreLitigeAdmin } from "@/lib/admin-actions";
 import { formaterDate } from "@/lib/tournois";
-import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import { classeCarte } from "@/lib/ui";
+import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
@@ -252,13 +253,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
                     />
                   </label>
-                  <button
-                    type="submit"
+                  <Bouton
                     aria-label={`Résoudre le litige${l.match?.tournament ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}` : ""}`}
-                    className={"self-start " + classeBoutonPrimaire()}
+                    libelleEnCours="Résolution…"
+                    className="self-start"
                   >
                     Résoudre
-                  </button>
+                  </Bouton>
                 </form>
               </li>
             ))}

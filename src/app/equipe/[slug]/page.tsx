@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { inviterMembre, retirerMembre, refuserInvitation } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
-import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import { classeCarte } from "@/lib/ui";
+import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import FondArene from "@/components/accueil/FondArene";
@@ -234,9 +235,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
               />
             </label>
-            <button type="submit" className={classeBoutonPrimaire()}>
-              Inviter
-            </button>
+            <Bouton libelleEnCours="Invitation…">Inviter</Bouton>
           </form>
 
           {invitesEnAttente.length > 0 && (

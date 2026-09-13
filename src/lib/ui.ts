@@ -51,9 +51,9 @@ export function classeBoutonPrimaire(): string {
   // deux tons. Ombre recalée sur --color-sceau-lueur (registre nuit) —
   // les rgba(126,34,51,...) codés en dur dataient de l'ancien sceau clair
   // (#7E2233), jamais mis à jour lors de l'unification du 12/09/2026.
-  return "inline-block rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_var(--color-sceau-lueur)] transition-[transform,box-shadow,filter] duration-200 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_8px_20px_-6px_var(--color-sceau-lueur)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau";
+  return "inline-block rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_var(--color-sceau-lueur)] transition-[transform,box-shadow,filter,opacity] duration-200 hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_8px_20px_-6px_var(--color-sceau-lueur)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:brightness-100 disabled:hover:shadow-[0_4px_14px_-4px_var(--color-sceau-lueur)]";
 }
 
 export function classeBoutonSecondaire(): string {
-  return "inline-block rounded-[3px] border border-trait bg-carte px-4 py-2 text-sm font-semibold text-encre transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-encre hover:bg-fond-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau";
+  return "inline-block rounded-[3px] border border-trait bg-carte px-4 py-2 text-sm font-semibold text-encre transition-[border-color,background-color,transform,opacity] duration-200 hover:-translate-y-0.5 hover:border-encre hover:bg-fond-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-trait disabled:hover:bg-carte";
 }

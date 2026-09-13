@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
 import { AssistantOrganisateur } from "@/components/AssistantOrganisateur";
-import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import { classeCarte } from "@/lib/ui";
+import Bouton from "@/components/ui/Bouton";
 import FondArene from "@/components/accueil/FondArene";
 import Reveal from "@/components/accueil/Reveal";
 
@@ -168,9 +169,9 @@ export default async function OrganiserNouveauPage({
           </label>
         </fieldset>
 
-        <button type="submit" className={"mt-2 " + classeBoutonPrimaire()}>
+        <Bouton libelleEnCours="Création…" className="mt-2">
           Créer le tournoi
-        </button>
+        </Bouton>
       </form>
       </Reveal>
       </div>

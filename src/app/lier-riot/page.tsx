@@ -5,7 +5,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { lierRiotId, verifierRiotId } from "@/lib/riot-actions";
 import { REGIONS, obtenirVersionDDragon, urlIconeProfil } from "@/lib/riot";
-import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
+import { classeCarte } from "@/lib/ui";
+import Bouton from "@/components/ui/Bouton";
 import FondArene from "@/components/accueil/FondArene";
 import Reveal from "@/components/accueil/Reveal";
 
@@ -117,9 +118,9 @@ function EtapeSaisie() {
           </select>
         </label>
 
-        <button type="submit" className={"mt-2 " + classeBoutonPrimaire()}>
+        <Bouton libelleEnCours="Envoi…" className="mt-2">
           Continuer
-        </button>
+        </Bouton>
       </form>
     </>
   );
@@ -153,9 +154,7 @@ async function EtapeVerification({
 
       <form action={verifierRiotId} className="mt-6">
         <input type="hidden" name="puuid" value={puuid} />
-        <button type="submit" className={classeBoutonPrimaire()}>
-          J&apos;ai changé mon icône, vérifier
-        </button>
+        <Bouton libelleEnCours="Vérification…">J&apos;ai changé mon icône, vérifier</Bouton>
       </form>
     </div>
   );
