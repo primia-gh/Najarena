@@ -7,6 +7,8 @@ import { obtenirVersionDDragon, urlIconeChampion } from "@/lib/riot";
 import FondArene from "@/components/accueil/FondArene";
 import Reveal from "@/components/accueil/Reveal";
 import Badge from "@/components/ui/Badge";
+import EtatVide from "@/components/ui/EtatVide";
+import IllustrationBracketVide from "@/components/ui/IllustrationBracketVide";
 
 const ICONE_ETAPE = {
   inscription: (
@@ -286,13 +288,15 @@ export default async function LolHubPage() {
 
           {prochainsTournois.length === 0 ? (
             <Reveal delai={0.1}>
-              <p className="mt-4 border border-[var(--color-trait)] bg-[var(--color-carte)] p-4 text-sm text-[var(--color-ardoise)]">
-                Aucun tournoi ouvert pour l&apos;instant.{" "}
-                <Link href="/organiser/nouveau" className="text-[var(--color-encre)] underline underline-offset-3">
-                  Organiser le premier
-                </Link>
-                .
-              </p>
+              <div className="mt-4">
+                <EtatVide illustration={<IllustrationBracketVide />}>
+                  Aucun tournoi ouvert pour l&apos;instant.{" "}
+                  <Link href="/organiser/nouveau" className="text-encre underline underline-offset-3">
+                    Organiser le premier
+                  </Link>
+                  .
+                </EtatVide>
+              </div>
             </Reveal>
           ) : (
             <ul className="mt-4 flex flex-col gap-3">

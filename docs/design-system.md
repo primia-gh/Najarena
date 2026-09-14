@@ -81,6 +81,21 @@ const { palier, progression } = progressionPalier(rating.rating, paliers);
 ### `classeCarte(accent, interactive)` — `src/lib/ui.ts`
 Fonction (pas un composant — pas d'état à gérer) qui retourne les classes d'une carte standard : liseré gauche coloré selon `AccentCarte` (`"sceau" | "atteste" | "ardoise" | "laiton" | "none"`), ombre légère. `accentDepuisCouleur()` traduit directement une classe `text-*` de `COULEUR_NIVEAU`/`COULEUR_STATUT` en accent, pour ne jamais dupliquer la logique de couleur des verdicts.
 
+### `EtatVide` + `Illustration*Vide` — `src/components/ui/`
+Carte d'état vide générique (`EtatVide`) portant une illustration décorative au-dessus d'un court texte, centrée — toujours pour remplacer un simple `<p>` texte quand une liste est vide, jamais pour une erreur (ça reste `classeCarte("sceau")`). Trois illustrations réutilisables (13/09/2026 — audit du 12/09 §20, "le site fait vide") :
+
+- `IllustrationSceauVide` — reprend à l'identique la couronne de crans de `SceauFiabilite.tsx` (calibrage 0%). Classement pas ouvert, aucun joueur classé, Riot ID non lié.
+- `IllustrationBracketVide` — un bracket à 8 places, encore vide. Aucun tournoi, aucune inscription, aucun résultat de match.
+- `IllustrationEffectifVide` — un roster 5v5 vide, poste capitaine au centre. Aucune équipe, aucun coéquipier, aucun compte.
+
+```tsx
+<EtatVide illustration={<IllustrationBracketVide />}>
+  Aucun tournoi ne correspond à ces critères pour l&apos;instant.
+</EtatVide>
+```
+
+Chaque illustration se dessine une fois au montage (crans/anneaux/postes qui apparaissent), en CSS pur — pas de JS, même principe que `.animation-stamp` (`globals.css`). Un repère continue ensuite de bouger très lentement (scanner qui tourne, signal qui parcourt le bracket, poste capitaine qui respire) — le seul mouvement permanent du site avec `BracketBackground`. `prefers-reduced-motion` coupe l'entrée et la boucle.
+
 ### Registre nuit partagé — `src/components/accueil/`
 `Reveal` (apparition au défilement), `CompteurAnime` (compteur qui monte), `FondArene` (grille + lueurs de fond), `NavbarArene` (navbar globale, rendue une fois dans `layout.tsx`), `SceauVitrine`/`CarteMatch` (mises en scène spécifiques à l'accueil). `BracketBackground` (`src/components/BracketBackground.tsx`) est l'effet canvas "nœuds qui se relient" — utilisé sur l'accueil en pleine intensité, et en toile de fond confinée à l'en-tête sur les pages preuve.
 

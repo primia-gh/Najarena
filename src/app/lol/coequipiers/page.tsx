@@ -7,6 +7,8 @@ import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
+import EtatVide from "@/components/ui/EtatVide";
+import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -133,9 +135,11 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
       <section className="mt-10">
         <SectionTitre>Joueurs disponibles</SectionTitre>
         {annonces.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
-            Personne ne s&apos;est encore déclaré disponible.
-          </p>
+          <div className="mt-3">
+            <EtatVide illustration={<IllustrationEffectifVide />}>
+              Personne ne s&apos;est encore déclaré disponible.
+            </EtatVide>
+          </div>
         ) : (
           <ul className="mt-3 flex flex-col gap-3">
             {annonces.map((a) => (

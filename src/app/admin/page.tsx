@@ -7,6 +7,8 @@ import { formaterDate } from "@/lib/tournois";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
+import EtatVide from "@/components/ui/EtatVide";
+import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -158,9 +160,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <section className="mt-10">
         <SectionTitre>Derniers inscrits</SectionTitre>
         {comptes.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
-            Aucun compte pour l&apos;instant.
-          </p>
+          <div className="mt-3">
+            <EtatVide illustration={<IllustrationEffectifVide />}>
+              Aucun compte pour l&apos;instant.
+            </EtatVide>
+          </div>
         ) : (
           <div className="mt-3 overflow-x-auto rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
             <table className="w-full text-left text-sm">

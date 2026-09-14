@@ -13,6 +13,8 @@ import {
 import { classeCarte, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import Bouton from "@/components/ui/Bouton";
+import EtatVide from "@/components/ui/EtatVide";
+import IllustrationBracketVide from "@/components/ui/IllustrationBracketVide";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -148,13 +150,13 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
             dans un instant.
           </p>
         ) : tournois.length === 0 ? (
-          <p className={classeCarte("none") + " text-sm text-ardoise"}>
+          <EtatVide illustration={<IllustrationBracketVide />}>
             Aucun tournoi ne correspond à ces critères pour l&apos;instant.{" "}
             <Link href="/lol/tournois/demo" className="text-encre underline underline-offset-3">
               Voir à quoi ressemble un tournoi Najarena
             </Link>
             .
-          </p>
+          </EtatVide>
         ) : (
           <ul className="flex flex-col gap-3">
             {tournois.map((t) => (

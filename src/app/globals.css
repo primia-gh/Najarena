@@ -68,3 +68,82 @@ body {
     animation: none;
   }
 }
+
+/* Illustrations décoratives des états vides (sceau/bracket/effectif —
+   voir components/ui/Illustration*Vide.tsx) : même principe que
+   .animation-stamp ci-dessus, une entrée qui se joue une fois au
+   montage, sans JS. scanner/pulse-spine/capitaine-glow bouclent ensuite
+   à l'infini, très lentement — seul mouvement permanent du site avec
+   BracketBackground, jamais ailleurs. */
+@keyframes illustrationTickIn {
+  from { opacity: 0; }
+  to { opacity: var(--op-cible, 1); }
+}
+@keyframes illustrationRingDraw {
+  from { stroke-dashoffset: var(--longueur); }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes illustrationSlotIn {
+  from { opacity: 0; transform: scale(0.82); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes illustrationScanRotate {
+  to { transform: rotate(360deg); }
+}
+@keyframes illustrationPulseTravel {
+  to { stroke-dashoffset: -24; }
+}
+@keyframes illustrationBreathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.illustration-tick {
+  opacity: 0;
+  animation: illustrationTickIn 0.5s ease-out forwards;
+  animation-delay: calc(var(--i) * 12ms + 120ms);
+}
+.illustration-anneau {
+  animation: illustrationRingDraw 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.illustration-slot {
+  opacity: 0;
+  animation: illustrationSlotIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--i) * 90ms + 100ms);
+}
+.illustration-scanner {
+  opacity: 0;
+  animation:
+    illustrationTickIn 1s ease-out 1.3s forwards,
+    illustrationScanRotate 9s linear 1.3s infinite;
+}
+.illustration-pulse-spine {
+  opacity: 0.55;
+  animation: illustrationPulseTravel 2.6s linear infinite;
+}
+.illustration-capitaine-glow {
+  animation: illustrationBreathe 3.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .illustration-tick,
+  .illustration-anneau,
+  .illustration-slot {
+    animation: none;
+    opacity: var(--op-cible, 1);
+    stroke-dashoffset: 0;
+    transform: none;
+  }
+  .illustration-scanner {
+    display: none;
+  }
+  .illustration-pulse-spine {
+    animation: none;
+    opacity: 0;
+  }
+  .illustration-capitaine-glow {
+    animation: none;
+    opacity: 0.7;
+    transform: none;
+  }
+}

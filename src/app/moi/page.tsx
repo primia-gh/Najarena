@@ -9,6 +9,8 @@ import PushOptIn from "@/components/PushOptIn";
 import { classeCarte, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import SectionTitre from "@/components/ui/SectionTitre";
+import EtatVide from "@/components/ui/EtatVide";
+import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -223,9 +225,11 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
         )}
 
         {equipesCapitaine.length === 0 && equipesMembre.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
-            Tu ne fais partie d&apos;aucune équipe pour l&apos;instant.
-          </p>
+          <div className="mt-3">
+            <EtatVide illustration={<IllustrationEffectifVide />}>
+              Tu ne fais partie d&apos;aucune équipe pour l&apos;instant.
+            </EtatVide>
+          </div>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {equipesCapitaine.map((e) => (

@@ -8,6 +8,8 @@ import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
+import EtatVide from "@/components/ui/EtatVide";
+import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -154,9 +156,11 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
       <section className="mt-10">
         <SectionTitre>Membres</SectionTitre>
         {membres.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
-            Aucun autre membre pour l&apos;instant.
-          </p>
+          <div className="mt-3">
+            <EtatVide illustration={<IllustrationEffectifVide />}>
+              Aucun autre membre pour l&apos;instant.
+            </EtatVide>
+          </div>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {membres.map((m) => (

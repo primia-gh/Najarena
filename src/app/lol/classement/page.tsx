@@ -5,6 +5,8 @@ import { progressionPalier, arrondir } from "@/lib/classement";
 import { classeCarte } from "@/lib/ui";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import CrestPalier from "@/components/ui/CrestPalier";
+import EtatVide from "@/components/ui/EtatVide";
+import IllustrationSceauVide from "@/components/ui/IllustrationSceauVide";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -101,20 +103,20 @@ export default async function ClassementPage() {
       <Reveal delai={0.1}>
       <div className="mt-8">
         {!saison ? (
-          <p className={classeCarte("none") + " text-sm text-ardoise"}>
+          <EtatVide illustration={<IllustrationSceauVide />}>
             Le classement n&apos;est pas encore ouvert — aucune saison n&apos;est
             en cours pour l&apos;instant.
-          </p>
+          </EtatVide>
         ) : erreurClassement ? (
           <p className={classeCarte("sceau") + " text-sm text-sceau-texte"}>
             Impossible de charger le classement pour l&apos;instant. Réessaie
             dans un instant.
           </p>
         ) : classement.length === 0 ? (
-          <p className={classeCarte("none") + " text-sm text-ardoise"}>
+          <EtatVide illustration={<IllustrationSceauVide />}>
             Aucun joueur classé pour l&apos;instant. L&apos;entrée au
             classement demande une dizaine de matchs joués.
-          </p>
+          </EtatVide>
         ) : (
           <ol className="overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
             {classement.map((r, i) => {

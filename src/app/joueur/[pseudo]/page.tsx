@@ -9,6 +9,8 @@ import { JsonLd } from "@/lib/json-ld";
 import { classeCarte } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import SectionTitre from "@/components/ui/SectionTitre";
+import EtatVide from "@/components/ui/EtatVide";
+import IllustrationBracketVide from "@/components/ui/IllustrationBracketVide";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -318,9 +320,11 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
         )}
 
         {historique.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
-            Aucun résultat enregistré pour l&apos;instant.
-          </p>
+          <div className="mt-3">
+            <EtatVide illustration={<IllustrationBracketVide />}>
+              Aucun résultat enregistré pour l&apos;instant.
+            </EtatVide>
+          </div>
         ) : (
           <ul className="mt-3 overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
             {historique.map((h) => (

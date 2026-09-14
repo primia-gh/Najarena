@@ -15,6 +15,8 @@ import { classeCarte, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
+import EtatVide from "@/components/ui/EtatVide";
+import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -163,9 +165,11 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       <section className="mt-10">
         <SectionTitre>Inscrits et check-in</SectionTitre>
         {inscriptions.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
-            Aucune inscription pour l&apos;instant.
-          </p>
+          <div className="mt-3">
+            <EtatVide illustration={<IllustrationEffectifVide />}>
+              Aucune inscription pour l&apos;instant.
+            </EtatVide>
+          </div>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {inscriptions.map((i) => (
