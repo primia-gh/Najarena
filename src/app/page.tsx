@@ -210,6 +210,57 @@ export default async function Home() {
         </Reveal>
       </section>
 
+      {/* ================= TROIS FAÇONS D'ENTRER ================= */}
+      <section className="relative px-6 py-28">
+        <div className="mx-auto max-w-4xl">
+          <Reveal>
+            <span className="font-mono text-[0.7rem] tracking-[0.24em] text-[var(--color-ardoise)] uppercase">
+              Par où commencer
+            </span>
+            <h2 className="mt-3 max-w-lg font-display text-3xl font-extrabold tracking-tight text-[var(--color-encre)] sm:text-4xl">
+              Trois façons d&apos;entrer dans l&apos;arène.
+            </h2>
+          </Reveal>
+
+          <Reveal delai={0.1}>
+            <div className="mt-10 grid grid-cols-1 gap-px border border-[var(--color-trait)] bg-[var(--color-trait)] sm:grid-cols-3">
+              {[
+                {
+                  titre: "Je veux jouer",
+                  texte: "Des tournois quotidiens en 1v1 et 5v5, ton classement qui progresse à chaque résultat vérifié.",
+                  cta: "Voir les tournois",
+                  href: "/lol/tournois",
+                },
+                {
+                  titre: "Je cherche une équipe",
+                  texte: "Publie une annonce ou rejoins un effectif qui a besoin de toi — pas de 5-stack obligatoire.",
+                  cta: "Trouver un coéquipier",
+                  href: "/lol/coequipiers",
+                },
+                {
+                  titre: "J'organise un tournoi",
+                  texte: "Check-in, bracket, verdicts — un cockpit qui fait le travail d'admin à ta place.",
+                  cta: "Organiser un tournoi",
+                  href: "/organiser/nouveau",
+                },
+              ].map((c) => (
+                <Link
+                  key={c.titre}
+                  href={c.href}
+                  className="group flex flex-col gap-3 bg-[var(--color-carte)] px-6 py-8 transition hover:bg-[#1c222c]"
+                >
+                  <h3 className="font-display text-lg font-extrabold text-[var(--color-encre)]">{c.titre}</h3>
+                  <p className="flex-1 text-sm text-[var(--color-ardoise)]">{c.texte}</p>
+                  <span className="font-mono text-[0.66rem] tracking-[0.1em] text-[var(--color-sceau-texte)] uppercase transition group-hover:text-[var(--color-sceau)]">
+                    {c.cta} →
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* ================= PALIERS ================= */}
       {paliers.length > 0 && (
         <section className="relative bg-gradient-to-b from-[var(--color-fond-2)] to-[var(--color-papier)] px-6 py-28">

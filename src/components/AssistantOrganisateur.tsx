@@ -76,6 +76,10 @@ export function AssistantOrganisateur() {
       >
         {enCours ? "Réflexion en cours…" : "Préremplir avec l'IA"}
       </button>
+      <p className="mt-2 text-[0.78rem] text-ardoise">
+        Il ne crée ni ne modifie jamais rien lui-même, et n&apos;a aucun accès à ton classement — il
+        propose, tu valides chaque champ avant de créer le tournoi.
+      </p>
     </div>
   );
 }

@@ -164,6 +164,49 @@ export default function CommentCaMarchePage() {
           </section>
         </Reveal>
 
+        <Reveal delai={0.22}>
+          <section className="mt-12">
+            <SectionTitre>La sécurité, pas une case cochée</SectionTitre>
+            <p className="mt-3 max-w-lg text-sm text-ardoise">
+              Un classement n&apos;a de valeur que si personne — pas même Najarena — ne peut le
+              trafiquer après coup. Ces règles ne sont pas négociables.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {[
+                {
+                  titre: "Ta clé n'est jamais exposée",
+                  texte: "Aucun appel à l'API Riot n'est fait depuis ton navigateur — tout passe par le serveur.",
+                },
+                {
+                  titre: "Personne ne modifie un résultat après coup",
+                  texte: "Ni un autre joueur, ni le site lui-même : l'écriture du classement est réservée à une fonction serveur, jamais au client.",
+                },
+                {
+                  titre: "Chaque point est journalisé, pour toujours",
+                  texte: "Rating avant et après, publié et jamais modifié — visible dans le journal.",
+                  lien: "/journal",
+                },
+              ].map((s) => (
+                <div key={s.titre} className="rounded-[3px] border border-trait border-t-[3px] border-t-sceau bg-carte p-5">
+                  <h3 className="font-display text-base font-extrabold text-encre">{s.titre}</h3>
+                  <p className="mt-1.5 text-sm text-ardoise">
+                    {s.texte}
+                    {s.lien && (
+                      <>
+                        {" "}
+                        <Link href={s.lien} className="text-encre underline underline-offset-3">
+                          Voir le journal
+                        </Link>
+                        .
+                      </>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </Reveal>
+
         <Reveal delai={0.25}>
           <p className="mt-12 text-sm text-ardoise">
             Envie de voir à quoi ressemble un bracket réel ?{" "}

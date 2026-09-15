@@ -4,11 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { publierRechercheCoequipier, retirerRechercheCoequipier } from "@/lib/coequipier-actions";
 import { inviterMembre } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
+import { progressionPalier, type Palier } from "@/lib/classement";
+import { COULEUR_PALIER } from "@/lib/paliers";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
+import CrestPalier from "@/components/ui/CrestPalier";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -27,16 +30,54 @@ async function chargerCoequipiers() {
   const supabase = await createClient();
 
   // Indépendantes l'une de l'autre — lancées en parallèle plutôt qu'en
-  // série (correctif du 13/09/2026, même logique que sur l'accueil).
-  const [{ data: userData }, { data: annoncesData }] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase
-      .from("recherches_coequipiers")
-      .select("profile_id, message, cree_le, profile:profiles(pseudo, slug)")
-      .order("cree_le", { ascending: false }),
-  ]);
+  // série (correctif du 13/09/2026, même logique que sur l'accueil). La
+  // saison et les paliers (game_id=1, seul jeu actif) suivent la même
+  // logique que /lol/classement, pour afficher le palier de chaque joueur
+  // disponible — l'équivalent du matching par Elo réel, sans reconstruire
+  // un algorithme d'appariement.
+  const [{ data: userData }, { data: annoncesData }, { data: saison }, { data: paliersData }] =
+    await Promise.all([
+      supabase.auth.getUser(),
+      supabase
+        .from("recherches_coequipiers")
+        .select("profile_id, message, cree_le, profile:profiles(pseudo, slug)")
+        .order("cree_le", { ascending: false }),
+      supabase.from("seasons").select("id").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
+      supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
+    ]);
 
   const annonces = annoncesData ?? [];
+  const paliers: Palier[] = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
+
+  let ratingsParJoueur = new Map<string, { rating: number; palier: ReturnType<typeof progressionPalier> }>();
+  if (saison && annonces.length > 0) {
+    const { data: ratingsData } = await supabase
+      .from("ratings")
+      .select("profile_id, rating, est_classe")
+      .eq("game_id", 1)
+      .eq("season_id", saison.id)
+      .eq("est_classe", true)
+      .in(
+        "profile_id",
+        annonces.map((a) => a.profile_id),
+      );
+
+    ratingsParJoueur = new Map(
+      (ratingsData ?? []).map((r) => [r.profile_id, { rating: r.rating, palier: progressionPalier(r.rating, paliers) }]),
+    );
+  }
+
+  // Classés d'abord (du meilleur rating au plus modeste), non-classés
+  // ensuite dans leur ordre de publication d'origine.
+  const annoncesTriees = [...annonces].sort((a, b) => {
+    const ra = ratingsParJoueur.get(a.profile_id)?.rating;
+    const rb = ratingsParJoueur.get(b.profile_id)?.rating;
+    if (ra === undefined && rb === undefined) return 0;
+    if (ra === undefined) return 1;
+    if (rb === undefined) return -1;
+    return rb - ra;
+  });
+
   const monAnnonce = userData.user
     ? annonces.find((a) => a.profile_id === userData.user!.id)
     : undefined;
@@ -53,12 +94,19 @@ async function chargerCoequipiers() {
       .map((e) => ({ id: e.id, slug: e.slug, nom: e.nom, tag: e.tag }));
   }
 
-  return { annonces, monAnnonce, mesEquipesAvecPlace, utilisateur: userData.user };
+  return {
+    annonces: annoncesTriees,
+    ratingsParJoueur,
+    monAnnonce,
+    mesEquipesAvecPlace,
+    utilisateur: userData.user,
+  };
 }
 
 export default async function CoequipiersPage({ searchParams }: CoequipiersPageProps) {
   const { erreur, message } = await searchParams;
-  const { annonces, monAnnonce, mesEquipesAvecPlace, utilisateur } = await chargerCoequipiers();
+  const { annonces, ratingsParJoueur, monAnnonce, mesEquipesAvecPlace, utilisateur } =
+    await chargerCoequipiers();
 
   return (
     <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
@@ -154,6 +202,17 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                       "Joueur inconnu"
                     )}
                   </span>
+                  {(() => {
+                    const info = ratingsParJoueur.get(a.profile_id);
+                    const palier = info?.palier.palier;
+                    return palier ? (
+                      <CrestPalier
+                        nom={palier.nom}
+                        couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-ardoise)"}
+                        progression={info.palier.progression}
+                      />
+                    ) : null;
+                  })()}
                 </div>
                 {a.message && <p className="mt-1 text-sm text-ardoise">{a.message}</p>}
 
