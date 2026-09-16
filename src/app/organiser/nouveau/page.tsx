@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
+import { chargerOffre } from "@/lib/offres";
 import { AssistantOrganisateur } from "@/components/AssistantOrganisateur";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
 };
 
 const CAPACITES = [4, 8, 16, 32, 64];
+const CAPACITE_ETENDUE = 128;
 
 interface OrganiserNouveauPageProps {
   searchParams: Promise<{ erreur?: string }>;
@@ -31,6 +33,9 @@ export default async function OrganiserNouveauPage({
   if (!userData.user) {
     redirect("/connexion");
   }
+
+  const { offre } = await chargerOffre(supabase, userData.user.id);
+  const estOrganisateurPremium = offre === "organisateur";
 
   return (
     <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
@@ -52,6 +57,14 @@ export default async function OrganiserNouveauPage({
         tournoi apparaît immédiatement dans la liste et les joueurs peuvent s&apos;inscrire ; en
         brouillon, lui seul reste visible pour toi.
       </p>
+      {estOrganisateurPremium && (
+        <Link
+          href="/lol/recherche"
+          className="mt-2 inline-block text-sm text-sceau-texte underline underline-offset-3"
+        >
+          Rechercher des joueurs à recruter
+        </Link>
+      )}
       </Reveal>
 
       <Reveal delai={0.1}>
@@ -98,8 +111,29 @@ export default async function OrganiserNouveauPage({
                 {c} joueurs
               </option>
             ))}
+            {estOrganisateurPremium && (
+              <option value={CAPACITE_ETENDUE}>{CAPACITE_ETENDUE} joueurs — Organisateur</option>
+            )}
           </select>
         </label>
+
+        {estOrganisateurPremium && (
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+              Format (Best-of)
+            </span>
+            <select
+              id="best_of"
+              name="best_of"
+              defaultValue="1"
+              className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre"
+            >
+              <option value="1">Best-of-1</option>
+              <option value="3">Best-of-3</option>
+              <option value="5">Best-of-5</option>
+            </select>
+          </label>
+        )}
 
         <label className="flex flex-col gap-1">
           <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">

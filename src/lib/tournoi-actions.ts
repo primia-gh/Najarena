@@ -5,8 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { slugifier } from "@/lib/slug";
 import { notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { formaterDate } from "@/lib/tournois";
+import { chargerOffre } from "@/lib/offres";
 
 const CAPACITES = [4, 8, 16, 32, 64] as const;
+const CAPACITE_ETENDUE = 128;
+const BEST_OF_PREMIUM = [3, 5] as const;
 
 export async function creerTournoi(formData: FormData) {
   const supabase = await createClient();
@@ -17,6 +20,7 @@ export async function creerTournoi(formData: FormData) {
 
   const nom = String(formData.get("nom") ?? "").trim();
   const capacite = Number(formData.get("capacite"));
+  const bestOf = Number(formData.get("best_of") ?? 1);
   const region = String(formData.get("region") ?? "");
   const debuteLeBrut = String(formData.get("debute_le") ?? "");
   const checkinOuvreLeBrut = String(formData.get("checkin_ouvre_le") ?? "");
@@ -28,8 +32,22 @@ export async function creerTournoi(formData: FormData) {
     );
   }
 
-  if (!(CAPACITES as readonly number[]).includes(capacite)) {
+  // Capacité 128 et Best-of 3/5 réservés à l'offre "organisateur" — vérifié
+  // ici, pas seulement caché côté formulaire : un appel direct à cette
+  // action avec des valeurs forcées doit être rejeté de la même façon.
+  const { offre } = await chargerOffre(supabase, userData.user.id);
+  const estOrganisateurPremium = offre === "organisateur";
+
+  const capacitesAutorisees: number[] = estOrganisateurPremium
+    ? [...CAPACITES, CAPACITE_ETENDUE]
+    : [...CAPACITES];
+  if (!capacitesAutorisees.includes(capacite)) {
     redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Capacité invalide.")}`);
+  }
+
+  const bestOfAutorises: number[] = estOrganisateurPremium ? [1, ...BEST_OF_PREMIUM] : [1];
+  if (!bestOfAutorises.includes(bestOf)) {
+    redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Format Best-of invalide.")}`);
   }
 
   if (!region) {
@@ -69,6 +87,7 @@ export async function creerTournoi(formData: FormData) {
     nom,
     format: "1v1",
     capacite,
+    best_of: bestOf,
     region,
     debute_le: debuteLe.toISOString(),
     checkin_ouvre_le: checkinOuvreLe.toISOString(),
