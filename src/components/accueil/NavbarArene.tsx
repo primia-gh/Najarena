@@ -17,6 +17,7 @@ const LIENS = [
   { href: "/lol/classement", label: "Classement" },
   { href: "/lol/coequipiers", label: "Coéquipiers" },
   { href: "/organiser/nouveau", label: "Organiser" },
+  { href: "/tarifs", label: "Tarifs" },
 ];
 
 const FOCUS =
