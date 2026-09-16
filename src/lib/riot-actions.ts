@@ -11,6 +11,7 @@ import {
   type CompteRiot,
   type InvocateurRiot,
 } from "@/lib/riot";
+import { ROLES, type Role } from "@/lib/roles";
 
 const ICONE_MIN = 1;
 const ICONE_MAX = 28; // icônes de niveau classiques, stables sur tout patch/région
@@ -138,4 +139,35 @@ export async function verifierRiotId(formData: FormData) {
     .eq("profile_id", userData.user.id);
 
   redirect("/moi");
+}
+
+// game_accounts n'a aucune policy client UPDATE — volontairement : des
+// colonnes comme verifie_le/puuid ne doivent jamais être écrivables par le
+// joueur, et une policy "propriétaire" classique s'appliquerait à toute la
+// ligne, pas seulement à role_prefere. Même contournement que verifierRiotId
+// ci-dessus : contrôle d'identité côté serveur, puis écriture service_role.
+export async function mettreAJourRolePrefere(formData: FormData) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const role = String(formData.get("role_prefere") ?? "");
+  if (role && !(ROLES as string[]).includes(role)) {
+    redirect(`/moi?erreur=${encodeURIComponent("Rôle invalide.")}`);
+  }
+
+  const admin = creerClientAdmin();
+  if (!admin) {
+    redirect(`/moi?erreur=${encodeURIComponent("Mise à jour indisponible pour l'instant.")}`);
+  }
+
+  await admin
+    .from("game_accounts")
+    .update({ role_prefere: (role || null) as Role | null })
+    .eq("profile_id", userData.user.id)
+    .eq("est_principal", true);
+
+  redirect("/moi?message=" + encodeURIComponent("Rôle mis à jour."));
 }

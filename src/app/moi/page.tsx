@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { seDeconnecter } from "@/lib/auth-actions";
+import { mettreAJourRolePrefere } from "@/lib/riot-actions";
+import { ROLES, LABEL_ROLE } from "@/lib/roles";
+import { chargerOffre } from "@/lib/offres";
 import { LABEL_STATUT, COULEUR_STATUT, formaterDate, type StatutPublic } from "@/lib/tournois";
 import { accepterInvitation, refuserInvitation } from "@/lib/equipe-actions";
 import PushOptIn from "@/components/PushOptIn";
@@ -46,6 +49,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     { data: tournoisOrganisesData },
     { data: affiliationsData },
     { data: equipesCapitaineData },
+    infoOffre,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -54,7 +58,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       .maybeSingle(),
     supabase
       .from("game_accounts")
-      .select("riot_game_name, riot_tag_line, region, verifie_le")
+      .select("riot_game_name, riot_tag_line, region, verifie_le, role_prefere")
       .eq("profile_id", utilisateur.id)
       .eq("est_principal", true)
       .maybeSingle(),
@@ -79,6 +83,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       .select("id, slug, nom, tag")
       .eq("capitaine_id", utilisateur.id)
       .order("cree_le", { ascending: false }),
+    chargerOffre(supabase, utilisateur.id),
   ]);
 
   const inscriptions = inscriptionsData ?? [];
@@ -124,14 +129,38 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
         </form>
       </div>
 
-      {profil?.slug && (
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {profil?.slug && (
+          <Link
+            href={`/joueur/${profil.slug}`}
+            className="inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
+          >
+            Voir mon profil public
+          </Link>
+        )}
         <Link
-          href={`/joueur/${profil.slug}`}
-          className="mt-2 inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
+          href="/moi/messages"
+          className="inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
         >
-          Voir mon profil public
+          Messages
         </Link>
-      )}
+        {infoOffre.offre === "organisateur" && (
+          <>
+            <Link
+              href="/lol/recherche"
+              className="inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
+            >
+              Rechercher des joueurs
+            </Link>
+            <Link
+              href="/moi/watchlist"
+              className="inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
+            >
+              Ma watchlist
+            </Link>
+          </>
+        )}
+      </div>
       </Reveal>
 
       <Reveal delai={0.08}>
@@ -147,7 +176,33 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               {comptesRiot.verifie_le ? "Vérifié" : "Vérification en attente"}
             </Badge>
           </div>
-        ) : (
+        ) : null}
+        {comptesRiot && (
+          <form action={mettreAJourRolePrefere} className="mt-2 flex items-center gap-2">
+            <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+              Rôle préféré
+            </span>
+            <select
+              name="role_prefere"
+              defaultValue={comptesRiot.role_prefere ?? ""}
+              className="rounded-[3px] border border-trait bg-papier px-2 py-1 text-sm text-encre"
+            >
+              <option value="">Non renseigné</option>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {LABEL_ROLE[r]}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
+            >
+              Enregistrer
+            </button>
+          </form>
+        )}
+        {!comptesRiot && (
           <div className={"mt-3 flex items-center justify-between " + classeCarte("none")}>
             <span className="text-sm text-ardoise">Aucun Riot ID lié pour l&apos;instant.</span>
             <Link
