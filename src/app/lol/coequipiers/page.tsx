@@ -6,6 +6,7 @@ import { inviterMembre } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { progressionPalier, type Palier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
+import { chargerOffres, ORDRE_OFFRE, LABEL_OFFRE, COULEUR_OFFRE } from "@/lib/offres";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
@@ -67,9 +68,18 @@ async function chargerCoequipiers() {
     );
   }
 
-  // Classés d'abord (du meilleur rating au plus modeste), non-classés
-  // ensuite dans leur ordre de publication d'origine.
+  const offresParJoueur = await chargerOffres(
+    supabase,
+    annonces.map((a) => a.profile_id),
+  );
+
+  // Offre payante d'abord (Vérifié/Elite/Organisateur), puis classés du
+  // meilleur rating au plus modeste, non-classés en dernier.
   const annoncesTriees = [...annonces].sort((a, b) => {
+    const oa = ORDRE_OFFRE[offresParJoueur.get(a.profile_id)?.offre ?? "gratuit"];
+    const ob = ORDRE_OFFRE[offresParJoueur.get(b.profile_id)?.offre ?? "gratuit"];
+    if (oa !== ob) return ob - oa;
+
     const ra = ratingsParJoueur.get(a.profile_id)?.rating;
     const rb = ratingsParJoueur.get(b.profile_id)?.rating;
     if (ra === undefined && rb === undefined) return 0;
@@ -97,6 +107,7 @@ async function chargerCoequipiers() {
   return {
     annonces: annoncesTriees,
     ratingsParJoueur,
+    offresParJoueur,
     monAnnonce,
     mesEquipesAvecPlace,
     utilisateur: userData.user,
@@ -105,7 +116,7 @@ async function chargerCoequipiers() {
 
 export default async function CoequipiersPage({ searchParams }: CoequipiersPageProps) {
   const { erreur, message } = await searchParams;
-  const { annonces, ratingsParJoueur, monAnnonce, mesEquipesAvecPlace, utilisateur } =
+  const { annonces, ratingsParJoueur, offresParJoueur, monAnnonce, mesEquipesAvecPlace, utilisateur } =
     await chargerCoequipiers();
 
   return (
@@ -193,7 +204,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
             {annonces.map((a) => (
               <li key={a.profile_id} className={classeCarte("none")}>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-sm font-semibold text-encre">
+                  <span className="flex items-center gap-2 text-sm font-semibold text-encre">
                     {a.profile ? (
                       <Link href={`/joueur/${a.profile.slug}`} className="hover:underline">
                         {a.profile.pseudo}
@@ -201,6 +212,17 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                     ) : (
                       "Joueur inconnu"
                     )}
+                    {(() => {
+                      const offre = offresParJoueur.get(a.profile_id)?.offre;
+                      return offre && offre !== "gratuit" ? (
+                        <span
+                          className="rounded-full border border-trait px-2 py-0.5 font-mono text-[0.58rem] tracking-[0.06em] uppercase"
+                          style={{ color: COULEUR_OFFRE[offre] }}
+                        >
+                          {LABEL_OFFRE[offre]}
+                        </span>
+                      ) : null;
+                    })()}
                   </span>
                   {(() => {
                     const info = ratingsParJoueur.get(a.profile_id);

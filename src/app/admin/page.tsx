@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { resoudreLitigeAdmin } from "@/lib/admin-actions";
+import { attribuerOffreAdmin } from "@/lib/offres-actions";
+import { LABEL_OFFRE, chargerOffres, type Offre } from "@/lib/offres";
 import { formaterDate } from "@/lib/tournois";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
@@ -19,11 +21,11 @@ export const metadata: Metadata = {
 };
 
 interface AdminPageProps {
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
-  const { erreur } = await searchParams;
+  const { erreur, message } = await searchParams;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -92,6 +94,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const litigesOuverts = litiges.filter((l) => !l.resolution);
   const litigesResolus = litiges.filter((l) => l.resolution);
   const comptes = derniersInscrits ?? [];
+  const offresParCompte = await chargerOffres(supabase, comptes.map((c) => c.id));
 
   return (
     <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
@@ -113,6 +116,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
       {erreur && (
         <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+      )}
+      {message && (
+        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
       )}
       </Reveal>
 
@@ -156,6 +162,41 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </section>
       </Reveal>
 
+      <Reveal delai={0.12}>
+      <section className="mt-10">
+        <SectionTitre>Attribuer une offre</SectionTitre>
+        <p className="mt-1 text-sm text-ardoise">
+          En attendant Stripe — comptes offerts, tests, streamers partenaires.
+        </p>
+        <form action={attribuerOffreAdmin} className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <label className="flex-1">
+            <span className="sr-only">Pseudo du joueur</span>
+            <input
+              name="pseudo"
+              type="text"
+              required
+              placeholder="Pseudo du joueur"
+              className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+            />
+          </label>
+          <label>
+            <span className="sr-only">Offre à attribuer</span>
+            <select
+              name="offre"
+              defaultValue="verifie"
+              className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau sm:w-auto"
+            >
+              <option value="gratuit">Gratuit (révoquer)</option>
+              <option value="verifie">Vérifié</option>
+              <option value="elite">Elite</option>
+              <option value="organisateur">Organisateur</option>
+            </select>
+          </label>
+          <Bouton libelleEnCours="Attribution…">Attribuer</Bouton>
+        </form>
+      </section>
+      </Reveal>
+
       <Reveal delai={0.15}>
       <section className="mt-10">
         <SectionTitre>Derniers inscrits</SectionTitre>
@@ -182,10 +223,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
                     Rôle
                   </th>
+                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                    Offre
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {comptes.map((c) => (
+                {comptes.map((c) => {
+                  const offre = offresParCompte.get(c.id)?.offre as Exclude<Offre, "gratuit"> | undefined;
+                  return (
                   <tr key={c.id} className="border-b border-trait last:border-b-0">
                     <td className="px-4 py-2">
                       <Link href={`/joueur/${c.slug}`} className="font-medium text-encre hover:underline">
@@ -205,8 +251,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     <td className="px-4 py-2 font-mono text-[0.72rem] text-ardoise">
                       {c.admins ? "Admin" : "Joueur"}
                     </td>
+                    <td className="px-4 py-2 font-mono text-[0.72rem] text-ardoise">
+                      {offre ? LABEL_OFFRE[offre] : "Gratuit"}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -5,12 +5,18 @@ import { createClient } from "@/lib/supabase/server";
 import SceauFiabilite from "@/components/SceauFiabilite";
 import { calibrationPct, arrondir, RD_INITIAL } from "@/lib/classement";
 import { LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
+import { chargerOffre, LABEL_OFFRE, COULEUR_OFFRE, ORDRE_OFFRE } from "@/lib/offres";
+import { mettreAJourBioProfile } from "@/lib/offres-actions";
+import { suivreJoueur } from "@/lib/watchlist-actions";
+import { demarrerConversation } from "@/lib/messagerie-actions";
 import { JsonLd } from "@/lib/json-ld";
 import { classeCarte } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
+import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationBracketVide from "@/components/ui/IllustrationBracketVide";
+import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -44,7 +50,13 @@ async function chargerJoueur(slug: string) {
 
   // Étage 1 : ne dépendent que de profil.id, indépendantes entre elles —
   // lancées en parallèle plutôt qu'en série (correctif du 13/09/2026).
-  const [{ data: compteRiot }, { data: rating }, { data: participationsData }] = await Promise.all([
+  const [
+    { data: compteRiot },
+    { data: rating },
+    { data: participationsData },
+    { data: visiteurData },
+    infoOffre,
+  ] = await Promise.all([
     supabase
       .from("game_accounts")
       .select("riot_game_name, riot_tag_line, region, verifie_le")
@@ -65,7 +77,55 @@ async function chargerJoueur(slug: string) {
         "match_id, score, est_gagnant, match:matches(tour, tournament:tournaments(nom, slug))",
       )
       .eq("profile_id", profil.id),
+    supabase.auth.getUser(),
+    chargerOffre(supabase, profil.id),
   ]);
+
+  const estProprietaire = visiteurData.user?.id === profil.id;
+
+  // Enregistrer la vue — jamais pour un visiteur anonyme, jamais pour le
+  // propriétaire qui regarde son propre profil (ce n'est pas une "vue").
+  if (visiteurData.user && !estProprietaire) {
+    await supabase.from("vues_profil").upsert({
+      profile_id: profil.id,
+      vu_par: visiteurData.user.id,
+      derniere_vue_le: new Date().toISOString(),
+    });
+  }
+
+  // Un visiteur organisateur peut suivre/contacter ce joueur — chargé
+  // seulement pour un visiteur connecté qui n'est pas le propriétaire.
+  let offreVisiteur: "gratuit" | "verifie" | "elite" | "organisateur" = "gratuit";
+  let dejaSuivi = false;
+  if (visiteurData.user && !estProprietaire) {
+    const [{ offre: offreV }, { data: suivi }] = await Promise.all([
+      chargerOffre(supabase, visiteurData.user.id),
+      supabase
+        .from("watchlist")
+        .select("joueur_suivi_id")
+        .eq("recruteur_id", visiteurData.user.id)
+        .eq("joueur_suivi_id", profil.id)
+        .maybeSingle(),
+    ]);
+    offreVisiteur = offreV;
+    dejaSuivi = Boolean(suivi);
+  }
+
+  // "Qui a vu mon profil" — réservé au propriétaire, offre Vérifié+.
+  const visiteurs: Array<{ pseudo: string; slug: string; derniereVueLe: string }> = [];
+  if (estProprietaire && ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie) {
+    const { data } = await supabase
+      .from("vues_profil")
+      .select("derniere_vue_le, visiteur:profiles!vues_profil_vu_par_fkey(pseudo, slug)")
+      .eq("profile_id", profil.id)
+      .order("derniere_vue_le", { ascending: false })
+      .limit(20);
+
+    for (const v of data ?? []) {
+      if (!v.visiteur) continue;
+      visiteurs.push({ pseudo: v.visiteur.pseudo, slug: v.visiteur.slug, derniereVueLe: v.derniere_vue_le });
+    }
+  }
 
   const participations = participationsData ?? [];
   const matchIds = participations.map((p) => p.match_id);
@@ -118,6 +178,11 @@ async function chargerJoueur(slug: string) {
     compteRiot,
     rating,
     historique,
+    infoOffre,
+    estProprietaire,
+    visiteurs,
+    offreVisiteur,
+    dejaSuivi,
   };
 }
 
@@ -154,7 +219,9 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     );
   }
 
-  const { profil, compteRiot, rating, historique } = donnees;
+  const { profil, compteRiot, rating, historique, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi } = donnees;
+  const peutPersonnaliser = ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie;
+  const visiteurEstOrganisateur = offreVisiteur === "organisateur";
   const pct = rating ? calibrationPct(rating.rd) : 0;
   const matchsCalibres = historique.length;
   const victoires = historique.filter((h) => h.estGagnant).length;
@@ -230,11 +297,71 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
           {profil.pays && (
             <div className="mt-1 text-sm text-ardoise">{profil.pays}</div>
           )}
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <Badge couleur={rating?.est_classe ? "text-atteste" : "text-ardoise"}>
               {rating?.est_classe ? "Classé" : "Non classé"}
             </Badge>
+            {infoOffre.offre !== "gratuit" && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border border-trait bg-carte px-2.5 py-1 font-mono text-[0.64rem] tracking-[0.06em] uppercase"
+                style={{ color: COULEUR_OFFRE[infoOffre.offre] }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: COULEUR_OFFRE[infoOffre.offre] }} />
+                {LABEL_OFFRE[infoOffre.offre]}
+              </span>
+            )}
           </div>
+          {infoOffre.bio && (
+            <p className="mt-2 max-w-md text-sm text-encre">{infoOffre.bio}</p>
+          )}
+          {infoOffre.lien_externe && (
+            <a
+              href={infoOffre.lien_externe}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block text-sm text-encre underline underline-offset-3"
+            >
+              {infoOffre.lien_externe}
+            </a>
+          )}
+          {visiteurEstOrganisateur && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {dejaSuivi ? (
+                <span className="font-mono text-[0.66rem] text-atteste uppercase">Suivi</span>
+              ) : (
+                <form action={suivreJoueur}>
+                  <input type="hidden" name="joueur_suivi_id" value={profil.id} />
+                  <input type="hidden" name="retour" value={`/joueur/${profil.slug}`} />
+                  <button
+                    type="submit"
+                    className="rounded-[3px] border border-trait px-3 py-1.5 font-mono text-[0.64rem] text-encre transition hover:border-encre"
+                  >
+                    Suivre
+                  </button>
+                </form>
+              )}
+              <details className="inline-block">
+                <summary className="cursor-pointer rounded-[3px] border border-trait px-3 py-1.5 font-mono text-[0.64rem] text-encre transition hover:border-encre">
+                  Contacter
+                </summary>
+                <form action={demarrerConversation} className="mt-2 flex flex-col gap-2">
+                  <input type="hidden" name="destinataire_id" value={profil.id} />
+                  <input type="hidden" name="retour" value={`/joueur/${profil.slug}`} />
+                  <textarea
+                    name="message"
+                    rows={2}
+                    maxLength={2000}
+                    required
+                    placeholder="Ton message…"
+                    className="w-full max-w-sm resize-none rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+                  />
+                  <Bouton libelleEnCours="Envoi…" className="self-start">
+                    Envoyer
+                  </Bouton>
+                </form>
+              </details>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col items-center gap-1 text-center">
@@ -277,6 +404,70 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
         </div>
       </div>
       </Reveal>
+
+      {estProprietaire && peutPersonnaliser && (
+        <>
+        <Reveal delai={0.12}>
+        <section className="mt-10">
+          <SectionTitre>Personnaliser mon profil</SectionTitre>
+          <form action={mettreAJourBioProfile} className="mt-3 flex flex-col gap-2">
+            <label>
+              <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+                Bio (140 caractères max)
+              </span>
+              <textarea
+                name="bio"
+                rows={2}
+                maxLength={140}
+                defaultValue={infoOffre.bio ?? ""}
+                placeholder="Ex. « Mid laner, dispo le soir, cherche une équipe compétitive »"
+                className="mt-1 w-full resize-none rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+              />
+            </label>
+            <label>
+              <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+                Lien externe (réseaux, sponsor…)
+              </span>
+              <input
+                name="lien_externe"
+                type="url"
+                defaultValue={infoOffre.lien_externe ?? ""}
+                placeholder="https://…"
+                className="mt-1 w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+              />
+            </label>
+            <Bouton libelleEnCours="Enregistrement…" className="self-start">
+              Enregistrer
+            </Bouton>
+          </form>
+        </section>
+        </Reveal>
+
+        <Reveal delai={0.14}>
+        <section className="mt-10">
+          <SectionTitre>Qui a vu ton profil</SectionTitre>
+          {visiteurs.length === 0 ? (
+            <div className="mt-3">
+              <EtatVide illustration={<IllustrationEffectifVide />}>
+                Personne n&apos;a encore consulté ton profil.
+              </EtatVide>
+            </div>
+          ) : (
+            <ul className="mt-3 flex flex-col gap-2">
+              {visiteurs.map((v) => (
+                <li key={v.slug} className={"flex items-center justify-between " + classeCarte("none")}>
+                  <Link href={`/joueur/${v.slug}`} className="text-sm font-medium text-encre hover:underline">
+                    {v.pseudo}
+                  </Link>
+                  <span className="font-mono text-[0.7rem] text-ardoise">{formaterDate(v.derniereVueLe)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        </Reveal>
+        </>
+      )}
 
       {rivalites.length > 0 && (
         <Reveal delai={0.15}>
