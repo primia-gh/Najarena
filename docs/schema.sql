@@ -44,6 +44,7 @@ create table game_accounts (
   methode_verification text,                   -- 'icone_profil' puis 'rso'
   derniere_sync_le    timestamptz,
   defi_icone_id       smallint,                -- icône à adopter en jeu pour prouver la possession (méthode 'icone_profil')
+  role_prefere        text check (role_prefere in ('top','jungle','mid','adc','support')), -- renseigné par le joueur, utilisé par /lol/recherche (offre "organisateur")
   unique (game_id, puuid)
 );
 create index on game_accounts (profile_id, game_id);
@@ -73,7 +74,7 @@ create table tournaments (
   format              text not null,            -- '1v1', '5v5'
   type_bracket        text not null default 'elim_simple',
   best_of             smallint not null default 1,
-  capacite            smallint not null check (capacite in (4,8,16,32,64)),
+  capacite            smallint not null check (capacite in (4,8,16,32,64,128)), -- 128 = offre "organisateur"
   region              text not null,
   rating_min          int,
   rating_max          int,
@@ -82,7 +83,9 @@ create table tournaments (
   checkin_ouvre_le    timestamptz not null,
   statut              tournament_status not null default 'brouillon',
   verrouille_le       timestamptz,              -- après 1er inscrit : règles figées
-  cree_le             timestamptz not null default now()
+  cree_le             timestamptz not null default now(),
+  logo_url            text,                     -- branding, offre "organisateur"
+  couleur_accent      text
 );
 create index on tournaments (game_id, statut, debute_le);
 
@@ -206,7 +209,11 @@ create table teams (
   nom           text not null,
   tag           text not null check (char_length(tag) between 2 and 5),
   capitaine_id  uuid not null references profiles(id),
-  cree_le       timestamptz not null default now()
+  cree_le       timestamptz not null default now(),
+  logo_url             text,                -- branding, offre Vérifié+
+  couleur_accent       text,
+  description          text check (char_length(description) <= 500),
+  contact_recrutement  text
 );
 
 create table team_members (
@@ -699,6 +706,130 @@ create policy "admin resout tous les litiges"
   on disputes for update using (
     exists (select 1 from admins where profile_id = auth.uid())
   );
+
+-- ---------- Offres payantes (Vérifié / Elite / Organisateur) ----------
+-- Voir CLAUDE.md / docs — page /tarifs. Même principe que `admins` : table
+-- séparée de profiles, jamais une colonne, pour la même raison (une
+-- élévation de statut ne doit jamais passer par un chemin d'écriture
+-- destiné aux données de profil). Absence de ligne = offre "gratuit".
+-- Deux écrivains prévus, tous deux server_role, jamais le client :
+-- attribution manuelle (attribuerOffreAdmin) et le futur webhook Stripe.
+create table comptes_offres (
+  profile_id     uuid primary key references profiles(id) on delete cascade,
+  offre          text not null check (offre in ('verifie','elite','organisateur')),
+  bio            text check (char_length(bio) <= 140),
+  lien_externe   text,
+  attribue_le    timestamptz not null default now(),
+  attribue_par   uuid references profiles(id)
+);
+alter table comptes_offres enable row level security;
+
+create policy "offre lisible par tous" on comptes_offres
+  for select using (true);
+-- Aucune policy insert/update/delete : écriture exclusivement via un
+-- client service_role côté serveur.
+
+-- ---------- "Qui a vu mon profil" (offre Vérifié+) ----------
+-- RLS client réelle, sans risque d'élévation : un joueur ne peut
+-- enregistrer une vue que pour lui-même comme visiteur, et ne peut lire
+-- que la liste de SES propres visiteurs.
+create table vues_profil (
+  profile_id        uuid not null references profiles(id) on delete cascade,
+  vu_par            uuid not null references profiles(id) on delete cascade,
+  derniere_vue_le   timestamptz not null default now(),
+  primary key (profile_id, vu_par),
+  check (profile_id <> vu_par)
+);
+alter table vues_profil enable row level security;
+
+create policy "le proprietaire voit ses visiteurs" on vues_profil
+  for select using ((select auth.uid()) = profile_id);
+create policy "un joueur enregistre sa propre visite" on vues_profil
+  for insert with check ((select auth.uid()) = vu_par);
+create policy "un joueur met a jour sa propre visite" on vues_profil
+  for update using ((select auth.uid()) = vu_par);
+
+-- ---------- Watchlist recruteur (offre "organisateur") ----------
+-- RLS réelle : un recruteur ne gère que sa propre liste.
+create table watchlist (
+  recruteur_id     uuid not null references profiles(id) on delete cascade,
+  joueur_suivi_id  uuid not null references profiles(id) on delete cascade,
+  cree_le          timestamptz not null default now(),
+  primary key (recruteur_id, joueur_suivi_id),
+  check (recruteur_id <> joueur_suivi_id)
+);
+alter table watchlist enable row level security;
+create policy "un recruteur gere sa propre watchlist" on watchlist
+  for all using ((select auth.uid()) = recruteur_id) with check ((select auth.uid()) = recruteur_id);
+
+-- ---------- Messagerie intégrée (initiation réservée à l'offre "organisateur") ----------
+-- Répondre reste ouvert à tout participant — seule l'initiation d'une
+-- conversation est filtrée par la policy insert ci-dessous.
+create table conversations (
+  id          uuid primary key default gen_random_uuid(),
+  profile_a   uuid not null references profiles(id) on delete cascade,
+  profile_b   uuid not null references profiles(id) on delete cascade,
+  cree_le     timestamptz not null default now(),
+  check (profile_a <> profile_b)
+);
+-- Une seule conversation par paire, quel que soit l'ordre a/b — une
+-- contrainte unique classique ne porte pas sur une expression, il faut un
+-- index unique fonctionnel.
+create unique index conversations_paire_unique
+  on conversations (least(profile_a, profile_b), greatest(profile_a, profile_b));
+
+create table messages (
+  id               uuid primary key default gen_random_uuid(),
+  conversation_id  uuid not null references conversations(id) on delete cascade,
+  expediteur_id    uuid not null references profiles(id),
+  contenu          text not null check (char_length(contenu) between 1 and 2000),
+  envoye_le        timestamptz not null default now(),
+  lu_le            timestamptz
+);
+alter table conversations enable row level security;
+alter table messages      enable row level security;
+
+create policy "participants lisent leur conversation" on conversations
+  for select using ((select auth.uid()) in (profile_a, profile_b));
+create policy "un organisateur demarre une conversation" on conversations
+  for insert with check (
+    profile_a = (select auth.uid())
+    and exists (select 1 from comptes_offres where profile_id = (select auth.uid()) and offre = 'organisateur')
+  );
+
+create policy "participants lisent les messages" on messages
+  for select using (exists (
+    select 1 from conversations c where c.id = conversation_id
+      and (select auth.uid()) in (c.profile_a, c.profile_b)
+  ));
+create policy "participants repondent" on messages
+  for insert with check (
+    expediteur_id = (select auth.uid())
+    and exists (select 1 from conversations c where c.id = conversation_id
+      and (select auth.uid()) in (c.profile_a, c.profile_b))
+  );
+-- Marquer un message comme lu — même périmètre que la lecture, aucun
+-- risque de privilège (marqueur de lecture personnel).
+create policy "participants marquent un message lu" on messages
+  for update using (exists (
+    select 1 from conversations c where c.id = conversation_id
+      and (select auth.uid()) in (c.profile_a, c.profile_b)
+  ));
+
+-- ---------- Storage : logos de tournoi/équipe (branding, offre payante) ----------
+-- Bucket public en lecture ; écriture restreinte au propriétaire du
+-- fichier (`owner`, rempli automatiquement par Supabase Storage). Chemin
+-- convention : logos/{type}/{id}.{ext}, pas utilisé par la policy elle-même.
+insert into storage.buckets (id, name, public) values ('logos', 'logos', true);
+
+create policy "logos lisibles par tous"
+  on storage.objects for select using (bucket_id = 'logos');
+create policy "un proprietaire ajoute son propre logo"
+  on storage.objects for insert with check (bucket_id = 'logos' and owner = (select auth.uid()));
+create policy "un proprietaire remplace son propre logo"
+  on storage.objects for update using (bucket_id = 'logos' and owner = (select auth.uid()));
+create policy "un proprietaire supprime son propre logo"
+  on storage.objects for delete using (bucket_id = 'logos' and owner = (select auth.uid()));
 
 -- ---------- Moteur Glicko-2 (docs/moteur-resultats.md §4) ----------
 -- Écriture du résultat d'une clôture pour UN joueur. Les valeurs "après"

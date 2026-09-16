@@ -37,6 +37,84 @@ export type Database = {
           },
         ]
       }
+      comptes_offres: {
+        Row: {
+          attribue_le: string
+          attribue_par: string | null
+          bio: string | null
+          lien_externe: string | null
+          offre: string
+          profile_id: string
+        }
+        Insert: {
+          attribue_le?: string
+          attribue_par?: string | null
+          bio?: string | null
+          lien_externe?: string | null
+          offre: string
+          profile_id: string
+        }
+        Update: {
+          attribue_le?: string
+          attribue_par?: string | null
+          bio?: string | null
+          lien_externe?: string | null
+          offre?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comptes_offres_attribue_par_fkey"
+            columns: ["attribue_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comptes_offres_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          cree_le: string
+          id: string
+          profile_a: string
+          profile_b: string
+        }
+        Insert: {
+          cree_le?: string
+          id?: string
+          profile_a: string
+          profile_b: string
+        }
+        Update: {
+          cree_le?: string
+          id?: string
+          profile_a?: string
+          profile_b?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_profile_a_fkey"
+            columns: ["profile_a"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_profile_b_fkey"
+            columns: ["profile_b"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disputes: {
         Row: {
           cree_le: string
@@ -105,6 +183,7 @@ export type Database = {
           region: string
           riot_game_name: string
           riot_tag_line: string
+          role_prefere: string | null
           verifie_le: string | null
         }
         Insert: {
@@ -119,6 +198,7 @@ export type Database = {
           region: string
           riot_game_name: string
           riot_tag_line: string
+          role_prefere?: string | null
           verifie_le?: string | null
         }
         Update: {
@@ -133,6 +213,7 @@ export type Database = {
           region?: string
           riot_game_name?: string
           riot_tag_line?: string
+          role_prefere?: string | null
           verifie_le?: string | null
         }
         Relationships: [
@@ -332,6 +413,48 @@ export type Database = {
             columns: ["tournament_id"]
             isOneToOne: false
             referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          contenu: string
+          conversation_id: string
+          envoye_le: string
+          expediteur_id: string
+          id: string
+          lu_le: string | null
+        }
+        Insert: {
+          contenu: string
+          conversation_id: string
+          envoye_le?: string
+          expediteur_id: string
+          id?: string
+          lu_le?: string | null
+        }
+        Update: {
+          contenu?: string
+          conversation_id?: string
+          envoye_le?: string
+          expediteur_id?: string
+          id?: string
+          lu_le?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_expediteur_id_fkey"
+            columns: ["expediteur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -701,27 +824,39 @@ export type Database = {
       teams: {
         Row: {
           capitaine_id: string
+          contact_recrutement: string | null
+          couleur_accent: string | null
           cree_le: string
+          description: string | null
           game_id: number
           id: string
+          logo_url: string | null
           nom: string
           slug: string
           tag: string
         }
         Insert: {
           capitaine_id: string
+          contact_recrutement?: string | null
+          couleur_accent?: string | null
           cree_le?: string
+          description?: string | null
           game_id: number
           id?: string
+          logo_url?: string | null
           nom: string
           slug: string
           tag: string
         }
         Update: {
           capitaine_id?: string
+          contact_recrutement?: string | null
+          couleur_accent?: string | null
           cree_le?: string
+          description?: string | null
           game_id?: number
           id?: string
+          logo_url?: string | null
           nom?: string
           slug?: string
           tag?: string
@@ -781,11 +916,13 @@ export type Database = {
           capacite: number
           checkin_ouvre_le: string
           compte_pour_classement: boolean
+          couleur_accent: string | null
           cree_le: string
           debute_le: string
           format: string
           game_id: number
           id: string
+          logo_url: string | null
           nom: string
           organisateur_id: string
           rating_max: number | null
@@ -802,11 +939,13 @@ export type Database = {
           capacite: number
           checkin_ouvre_le: string
           compte_pour_classement?: boolean
+          couleur_accent?: string | null
           cree_le?: string
           debute_le: string
           format: string
           game_id: number
           id?: string
+          logo_url?: string | null
           nom: string
           organisateur_id: string
           rating_max?: number | null
@@ -823,11 +962,13 @@ export type Database = {
           capacite?: number
           checkin_ouvre_le?: string
           compte_pour_classement?: boolean
+          couleur_accent?: string | null
           cree_le?: string
           debute_le?: string
           format?: string
           game_id?: number
           id?: string
+          logo_url?: string | null
           nom?: string
           organisateur_id?: string
           rating_max?: number | null
@@ -859,6 +1000,72 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vues_profil: {
+        Row: {
+          derniere_vue_le: string
+          profile_id: string
+          vu_par: string
+        }
+        Insert: {
+          derniere_vue_le?: string
+          profile_id: string
+          vu_par: string
+        }
+        Update: {
+          derniere_vue_le?: string
+          profile_id?: string
+          vu_par?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vues_profil_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vues_profil_vu_par_fkey"
+            columns: ["vu_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watchlist: {
+        Row: {
+          cree_le: string
+          joueur_suivi_id: string
+          recruteur_id: string
+        }
+        Insert: {
+          cree_le?: string
+          joueur_suivi_id: string
+          recruteur_id: string
+        }
+        Update: {
+          cree_le?: string
+          joueur_suivi_id?: string
+          recruteur_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watchlist_joueur_suivi_id_fkey"
+            columns: ["joueur_suivi_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "watchlist_recruteur_id_fkey"
+            columns: ["recruteur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
