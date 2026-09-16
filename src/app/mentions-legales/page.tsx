@@ -48,11 +48,8 @@ export default function MentionsLegalesPage() {
             Hébergement
           </h2>
           <p className="mt-2 text-ardoise">
-            Le site a vocation à être hébergé par Vercel Inc. À confirmer et
-            détailler (adresse exacte de l&apos;hébergeur) au moment de la
-            mise en production réelle — cette section reflète l&apos;intention
-            de la stack technique (voir CLAUDE.md), pas encore un déploiement
-            effectif.
+            Le site est hébergé par Vercel Inc., 440 N Barranca Ave #4133,
+            Covina, CA 91723, États-Unis.
           </p>
         </section>
 
