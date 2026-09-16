@@ -1,8 +1,18 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
+// Logos de tournoi/équipe (offre payante) servis depuis Supabase Storage —
+// next/image exige que le domaine distant soit explicitement autorisé.
+const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+  : undefined;
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: supabaseHost
+      ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]
+      : [],
+  },
 };
 
 // withSentryConfig ne fait qu'ajouter l'instrumentation de build — sans

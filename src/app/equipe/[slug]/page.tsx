@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import { inviterMembre, retirerMembre, refuserInvitation } from "@/lib/equipe-actions";
+import { inviterMembre, retirerMembre, refuserInvitation, mettreAJourEquipe } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
+import { chargerOffre, ORDRE_OFFRE } from "@/lib/offres";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
+import UploadLogo from "@/components/ui/UploadLogo";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -24,7 +27,9 @@ async function chargerEquipe(slug: string) {
 
   const { data: equipe, error } = await supabase
     .from("teams")
-    .select("id, slug, nom, tag, capitaine_id, cree_le, game_id")
+    .select(
+      "id, slug, nom, tag, capitaine_id, cree_le, game_id, description, contact_recrutement, logo_url, couleur_accent",
+    )
     .eq("slug", slug)
     .maybeSingle();
 
@@ -38,7 +43,7 @@ async function chargerEquipe(slug: string) {
   // Quatre requêtes indépendantes entre elles, ne dépendant que de l'équipe
   // déjà chargée — lancées en parallèle plutôt qu'en série (correctif du
   // 13/09/2026, même logique que sur l'accueil).
-  const [{ data: userData }, { data: jeu }, { data: capitaine }, { data: membresData }] =
+  const [{ data: userData }, { data: jeu }, { data: capitaine }, { data: membresData }, infoOffreCapitaine] =
     await Promise.all([
       supabase.auth.getUser(),
       supabase.from("games").select("nom").eq("id", equipe.game_id).maybeSingle(),
@@ -49,7 +54,10 @@ async function chargerEquipe(slug: string) {
         .from("team_members")
         .select("profile_id, role, accepte_le, profile:profiles(pseudo, slug)")
         .eq("team_id", equipe.id),
+      chargerOffre(supabase, equipe.capitaine_id),
     ]);
+
+  const peutBranding = ORDRE_OFFRE[infoOffreCapitaine.offre] >= ORDRE_OFFRE.verifie;
 
   const tousLesMembres = membresData ?? [];
   const membres = tousLesMembres.filter(
@@ -71,6 +79,7 @@ async function chargerEquipe(slug: string) {
     invitesEnAttente: estCapitaine ? invitesEnAttente : [],
     estCapitaine,
     peutQuitter: Boolean(monAffiliation?.accepte_le) && !estCapitaine,
+    peutBranding,
   };
 }
 
@@ -108,7 +117,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
     );
   }
 
-  const { equipe, jeu, capitaine, membres, invitesEnAttente, estCapitaine, peutQuitter } = donnees;
+  const { equipe, jeu, capitaine, membres, invitesEnAttente, estCapitaine, peutQuitter, peutBranding } = donnees;
 
   return (
     <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
@@ -125,10 +134,27 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
 
       <Reveal>
       <div className="flex items-center gap-3">
-        <span className="rounded-[3px] bg-laiton px-2 py-1 font-mono text-sm font-bold text-papier">
-          {equipe.tag}
-        </span>
-        <h1 className="font-display text-4xl font-extrabold tracking-tight text-encre">
+        {equipe.logo_url ? (
+          <Image
+            src={equipe.logo_url}
+            alt=""
+            width={40}
+            height={40}
+            className="h-10 w-10 rounded-[3px] border border-trait object-cover"
+            unoptimized
+          />
+        ) : (
+          <span
+            className="rounded-[3px] px-2 py-1 font-mono text-sm font-bold text-papier"
+            style={{ background: equipe.couleur_accent ?? "var(--color-laiton)" }}
+          >
+            {equipe.tag}
+          </span>
+        )}
+        <h1
+          className="font-display text-4xl font-extrabold tracking-tight"
+          style={{ color: equipe.couleur_accent ?? "var(--color-encre)" }}
+        >
           {equipe.nom}
         </h1>
       </div>
@@ -141,6 +167,15 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
       <div className="mt-1 font-mono text-[0.72rem] text-laiton">
         {membres.length + 1}/{TAILLE_MAX_EQUIPE} joueurs
       </div>
+
+      {equipe.description && (
+        <p className="mt-3 max-w-md text-sm text-encre">{equipe.description}</p>
+      )}
+      {equipe.contact_recrutement && (
+        <p className="mt-1 text-sm text-ardoise">
+          Recrutement : <span className="text-encre">{equipe.contact_recrutement}</span>
+        </p>
+      )}
 
       {capitaine && (
         <div className="mt-3 font-mono text-[0.78rem] text-ardoise">
@@ -217,6 +252,67 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
       </Reveal>
 
       {estCapitaine && (
+        <>
+        <Reveal delai={0.12}>
+        <section className="mt-10">
+          <SectionTitre>Vitrine &amp; recrutement</SectionTitre>
+          <form action={mettreAJourEquipe} className="mt-3 flex flex-col gap-3">
+            <input type="hidden" name="team_id" value={equipe.id} />
+            <input type="hidden" name="slug" value={equipe.slug} />
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+                Description (500 caractères max)
+              </span>
+              <textarea
+                name="description"
+                rows={3}
+                maxLength={500}
+                defaultValue={equipe.description ?? ""}
+                placeholder="Présente ton équipe, ton ambition, ce que tu cherches"
+                className="resize-none rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+                Contact recrutement
+              </span>
+              <input
+                name="contact_recrutement"
+                type="text"
+                defaultValue={equipe.contact_recrutement ?? ""}
+                placeholder="Discord, e-mail…"
+                className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+              />
+            </label>
+
+            {peutBranding ? (
+              <>
+                <UploadLogo type="equipe" id={equipe.id} logoActuel={equipe.logo_url} nomChamp="logo_url" />
+                <label className="flex flex-col gap-1">
+                  <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+                    Couleur d&apos;accent
+                  </span>
+                  <input
+                    name="couleur_accent"
+                    type="color"
+                    defaultValue={equipe.couleur_accent ?? "#D2A257"}
+                    className="h-9 w-16 rounded-[3px] border border-trait bg-papier"
+                  />
+                </label>
+              </>
+            ) : (
+              <p className="text-[0.78rem] text-ardoise">
+                Logo et couleur d&apos;accent demandent l&apos;offre Vérifié ou plus.
+              </p>
+            )}
+
+            <Bouton libelleEnCours="Enregistrement…" className="self-start">
+              Enregistrer
+            </Bouton>
+          </form>
+        </section>
+        </Reveal>
+
         <Reveal delai={0.15}>
         <section className="mt-10">
           <SectionTitre>Gérer l&apos;équipe</SectionTitre>
@@ -267,6 +363,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
           )}
         </section>
         </Reveal>
+        </>
       )}
       </div>
     </main>

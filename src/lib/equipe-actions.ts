@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { slugifier } from "@/lib/slug";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
+import { chargerOffre, ORDRE_OFFRE } from "@/lib/offres";
+import type { TablesUpdate } from "@/lib/supabase/types";
 
 // 2 à 5 lettres/chiffres, convention standard des tags d'équipe esport.
 const TAG_REGEX = /^[A-Za-z0-9]{2,5}$/;
@@ -177,6 +179,51 @@ export async function refuserInvitation(formData: FormData) {
     .eq("profile_id", userData.user.id);
 
   redirect("/moi");
+}
+
+// Description/contact recrutement restent ouverts à tout capitaine ; logo
+// et couleur d'accent sont réservés à l'offre Vérifié+ — vérifié ici, pas
+// seulement caché côté formulaire. L'update passe par le client RLS normal
+// (pas creerClientAdmin) : "capitaine modifie son equipe" l'autorise déjà,
+// contrairement à comptes_offres qui n'a aucune policy client.
+export async function mettreAJourEquipe(formData: FormData) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const teamId = String(formData.get("team_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const description = String(formData.get("description") ?? "").trim().slice(0, 500);
+  const contactRecrutement = String(formData.get("contact_recrutement") ?? "").trim().slice(0, 200);
+
+  const { offre } = await chargerOffre(supabase, userData.user.id);
+  const peutBranding = ORDRE_OFFRE[offre] >= ORDRE_OFFRE.verifie;
+
+  const misesAJour: TablesUpdate<"teams"> = {
+    description: description || null,
+    contact_recrutement: contactRecrutement || null,
+  };
+
+  if (peutBranding) {
+    const logoUrl = String(formData.get("logo_url") ?? "").trim();
+    const couleurAccent = String(formData.get("couleur_accent") ?? "").trim();
+    misesAJour.logo_url = logoUrl || null;
+    misesAJour.couleur_accent = couleurAccent || null;
+  }
+
+  const { error } = await supabase
+    .from("teams")
+    .update(misesAJour)
+    .eq("id", teamId)
+    .eq("capitaine_id", userData.user.id);
+
+  if (error) {
+    redirect(`/equipe/${slug}?erreur=${encodeURIComponent("Impossible de mettre à jour l'équipe pour l'instant.")}`);
+  }
+
+  redirect(`/equipe/${slug}?message=${encodeURIComponent("Équipe mise à jour.")}`);
 }
 
 export async function retirerMembre(formData: FormData) {
