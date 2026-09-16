@@ -1,6 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import SectionTitre from "@/components/ui/SectionTitre";
+import Bouton from "@/components/ui/Bouton";
+import { classeCarte } from "@/lib/ui";
+import { demarrerAbonnement } from "@/lib/stripe-actions";
+import type { Offre } from "@/lib/offres";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -13,13 +17,17 @@ export const metadata: Metadata = {
 
 interface Palier {
   nom: string;
+  cle?: Exclude<Offre, "gratuit">;
   prix: string;
   periode?: string;
   accroche: string;
   inclus: string[];
   cta: { libelle: string; href?: string };
-  disponible: boolean;
   accent: "sceau" | "laiton" | "none";
+}
+
+interface TarifsPageProps {
+  searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
 const PALIERS: Palier[] = [
@@ -35,11 +43,11 @@ const PALIERS: Palier[] = [
       "Recherche de coéquipier",
     ],
     cta: { libelle: "Créer mon compte", href: "/inscription" },
-    disponible: true,
     accent: "none",
   },
   {
     nom: "Vérifié",
+    cle: "verifie",
     prix: "3-4€",
     periode: "/mois",
     accroche: "Une identité qui se remarque.",
@@ -49,12 +57,12 @@ const PALIERS: Palier[] = [
       "Personnalisation du profil",
       "Inscription prioritaire aux tournois",
     ],
-    cta: { libelle: "Bientôt disponible" },
-    disponible: false,
+    cta: { libelle: "S'abonner" },
     accent: "laiton",
   },
   {
     nom: "Elite",
+    cle: "elite",
     prix: "7-8€",
     periode: "/mois",
     accroche: "Pour suivre sa progression de près.",
@@ -64,12 +72,12 @@ const PALIERS: Palier[] = [
       "Alertes Discord avancées",
       "Accès aux formats premium",
     ],
-    cta: { libelle: "Bientôt disponible" },
-    disponible: false,
+    cta: { libelle: "S'abonner" },
     accent: "sceau",
   },
   {
     nom: "Organisateur",
+    cle: "organisateur",
     prix: "10-15€",
     periode: "/mois",
     accroche: "Pour héberger sans limite.",
@@ -79,8 +87,7 @@ const PALIERS: Palier[] = [
       "Formats premium à l'hébergement",
       "Support prioritaire",
     ],
-    cta: { libelle: "Bientôt disponible" },
-    disponible: false,
+    cta: { libelle: "S'abonner" },
     accent: "none",
   },
 ];
@@ -91,7 +98,9 @@ const ACCENT_BORDURE: Record<Palier["accent"], string> = {
   none: "border-t-trait",
 };
 
-export default function TarifsPage() {
+export default async function TarifsPage({ searchParams }: TarifsPageProps) {
+  const { erreur, message } = await searchParams;
+
   return (
     <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
       <FondArene />
@@ -110,6 +119,13 @@ export default function TarifsPage() {
             jamais un péage sur la preuve.
           </p>
         </Reveal>
+
+        {erreur && (
+          <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+        )}
+        {message && (
+          <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
+        )}
 
         <Reveal delai={0.1}>
           <section className="mt-12">
@@ -138,7 +154,7 @@ export default function TarifsPage() {
                     ))}
                   </ul>
 
-                  {p.disponible && p.cta.href ? (
+                  {p.cta.href ? (
                     <Link
                       href={p.cta.href}
                       className="mt-5 rounded-[3px] bg-sceau px-4 py-2 text-center text-sm font-semibold text-papier transition hover:brightness-110"
@@ -146,16 +162,19 @@ export default function TarifsPage() {
                       {p.cta.libelle}
                     </Link>
                   ) : (
-                    <span className="mt-5 rounded-[3px] border border-trait px-4 py-2 text-center font-mono text-[0.66rem] tracking-[0.08em] text-ardoise uppercase">
-                      {p.cta.libelle}
-                    </span>
+                    <form action={demarrerAbonnement} className="mt-5">
+                      <input type="hidden" name="offre" value={p.cle} />
+                      <Bouton libelleEnCours="Redirection…" className="w-full">
+                        {p.cta.libelle}
+                      </Bouton>
+                    </form>
                   )}
                 </div>
               ))}
             </div>
             <p className="mt-6 max-w-lg text-sm text-ardoise">
-              Vérifié, Elite et Organisateur sont en préparation — pas encore disponibles à
-              l&apos;achat. Ces prix sont indicatifs et pourront évoluer avant leur lancement.
+              Vérifié, Elite et Organisateur sont en cours de lancement — ces prix sont indicatifs
+              et pourront évoluer.
             </p>
           </section>
         </Reveal>
