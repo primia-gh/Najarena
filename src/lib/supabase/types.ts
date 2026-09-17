@@ -785,6 +785,63 @@ export type Database = {
           },
         ]
       }
+      stats_match_joueur: {
+        Row: {
+          assists: number
+          champion: string
+          cree_le: string
+          cs: number
+          deaths: number
+          duree_secondes: number
+          gagne: boolean
+          kills: number
+          match_id: string
+          or_gagne: number
+          profile_id: string
+        }
+        Insert: {
+          assists: number
+          champion: string
+          cree_le?: string
+          cs: number
+          deaths: number
+          duree_secondes: number
+          gagne: boolean
+          kills: number
+          match_id: string
+          or_gagne: number
+          profile_id: string
+        }
+        Update: {
+          assists?: number
+          champion?: string
+          cree_le?: string
+          cs?: number
+          deaths?: number
+          duree_secondes?: number
+          gagne?: boolean
+          kills?: number
+          match_id?: string
+          or_gagne?: number
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stats_match_joueur_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stats_match_joueur_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           accepte_le: string | null

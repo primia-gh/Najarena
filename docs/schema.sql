@@ -140,6 +140,30 @@ create table match_verdicts (
 );
 create unique index on match_verdicts (match_id) where est_definitif;
 
+-- Stats détaillées par joueur et par match, capturées gratuitement au
+-- moment du rapprochement niveau 2 (déjà présentes dans la réponse Riot
+-- récupérée par trouverPartieCorrespondante, jamais lues jusqu'ici).
+-- Alimente la revue de match écrite (offre Elite).
+create table stats_match_joueur (
+  match_id        uuid not null references matches(id) on delete cascade,
+  profile_id      uuid not null references profiles(id) on delete cascade,
+  champion        text not null,
+  kills           smallint not null,
+  deaths          smallint not null,
+  assists         smallint not null,
+  cs              smallint not null,
+  or_gagne        integer not null,
+  duree_secondes  integer not null,
+  gagne           boolean not null,
+  cree_le         timestamptz not null default now(),
+  primary key (match_id, profile_id)
+);
+alter table stats_match_joueur enable row level security;
+create policy "stats de match lisibles par tous" on stats_match_joueur
+  for select using (true);
+-- Aucune policy insert/update : écrit uniquement par le worker de
+-- rapprochement (service_role), même principe que match_verdicts.
+
 create table disputes (
   id            uuid primary key default gen_random_uuid(),
   match_id      uuid not null references matches(id),
