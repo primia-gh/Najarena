@@ -9,6 +9,7 @@ import { chargerOffre, LABEL_OFFRE, COULEUR_OFFRE, ORDRE_OFFRE } from "@/lib/off
 import { mettreAJourBioProfile } from "@/lib/offres-actions";
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { demarrerConversation } from "@/lib/messagerie-actions";
+import { chargerMoyennes, genererRevue, type StatsMatch } from "@/lib/revue-match";
 import { JsonLd } from "@/lib/json-ld";
 import { classeCarte } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
@@ -154,10 +155,44 @@ async function chargerJoueur(slug: string) {
     (autresParticipantsData ?? []).map((a) => [a.match_id, a.profile]),
   );
 
+  // Revue de match écrite — réservée au propriétaire, offre Elite+.
+  // stats_match_joueur/chargerMoyennes ne sont interrogés que si les deux
+  // conditions sont réunies, pour ne pas alourdir la page pour tout le monde.
+  const peutRevue = estProprietaire && ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.elite;
+  let statsParMatch = new Map<string, StatsMatch>();
+  let moyennesVictoires: Awaited<ReturnType<typeof chargerMoyennes>>["victoires"] = null;
+  if (peutRevue && matchIds.length > 0) {
+    const [{ data: statsData }, moyennes] = await Promise.all([
+      supabase
+        .from("stats_match_joueur")
+        .select("match_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne")
+        .eq("profile_id", profil.id)
+        .in("match_id", matchIds),
+      chargerMoyennes(supabase, profil.id),
+    ]);
+    statsParMatch = new Map(
+      (statsData ?? []).map((s) => [
+        s.match_id,
+        {
+          champion: s.champion,
+          kills: s.kills,
+          deaths: s.deaths,
+          assists: s.assists,
+          cs: s.cs,
+          orGagne: s.or_gagne,
+          dureeSecondes: s.duree_secondes,
+          gagne: s.gagne,
+        } satisfies StatsMatch,
+      ]),
+    );
+    moyennesVictoires = moyennes.victoires;
+  }
+
   const historique = participations
     .map((p) => {
       const verdict = verdictParMatch.get(p.match_id);
       if (!verdict) return null;
+      const stats = statsParMatch.get(p.match_id) ?? null;
       return {
         matchId: p.match_id,
         score: p.score,
@@ -167,6 +202,8 @@ async function chargerJoueur(slug: string) {
         niveau: verdict.niveau,
         motif: verdict.motif,
         creeLe: verdict.cree_le,
+        stats,
+        revue: stats ? genererRevue(stats, moyennesVictoires) : null,
       };
     })
     .filter((h): h is NonNullable<typeof h> => h !== null)
@@ -183,6 +220,7 @@ async function chargerJoueur(slug: string) {
     visiteurs,
     offreVisiteur,
     dejaSuivi,
+    peutRevue,
   };
 }
 
@@ -219,7 +257,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     );
   }
 
-  const { profil, compteRiot, rating, historique, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi } = donnees;
+  const { profil, compteRiot, rating, historique, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi, peutRevue } = donnees;
   const peutPersonnaliser = ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie;
   const visiteurEstOrganisateur = offreVisiteur === "organisateur";
   const pct = rating ? calibrationPct(rating.rd) : 0;
@@ -410,6 +448,14 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
         <Reveal delai={0.12}>
         <section className="mt-10">
           <SectionTitre>Personnaliser mon profil</SectionTitre>
+          {peutRevue && (
+            <Link
+              href={`/joueur/${profil.slug}/cv`}
+              className="mt-2 inline-block font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
+            >
+              Exporter mon CV →
+            </Link>
+          )}
           <form action={mettreAJourBioProfile} className="mt-3 flex flex-col gap-2">
             <label>
               <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
@@ -550,6 +596,26 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                 >
                   {h.estGagnant ? "V" : "D"}
                 </span>
+
+                {peutRevue && h.stats && (
+                  <details className="col-span-4 mt-2">
+                    <summary className="cursor-pointer font-mono text-[0.62rem] text-sceau-texte uppercase">
+                      Voir la revue
+                    </summary>
+                    <div className="mt-2 rounded-[3px] border border-trait bg-papier p-3 text-sm">
+                      <p className="font-mono text-[0.72rem] text-ardoise">
+                        {h.stats.champion} · {h.stats.kills}/{h.stats.deaths}/{h.stats.assists} · {h.stats.cs} CS · {h.stats.orGagne} or
+                      </p>
+                      {h.revue ? (
+                        h.revue.map((phrase) => (
+                          <p key={phrase} className="mt-1.5 text-encre">{phrase}</p>
+                        ))
+                      ) : (
+                        <p className="mt-1.5 text-ardoise">Pas encore assez de matchs pour comparer.</p>
+                      )}
+                    </div>
+                  </details>
+                )}
               </li>
             ))}
           </ul>

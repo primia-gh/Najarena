@@ -68,7 +68,7 @@ export default function NavbarArene() {
 
   return (
     <nav
-      className={`fixed inset-x-0 top-0 z-40 flex items-center justify-between px-6 transition-[padding,background-color,border-color] duration-300 ${
+      className={`print:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between px-6 transition-[padding,background-color,border-color] duration-300 ${
         defile
           ? "border-b border-trait bg-papier/80 py-3.5 backdrop-blur-md"
           : "border-b border-transparent py-5"

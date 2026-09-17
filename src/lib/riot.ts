@@ -107,6 +107,13 @@ export async function recupererInvocateur(
 export interface ParticipantMatchRiot {
   puuid: string;
   win: boolean;
+  championName: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  totalMinionsKilled: number;
+  neutralMinionsKilled: number;
+  goldEarned: number;
 }
 
 export interface DetailsMatchRiot {

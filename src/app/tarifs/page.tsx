@@ -69,6 +69,7 @@ const PALIERS: Palier[] = [
     inclus: [
       "Tout Vérifié",
       "Export CV premium (PDF, lien partageable)",
+      "Revue de match écrite",
       "Alertes Discord avancées",
       "Accès aux formats premium",
     ],

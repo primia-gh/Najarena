@@ -6,7 +6,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
-import { trouverRegion, recupererIdsMatchsRecents, recupererDetailsMatch, type Continent } from "@/lib/riot";
+import {
+  trouverRegion,
+  recupererIdsMatchsRecents,
+  recupererDetailsMatch,
+  type Continent,
+  type ParticipantMatchRiot,
+} from "@/lib/riot";
 import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { cloturerTournoi } from "@/lib/classement-actions";
 
@@ -29,6 +35,13 @@ const QUEUE_ID_PERSONNALISEE = 0;
 interface PartieTrouvee {
   riotMatchId: string;
   gagnantPuuid: string;
+  // Stats des deux participants et durée — déjà présentes dans la réponse
+  // Riot récupérée pendant la recherche ci-dessous, capturées ici pour
+  // alimenter stats_match_joueur sans appel supplémentaire (voir
+  // traiterRechercheResultats).
+  participantA: ParticipantMatchRiot;
+  participantB: ParticipantMatchRiot;
+  dureeSecondes: number;
 }
 
 /**
@@ -67,12 +80,23 @@ export async function trouverPartieCorrespondante(
       meilleure = {
         riotMatchId: matchId,
         gagnantPuuid: participantA.win ? puuidA : puuidB,
+        participantA,
+        participantB,
+        dureeSecondes: info.gameDuration,
         debut: info.gameStartTimestamp,
       };
     }
   }
 
-  return meilleure ? { riotMatchId: meilleure.riotMatchId, gagnantPuuid: meilleure.gagnantPuuid } : null;
+  return meilleure
+    ? {
+        riotMatchId: meilleure.riotMatchId,
+        gagnantPuuid: meilleure.gagnantPuuid,
+        participantA: meilleure.participantA,
+        participantB: meilleure.participantB,
+        dureeSecondes: meilleure.dureeSecondes,
+      }
+    : null;
 }
 
 interface CompteRapprochement {
@@ -187,6 +211,46 @@ export async function traiterRechercheResultats(): Promise<{
 
       if (ecrit) {
         trouves += 1;
+
+        // Capture des stats détaillées pour la revue de match écrite
+        // (offre Elite) — les deux blocs participants viennent de la même
+        // réponse Riot que celle qui a déjà servi à trouver la partie,
+        // aucun appel API de plus. Best-effort : une erreur ici ne doit
+        // jamais empêcher le verdict lui-même d'être acquis.
+        const statA =
+          partieTrouvee.participantA.puuid === compteA.puuid
+            ? partieTrouvee.participantA
+            : partieTrouvee.participantB;
+        const statB =
+          statA === partieTrouvee.participantA ? partieTrouvee.participantB : partieTrouvee.participantA;
+
+        await admin.from("stats_match_joueur").upsert([
+          {
+            match_id: m.id,
+            profile_id: compteA.profile_id,
+            champion: statA.championName,
+            kills: statA.kills,
+            deaths: statA.deaths,
+            assists: statA.assists,
+            cs: statA.totalMinionsKilled + statA.neutralMinionsKilled,
+            or_gagne: statA.goldEarned,
+            duree_secondes: partieTrouvee.dureeSecondes,
+            gagne: compteA.profile_id === gagnantId,
+          },
+          {
+            match_id: m.id,
+            profile_id: compteB.profile_id,
+            champion: statB.championName,
+            kills: statB.kills,
+            deaths: statB.deaths,
+            assists: statB.assists,
+            cs: statB.totalMinionsKilled + statB.neutralMinionsKilled,
+            or_gagne: statB.goldEarned,
+            duree_secondes: partieTrouvee.dureeSecondes,
+            gagne: compteB.profile_id === gagnantId,
+          },
+        ]);
+
         if (m.tournament) {
           // Une notification par participant, indépendantes les unes des
           // autres — lancées en parallèle plutôt qu'en série (correctif du
