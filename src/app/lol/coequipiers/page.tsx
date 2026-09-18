@@ -20,7 +20,7 @@ import Reveal from "@/components/accueil/Reveal";
 export const metadata: Metadata = {
   title: "Trouver un coéquipier — Najarena",
   description:
-    "Recherche de coéquipiers pour jouer en 5v5 sur Najarena — publie une annonce ou invite un joueur disponible dans ton équipe.",
+    "Recherche de coéquipiers pour former une équipe 5v5 sur Najarena (tournois 5v5 bientôt) — publie une annonce ou invite un joueur disponible dans ton équipe.",
 };
 
 interface CoequipiersPageProps {
@@ -136,8 +136,8 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
         Trouver un coéquipier
       </h1>
       <p className="mt-2 max-w-lg text-sm text-ardoise">
-        Pour jouer en 5v5 — une équipe compte jusqu&apos;à {TAILLE_MAX_EQUIPE} joueurs. Publie une
-        annonce pour te rendre visible, ou invite directement un joueur disponible dans une équipe
+        Pour jouer en 5v5 (les tournois 5v5 ouvriront bientôt) — une équipe compte jusqu&apos;à{" "}
+        {TAILLE_MAX_EQUIPE} joueurs. Publie une annonce pour te rendre visible, ou invite directement un joueur disponible dans une équipe
         où il reste de la place.{" "}
         <Link href="/equipe/nouvelle" className="text-encre underline underline-offset-3">
           Créer une équipe

@@ -78,7 +78,7 @@ export default async function Home() {
         <div className="relative mx-auto w-full max-w-2xl">
           <Reveal>
             <span className="font-mono text-[0.64rem] uppercase tracking-[0.24em] text-[var(--color-ardoise)]">
-              League of Legends · 1v1 &amp; 5v5 quotidiens
+              League of Legends · 1v1 quotidien · 5v5 bientôt
             </span>
           </Reveal>
 
@@ -92,8 +92,8 @@ export default async function Home() {
 
           <Reveal delai={0.16}>
             <p className="mt-4 max-w-md text-[1.02rem] text-[#B9BFC7]">
-              Des tournois quotidiens en 1v1 et 5v5. Les résultats sont lus
-              dans la partie officielle — aucune capture d&apos;écran, aucun
+              Des tournois quotidiens en 1v1, le 5v5 arrive bientôt. Les
+              résultats sont lus dans la partie officielle — aucune capture d&apos;écran, aucun
               litige. Ton classement devient une preuve.
             </p>
           </Reveal>
@@ -120,8 +120,8 @@ export default async function Home() {
           <Reveal delai={0.32}>
             <dl className="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/10 pt-6">
               <div>
-                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--color-encre)]">1v1 · 5v5</dd>
-                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--color-ardoise)] uppercase">Formats</dt>
+                <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--color-encre)]">1v1</dd>
+                <dt className="font-mono text-[0.62rem] tracking-[0.14em] text-[var(--color-ardoise)] uppercase">Format · 5v5 bientôt</dt>
               </div>
               <div>
                 <dd className="font-mono text-2xl font-bold tracking-tight text-[var(--color-encre)]">3</dd>
@@ -153,7 +153,7 @@ export default async function Home() {
               {[
                 {
                   titre: "Je veux jouer",
-                  texte: "Des tournois quotidiens en 1v1 et 5v5, ton classement qui progresse à chaque résultat vérifié.",
+                  texte: "Des tournois quotidiens en 1v1 (5v5 bientôt), ton classement qui progresse à chaque résultat vérifié.",
                   cta: "Voir les tournois",
                   href: "/lol/tournois",
                 },

@@ -40,7 +40,7 @@ const ETAPES = [
     accent: "laiton" as const,
     icone: "inscription" as const,
     titre: "Inscris-toi",
-    texte: "Choisis un tournoi 1v1 ou 5v5 ouvert dans ta région. L'inscription prend quelques secondes, aucune vérification manuelle à attendre.",
+    texte: "Choisis un tournoi 1v1 ouvert dans ta région. L'inscription prend quelques secondes, aucune vérification manuelle à attendre.",
   },
   {
     accent: "sceau" as const,
@@ -126,8 +126,8 @@ export default async function LolHubPage() {
               Ton niveau, vérifié.
             </h1>
             <p className="mt-3 max-w-md text-[var(--color-ardoise)]">
-              Des tournois 1v1 et 5v5 quotidiens. Les résultats sont lus dans
-              la donnée officielle Riot — ton classement devient une preuve,
+              Des tournois 1v1 quotidiens, le 5v5 arrive bientôt. Les résultats
+              sont lus dans la donnée officielle Riot — ton classement devient une preuve,
               pas une déclaration.
             </p>
           </Reveal>
@@ -176,7 +176,7 @@ export default async function LolHubPage() {
               {[
                 {
                   titre: "Je veux jouer",
-                  texte: "Des tournois quotidiens en 1v1 et 5v5, ton classement qui progresse à chaque résultat vérifié.",
+                  texte: "Des tournois quotidiens en 1v1 (5v5 bientôt), ton classement qui progresse à chaque résultat vérifié.",
                   cta: "Voir les tournois",
                   href: "/lol/tournois",
                 },

@@ -43,8 +43,9 @@ export default async function EquipeNouvellePage({ searchParams }: EquipeNouvell
         Créer une équipe
       </h1>
       <p className="mt-2 text-sm text-ardoise">
-        League of Legends · pour jouer en 5v5. Tu en es automatiquement le
-        capitaine, avec jusqu&apos;à {TAILLE_MAX_EQUIPE - 1} coéquipiers à inviter ensuite.
+        League of Legends · pour jouer en 5v5 (les tournois 5v5 ouvriront bientôt). Tu en es
+        automatiquement le capitaine, avec jusqu&apos;à {TAILLE_MAX_EQUIPE - 1} coéquipiers à
+        inviter ensuite.
       </p>
 
       {erreur && (

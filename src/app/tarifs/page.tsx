@@ -27,7 +27,47 @@ interface Palier {
 }
 
 interface TarifsPageProps {
-  searchParams: Promise<{ erreur?: string; message?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; pour?: string }>;
+}
+
+type Profil = "joueur" | "organiser";
+
+// Avantages annoncés mais pas encore codés (vérifié le 18/09/2026 : aucune
+// logique ne les applique). Affichés « Bientôt » plutôt que vendus comme
+// livrés — à retirer de cette liste au fur et à mesure de leur mise en ligne.
+const BIENTOT = new Set([
+  "Inscription prioritaire aux tournois",
+  "Alertes Discord avancées",
+  "Accès aux formats premium",
+]);
+
+const FILTRES: { pour: Profil | null; libelle: string; href: string }[] = [
+  { pour: null, libelle: "Tout voir", href: "/tarifs" },
+  { pour: "joueur", libelle: "Je joue", href: "/tarifs?pour=joueur" },
+  { pour: "organiser", libelle: "J'organise", href: "/tarifs?pour=organiser" },
+];
+
+// Les paliers sont cumulatifs : « je joue » n'a pas besoin de la colonne
+// Organisateur, « j'organise » n'a pas besoin de Vérifié/Elite.
+const OFFRES_VISIBLES: Record<Profil, Offre[]> = {
+  joueur: ["gratuit", "verifie", "elite"],
+  organiser: ["gratuit", "organisateur"],
+};
+
+// Tailwind ne génère pas une classe construite dynamiquement (`lg:grid-cols-${n}`) :
+// le nom complet doit apparaître tel quel dans le code source.
+const GRILLE_CARTES: Record<number, string> = {
+  2: "grid-cols-1 gap-4 sm:grid-cols-2",
+  3: "grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
+  4: "grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4",
+};
+
+function PastilleBientot() {
+  return (
+    <span className="ml-2 rounded-full border border-laiton/30 bg-laiton/12 px-1.5 py-0.5 font-mono text-[0.56rem] tracking-[0.08em] text-laiton-texte uppercase">
+      Bientôt
+    </span>
+  );
 }
 
 const PALIERS: Palier[] = [
@@ -39,7 +79,7 @@ const PALIERS: Palier[] = [
       "Classement Glicko-2 et paliers",
       "Verdicts vérifiés sur chaque match",
       "Profil public partageable",
-      "Tournois 1v1 et 5v5 quotidiens",
+      "Tournois 1v1 quotidiens",
       "Recherche de coéquipier",
     ],
     cta: { libelle: "Créer mon compte", href: "/inscription" },
@@ -109,7 +149,7 @@ const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
   { fonctionnalite: "Classement Glicko-2 et paliers", depuis: "gratuit" },
   { fonctionnalite: "Verdicts vérifiés sur chaque match", depuis: "gratuit" },
   { fonctionnalite: "Profil public partageable", depuis: "gratuit" },
-  { fonctionnalite: "Tournois 1v1 et 5v5 quotidiens", depuis: "gratuit" },
+  { fonctionnalite: "Tournois 1v1 quotidiens", depuis: "gratuit" },
   { fonctionnalite: "Recherche de coéquipier", depuis: "gratuit" },
   { fonctionnalite: "Badge Vérifié sur le profil et le classement", depuis: "verifie" },
   { fonctionnalite: "Qui a consulté mon profil", depuis: "verifie" },
@@ -126,7 +166,13 @@ const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
 ];
 
 export default async function TarifsPage({ searchParams }: TarifsPageProps) {
-  const { erreur, message } = await searchParams;
+  const { erreur, message, pour: pourBrut } = await searchParams;
+  const pour: Profil | null = pourBrut === "joueur" || pourBrut === "organiser" ? pourBrut : null;
+
+  const paliersVisibles = pour
+    ? PALIERS.filter((p) => OFFRES_VISIBLES[pour].includes(p.cle ?? "gratuit"))
+    : PALIERS;
+  const lignesVisibles = pour === "joueur" ? MATRICE.filter((l) => l.depuis !== "organisateur") : MATRICE;
 
   return (
     <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
@@ -157,8 +203,27 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
         <Reveal delai={0.1}>
           <section className="mt-12">
             <SectionTitre>Les paliers</SectionTitre>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {PALIERS.map((p) => (
+            <nav aria-label="Filtrer les paliers" className="mt-4 flex flex-wrap gap-2">
+              {FILTRES.map((f) => {
+                const actif = f.pour === pour;
+                return (
+                  <Link
+                    key={f.libelle}
+                    href={f.href}
+                    aria-current={actif ? "page" : undefined}
+                    className={`rounded-[3px] border px-3 py-1.5 font-mono text-[0.64rem] tracking-[0.1em] uppercase transition ${
+                      actif
+                        ? "border-encre text-encre"
+                        : "border-trait text-ardoise hover:border-ardoise hover:text-encre"
+                    }`}
+                  >
+                    {f.libelle}
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className={`mt-4 grid ${GRILLE_CARTES[paliersVisibles.length]}`}>
+              {paliersVisibles.map((p) => (
                 <div
                   key={p.nom}
                   className={`flex flex-col rounded-[3px] border border-trait border-t-[3px] bg-carte p-5 ${ACCENT_BORDURE[p.accent]}`}
@@ -176,7 +241,10 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                     {p.inclus.map((i) => (
                       <li key={i} className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ardoise" aria-hidden="true" />
-                        {i}
+                        <span>
+                          {i}
+                          {BIENTOT.has(i) && <PastilleBientot />}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -216,7 +284,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                     <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
                       Fonctionnalité
                     </th>
-                    {PALIERS.map((p) => (
+                    {paliersVisibles.map((p) => (
                       <th
                         key={p.nom}
                         className="px-4 py-2 text-center font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase"
@@ -227,15 +295,19 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {MATRICE.map((ligne) => (
+                  {lignesVisibles.map((ligne) => (
                     <tr key={ligne.fonctionnalite} className="border-b border-trait last:border-b-0">
                       <td className="px-4 py-2 text-encre">{ligne.fonctionnalite}</td>
-                      {PALIERS.map((p) => {
+                      {paliersVisibles.map((p) => {
                         const cle = (p.cle ?? "gratuit") as Offre;
                         const inclus = ORDRE_OFFRE[cle] >= ORDRE_OFFRE[ligne.depuis];
                         return (
                           <td key={p.nom} className="px-4 py-2 text-center">
-                            {inclus ? (
+                            {inclus && BIENTOT.has(ligne.fonctionnalite) ? (
+                              <span className="font-mono text-[0.6rem] tracking-[0.08em] text-laiton-texte uppercase">
+                                Bientôt
+                              </span>
+                            ) : inclus ? (
                               <span className="text-atteste">✓</span>
                             ) : (
                               <span className="text-ardoise/40">—</span>
@@ -248,14 +320,21 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                 </tbody>
               </table>
             </div>
+            <p className="mt-3 text-[0.78rem] text-ardoise">
+              « Bientôt » : en cours de développement, inclus dans le palier dès leur mise en ligne.
+            </p>
           </section>
         </Reveal>
 
         <Reveal delai={0.15}>
           <p className="mt-12 text-sm text-ardoise">
             Une question sur les tarifs à venir ?{" "}
+            <Link href="/faq" className="text-encre underline underline-offset-3">
+              Voir la FAQ
+            </Link>{" "}
+            ou{" "}
             <Link href="/comment-ca-marche" className="text-encre underline underline-offset-3">
-              Voir comment ça marche
+              comment ça marche
             </Link>
             .
           </p>
