@@ -98,6 +98,24 @@ export default function ConfidentialitePage() {
               informations déjà publiques sur le site (nom du tournoi,
               pseudo, résultat), jamais ton e-mail ni tes données de compte.
             </li>
+            <li>
+              <strong className="text-encre">Stripe</strong> — uniquement si tu souscris à un
+              palier payant : ton identifiant Najarena et ton e-mail lui sont transmis. Tes
+              coordonnées bancaires sont saisies directement chez Stripe et ne passent jamais
+              par Najarena.
+            </li>
+            <li>
+              <strong className="text-encre">Resend</strong> — envoi des e-mails de notification
+              liés à ton activité (invitation d&apos;équipe, inscription confirmée, résultat,
+              litige, message reçu) : ton adresse e-mail et le contenu de la notification lui
+              sont transmis.
+            </li>
+            <li>
+              <strong className="text-encre">Anthropic</strong> (États-Unis) — uniquement si tu es
+              organisateur et que tu utilises l&apos;assistant de création de tournoi : le texte
+              que tu y saisis lui est transmis pour produire la suggestion. Aucun résultat,
+              classement ni donnée de compte ne lui est envoyé.
+            </li>
           </ul>
           <p className="mt-2 text-ardoise">
             Ton pseudo, ton palier, ton historique de matchs et le journal de

@@ -7,6 +7,9 @@ export default function Footer() {
         <Link href="/comment-ca-marche" className="hover:text-encre">
           Comment ça marche
         </Link>
+        <Link href="/faq" className="hover:text-encre">
+          FAQ
+        </Link>
         <Link href="/journal" className="hover:text-encre">
           Journal de bord
         </Link>
@@ -23,6 +26,10 @@ export default function Footer() {
           Confidentialité
         </Link>
       </nav>
+      <p className="mx-auto mt-4 max-w-3xl text-center text-[0.72rem] text-ardoise">
+        League of Legends et Riot Games sont des marques déposées de Riot Games, Inc. Najarena
+        n&apos;est ni produit, ni approuvé, ni sponsorisé par Riot Games.
+      </p>
     </footer>
   );
 }

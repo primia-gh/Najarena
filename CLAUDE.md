@@ -151,6 +151,7 @@ Si un chiffre fait partie du dossier, il est en caractères machine. Si c'est du
 /connexion /inscription /lier-riot
 /admin                     modération, litiges
 /comment-ca-marche         guide éditorial (verdict, Glicko-2, sceau)
+/faq                       questions de confiance, dépliées par défaut (gratuité, affiliation Riot, délais, IA)
 /journal                   journal de bord public (docs/journal réel, voir src/lib/journal.ts)
 /note-du-fondateur         positionnement produit, en 1ère personne
 ```

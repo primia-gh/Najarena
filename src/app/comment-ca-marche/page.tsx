@@ -183,28 +183,16 @@ export default function CommentCaMarchePage() {
                 },
                 {
                   titre: "Chaque point est journalisé, pour toujours",
-                  texte: "Rating avant et après, publié et jamais modifié — visible dans le journal.",
-                  lien: "/journal",
+                  texte: "Rating avant et après chaque variation, jamais modifié — visible dans le journal des points du profil de chaque joueur.",
                 },
                 {
-                  titre: "Chacun ne voit et n'écrit que ce qui lui appartient",
-                  texte: "La base de données applique des règles de sécurité au niveau de chaque ligne (RLS, sur Supabase/Postgres) — un joueur ne peut jamais lire ou modifier les données d'un autre, ni son propre classement.",
+                  titre: "Chacun n'écrit que ce qui lui appartient",
+                  texte: "La base de données applique des règles de sécurité au niveau de chaque ligne (RLS, sur Supabase/Postgres) : un joueur ne peut modifier que ses propres données — jamais celles d'un autre, ni son propre classement. Profils et résultats sont publics par conception ; tes messages ne sont lisibles que par toi et ton interlocuteur.",
                 },
               ].map((s) => (
                 <div key={s.titre} className="rounded-[3px] border border-trait border-t-[3px] border-t-sceau bg-carte p-5">
                   <h3 className="font-display text-base font-extrabold text-encre">{s.titre}</h3>
-                  <p className="mt-1.5 text-sm text-ardoise">
-                    {s.texte}
-                    {s.lien && (
-                      <>
-                        {" "}
-                        <Link href={s.lien} className="text-encre underline underline-offset-3">
-                          Voir le journal
-                        </Link>
-                        .
-                      </>
-                    )}
-                  </p>
+                  <p className="mt-1.5 text-sm text-ardoise">{s.texte}</p>
                 </div>
               ))}
             </div>
@@ -216,6 +204,10 @@ export default function CommentCaMarchePage() {
             Envie de voir à quoi ressemble un bracket réel ?{" "}
             <Link href="/lol/tournois/demo" className="text-encre underline underline-offset-3">
               Voir un tournoi d&apos;exemple
+            </Link>
+            . Une question de confiance ?{" "}
+            <Link href="/faq" className="text-encre underline underline-offset-3">
+              Voir la FAQ
             </Link>
             .
           </p>

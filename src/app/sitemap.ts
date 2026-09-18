@@ -24,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/lol/tournois`, changeFrequency: "hourly", priority: 0.9 },
     { url: `${BASE_URL}/lol/classement`, changeFrequency: "daily", priority: 0.8 },
     { url: `${BASE_URL}/tarifs`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${BASE_URL}/faq`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/mentions-legales`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${BASE_URL}/cgu`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${BASE_URL}/confidentialite`, changeFrequency: "yearly", priority: 0.2 },

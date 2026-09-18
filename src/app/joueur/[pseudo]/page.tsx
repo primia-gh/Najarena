@@ -26,6 +26,13 @@ import CompteurAnime from "@/components/accueil/CompteurAnime";
 // Même repli que layout.tsx/robots.ts/sitemap.ts — jamais un domaine inventé.
 const URL_SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
+// Motifs de rating_events autres que "tournoi" (voir docs/schema.sql).
+const LABEL_MOTIF: Record<string, string> = {
+  soft_reset: "Nouvelle saison (remise partielle)",
+  inactivite: "Inactivité",
+  correction: "Correction",
+};
+
 interface JoueurPageProps {
   params: Promise<{ pseudo: string }>;
 }
@@ -57,6 +64,7 @@ async function chargerJoueur(slug: string) {
     { data: participationsData },
     { data: visiteurData },
     infoOffre,
+    { data: evenementsData },
   ] = await Promise.all([
     supabase
       .from("game_accounts")
@@ -80,6 +88,15 @@ async function chargerJoueur(slug: string) {
       .eq("profile_id", profil.id),
     supabase.auth.getUser(),
     chargerOffre(supabase, profil.id),
+    // Journal des points : public par conception (CLAUDE.md §4, policy
+    // select using(true) sur rating_events) — jamais réservé au propriétaire.
+    supabase
+      .from("rating_events")
+      .select("id, motif, rating_avant, rating_apres, cree_le, tournoi:tournaments(nom, slug)")
+      .eq("profile_id", profil.id)
+      .eq("game_id", 1)
+      .order("cree_le", { ascending: false })
+      .limit(20),
   ]);
 
   const estProprietaire = visiteurData.user?.id === profil.id;
@@ -215,6 +232,7 @@ async function chargerJoueur(slug: string) {
     compteRiot,
     rating,
     historique,
+    evenementsPoints: evenementsData ?? [],
     infoOffre,
     estProprietaire,
     visiteurs,
@@ -257,7 +275,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     );
   }
 
-  const { profil, compteRiot, rating, historique, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi, peutRevue } = donnees;
+  const { profil, compteRiot, rating, historique, evenementsPoints, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi, peutRevue } = donnees;
   const peutPersonnaliser = ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie;
   const visiteurEstOrganisateur = offreVisiteur === "organisateur";
   const pct = rating ? calibrationPct(rating.rd) : 0;
@@ -618,6 +636,61 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                 )}
               </li>
             ))}
+          </ul>
+        )}
+      </section>
+      </Reveal>
+
+      <Reveal delai={0.25}>
+      <section className="mt-10">
+        <SectionTitre>Journal des points</SectionTitre>
+        <p className="mt-2 max-w-lg text-[0.78rem] text-ardoise">
+          Chaque variation de points est enregistrée avec le rating avant et après : publique, et
+          jamais modifiée.
+        </p>
+        {evenementsPoints.length === 0 ? (
+          <div className="mt-3">
+            <EtatVide illustration={<IllustrationBracketVide />}>
+              Aucune variation de points pour l&apos;instant — le rating évolue à la clôture d&apos;un
+              tournoi.
+            </EtatVide>
+          </div>
+        ) : (
+          <ul className="mt-3 overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
+            {evenementsPoints.map((e) => {
+              const ecart = arrondir(e.rating_apres) - arrondir(e.rating_avant);
+              const libelle =
+                e.motif === "tournoi"
+                  ? (e.tournoi?.nom ?? "Tournoi")
+                  : (LABEL_MOTIF[e.motif] ?? e.motif);
+              return (
+                <li
+                  key={e.id}
+                  className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 border-b border-trait px-4 py-3 text-sm last:border-b-0"
+                >
+                  <span className="font-mono text-[0.72rem] text-ardoise">{formaterDate(e.cree_le)}</span>
+                  <span className="font-medium text-encre">
+                    {e.motif === "tournoi" && e.tournoi ? (
+                      <Link href={`/lol/tournois/${e.tournoi.slug}`} className="hover:underline">
+                        {libelle}
+                      </Link>
+                    ) : (
+                      libelle
+                    )}
+                  </span>
+                  <span className="font-mono text-[0.72rem] text-ardoise">
+                    {arrondir(e.rating_avant)} → {arrondir(e.rating_apres)}
+                  </span>
+                  <span
+                    className={`w-10 text-right font-mono text-sm font-bold ${
+                      ecart > 0 ? "text-atteste" : ecart < 0 ? "text-sceau-texte" : "text-ardoise"
+                    }`}
+                  >
+                    {ecart > 0 ? `+${ecart}` : ecart}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
