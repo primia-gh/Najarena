@@ -1,6 +1,7 @@
 "use server";
 
 import { REGIONS } from "@/lib/regions";
+import { createClient } from "@/lib/supabase/server";
 
 // Assistant organisateur (IA) — demandé le 2026-09-12, choisi par le porteur
 // du projet comme première fonctionnalité IA concrète (les autres pistes de
@@ -43,6 +44,15 @@ export async function suggererConfigurationTournoi(description: string): Promise
     return { erreur: ERREUR_GENERIQUE };
   }
 
+  // Une Server Action est appelable directement, sans passer par la page qui
+  // la porte : sans ce contrôle, n'importe qui pourrait consommer le crédit
+  // de l'API Anthropic. Même règle que les autres actions (session requise).
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    return { erreur: "Connecte-toi pour utiliser l'assistant." };
+  }
+
   const texte = description.trim();
   if (texte.length < 3) {
     return { erreur: "Décris ton tournoi d'abord (ex. \"samedi soir, une trentaine de joueurs, EUW\")." };
@@ -64,7 +74,7 @@ export async function suggererConfigurationTournoi(description: string): Promise
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 1024,
-        system: `Tu configures un tournoi League of Legends 1v1 sur Najarena à partir d'une description en langage naturel écrite par l'organisateur. Date actuelle : ${maintenant.toISOString()} (propose toujours une date future). Régions valides (codes serveur Riot) : ${REGIONS_VALIDES.join(", ")} — choisis "EUW" si rien n'est précisé. La capacité doit être exactement 4, 8, 16 ou 64 : arrondis le nombre de joueurs mentionné à la puissance de 2 immédiatement supérieure ou égale (ex. "une vingtaine de joueurs" → 32). L'ouverture du check-in doit précéder le début de 15 à 30 minutes. Si aucune heure n'est précisée, choisis 20:00 (créneau le plus courant sur la plateforme). Le nom doit faire entre 3 et 60 caractères.`,
+        system: `Tu configures un tournoi League of Legends 1v1 sur Najarena à partir d'une description en langage naturel écrite par l'organisateur. Date actuelle : ${maintenant.toISOString()} (propose toujours une date future). Régions valides (codes serveur Riot) : ${REGIONS_VALIDES.join(", ")} — choisis "EUW" si rien n'est précisé. La capacité doit être exactement 4, 8, 16, 32 ou 64 : arrondis le nombre de joueurs mentionné à la puissance de 2 immédiatement supérieure ou égale (ex. "une vingtaine de joueurs" → 32). L'ouverture du check-in doit précéder le début de 15 à 30 minutes. Si aucune heure n'est précisée, choisis 20:00 (créneau le plus courant sur la plateforme). Le nom doit faire entre 3 et 60 caractères.`,
         messages: [{ role: "user", content: texte }],
         tools: [
           {
