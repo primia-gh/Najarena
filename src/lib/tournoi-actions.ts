@@ -80,8 +80,20 @@ export async function creerTournoi(formData: FormData) {
   // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
   // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
   // l'id depuis un slug.
+  //
+  // Sans season_id, la clôture d'un tournoi n'écrit rien dans ratings
+  // (cloturerTournoi) : on rattache donc chaque tournoi à la saison courante.
+  // Nul si aucune saison n'est courante — cloturerTournoi retente alors.
+  const { data: saisonCourante } = await supabase
+    .from("seasons")
+    .select("id")
+    .eq("game_id", 1)
+    .eq("est_courante", true)
+    .maybeSingle();
+
   const { error } = await supabase.from("tournaments").insert({
     game_id: 1,
+    season_id: saisonCourante?.id ?? null,
     organisateur_id: userData.user.id,
     slug,
     nom,

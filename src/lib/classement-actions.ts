@@ -53,6 +53,12 @@ async function compterVictoiresRecentes(
  */
 export async function cloturerTournoi(tournamentId: string): Promise<void> {
   const supabase = await createClient();
+  // Le cron de rapprochement clôture sans session utilisateur : le client à
+  // cookies n'a alors aucun droit d'écriture sur `tournaments` (règle RLS
+  // « organisateur modifie son tournoi », refus silencieux) — il faut le
+  // client admin. Repli sur la session de l'organisateur (verdict manuel).
+  const admin = creerClientAdmin();
+  const ecriture = admin ?? supabase;
 
   const { data: tournoi } = await supabase
     .from("tournaments")
@@ -64,12 +70,33 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     return;
   }
 
-  await supabase.from("tournaments").update({ statut: "termine" }).eq("id", tournamentId);
+  await ecriture.from("tournaments").update({ statut: "termine" }).eq("id", tournamentId);
 
-  // Tournoi non classé, ou aucune saison active au moment où il a eu lieu :
-  // pas de ligne à écrire dans ratings/rating_events (season_id y est NOT
-  // NULL). Le tournoi reste clôturé, simplement sans effet sur le classement.
-  if (!tournoi.compte_pour_classement || !tournoi.season_id) {
+  if (!tournoi.compte_pour_classement) {
+    return;
+  }
+
+  // Tournoi créé avant l'existence d'une saison courante (brouillon
+  // ancien) : on le rattache ici à la saison courante plutôt que de le
+  // laisser clôturé sans effet sur le classement.
+  let seasonId = tournoi.season_id;
+  if (!seasonId) {
+    const { data: saisonCourante } = await supabase
+      .from("seasons")
+      .select("id")
+      .eq("game_id", tournoi.game_id)
+      .eq("est_courante", true)
+      .maybeSingle();
+    seasonId = saisonCourante?.id ?? null;
+    if (seasonId) {
+      await ecriture.from("tournaments").update({ season_id: seasonId }).eq("id", tournamentId);
+    }
+  }
+
+  // Aucune saison courante : pas de ligne à écrire dans ratings/rating_events
+  // (season_id y est NOT NULL). Le tournoi reste clôturé, sans effet sur le
+  // classement.
+  if (!seasonId) {
     return;
   }
 
@@ -131,7 +158,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     .from("ratings")
     .select("profile_id, rating, rd, volatilite, matchs_joues")
     .eq("game_id", tournoi.game_id)
-    .eq("season_id", tournoi.season_id)
+    .eq("season_id", seasonId)
     .in("profile_id", Array.from(joueursDuBracket));
 
   const etatDepart = new Map<string, EtatGlicko>();
@@ -155,8 +182,6 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     resultatsParJoueur.get(c.perdantId)!.push({ adversaire: etatGagnant, score: 0 });
   }
 
-  const admin = creerClientAdmin();
-
   for (const profileId of joueursDuBracket) {
     const avant = etatDepart.get(profileId)!;
     const resultats = resultatsParJoueur.get(profileId) ?? [];
@@ -173,7 +198,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     await admin.rpc("cloturer_rating_joueur", {
       p_profile_id: profileId,
       p_game_id: tournoi.game_id,
-      p_season_id: tournoi.season_id,
+      p_season_id: seasonId,
       p_tournament_id: tournamentId,
       p_rating_avant: avant.rating,
       p_rd_avant: avant.rd,

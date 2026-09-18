@@ -64,6 +64,16 @@ create table seasons (
   unique (game_id, numero)
 );
 
+-- Amorçage (migration amorcage_saison_1, 18/09/2026) : sans saison courante,
+-- un tournoi n'a pas de season_id et sa clôture n'écrit jamais dans ratings.
+-- Créée directement courante : le cron de rotation ne fait alors rien.
+-- La saison suivante se crée à la main (aucun code ne crée de ligne seasons).
+-- En commentaire ici : ce fichier ne sème pas `games` (id 1 = LoL), donc
+-- l'insert échouerait sur une base vierge. À exécuter après ce semis :
+--   insert into seasons (game_id, numero, nom, debut_le, fin_le, est_courante)
+--   values (1, 1, 'Saison 1', '2026-09-18T00:00:00Z', '2026-12-18T00:00:00Z', true)
+--   on conflict (game_id, numero) do nothing;
+
 create table tournaments (
   id                  uuid primary key default gen_random_uuid(),
   game_id             smallint not null references games(id),
