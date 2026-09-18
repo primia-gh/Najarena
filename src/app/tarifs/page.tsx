@@ -4,7 +4,7 @@ import SectionTitre from "@/components/ui/SectionTitre";
 import Bouton from "@/components/ui/Bouton";
 import { classeCarte } from "@/lib/ui";
 import { demarrerAbonnement } from "@/lib/stripe-actions";
-import type { Offre } from "@/lib/offres";
+import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
 import FondArene from "@/components/accueil/FondArene";
 import BracketBackground from "@/components/BracketBackground";
 import Reveal from "@/components/accueil/Reveal";
@@ -99,6 +99,32 @@ const ACCENT_BORDURE: Record<Palier["accent"], string> = {
   none: "border-t-trait",
 };
 
+// Reprend mot pour mot les puces de PALIERS[].inclus, juste transposées en
+// lignes — aucune fonctionnalité nouvelle, seulement un second format pour
+// répondre à "qu'est-ce qui me manque précisément" (dossier concurrentiel,
+// idée #2 du 14/09). Les paliers sont cumulatifs (ORDRE_OFFRE, déjà utilisé
+// pour gater CV export / revue de match) : `depuis` suffit à cocher toutes
+// les colonnes à partir de ce palier.
+const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
+  { fonctionnalite: "Classement Glicko-2 et paliers", depuis: "gratuit" },
+  { fonctionnalite: "Verdicts vérifiés sur chaque match", depuis: "gratuit" },
+  { fonctionnalite: "Profil public partageable", depuis: "gratuit" },
+  { fonctionnalite: "Tournois 1v1 et 5v5 quotidiens", depuis: "gratuit" },
+  { fonctionnalite: "Recherche de coéquipier", depuis: "gratuit" },
+  { fonctionnalite: "Badge Vérifié sur le profil et le classement", depuis: "verifie" },
+  { fonctionnalite: "Qui a consulté mon profil", depuis: "verifie" },
+  { fonctionnalite: "Personnalisation du profil", depuis: "verifie" },
+  { fonctionnalite: "Inscription prioritaire aux tournois", depuis: "verifie" },
+  { fonctionnalite: "Export CV premium (PDF, lien partageable)", depuis: "elite" },
+  { fonctionnalite: "Revue de match écrite", depuis: "elite" },
+  { fonctionnalite: "Alertes Discord avancées", depuis: "elite" },
+  { fonctionnalite: "Accès aux formats premium", depuis: "elite" },
+  { fonctionnalite: "Capacité de tournoi étendue", depuis: "organisateur" },
+  { fonctionnalite: "Branding de tournoi", depuis: "organisateur" },
+  { fonctionnalite: "Formats premium à l'hébergement", depuis: "organisateur" },
+  { fonctionnalite: "Support prioritaire", depuis: "organisateur" },
+];
+
 export default async function TarifsPage({ searchParams }: TarifsPageProps) {
   const { erreur, message } = await searchParams;
 
@@ -177,6 +203,51 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
               Vérifié, Elite et Organisateur sont en cours de lancement — ces prix sont indicatifs
               et pourront évoluer.
             </p>
+          </section>
+        </Reveal>
+
+        <Reveal delai={0.12}>
+          <section className="mt-12">
+            <SectionTitre>Comparer les paliers</SectionTitre>
+            <div className="mt-4 overflow-x-auto rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-trait">
+                    <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                      Fonctionnalité
+                    </th>
+                    {PALIERS.map((p) => (
+                      <th
+                        key={p.nom}
+                        className="px-4 py-2 text-center font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase"
+                      >
+                        {p.nom}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {MATRICE.map((ligne) => (
+                    <tr key={ligne.fonctionnalite} className="border-b border-trait last:border-b-0">
+                      <td className="px-4 py-2 text-encre">{ligne.fonctionnalite}</td>
+                      {PALIERS.map((p) => {
+                        const cle = (p.cle ?? "gratuit") as Offre;
+                        const inclus = ORDRE_OFFRE[cle] >= ORDRE_OFFRE[ligne.depuis];
+                        return (
+                          <td key={p.nom} className="px-4 py-2 text-center">
+                            {inclus ? (
+                              <span className="text-atteste">✓</span>
+                            ) : (
+                              <span className="text-ardoise/40">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         </Reveal>
 

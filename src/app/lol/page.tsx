@@ -164,6 +164,56 @@ export default async function LolHubPage() {
         <div className="mx-auto max-w-3xl">
           <Reveal>
             <h2 className="border-l-4 border-laiton pl-3 font-display text-xl font-extrabold tracking-tight text-encre">
+              Par où commencer
+            </h2>
+            <p className="mt-3 max-w-lg text-ardoise">
+              Trois profils, trois points d&apos;entrée — choisis le tien.
+            </p>
+          </Reveal>
+
+          <Reveal delai={0.1}>
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {[
+                {
+                  titre: "Je veux jouer",
+                  texte: "Des tournois quotidiens en 1v1 et 5v5, ton classement qui progresse à chaque résultat vérifié.",
+                  cta: "Voir les tournois",
+                  href: "/lol/tournois",
+                },
+                {
+                  titre: "Je cherche une équipe",
+                  texte: "Publie une annonce ou rejoins un effectif qui a besoin de toi — pas de 5-stack obligatoire.",
+                  cta: "Trouver un coéquipier",
+                  href: "/lol/coequipiers",
+                },
+                {
+                  titre: "J'organise un tournoi",
+                  texte: "Check-in, bracket, verdicts — un cockpit qui fait le travail d'admin à ta place.",
+                  cta: "Organiser un tournoi",
+                  href: "/organiser/nouveau",
+                },
+              ].map((c) => (
+                <Link
+                  key={c.titre}
+                  href={c.href}
+                  className="group flex flex-col gap-3 rounded-[3px] border border-trait border-t-[3px] border-t-sceau bg-carte p-5 transition hover:border-t-sceau"
+                >
+                  <h3 className="font-display text-base font-extrabold text-encre">{c.titre}</h3>
+                  <p className="flex-1 text-sm text-ardoise">{c.texte}</p>
+                  <span className="font-mono text-[0.66rem] tracking-[0.1em] text-sceau-texte uppercase transition group-hover:text-sceau">
+                    {c.cta} →
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="relative px-6 py-20">
+        <div className="mx-auto max-w-3xl">
+          <Reveal>
+            <h2 className="border-l-4 border-laiton pl-3 font-display text-xl font-extrabold tracking-tight text-encre">
               Comment ça marche
             </h2>
             <p className="mt-3 max-w-lg text-ardoise">

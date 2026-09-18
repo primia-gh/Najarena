@@ -184,6 +184,9 @@ export default async function CvPage({ params }: CvPageProps) {
                   <span className="print:hidden">
                     <Badge couleur={COULEUR_NIVEAU[h.niveau]}>{LABEL_NIVEAU[h.niveau]}</Badge>
                   </span>
+                  <span className="hidden font-mono text-[0.62rem] text-black print:inline">
+                    {LABEL_NIVEAU[h.niveau]}
+                  </span>
                   <span className={`font-mono text-sm font-bold ${h.estGagnant ? "text-atteste" : "text-sceau-texte"} print:text-black`}>
                     {h.estGagnant ? "V" : "D"}
                   </span>

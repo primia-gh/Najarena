@@ -171,7 +171,7 @@ export default function CommentCaMarchePage() {
               Un classement n&apos;a de valeur que si personne — pas même Najarena — ne peut le
               trafiquer après coup. Ces règles ne sont pas négociables.
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[
                 {
                   titre: "Ta clé n'est jamais exposée",
@@ -185,6 +185,10 @@ export default function CommentCaMarchePage() {
                   titre: "Chaque point est journalisé, pour toujours",
                   texte: "Rating avant et après, publié et jamais modifié — visible dans le journal.",
                   lien: "/journal",
+                },
+                {
+                  titre: "Chacun ne voit et n'écrit que ce qui lui appartient",
+                  texte: "La base de données applique des règles de sécurité au niveau de chaque ligne (RLS, sur Supabase/Postgres) — un joueur ne peut jamais lire ou modifier les données d'un autre, ni son propre classement.",
                 },
               ].map((s) => (
                 <div key={s.titre} className="rounded-[3px] border border-trait border-t-[3px] border-t-sceau bg-carte p-5">
