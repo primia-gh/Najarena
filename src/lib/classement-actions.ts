@@ -70,9 +70,17 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     return;
   }
 
-  await ecriture.from("tournaments").update({ statut: "termine" }).eq("id", tournamentId);
+  // Pour un tournoi qui compte, « terminé » est écrit EN DERNIER, une fois
+  // tous les ratings écrits : « terminé » ferme la porte (garde ci-dessus),
+  // donc l'écrire avant laissait un tournoi clos avec des joueurs jamais
+  // crédités si une écriture échouait ou si la fonction expirait. Relancer
+  // reste sans danger : la fonction SQL refuse tout double crédit.
+  const terminer = async () => {
+    await ecriture.from("tournaments").update({ statut: "termine" }).eq("id", tournamentId);
+  };
 
   if (!tournoi.compte_pour_classement) {
+    await terminer();
     return;
   }
 
@@ -94,9 +102,10 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
   }
 
   // Aucune saison courante : pas de ligne à écrire dans ratings/rating_events
-  // (season_id y est NOT NULL). Le tournoi reste clôturé, sans effet sur le
+  // (season_id y est NOT NULL). Le tournoi est clôturé, sans effet sur le
   // classement.
   if (!seasonId) {
+    await terminer();
     return;
   }
 
@@ -114,6 +123,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     for (const p of m.match_participants) joueursDuBracket.add(p.profile_id);
   }
   if (joueursDuBracket.size === 0) {
+    await terminer();
     return;
   }
 
@@ -182,34 +192,59 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     resultatsParJoueur.get(c.perdantId)!.push({ adversaire: etatGagnant, score: 0 });
   }
 
-  for (const profileId of joueursDuBracket) {
-    const avant = etatDepart.get(profileId)!;
-    const resultats = resultatsParJoueur.get(profileId) ?? [];
-    const apres = mettreAJourJoueur(avant, resultats);
-
-    if (!admin) {
-      // Pas encore de SUPABASE_SERVICE_ROLE_KEY configurée : le tournoi
-      // est bien clôturé, mais l'écriture du classement échoue proprement
-      // plutôt que de contourner la règle CLAUDE.md §6.1 (aucune écriture
-      // client sur ratings/rating_events).
-      continue;
-    }
-
-    await admin.rpc("cloturer_rating_joueur", {
-      p_profile_id: profileId,
-      p_game_id: tournoi.game_id,
-      p_season_id: seasonId,
-      p_tournament_id: tournamentId,
-      p_rating_avant: avant.rating,
-      p_rd_avant: avant.rd,
-      p_volatilite_avant: avant.volatilite,
-      p_rating_apres: apres.rating,
-      p_rd_apres: apres.rd,
-      p_volatilite_apres: apres.volatilite,
-      p_matchs_comptes: resultats.length,
-      p_motif: "tournoi",
-    });
+  if (!admin) {
+    // Pas encore de SUPABASE_SERVICE_ROLE_KEY configurée : le tournoi est
+    // clôturé, mais l'écriture du classement est impossible — on échoue
+    // proprement plutôt que de contourner la règle CLAUDE.md §6.1 (aucune
+    // écriture client sur ratings/rating_events), et on le dit dans les logs.
+    console.error(
+      `cloturerTournoi : SUPABASE_SERVICE_ROLE_KEY absente, ratings non écrits pour le tournoi ${tournamentId}.`,
+    );
+    await terminer();
+    return;
   }
+
+  // Écritures indépendantes (une par joueur, idempotentes côté SQL) : lancées
+  // en parallèle plutôt qu'en série, pour qu'un gros tournoi (jusqu'à 128
+  // joueurs) tienne dans le délai d'une fonction serveur.
+  const joueursEnEchec = (
+    await Promise.all(
+      Array.from(joueursDuBracket).map(async (profileId) => {
+        const avant = etatDepart.get(profileId)!;
+        const resultats = resultatsParJoueur.get(profileId) ?? [];
+        const apres = mettreAJourJoueur(avant, resultats);
+
+        const { error } = await admin.rpc("cloturer_rating_joueur", {
+          p_profile_id: profileId,
+          p_game_id: tournoi.game_id,
+          p_season_id: seasonId,
+          p_tournament_id: tournamentId,
+          p_rating_avant: avant.rating,
+          p_rd_avant: avant.rd,
+          p_volatilite_avant: avant.volatilite,
+          p_rating_apres: apres.rating,
+          p_rd_apres: apres.rd,
+          p_volatilite_apres: apres.volatilite,
+          p_matchs_comptes: resultats.length,
+          p_motif: "tournoi",
+        });
+        return error ? profileId : null;
+      }),
+    )
+  ).filter((id): id is string => id !== null);
+
+  if (joueursEnEchec.length > 0) {
+    // Tournoi laissé « en cours » : mieux vaut un tournoi visiblement non
+    // clôturé qu'un tournoi clos où des joueurs n'ont jamais reçu leurs
+    // points. Une relance complète les joueurs manquants sans recréditer
+    // les autres (garde SQL).
+    console.error(
+      `cloturerTournoi : écriture du rating échouée pour ${joueursEnEchec.length} joueur(s) du tournoi ${tournamentId} — tournoi laissé ouvert pour reprise.`,
+    );
+    return;
+  }
+
+  await terminer();
 }
 
 /**
@@ -327,11 +362,12 @@ export async function appliquerRotationSaisons(): Promise<{
         .eq("game_id", gameId)
         .eq("season_id", courante.id);
 
+      let echecs = 0;
       for (const r of ratingsPrecedents ?? []) {
         const avant: EtatGlicko = { rating: r.rating, rd: r.rd, volatilite: r.volatilite };
         const apres = softResetSaison(avant);
 
-        const { data: ecrit } = await admin.rpc("appliquer_soft_reset_saison", {
+        const { data: ecrit, error } = await admin.rpc("appliquer_soft_reset_saison", {
           p_profile_id: r.profile_id,
           p_game_id: gameId,
           p_season_id: cible.id,
@@ -342,7 +378,21 @@ export async function appliquerRotationSaisons(): Promise<{
           p_rd_apres: apres.rd,
         });
 
-        if (ecrit) joueursTraites += 1;
+        if (error) echecs += 1;
+        else if (ecrit) joueursTraites += 1;
+      }
+
+      // Basculer la saison malgré un échec ferait repartir de zéro les
+      // joueurs non traités (leur ligne de la nouvelle saison n'existerait
+      // pas, et la relance ne les reverrait plus : « cible » serait déjà la
+      // saison courante). On laisse donc l'ancienne saison courante : la
+      // prochaine exécution reprend — les joueurs déjà traités sont ignorés
+      // (garde SQL).
+      if (echecs > 0) {
+        console.error(
+          `appliquerRotationSaisons : soft reset échoué pour ${echecs} joueur(s) du jeu ${gameId} — saison non basculée, reprise à la prochaine exécution.`,
+        );
+        continue;
       }
     }
 
