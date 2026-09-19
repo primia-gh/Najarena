@@ -8,6 +8,30 @@ import { mettreAJourJoueur, softResetSaison, RD_MAX, type EtatGlicko } from "./g
 const PRECISION = 6;
 
 describe("mettreAJourJoueur", () => {
+  // Exemple numérique publié par Glickman (« Example of the Glicko-2 system »,
+  // 2013, τ = 0.5) : source indépendante de docs/glicko2.py, donc de nos
+  // valeurs de référence ci-dessous. Résultats publiés : r' = 1464.06,
+  // RD' = 151.52, σ' = 0.05999. L'article arrondit ses valeurs intermédiaires
+  // (μ' = −0.2069) : sans arrondi, le rating est 1464.05, d'où la tolérance
+  // de 0.05 plutôt que de 0.005.
+  it("reproduit l'exemple publié par Glickman (une victoire, deux défaites)", () => {
+    const joueur: EtatGlicko = { rating: 1500, rd: 200, volatilite: 0.06 };
+
+    const resultat = mettreAJourJoueur(
+      joueur,
+      [
+        { adversaire: { rating: 1400, rd: 30, volatilite: 0.06 }, score: 1 },
+        { adversaire: { rating: 1550, rd: 100, volatilite: 0.06 }, score: 0 },
+        { adversaire: { rating: 1700, rd: 300, volatilite: 0.06 }, score: 0 },
+      ],
+      0.5,
+    );
+
+    expect(resultat.rating).toBeCloseTo(1464.06, 1);
+    expect(resultat.rd).toBeCloseTo(151.52, 1);
+    expect(resultat.volatilite).toBeCloseTo(0.05999, 4);
+  });
+
   it("un nouveau joueur qui bat un joueur établi gagne du rating et perd de l'incertitude", () => {
     const nouveau: EtatGlicko = { rating: 1500, rd: 350, volatilite: 0.06 };
     const etabli: EtatGlicko = { rating: 1400, rd: 30, volatilite: 0.06 };
