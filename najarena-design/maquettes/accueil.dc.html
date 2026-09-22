@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Najarena — Accueil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&amp;family=Chakra+Petch:wght@400;500;600;700&amp;family=Russo+One&amp;display=swap">
+<style>
+body{margin:0;background:#080908;color:#F5F5F4;font-family:'Chakra Petch',system-ui,sans-serif}
+a{color:#F5F5F4;text-decoration:none}a:hover{color:#B6FF3B}
+@keyframes nj-drift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(50px,-30px) scale(1.08)}100%{transform:translate(0,0) scale(1)}}
+@keyframes nj-float{0%{transform:translateY(0)}50%{transform:translateY(-10px)}100%{transform:translateY(0)}}
+@keyframes nj-pulse{0%{opacity:.35}50%{opacity:1}100%{opacity:.35}}
+@keyframes nj-marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes nj-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.nj-anim .nj-glow{animation:nj-drift 20s ease-in-out infinite}
+.nj-anim .nj-float{animation:nj-float 9s ease-in-out infinite}
+.nj-anim .nj-live{animation:nj-pulse 2s ease-in-out infinite}
+.nj-anim .nj-marquee{animation:nj-marquee 40s linear infinite}
+.nj-anim .nj-sweep{animation:nj-sweep 7s ease-in-out infinite}
+.nj-scales{background-image:radial-gradient(circle at 50% 0,transparent 17px,rgba(245,245,244,.035) 18px,transparent 19px);background-size:36px 22px;-webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.9),rgba(0,0,0,0));mask-image:linear-gradient(180deg,rgba(0,0,0,.9),rgba(0,0,0,0))}
+@media (prefers-reduced-motion: reduce){.nj-anim *{animation:none !important}}
+</style>
+</helmet>
+
+<div class="{{animClass}}" style="width: 1440px; height: 6460px; display: flex; flex-direction: column; background: #080908; overflow: hidden;">
+
+  <!-- NAVIGATION -->
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 28px 96px; position: relative; z-index: 3;">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <img src="/_blob/1c46ac8b4fada1e2d33f82ff3c5d3c97" alt="" style="height: 44px; width: auto; display: block;">
+      <div style="font-family: {{titleFont}}; font-weight: 800; font-size: 26px; letter-spacing: 4px;">NAJARENA</div>
+    </div>
+    <nav style="display: flex; gap: 44px; font-size: 14px; font-weight: 500; letter-spacing: 2px;">
+      <a href="#tournois">TOURNOIS</a>
+      <a href="#classement">CLASSEMENT</a>
+      <a href="#equipes">ÉQUIPES</a>
+      <a href="#recruteurs">RECRUTEURS</a>
+    </nav>
+    <div style="display: flex; align-items: center; gap: 28px;">
+      <a href="#connexion" style="font-size: 14px; font-weight: 600; letter-spacing: 2px; padding: 12px 0;">CONNEXION</a>
+      <a href="#rejoindre" style="border: 1px solid rgba(245,245,244,.25); font-size: 14px; font-weight: 600; letter-spacing: 2px; padding: 13px 22px; border-radius: 2px;">REJOINDRE</a>
+    </div>
+  </header>
+
+  <!-- 1. OUVERTURE -->
+  <section style="position: relative; height: 860px; display: flex; align-items: center; padding: 0 96px;">
+    <div style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 70% 40%, #161A15 0%, #0B0C0B 55%, #080908 100%);"></div>
+    <div style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 0;"><dc-import name="Ouverture-Anim" anim="{{animOn}}" hint-size="1440px,860px"></dc-import></div>
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 240px; background: linear-gradient(180deg, rgba(8,9,8,0), #080908);"></div>
+
+    <div style="position: relative; z-index: 2; width: 760px; display: flex; flex-direction: column; gap: 36px;">
+      <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 500; letter-spacing: 4px; color: #9CA39C;">
+        <span class="nj-live" style="width: 6px; height: 6px; border-radius: 50%; background: {{accent}};"></span>
+        RÉSULTATS VÉRIFIÉS AUTOMATIQUEMENT
+      </div>
+      <h1 style="margin: 0; font-family: {{titleFont}}; font-weight: 900; font-size: 168px; line-height: 0.86; letter-spacing: -1px; text-transform: uppercase;">Prouve<br>ton <span style="color: {{accent}};">niveau.</span></h1>
+      <p style="margin: 0; font-size: 20px; line-height: 1.6; color: #B9BEB9; max-width: 520px;">Joue des tournois, grimpe au classement et construis un CV e-sport que les équipes et les recruteurs consultent vraiment.</p>
+      <div style="display: flex; align-items: center; gap: 36px; margin-top: 4px;">
+        <a href="#rejoindre" style="position: relative; overflow: hidden; background: {{accent}}; color: #080908; font-weight: 700; font-size: 15px; letter-spacing: 2px; padding: 22px 40px; border-radius: 2px;">REJOINDRE NAJARENA<span class="nj-sweep" style="position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.35), rgba(255,255,255,0));"></span></a>
+        <a href="#tournois" style="font-weight: 600; font-size: 15px; letter-spacing: 2px; border-bottom: 1px solid rgba(245,245,244,.3); padding-bottom: 6px;">VOIR LES TOURNOIS</a>
+      </div>
+      <div style="display: flex; gap: 32px; margin-top: 20px; padding-top: 28px; border-top: 1px solid rgba(245,245,244,.08); font-size: 13px; letter-spacing: 1px; color: #9CA39C;">
+        <div style="display: flex; align-items: center; gap: 10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B6FF3B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z"></path></svg>Données officielles</div>
+        <div style="display: flex; align-items: center; gap: 10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B6FF3B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>Anti-smurf</div>
+        <div style="display: flex; align-items: center; gap: 10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B6FF3B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>Sans pay-to-win</div>
+      </div>
+    </div>
+
+    <!-- Carte profil flottante -->
+    <div class="nj-float" style="position: relative; z-index: 2; margin-left: auto; width: 400px; background: linear-gradient(160deg, #171917 0%, #0D0F0D 100%); border: 1px solid rgba(245,245,244,.08); border-radius: 6px; padding: 32px; display: flex; flex-direction: column; gap: 26px; box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 50px 100px rgba(0,0,0,.7), 0 0 120px rgba(182,255,59,.06);">
+      <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; letter-spacing: 3px; color: #9CA39C;">
+        <div>CV E-SPORT</div>
+        <div style="display: flex; align-items: center; gap: 6px; color: {{accent}};">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+          VÉRIFIÉ
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <img src="/_blob/ec5347f7602db339bcbdf4ff9864a992" alt="" style="width: 56px; height: 56px; border-radius: 6px; display: block;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-family: {{titleFont}}; font-weight: 800; font-size: 26px; letter-spacing: 1px;">PSEUDO_JOUEUR</div>
+          <div style="font-size: 14px; color: #9CA39C;">Mid · Équipe [Nom]</div>
+        </div>
+      </div>
+      <div style="height: 1px; background: rgba(245,245,244,.08);"></div>
+      <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 11px; letter-spacing: 3px; color: #9CA39C;">RATING</div>
+          <div style="font-family: {{titleFont}}; font-weight: 900; font-size: 72px; line-height: 0.9; background: linear-gradient(180deg, #FFFFFF 20%, #B6FF3B 120%); -webkit-background-clip: text; background-clip: text; color: transparent;">1842</div>
+        </div>
+        <div style="font-size: 14px; font-weight: 600; color: {{accent}};">▲ +64 / 7 j</div>
+      </div>
+      <svg width="336" height="56" viewBox="0 0 336 56" fill="none"><polyline points="0,48 35,44 70,46 105,35 140,38 175,27 210,30 245,19 280,16 336,6" stroke="#B6FF3B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+      <div style="display: flex; gap: 6px;">
+        <sc-for list="{{lastResults}}" as="r" hint-placeholder-count="5">
+          <div style="flex-grow: 1; height: 36px; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; letter-spacing: 1px; background: {{r.bg}}; color: {{r.fg}};">{{r.label}}</div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- BANDEAU DÉFILANT -->
+  <div style="border-top: 1px solid rgba(245,245,244,.08); border-bottom: 1px solid rgba(245,245,244,.08); padding: 30px 0; overflow: hidden; background: #0A0B0A;">
+    <div class="nj-marquee" style="display: flex; gap: 48px; width: max-content; font-family: {{titleFont}}; font-weight: 800; font-size: 44px; letter-spacing: 2px; color: transparent; -webkit-text-stroke: 1px rgba(245,245,244,.45); white-space: nowrap;"><span style="display: flex; align-items: center; gap: 48px;">RÉSULTATS VÉRIFIÉS<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span><span style="display: flex; align-items: center; gap: 48px;">RATING OFFICIEL<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span><span style="display: flex; align-items: center; gap: 48px;">CV E-SPORT<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span><span style="display: flex; align-items: center; gap: 48px;">ZÉRO TRICHE<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span><span style="display: flex; align-items: center; gap: 48px;">REPÉRÉ PAR LES ÉQUIPES<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span><span style="display: flex; align-items: center; gap: 48px;">RÉSULTATS VÉRIFIÉS<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span><span style="display: flex; align-items: center; gap: 48px;">RATING OFFICIEL<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span><span style="display: flex; align-items: center; gap: 48px;">CV E-SPORT<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span><span style="display: flex; align-items: center; gap: 48px;">ZÉRO TRICHE<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span><span style="display: flex; align-items: center; gap: 48px;">REPÉRÉ PAR LES ÉQUIPES<svg width="14" height="14" viewBox="0 0 24 24" fill="#B6FF3B"><path d="M12 0 15 9 24 12 15 15 12 24 9 15 0 12 9 9Z"></path></svg></span></div>
+  </div>
+
+  <!-- 2. COMMENT ÇA MARCHE -->
+  <section style="position: relative; z-index: 0; padding: 150px 96px; display: flex; flex-direction: column; gap: 72px;"><div style="position: absolute; right: 60px; top: 40px; font-family: {{titleFont}}; font-weight: 900; font-size: 320px; line-height: 1; color: transparent; -webkit-text-stroke: 1px rgba(245,245,244,.07); pointer-events: none; z-index: -1;">01</div>
+    <div style="position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 80px;">
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="font-size: 13px; letter-spacing: 4px; color: #9CA39C;"><span style="color: {{accent}};">01</span> — COMMENT ÇA MARCHE</div>
+        <h2 style="margin: 0; font-family: {{titleFont}}; font-weight: 900; font-size: 88px; line-height: 0.9; text-transform: uppercase;">Trois étapes.<br>Zéro triche.</h2>
+      </div>
+      <p style="margin: 0; max-width: 380px; font-size: 18px; line-height: 1.6; color: #9CA39C;">Pas de captures d'écran, pas d'arbitre à relancer. La donnée officielle du jeu fait foi.</p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px;">
+      <sc-for list="{{steps}}" as="s" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 28px;">
+          <div style="position: relative; height: 300px; border-radius: 4px; overflow: hidden;">
+            <sc-if value="{{s.k1}}" hint-placeholder-val="{{ true }}"><dc-import name="Boucle-Compte" hint-size="389px,300px"></dc-import></sc-if>
+            <sc-if value="{{s.k2}}" hint-placeholder-val="{{ false }}"><dc-import name="Boucle-Bracket" hint-size="389px,300px"></dc-import></sc-if>
+            <sc-if value="{{s.k3}}" hint-placeholder-val="{{ false }}"><dc-import name="Boucle-Rating" hint-size="389px,300px"></dc-import></sc-if>
+          </div>
+          <div style="display: flex; gap: 22px; border-top: 1px solid rgba(245,245,244,.1); padding-top: 24px;">
+            <div style="font-family: {{titleFont}}; font-weight: 800; font-size: 20px; color: {{accent}};">{{s.num}}</div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="font-family: {{titleFont}}; font-weight: 800; font-size: 30px; text-transform: uppercase; letter-spacing: 1px;">{{s.title}}</div>
+              <div style="font-size: 17px; line-height: 1.6; color: #9CA39C;">{{s.text}}</div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- 3. LE CV E-SPORT -->
+  <section style="position: relative; z-index: 0; padding: 150px 96px; display: flex; gap: 100px; align-items: center; background: #0C0D0C;"><div style="position: absolute; left: 60px; top: 40px; font-family: {{titleFont}}; font-weight: 900; font-size: 320px; line-height: 1; color: transparent; -webkit-text-stroke: 1px rgba(245,245,244,.07); pointer-events: none; z-index: -1;">02</div>
+    <div style="width: 460px; display: flex; flex-direction: column; gap: 30px;">
+      <div style="font-size: 13px; letter-spacing: 4px; color: #9CA39C;"><span style="color: {{accent}};">02</span> — LE CV E-SPORT</div>
+      <h2 style="margin: 0; font-family: {{titleFont}}; font-weight: 900; font-size: 88px; line-height: 0.9; text-transform: uppercase;">Prouvé.<br>Pas déclaré.</h2>
+      <p style="margin: 0; font-size: 18px; line-height: 1.65; color: #B9BEB9;">Chaque match joué sur Najarena alimente un profil vérifiable : rating, classement par rôle, historique, régularité. Le document que tu envoies quand une équipe te demande ce que tu vaux.</p>
+      <div style="display: flex; flex-direction: column;">
+        <sc-for list="{{cvPoints}}" as="p" hint-placeholder-count="4">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid rgba(245,245,244,.08); font-size: 16px;">
+            <div>{{p}}</div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B6FF3B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+          </div>
+        </sc-for>
+      </div>
+      <a href="#cv" style="align-self: flex-start; margin-top: 6px; font-weight: 600; font-size: 15px; letter-spacing: 2px; border-bottom: 1px solid {{accent}}; padding-bottom: 6px; color: {{accent}};">CRÉER MON CV E-SPORT →</a>
+    </div>
+    <div style="flex-grow: 1; background: linear-gradient(160deg, #161816 0%, #0E100E 100%); border: 1px solid rgba(245,245,244,.07); border-radius: 6px; padding: 44px; display: flex; flex-direction: column; gap: 36px; position: relative; box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 40px 90px rgba(0,0,0,.5);">
+      <div style="display: flex; align-items: center; gap: 22px;">
+        <img src="/_blob/ec5347f7602db339bcbdf4ff9864a992" alt="" style="width: 80px; height: 80px; border-radius: 8px; display: block;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-family: {{titleFont}}; font-weight: 900; font-size: 38px; letter-spacing: 1px;">PSEUDO_JOUEUR</div>
+          <div style="font-size: 15px; color: #9CA39C;">Mid principal · Jungle secondaire · Disponible pour une équipe</div>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(245,245,244,.08); border-bottom: 1px solid rgba(245,245,244,.08);">
+        <sc-for list="{{cvStats}}" as="st" hint-placeholder-count="4">
+          <div style="padding: 24px 0; display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-size: 11px; letter-spacing: 3px; color: #9CA39C;">{{st.label}}</div>
+            <div style="font-family: {{titleFont}}; font-weight: 900; font-size: 44px; line-height: 1; color: {{st.color}};">{{st.value}}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+        <div style="font-size: 11px; letter-spacing: 3px; color: #9CA39C;">RATING PAR RÔLE</div>
+        <sc-for list="{{roles}}" as="ro" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; gap: 20px;">
+            <div style="width: 90px; font-size: 14px; letter-spacing: 1px;">{{ro.name}}</div>
+            <div style="flex-grow: 1; height: 2px; background: rgba(245,245,244,.1);">
+              <div style="height: 2px; background: {{ro.bar}}; width: {{ro.width}};"></div>
+            </div>
+            <div style="width: 60px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums;">{{ro.value}}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. TOURNOIS À VENIR -->
+  <section id="tournois" style="position: relative; z-index: 0; padding: 150px 96px; display: flex; flex-direction: column; gap: 64px;"><div style="position: absolute; right: 420px; top: 40px; font-family: {{titleFont}}; font-weight: 900; font-size: 320px; line-height: 1; color: transparent; -webkit-text-stroke: 1px rgba(245,245,244,.07); pointer-events: none; z-index: -1;">03</div>
+    <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="font-size: 13px; letter-spacing: 4px; color: #9CA39C;"><span style="color: {{accent}};">03</span> — TOURNOIS À VENIR</div>
+        <h2 style="margin: 0; font-family: {{titleFont}}; font-weight: 900; font-size: 88px; line-height: 0.9; text-transform: uppercase;">Ton prochain match.</h2>
+      </div>
+      <a href="#tournois" style="font-weight: 600; font-size: 14px; letter-spacing: 2px; border-bottom: 1px solid rgba(245,245,244,.3); padding-bottom: 6px;">TOUS LES TOURNOIS →</a>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px;">
+      <sc-for list="{{tournaments}}" as="t" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+          <dc-import name="Affiche-Tournoi" nom="{{t.name}}" jeu="{{t.game}}" format="{{t.format}}" date="{{t.date}}" variante="{{t.variant}}" hint-size="389px,240px"></dc-import>
+          <div style="display: flex; justify-content: space-between; font-size: 12px; letter-spacing: 3px; color: #9CA39C;">
+            <div>{{t.game}} · {{t.format}}</div>
+            <div>{{t.date}}</div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(245,245,244,.1); padding-top: 20px;">
+            <div style="font-size: 14px; color: #9CA39C;">{{t.slots}}</div>
+            <a href="#inscription" style="font-weight: 600; font-size: 14px; letter-spacing: 2px; color: {{accent}};">S'INSCRIRE →</a>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- 5. APERÇU DU CLASSEMENT -->
+  <section id="classement" style="position: relative; z-index: 0; padding: 150px 96px; display: flex; gap: 100px; background: #0C0D0C;"><div style="position: absolute; left: 60px; top: auto; bottom: 20px; font-family: {{titleFont}}; font-weight: 900; font-size: 320px; line-height: 1; color: transparent; -webkit-text-stroke: 1px rgba(245,245,244,.07); pointer-events: none; z-index: -1;">04</div>
+    <div style="position: relative; width: 400px; display: flex; flex-direction: column; gap: 28px;">
+      <div style="font-size: 13px; letter-spacing: 4px; color: #9CA39C;"><span style="color: {{accent}};">04</span> — CLASSEMENT</div>
+      <h2 style="margin: 0; font-family: {{titleFont}}; font-weight: 900; font-size: 88px; line-height: 0.9; text-transform: uppercase;">Vise le<br>top 10.</h2>
+      <p style="margin: 0; font-size: 18px; line-height: 1.65; color: #B9BEB9;">Un classement national et par rôle, mis à jour après chaque match vérifié. Les recruteurs le regardent. Toi aussi.</p>
+      <a href="#classement" style="align-self: flex-start; font-weight: 600; font-size: 14px; letter-spacing: 2px; border-bottom: 1px solid rgba(245,245,244,.3); padding-bottom: 6px;">CLASSEMENT COMPLET →</a>
+    </div>
+    <div style="position: relative; flex-grow: 1; display: flex; flex-direction: column;">
+      <div style="display: grid; grid-template-columns: 80px minmax(0, 1fr) 140px 120px 110px; padding: 0 0 18px; font-size: 11px; letter-spacing: 3px; color: #6F766F; border-bottom: 1px solid rgba(245,245,244,.12);">
+        <div>RANG</div><div>JOUEUR</div><div>RÔLE</div><div style="text-align: right;">RATING</div><div style="text-align: right;">TENDANCE</div>
+      </div>
+      <sc-for list="{{ranking}}" as="p" hint-placeholder-count="10">
+        <div style="display: grid; grid-template-columns: 80px minmax(0, 1fr) 140px 120px 110px; align-items: center; padding: 18px 16px; margin: 0 -16px; border-bottom: 1px solid rgba(245,245,244,.06); font-size: 16px; background: {{p.rowBg}};">
+          <div style="font-family: {{titleFont}}; font-weight: 800; font-size: 24px; color: {{p.rankColor}};">{{p.rank}}</div>
+          <div style="display: flex; align-items: center; gap: 14px; font-weight: 600; letter-spacing: 1px;"><img src="{{p.avatar}}" alt="" style="width: 34px; height: 34px; border-radius: 5px; display: block;">{{p.name}}</div>
+          <div style="color: #9CA39C;">{{p.role}}</div>
+          <div style="text-align: right; font-weight: 600; font-variant-numeric: tabular-nums;">{{p.rating}}</div>
+          <div style="text-align: right; font-size: 14px; color: {{p.trendColor}};">{{p.trend}}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- 6. DEUX PORTES D'ENTRÉE -->
+  <section id="equipes" style="padding: 150px 96px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px;">
+    <div style="display: flex; flex-direction: column; gap: 32px;">
+      <div style="position: relative; height: 420px; border-radius: 4px; background: linear-gradient(160deg, #141614, #0C0E0C); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); display: flex; align-items: center; justify-content: center; font-size: 12px; letter-spacing: 1px; color: #6F766F;">[Photo : une équipe en pleine partie]<span style="position: absolute; left: 14px; top: 14px; width: 14px; height: 14px; border-left: 1px solid rgba(245,245,244,.35); border-top: 1px solid rgba(245,245,244,.35);"></span><span style="position: absolute; right: 14px; top: 14px; width: 14px; height: 14px; border-right: 1px solid rgba(245,245,244,.35); border-top: 1px solid rgba(245,245,244,.35);"></span><span style="position: absolute; left: 14px; bottom: 14px; width: 14px; height: 14px; border-left: 1px solid rgba(245,245,244,.35); border-bottom: 1px solid rgba(245,245,244,.35);"></span><span style="position: absolute; right: 14px; bottom: 14px; width: 14px; height: 14px; border-right: 1px solid rgba(245,245,244,.35); border-bottom: 1px solid rgba(245,245,244,.35);"></span></div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="font-size: 13px; letter-spacing: 4px; color: #9CA39C;">POUR LES ÉQUIPES</div>
+        <div style="font-family: {{titleFont}}; font-weight: 900; font-size: 52px; line-height: 0.95; text-transform: uppercase;">Recrute sur des preuves.</div>
+        <div style="font-size: 17px; line-height: 1.6; color: #9CA39C; max-width: 500px;">Trouve le joueur qui manque à ton roster grâce à des profils vérifiés, filtrés par rôle, niveau et disponibilité.</div>
+        <a href="#equipes" style="align-self: flex-start; margin-top: 8px; font-weight: 600; font-size: 14px; letter-spacing: 2px; border-bottom: 1px solid rgba(245,245,244,.3); padding-bottom: 6px;">CRÉER MON ÉQUIPE →</a>
+      </div>
+    </div>
+    <div id="recruteurs" style="display: flex; flex-direction: column; gap: 32px;">
+      <div style="position: relative; height: 420px; border-radius: 4px; background: linear-gradient(160deg, #141614, #0C0E0C); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); display: flex; align-items: center; justify-content: center; font-size: 12px; letter-spacing: 1px; color: #6F766F;">[Photo : un recruteur qui analyse des profils]<span style="position: absolute; left: 14px; top: 14px; width: 14px; height: 14px; border-left: 1px solid rgba(245,245,244,.35); border-top: 1px solid rgba(245,245,244,.35);"></span><span style="position: absolute; right: 14px; top: 14px; width: 14px; height: 14px; border-right: 1px solid rgba(245,245,244,.35); border-top: 1px solid rgba(245,245,244,.35);"></span><span style="position: absolute; left: 14px; bottom: 14px; width: 14px; height: 14px; border-left: 1px solid rgba(245,245,244,.35); border-bottom: 1px solid rgba(245,245,244,.35);"></span><span style="position: absolute; right: 14px; bottom: 14px; width: 14px; height: 14px; border-right: 1px solid rgba(245,245,244,.35); border-bottom: 1px solid rgba(245,245,244,.35);"></span></div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="font-size: 13px; letter-spacing: 4px; color: #9CA39C;">POUR LES RECRUTEURS</div>
+        <div style="font-family: {{titleFont}}; font-weight: 900; font-size: 52px; line-height: 0.95; text-transform: uppercase;">Repère les talents en premier.</div>
+        <div style="font-size: 17px; line-height: 1.6; color: #9CA39C; max-width: 500px;">Recherche avancée, progression dans le temps, régularité : toutes les données pour décider vite et bien.</div>
+        <a href="#recruteurs" style="align-self: flex-start; margin-top: 8px; font-weight: 600; font-size: 14px; letter-spacing: 2px; border-bottom: 1px solid rgba(245,245,244,.3); padding-bottom: 6px;">L'OFFRE RECRUTEURS →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. APPEL FINAL -->
+  <section id="rejoindre" style="position: relative; padding: 160px 96px; overflow: hidden; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 36px; border-top: 1px solid rgba(245,245,244,.06);">
+    <div class="nj-scales" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0;"></div>
+    <div class="nj-glow" style="position: absolute; width: 800px; height: 800px; left: 320px; top: -260px; border-radius: 50%; background: radial-gradient(circle, rgba(182,255,59,.1) 0%, rgba(182,255,59,0) 65%);"></div>
+    <img src="/_blob/1c46ac8b4fada1e2d33f82ff3c5d3c97" alt="Najarena" style="position: relative; z-index: 2; height: 170px; width: auto; filter: drop-shadow(0 0 40px rgba(182,255,59,.35));">
+    <h2 style="position: relative; z-index: 2; margin: 0; font-family: {{titleFont}}; font-weight: 900; font-size: 140px; line-height: 0.88; text-transform: uppercase;">L'arène<br>t'attend.</h2>
+    <p style="position: relative; z-index: 2; margin: 0; font-size: 19px; color: #B9BEB9;">Inscription gratuite. Pas de pay-to-win. Seul ton niveau compte.</p>
+    <a href="#inscription" style="position: relative; z-index: 2; overflow: hidden; margin-top: 12px; background: {{accent}}; color: #080908; font-weight: 700; font-size: 15px; letter-spacing: 2px; padding: 22px 44px; border-radius: 2px;">REJOINDRE NAJARENA<span class="nj-sweep" style="position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.35), rgba(255,255,255,0));"></span></a>
+  </section>
+
+  <!-- PIED DE PAGE -->
+  <footer style="margin-top: auto; padding: 56px 96px; border-top: 1px solid rgba(245,245,244,.08); display: flex; flex-direction: column; gap: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 14px;"><img src="/_blob/1c46ac8b4fada1e2d33f82ff3c5d3c97" alt="" style="height: 36px; width: auto; display: block;"><div style="font-family: {{titleFont}}; font-weight: 800; font-size: 24px; letter-spacing: 4px;">NAJARENA</div></div>
+      <nav style="display: flex; gap: 36px; font-size: 13px; letter-spacing: 2px;">
+        <a href="#cgu" style="color: #9CA39C;">CGU</a>
+        <a href="#confidentialite" style="color: #9CA39C;">CONFIDENTIALITÉ</a>
+        <a href="#contact" style="color: #9CA39C;">CONTACT</a>
+        <a href="#discord" style="color: #9CA39C;">DISCORD</a>
+      </nav>
+    </div>
+    <div style="font-size: 12px; line-height: 1.6; color: #6F766F; max-width: 900px;">[Mention légale exigée par Riot Games pour l'utilisation de son API — à insérer ici]</div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#B6FF3B","options":["#B6FF3B","#00E676","#10B981"]},"police":{"editor":"enum","default":"Premium","options":["Premium","Première version"]},"animations":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":6460}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#B6FF3B';
+    const police = this.props.police ?? 'Premium';
+    const titleFont = police === 'Première version' ? "'Russo One', sans-serif" : "'Big Shoulders Display', 'Chakra Petch', sans-serif";
+    const win = { label: 'V', bg: 'rgba(182,255,59,.14)', fg: accent };
+    const loss = { label: 'D', bg: 'rgba(255,77,79,.12)', fg: '#FF4D4F' };
+    const names = ['PSEUDO_01','PSEUDO_02','PSEUDO_03','PSEUDO_04','PSEUDO_05','PSEUDO_06','PSEUDO_07','PSEUDO_08','PSEUDO_09','PSEUDO_10'];
+    const roles = ['Mid','Jungle','ADC','Top','Support','Mid','Jungle','Top','ADC','Support'];
+    const ratings = [2214, 2187, 2150, 2102, 2079, 2051, 2033, 2010, 1996, 1978];
+    const trends = [1, 1, -1, 1, 0, -1, 1, 1, -1, 1];
+    const avatars = ['/_blob/36d9aa7bcfa9a6c8996cea50827f9072','/_blob/752acd9a0f7b089c399fdddc89e9ece8','/_blob/577eeb70e6950c2994a1f2bf5431c5c7','/_blob/96b58575d6e523195708c4d0272e3fae','/_blob/54c4446e0a3a9c5131b5f589b18b917b','/_blob/fe3d2709c8e67345bfa321fabd1fd28a','/_blob/9fa2d03fc7e0721228da4c7ed8f63784','/_blob/752acd9a0f7b089c399fdddc89e9ece8','/_blob/ec5347f7602db339bcbdf4ff9864a992','/_blob/577eeb70e6950c2994a1f2bf5431c5c7'];
+    const ranking = names.map((n, i) => ({
+      avatar: avatars[i],
+      rank: String(i + 1).padStart(2, '0'),
+      name: n,
+      role: roles[i],
+      rating: String(ratings[i]),
+      rankColor: i === 0 ? accent : '#F5F5F4',
+      rowBg: i === 0 ? 'linear-gradient(90deg, rgba(182,255,59,.10), rgba(182,255,59,0) 70%)' : 'transparent',
+      trend: trends[i] > 0 ? '▲ monte' : (trends[i] < 0 ? '▼ baisse' : '— stable'),
+      trendColor: trends[i] > 0 ? accent : (trends[i] < 0 ? '#FF4D4F' : '#9CA39C')
+    }));
+    return {
+      accent,
+      titleFont,
+      animClass: (this.props.animations ?? true) ? 'nj-anim' : '',
+      animOn: (this.props.animations ?? true),
+      lastResults: [win, win, loss, win, win],
+      steps: [
+        { num: '01', title: 'Lie ton compte', text: 'Connecte ton compte de jeu : ton rang est vérifié, les smurfs restent dehors.', video: '', k1: true, k2: false, k3: false },
+        { num: '02', title: 'Joue tes matchs', text: 'Inscris-toi à un tournoi et joue. Les résultats remontent tout seuls.', video: '', k1: false, k2: true, k3: false },
+        { num: '03', title: 'Ton rating monte', text: 'Chaque victoire vérifiée fait progresser ton rating et ton CV e-sport.', video: '', k1: false, k2: false, k3: true }
+      ],
+      cvPoints: ['Rating vérifié et classement national', 'Rating détaillé par rôle', 'Historique complet des matchs', 'Lien partageable avec les équipes'],
+      cvStats: [
+        { label: 'RATING', value: '1842', color: accent },
+        { label: 'CLASSEMENT', value: '#128', color: '#F5F5F4' },
+        { label: 'VICTOIRES', value: '62%', color: '#F5F5F4' },
+        { label: 'MATCHS', value: '147', color: '#F5F5F4' }
+      ],
+      roles: [
+        { name: 'MID', value: '1842', width: '86%', bar: accent },
+        { name: 'JUNGLE', value: '1610', width: '68%', bar: '#F5F5F4' },
+        { name: 'TOP', value: '1390', width: '48%', bar: '#F5F5F4' }
+      ],
+      tournaments: [
+        { game: 'LOL', format: '5V5', name: 'Coupe\nVenin', date: '[DATE]', slots: '[Places restantes]', variant: '1' },
+        { game: 'LOL', format: '5V5', name: 'Nuit de\nl\u2019Arène', date: '[DATE]', slots: '[Places restantes]', variant: '2' },
+        { game: 'LOL', format: '1V1', name: 'Duel\ndes Mids', date: '[DATE]', slots: '[Places restantes]', variant: '3' }
+      ],
+      ranking
+    };
+  }
+}
+</script>
+</body>
+</html>

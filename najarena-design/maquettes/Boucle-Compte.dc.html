@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Boucle — liaison du compte</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&amp;family=Chakra+Petch:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+@keyframes b1-line{0%,10%{transform:scaleX(0)}40%,100%{transform:scaleX(1)}}
+@keyframes b1-node{0%,35%{border-color:rgba(245,245,244,.15);box-shadow:none}45%,100%{border-color:#B6FF3B;box-shadow:0 0 30px rgba(182,255,59,.25)}}
+@keyframes b1-badge{0%,50%{opacity:0;transform:translateY(8px)}60%,90%{opacity:1;transform:translateY(0)}100%{opacity:0}}
+@keyframes b1-dot{0%{left:0%}100%{left:100%}}
+.b1-line{transform-origin:left center;animation:b1-line 5s ease-in-out infinite}
+.b1-node{animation:b1-node 5s ease-in-out infinite}
+.b1-badge{animation:b1-badge 5s ease-in-out infinite}
+.b1-dot{animation:b1-dot 1.2s linear infinite}
+@media (prefers-reduced-motion: reduce){.b1-line,.b1-node,.b1-badge,.b1-dot{animation:none !important}}
+</style>
+</helmet>
+<div style="position: relative; width: 389px; height: 300px; overflow: hidden; border-radius: 4px; background: linear-gradient(160deg, #141614, #0C0E0C); font-family: 'Chakra Petch', sans-serif; color: #F5F5F4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px;">
+  <div style="display: flex; align-items: center;">
+    <div style="width: 84px; height: 84px; border: 1px solid rgba(245,245,244,.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #0B0C0B;">
+      <img src="/_blob/1c46ac8b4fada1e2d33f82ff3c5d3c97" alt="" style="height: 52px; width: auto;">
+    </div>
+    <div style="position: relative; width: 110px; height: 2px; background: rgba(245,245,244,.08);">
+      <div class="b1-line" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: #B6FF3B;"></div>
+      <div class="b1-dot" style="position: absolute; top: -3px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: #F5F5F4;"></div>
+    </div>
+    <div class="b1-node" style="width: 84px; height: 84px; border: 1px solid rgba(245,245,244,.15); border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: #0B0C0B;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F5F5F4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="3"></rect><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"></path></svg>
+      <div style="font-size: 9px; letter-spacing: 2px; color: #9CA39C;">COMPTE</div>
+    </div>
+  </div>
+  <div class="b1-badge" style="display: flex; align-items: center; gap: 10px; border: 1px solid rgba(182,255,59,.4); background: rgba(182,255,59,.08); padding: 10px 16px; border-radius: 2px; font-size: 12px; font-weight: 600; letter-spacing: 3px; color: #B6FF3B;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>RANG VÉRIFIÉ</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":389,"height":300}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

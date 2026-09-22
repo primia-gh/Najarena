@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Affiche de tournoi</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&amp;family=Chakra+Petch:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+
+</style>
+</helmet>
+<div style="position: relative; width: 389px; height: 240px; overflow: hidden; border-radius: 4px; background: #0B0C0B; font-family: 'Chakra Petch', sans-serif; color: #F5F5F4;">
+  <div style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: {{bg}};"></div>
+  <img src="/_blob/1c46ac8b4fada1e2d33f82ff3c5d3c97" alt="" style="position: absolute; height: {{logoH}}; width: auto; left: {{logoX}}; top: {{logoY}}; transform: rotate({{logoR}}); opacity: 0.16; pointer-events: none;">
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 150px; background: linear-gradient(180deg, rgba(11,12,11,0), rgba(11,12,11,.92));"></div>
+  <div style="position: absolute; left: 22px; top: 20px; right: 22px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 600; letter-spacing: 3px;">
+    <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; background: #B6FF3B; border-radius: 50%;"></span>{{jeu}}</div>
+    <div style="border: 1px solid rgba(245,245,244,.3); padding: 4px 8px; border-radius: 2px;">{{format}}</div>
+  </div>
+  <div style="position: absolute; left: 22px; right: 22px; bottom: 20px; display: flex; flex-direction: column; gap: 8px;">
+    <div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 44px; line-height: 0.9; text-transform: uppercase; white-space: pre-line;">{{nom}}</div>
+    <div style="display: flex; justify-content: space-between; font-size: 11px; letter-spacing: 3px; color: #B9BEB9;">
+      <div>{{date}}</div>
+      <div style="color: #B6FF3B;">NAJARENA</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"nom":{"editor":"text","default":"Coupe\nVenin"},"jeu":{"editor":"text","default":"LOL"},"format":{"editor":"text","default":"5V5"},"date":{"editor":"text","default":"[DATE]"},"variante":{"editor":"enum","default":"1","options":["1","2","3"]},"$preview":{"width":389,"height":240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = String(this.props.variante ?? '1');
+    const looks = {
+      '1': { logoH: '380px', logoX: '190px', logoY: '-60px', logoR: '0deg', bg: 'radial-gradient(circle at 80% 20%, rgba(182,255,59,.22), rgba(182,255,59,0) 55%)' },
+      '2': { logoH: '460px', logoX: '-120px', logoY: '-150px', logoR: '-18deg', bg: 'radial-gradient(circle at 15% 30%, rgba(182,255,59,.2), rgba(182,255,59,0) 55%)' },
+      '3': { logoH: '300px', logoX: '120px', logoY: '-20px', logoR: '24deg', bg: 'linear-gradient(120deg, rgba(182,255,59,0) 35%, rgba(182,255,59,.16) 50%, rgba(182,255,59,0) 65%)' }
+    };
+    const look = looks[v] || looks['1'];
+    return Object.assign({}, look, {
+      nom: this.props.nom ?? 'Coupe\nVenin',
+      jeu: this.props.jeu ?? 'LOL',
+      format: this.props.format ?? '5V5',
+      date: this.props.date ?? '[DATE]'
+    });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Najarena — Profil joueur</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&amp;family=Chakra+Petch:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#080908;color:#F5F5F4;font-family:'Chakra Petch',system-ui,sans-serif}
+a{color:#F5F5F4;text-decoration:none}a:hover{color:#B6FF3B}
+</style>
+</helmet>
+<div style="width: 1440px; height: 2480px; background: #080908; color: #F5F5F4; font-family: 'Chakra Petch', sans-serif; display: flex; flex-direction: column; overflow: hidden;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; padding: 24px 96px; border-bottom: 1px solid rgba(245,245,244,.06);">
+    <div style="display: flex; align-items: center; gap: 14px;"><img src="/_blob/1c46ac8b4fada1e2d33f82ff3c5d3c97" alt="" style="height: 40px; width: auto; display: block;"><div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 800; font-size: 24px; letter-spacing: 4px;">NAJARENA</div></div>
+    <nav style="display: flex; gap: 44px; font-size: 14px; font-weight: 500; letter-spacing: 2px;"><a href="#tournois">TOURNOIS</a><a href="#classement">CLASSEMENT</a><a href="#equipes">ÉQUIPES</a><a href="#recruteurs">RECRUTEURS</a></nav>
+    <img src="/_blob/752acd9a0f7b089c399fdddc89e9ece8" alt="Mon compte" style="width: 40px; height: 40px; border-radius: 6px; display: block;">
+  </header>
+
+  <!-- 1. IDENTITÉ -->
+  <section style="position: relative; padding: 64px 96px 48px; display: flex; align-items: flex-end; gap: 40px; overflow: hidden;">
+    <div style="position: absolute; width: 800px; height: 800px; right: -100px; top: -420px; border-radius: 50%; background: radial-gradient(circle, rgba(182,255,59,.10) 0%, rgba(182,255,59,0) 65%);"></div>
+    <img src="/_blob/1c46ac8b4fada1e2d33f82ff3c5d3c97" alt="" style="position: absolute; right: 60px; top: -60px; height: 420px; width: auto; opacity: 0.04;">
+    <img src="/_blob/ec5347f7602db339bcbdf4ff9864a992" alt="" style="position: relative; width: 150px; height: 150px; border-radius: 12px; display: block; box-shadow: 0 30px 60px rgba(0,0,0,.6);">
+    <div style="position: relative; display: flex; flex-direction: column; gap: 14px; flex-grow: 1;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 3px; color: #B6FF3B;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>PROFIL VÉRIFIÉ</div>
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: #3A3F3A;"></div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: 3px; color: #080908; background: #B6FF3B; padding: 5px 10px; border-radius: 2px;">CHERCHE UNE ÉQUIPE</div>
+      </div>
+      <h1 style="margin: 0; font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 96px; line-height: 0.85; letter-spacing: 1px;">PSEUDO_JOUEUR</h1>
+      <div style="display: flex; gap: 28px; font-size: 16px; color: #B9BEB9;">
+        <div><span style="color: #6F766F;">Rôles</span> · Mid, Jungle</div>
+        <div><span style="color: #6F766F;">Région</span> · France</div>
+        <div><span style="color: #6F766F;">Équipe</span> · [Nom de l'équipe]</div>
+        <div><span style="color: #6F766F;">Membre depuis</span> · [Date]</div>
+      </div>
+    </div>
+    <div style="position: relative; display: flex; gap: 14px;">
+      <sc-if value="{{isVisitor}}" hint-placeholder-val="{{ true }}">
+        <a href="#partager" style="border: 1px solid rgba(245,245,244,.25); font-size: 14px; font-weight: 600; letter-spacing: 2px; padding: 16px 24px; border-radius: 2px;">PARTAGER LE CV</a>
+        <a href="#contacter" style="background: #B6FF3B; color: #080908; font-size: 14px; font-weight: 700; letter-spacing: 2px; padding: 16px 28px; border-radius: 2px;">CONTACTER</a>
+      </sc-if>
+      <sc-if value="{{isOwner}}" hint-placeholder-val="{{ false }}">
+        <a href="#partager" style="border: 1px solid rgba(245,245,244,.25); font-size: 14px; font-weight: 600; letter-spacing: 2px; padding: 16px 24px; border-radius: 2px;">PARTAGER MON CV</a>
+        <a href="#modifier" style="background: #B6FF3B; color: #080908; font-size: 14px; font-weight: 700; letter-spacing: 2px; padding: 16px 28px; border-radius: 2px;">MODIFIER LE PROFIL</a>
+      </sc-if>
+    </div>
+  </section>
+
+  <!-- 2. CHIFFRES CLÉS -->
+  <section style="margin: 0 96px; display: grid; grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr)); border-top: 1px solid rgba(245,245,244,.1); border-bottom: 1px solid rgba(245,245,244,.1);">
+    <div style="padding: 32px 32px 32px 0; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid rgba(245,245,244,.08);">
+      <div style="font-size: 11px; letter-spacing: 3px; color: #9CA39C;">RATING</div>
+      <div style="display: flex; align-items: flex-end; gap: 16px;">
+        <div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 84px; line-height: 0.85; background: linear-gradient(180deg, #FFFFFF 20%, #B6FF3B 130%); -webkit-background-clip: text; background-clip: text; color: transparent;">1842</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 4px;">
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 2px; color: #B6FF3B;">CONFIRMÉ</div>
+          <div style="font-size: 12px; color: #9CA39C;">Confiance 92 %</div>
+        </div>
+      </div>
+    </div>
+    <sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+      <div style="padding: 32px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid rgba(245,245,244,.08);">
+        <div style="font-size: 11px; letter-spacing: 3px; color: #9CA39C;">{{k.label}}</div>
+        <div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 52px; line-height: 0.9;">{{k.value}}</div>
+        <div style="font-size: 12px; color: {{k.subColor}};">{{k.sub}}</div>
+      </div>
+    </sc-for>
+  </section>
+
+  <!-- COLONNES -->
+  <div style="padding: 48px 96px 96px; display: flex; gap: 32px; align-items: flex-start;">
+
+    <!-- colonne large -->
+    <div style="width: 904px; display: flex; flex-direction: column; gap: 32px;">
+
+      <!-- 3. PROGRESSION -->
+      <div style="background: linear-gradient(160deg, #131513 0%, #0D0F0D 100%); border: 1px solid rgba(245,245,244,.07); border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); padding: 32px; display: flex; flex-direction: column; gap: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;"><div style="font-size: 12px; letter-spacing: 4px; color: #9CA39C;">PROGRESSION DU RATING</div><div style="display: flex; align-items: center; gap: 10px;"><div style="display: flex; gap: 4px; font-size: 11px; font-weight: 600; letter-spacing: 2px;"><div style="padding: 7px 12px; border-radius: 2px; color: #9CA39C;">SAISON 1</div><div style="padding: 7px 12px; border-radius: 2px; background: rgba(245,245,244,.08);">SAISON 2</div><div style="padding: 7px 12px; border-radius: 2px; color: #9CA39C;">TOUT</div></div><sc-if value="{{isOwner}}" hint-placeholder-val="{{ false }}"><div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; letter-spacing: 2px; color: #9CA39C; border: 1px solid rgba(245,245,244,.15); padding: 5px 9px; border-radius: 2px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>PUBLIC</div></sc-if></div></div>
+        <div style="display: flex; align-items: flex-end; gap: 14px;"><div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 40px; line-height: 1;">+240</div><div style="font-size: 14px; color: #9CA39C; padding-bottom: 5px;">depuis le début de la saison</div></div>
+        <svg width="840" height="270" viewBox="0 0 840 270"><defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B6FF3B" stop-opacity=".18"></stop><stop offset="1" stop-color="#B6FF3B" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="222.9" x2="780" y2="222.9" stroke="rgba(245,245,244,.06)" stroke-width="1"></line><text x="790" y="226.9" font-size="11" fill="#6F766F" font-family="Chakra Petch, sans-serif">1600</text><line x1="0" y1="137.1" x2="780" y2="137.1" stroke="rgba(245,245,244,.06)" stroke-width="1"></line><text x="790" y="141.1" font-size="11" fill="#6F766F" font-family="Chakra Petch, sans-serif">1700</text><line x1="0" y1="51.4" x2="780" y2="51.4" stroke="rgba(245,245,244,.06)" stroke-width="1"></line><text x="790" y="55.4" font-size="11" fill="#6F766F" font-family="Chakra Petch, sans-serif">1800</text><polygon points="0.0,221.1 41.1,207.4 82.1,213.4 123.2,188.6 164.2,178.3 205.3,184.3 246.3,162.0 287.4,147.4 328.4,154.3 369.5,135.4 410.5,124.3 451.6,129.4 492.6,108.0 533.7,96.0 574.7,84.9 615.8,90.0 656.8,70.3 697.9,60.0 738.9,41.1 780.0,15.4 780,240 0,240" fill="url(#pg)"></polygon><polyline points="0.0,221.1 41.1,207.4 82.1,213.4 123.2,188.6 164.2,178.3 205.3,184.3 246.3,162.0 287.4,147.4 328.4,154.3 369.5,135.4 410.5,124.3 451.6,129.4 492.6,108.0 533.7,96.0 574.7,84.9 615.8,90.0 656.8,70.3 697.9,60.0 738.9,41.1 780.0,15.4" fill="none" stroke="#B6FF3B" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline><circle cx="780.0" cy="15.4" r="6" fill="#080908" stroke="#B6FF3B" stroke-width="2.5"></circle><text x="0" y="262" font-size="11" letter-spacing="2" fill="#6F766F" font-family="Chakra Petch, sans-serif">DÉBUT DE SAISON</text><text x="780" y="262" text-anchor="end" font-size="11" letter-spacing="2" fill="#6F766F" font-family="Chakra Petch, sans-serif">AUJOURD'HUI</text></svg>
+      </div>
+
+      <!-- 5. ANALYSE IA -->
+      <div style="background: linear-gradient(160deg, #131513 0%, #0D0F0D 100%); border: 1px solid rgba(245,245,244,.07); border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); padding: 32px; display: flex; flex-direction: column; gap: 24px; position: relative; overflow: hidden;">
+        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: radial-gradient(ellipse at 0% 0%, rgba(182,255,59,.07), rgba(182,255,59,0) 50%); pointer-events: none;"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between;"><div style="font-size: 12px; letter-spacing: 4px; color: #9CA39C;">ANALYSE IA</div><div style="display: flex; align-items: center; gap: 10px;"><div style="display: flex; gap: 4px; font-size: 11px; font-weight: 600; letter-spacing: 2px;"><div style="padding: 7px 12px; border-radius: 2px; background: {{tabProgBg}}; color: {{tabProgFg}};">PROGRESSION</div><div style="padding: 7px 12px; border-radius: 2px; background: {{tabRecBg}}; color: {{tabRecFg}};">RECRUTEMENT</div></div></div></div>
+        <div style="position: relative; font-family: 'Big Shoulders Display', sans-serif; font-weight: 800; font-size: 34px; line-height: 1.05; text-transform: uppercase; max-width: 760px;">{{aiTitle}}</div>
+        <div style="position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px;">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="font-size: 11px; letter-spacing: 3px; color: #B6FF3B;">{{aiLeftTitle}}</div>
+            <sc-for list="{{aiLeft}}" as="t" hint-placeholder-count="3"><div style="display: flex; gap: 10px; font-size: 15px; line-height: 1.5; color: #C9CEC9;"><span style="color: #B6FF3B;">+</span>{{t}}</div></sc-for>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="font-size: 11px; letter-spacing: 3px; color: #9CA39C;">{{aiRightTitle}}</div>
+            <sc-for list="{{aiRight}}" as="t" hint-placeholder-count="3"><div style="display: flex; gap: 10px; font-size: 15px; line-height: 1.5; color: #C9CEC9;"><span style="color: #9CA39C;">→</span>{{t}}</div></sc-for>
+          </div>
+        </div>
+        <div style="position: relative; font-size: 12px; color: #6F766F; border-top: 1px solid rgba(245,245,244,.06); padding-top: 16px;">Analyse générée automatiquement à partir de 147 matchs vérifiés. Mise à jour après chaque tournoi.</div>
+      </div>
+
+      <!-- 6. HISTORIQUE -->
+      <div style="background: linear-gradient(160deg, #131513 0%, #0D0F0D 100%); border: 1px solid rgba(245,245,244,.07); border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); padding: 32px; display: flex; flex-direction: column; gap: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;"><div style="font-size: 12px; letter-spacing: 4px; color: #9CA39C;">HISTORIQUE DES MATCHS</div><div style="display: flex; align-items: center; gap: 10px;"><div style="font-size: 12px; color: #9CA39C;">147 matchs vérifiés</div><sc-if value="{{isOwner}}" hint-placeholder-val="{{ false }}"><div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; letter-spacing: 2px; color: #9CA39C; border: 1px solid rgba(245,245,244,.15); padding: 5px 9px; border-radius: 2px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>PUBLIC</div></sc-if></div></div>
+        <div style="display: flex; flex-direction: column;">
+          <div style="display: grid; grid-template-columns: 56px 100px minmax(0, 1fr) 90px 80px 60px; gap: 12px; padding: 0 0 14px; font-size: 11px; letter-spacing: 2px; color: #6F766F; border-bottom: 1px solid rgba(245,245,244,.1);">
+            <div>RÉS.</div><div>DATE</div><div>TOURNOI</div><div>RÔLE</div><div style="text-align: right;">RATING</div><div style="text-align: right;">VOD</div>
+          </div>
+          <sc-for list="{{matches}}" as="m" hint-placeholder-count="8">
+            <div style="display: grid; grid-template-columns: 56px 100px minmax(0, 1fr) 90px 80px 60px; gap: 12px; align-items: center; padding: 16px 0; border-bottom: 1px solid rgba(245,245,244,.05); font-size: 15px;">
+              <div style="width: 32px; height: 32px; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; background: {{m.resBg}}; color: {{m.resFg}};">{{m.res}}</div>
+              <div style="font-size: 13px; letter-spacing: 1px; color: #9CA39C;">{{m.date}}</div>
+              <div style="display: flex; flex-direction: column; gap: 2px;"><div style="font-weight: 600;">{{m.tournoi}}</div><div style="font-size: 12px; color: #6F766F;">{{m.phase}}</div></div>
+              <div style="color: #B9BEB9;">{{m.role}}</div>
+              <div style="text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; color: {{m.resFg}};">{{m.delta}}</div>
+              <div style="display: flex; justify-content: flex-end; color: {{m.vodColor}};"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m10 8 6 4-6 4Z"></path></svg></div>
+            </div>
+          </sc-for>
+          <a href="#historique" style="align-self: flex-start; margin-top: 20px; font-size: 13px; font-weight: 600; letter-spacing: 2px; border-bottom: 1px solid rgba(245,245,244,.3); padding-bottom: 5px;">VOIR TOUT L'HISTORIQUE →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- colonne étroite -->
+    <div style="width: 312px; display: flex; flex-direction: column; gap: 32px;">
+
+      <!-- 4. TALENT SCORE -->
+      <div style="background: linear-gradient(160deg, #131513 0%, #0D0F0D 100%); border: 1px solid rgba(245,245,244,.07); border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); padding: 32px; display: flex; flex-direction: column; gap: 24px; padding: 28px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;"><div style="font-size: 12px; letter-spacing: 4px; color: #9CA39C;">TALENT SCORE</div><div style="display: flex; align-items: center; gap: 10px;"><sc-if value="{{isOwner}}" hint-placeholder-val="{{ false }}"><div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; letter-spacing: 2px; color: #9CA39C; border: 1px solid rgba(245,245,244,.15); padding: 5px 9px; border-radius: 2px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>PUBLIC</div></sc-if></div></div>
+        <div style="display: flex; align-items: flex-end; gap: 10px;"><div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 56px; line-height: 0.85; color: #B6FF3B;">77</div><div style="font-size: 13px; color: #9CA39C; padding-bottom: 4px;">/ 100 · Top 8 % des Mid</div></div>
+        <div style="margin: 0 -14px;"><svg width="284" height="259" viewBox="0 0 340 310"><polygon points="170.0,123.8 195.0,141.9 185.4,171.2 154.6,171.2 145.0,141.9" fill="none" stroke="rgba(245,245,244,.08)" stroke-width="1"></polygon><polygon points="170.0,97.5 219.9,133.8 200.9,192.5 139.1,192.5 120.1,133.8" fill="none" stroke="rgba(245,245,244,.08)" stroke-width="1"></polygon><polygon points="170.0,71.2 244.9,125.7 216.3,213.7 123.7,213.7 95.1,125.7" fill="none" stroke="rgba(245,245,244,.08)" stroke-width="1"></polygon><polygon points="170.0,45.0 269.9,117.6 231.7,234.9 108.3,234.9 70.1,117.6" fill="none" stroke="rgba(245,245,244,.08)" stroke-width="1"></polygon><line x1="170" y1="150" x2="170.0" y2="45.0" stroke="rgba(245,245,244,.08)" stroke-width="1"></line><line x1="170" y1="150" x2="269.9" y2="117.6" stroke="rgba(245,245,244,.08)" stroke-width="1"></line><line x1="170" y1="150" x2="231.7" y2="234.9" stroke="rgba(245,245,244,.08)" stroke-width="1"></line><line x1="170" y1="150" x2="108.3" y2="234.9" stroke="rgba(245,245,244,.08)" stroke-width="1"></line><line x1="170" y1="150" x2="70.1" y2="117.6" stroke="rgba(245,245,244,.08)" stroke-width="1"></line><polygon points="170.0,68.1 257.9,121.4 213.8,210.3 118.8,220.5 106.1,129.2" fill="rgba(182,255,59,.14)" stroke="#B6FF3B" stroke-width="2" stroke-linejoin="round"></polygon><circle cx="170.0" cy="68.1" r="3.5" fill="#B6FF3B"></circle><circle cx="257.9" cy="121.4" r="3.5" fill="#B6FF3B"></circle><circle cx="213.8" cy="210.3" r="3.5" fill="#B6FF3B"></circle><circle cx="118.8" cy="220.5" r="3.5" fill="#B6FF3B"></circle><circle cx="106.1" cy="129.2" r="3.5" fill="#B6FF3B"></circle><text x="170.0" y="15.0" text-anchor="middle" font-size="9" letter-spacing="1.5" fill="#9CA39C" font-family="Chakra Petch, sans-serif">PERFORMANCE</text><text x="170.0" y="31.0" text-anchor="middle" font-size="15" font-weight="700" fill="#F5F5F4" font-family="Chakra Petch, sans-serif">78</text><text x="294.6" y="105.5" text-anchor="start" font-size="9" letter-spacing="1.5" fill="#9CA39C" font-family="Chakra Petch, sans-serif">PROGRESSION</text><text x="294.6" y="121.5" text-anchor="start" font-size="15" font-weight="700" fill="#F5F5F4" font-family="Chakra Petch, sans-serif">88</text><text x="247.0" y="252.0" text-anchor="start" font-size="9" letter-spacing="1.5" fill="#9CA39C" font-family="Chakra Petch, sans-serif">RÉGULARITÉ</text><text x="247.0" y="268.0" text-anchor="start" font-size="15" font-weight="700" fill="#F5F5F4" font-family="Chakra Petch, sans-serif">71</text><text x="93.0" y="252.0" text-anchor="end" font-size="9" letter-spacing="1.5" fill="#9CA39C" font-family="Chakra Petch, sans-serif">JEU D'ÉQUIPE</text><text x="93.0" y="268.0" text-anchor="end" font-size="15" font-weight="700" fill="#F5F5F4" font-family="Chakra Petch, sans-serif">83</text><text x="45.4" y="105.5" text-anchor="end" font-size="9" letter-spacing="1.5" fill="#9CA39C" font-family="Chakra Petch, sans-serif">EXPÉRIENCE</text><text x="45.4" y="121.5" text-anchor="end" font-size="15" font-weight="700" fill="#F5F5F4" font-family="Chakra Petch, sans-serif">64</text></svg></div>
+      </div>
+
+      <!-- DISPONIBILITÉ -->
+      <div style="background: linear-gradient(160deg, #131513 0%, #0D0F0D 100%); border: 1px solid rgba(245,245,244,.07); border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); padding: 32px; display: flex; flex-direction: column; gap: 24px; padding: 28px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;"><div style="font-size: 12px; letter-spacing: 4px; color: #9CA39C;">DISPONIBILITÉ</div><div style="display: flex; align-items: center; gap: 10px;"><sc-if value="{{isOwner}}" hint-placeholder-val="{{ false }}"><div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; letter-spacing: 2px; color: #9CA39C; border: 1px solid rgba(245,245,244,.15); padding: 5px 9px; border-radius: 2px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>PUBLIC</div></sc-if></div></div>
+        <div style="display: flex; flex-direction: column;">
+          <sc-for list="{{dispo}}" as="d" hint-placeholder-count="4">
+            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(245,245,244,.06); font-size: 14px;"><div style="color: #9CA39C;">{{d.k}}</div><div style="font-weight: 600;">{{d.v}}</div></div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- 7. PARCOURS -->
+      <div style="background: linear-gradient(160deg, #131513 0%, #0D0F0D 100%); border: 1px solid rgba(245,245,244,.07); border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); padding: 32px; display: flex; flex-direction: column; gap: 24px; padding: 28px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;"><div style="font-size: 12px; letter-spacing: 4px; color: #9CA39C;">PARCOURS</div><div style="display: flex; align-items: center; gap: 10px;"><sc-if value="{{isOwner}}" hint-placeholder-val="{{ false }}"><div style="display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; letter-spacing: 2px; color: #9CA39C; border: 1px solid rgba(245,245,244,.15); padding: 5px 9px; border-radius: 2px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>PUBLIC</div></sc-if></div></div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <sc-for list="{{parcours}}" as="p" hint-placeholder-count="3">
+            <div style="display: flex; gap: 16px;">
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 5px;"><div style="width: 9px; height: 9px; border-radius: 50%; border: 2px solid {{p.dot}};"></div><div style="width: 1px; flex-grow: 1; background: rgba(245,245,244,.1);"></div></div>
+              <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 4px;"><div style="font-size: 11px; letter-spacing: 2px; color: #6F766F;">{{p.when}}</div><div style="font-weight: 600; font-size: 15px;">{{p.title}}</div><div style="font-size: 13px; color: #9CA39C;">{{p.sub}}</div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"vue":{"editor":"enum","default":"Visiteur","options":["Visiteur","Propriétaire"]},"$preview":{"width":1440,"height":2480}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const owner = (this.props.vue ?? 'Visiteur') === 'Propriétaire';
+    const matches = [{"date": "12 SEPT.", "tournoi": "Coupe Venin", "phase": "Finale", "role": "Mid", "res": "V", "delta": "+18", "vod": true}, {"date": "12 SEPT.", "tournoi": "Coupe Venin", "phase": "Demi-finale", "role": "Mid", "res": "V", "delta": "+14", "vod": true}, {"date": "05 SEPT.", "tournoi": "Nuit de l’Arène", "phase": "Quart", "role": "Mid", "res": "D", "delta": "-9", "vod": false}, {"date": "05 SEPT.", "tournoi": "Nuit de l’Arène", "phase": "Huitième", "role": "Jungle", "res": "V", "delta": "+11", "vod": false}, {"date": "29 AOÛT", "tournoi": "Duel des Mids", "phase": "Poule", "role": "Mid", "res": "V", "delta": "+9", "vod": true}, {"date": "29 AOÛT", "tournoi": "Duel des Mids", "phase": "Poule", "role": "Mid", "res": "V", "delta": "+7", "vod": false}, {"date": "22 AOÛT", "tournoi": "Coupe Venin", "phase": "Demi-finale", "role": "Mid", "res": "D", "delta": "-12", "vod": true}, {"date": "22 AOÛT", "tournoi": "Coupe Venin", "phase": "Quart", "role": "Mid", "res": "V", "delta": "+13", "vod": false}].map(m => Object.assign({}, m, {
+      resBg: m.res === 'V' ? 'rgba(182,255,59,.14)' : 'rgba(255,77,79,.12)',
+      resFg: m.res === 'V' ? '#B6FF3B' : '#FF4D4F',
+      vodColor: m.vod ? '#F5F5F4' : '#3A3F3A'
+    }));
+    const prog = {
+      aiTitle: 'Ta régularité en fin de tournoi est ton meilleur levier de progression.',
+      aiLeftTitle: 'CE QUI MARCHE',
+      aiLeft: ['Rating en hausse sur 6 tournois consécutifs', 'Excellent taux de victoire sur les matchs à élimination', 'Impact fort en milieu de partie au poste de Mid'],
+      aiRightTitle: 'À TRAVAILLER',
+      aiRight: ['Résultats en baisse sur les matchs tardifs du soir', 'Écart de niveau notable au poste de Jungle', 'Peu de matchs joués en 5v5 avec la même équipe']
+    };
+    const rec = {
+      aiTitle: 'Profil Mid en forte progression, fiable dans les phases finales.',
+      aiLeftTitle: 'POINTS FORTS',
+      aiLeft: ['Progression parmi les plus rapides des Mid français cette saison', 'Performances stables sous pression en phase finale', 'Données solides : 147 matchs vérifiés, confiance élevée'],
+      aiRightTitle: 'POINTS DE VIGILANCE',
+      aiRight: ['Rôle secondaire en Jungle moins maîtrisé', 'Peu d’expérience durable au sein d’une même équipe', 'Disponible surtout en soirée et le week-end']
+    };
+    const ai = owner ? prog : rec;
+    return Object.assign({
+      isOwner: owner,
+      isVisitor: !owner,
+      tabProgBg: owner ? 'rgba(245,245,244,.08)' : 'transparent', tabProgFg: owner ? '#F5F5F4' : '#6F766F',
+      tabRecBg: owner ? 'transparent' : 'rgba(245,245,244,.08)', tabRecFg: owner ? '#6F766F' : '#F5F5F4',
+      kpis: [
+        { label: 'CLASSEMENT NATIONAL', value: '#128', sub: '▲ 34 places ce mois', subColor: '#B6FF3B' },
+        { label: 'CLASSEMENT MID', value: '#34', sub: 'Sur les Mid de France', subColor: '#9CA39C' },
+        { label: 'VICTOIRES', value: '62%', sub: '91 V · 56 D', subColor: '#9CA39C' },
+        { label: 'MATCHS VÉRIFIÉS', value: '147', sub: 'Données officielles', subColor: '#9CA39C' }
+      ],
+      matches,
+      dispo: [ { k: 'Soirs de semaine', v: '20h – 00h' }, { k: 'Week-end', v: 'Toute la journée' }, { k: 'Langues', v: 'Français, anglais' }, { k: 'Recherche', v: 'Équipe 5v5 compétitive' } ],
+      parcours: [
+        { when: '2026 — AUJOURD’HUI', title: '[Nom de l’équipe]', sub: 'Mid titulaire', dot: '#B6FF3B' },
+        { when: 'SEPT. 2026', title: 'Vainqueur — Coupe Venin', sub: '5v5 · 32 équipes', dot: '#B6FF3B' },
+        { when: '2025 — 2026', title: '[Ancienne équipe]', sub: 'Jungle remplaçant', dot: '#6F766F' }
+      ]
+    }, ai);
+  }
+}
+</script>
+</body>
+</html>
