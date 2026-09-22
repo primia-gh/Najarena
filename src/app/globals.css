@@ -31,6 +31,176 @@
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
+/* ─── Nouvelle identité « Venin » ───────────────────────────────────────
+   Source de vérité : design-system/najarena/MASTER.md (§2 à §5). Les
+   jetons ci-dessus (encre, papier, sceau...) restent en place tant que
+   des pages n'ont pas été migrées ; ceux-ci ne les écrasent pas (aucun
+   nom en commun), pour qu'une page non migrée ne change pas d'un coup.
+   Utilitaires générés : bg-bg, text-text, text-muted, bg-accent,
+   text-on-accent, border-line, font-titre, text-section, px-gouttiere,
+   max-w-contenu, rounded-bouton... */
+@theme {
+  --color-bg: #080908;
+  --color-bg-alt: #0c0d0c;
+  /* MASTER : surface = dégradé 160° de l'un à l'autre (voir utilitaire
+     .panneau plus bas) — une couleur Tailwind ne peut pas être un dégradé. */
+  --color-surface: #131513;
+  --color-surface-fin: #0d0f0d;
+  --color-text: #f5f5f4;
+  --color-text-2: #b9beb9;
+  --color-muted: #9ca39c;
+  /* Écart volontaire à MASTER §2 (#6F766F) : cette valeur ne passait pas
+     le seuil 4.5:1 que MASTER exige lui-même en §2 et §10 — 4.27:1 sur
+     bg, 3.93:1 sur surface (luminance relative, vérifié le 23/09/2026),
+     pour du texte de 11 px (en-têtes de tableaux, légendes). #798079 est
+     le gris de même teinte le plus proche qui passe : 4.92:1 / 4.52:1. */
+  --color-faint: #798079;
+  --color-accent: #b6ff3b;
+  --color-on-accent: #080908;
+  --color-danger: #ff4d4f;
+  --color-line: rgba(245, 245, 244, 0.08);
+  --color-line-strong: rgba(245, 245, 244, 0.12);
+
+  --font-titre: var(--font-big-shoulders), var(--font-chakra-petch), system-ui, sans-serif;
+  --font-titre--font-variation-settings: "opsz" 72;
+  --font-texte: var(--font-chakra-petch), system-ui, sans-serif;
+
+  /* Tailles MASTER §3, pensées pour 1440 px — ramenées proportionnellement
+     jusqu'à 375 px (clamp) pour qu'aucun titre ne déborde sur mobile. */
+  --text-ouverture: clamp(4rem, 11.7vw, 10.5rem); /* 64 → 168 px */
+  --text-ouverture--line-height: 0.86;
+  --text-section: clamp(3rem, 6.1vw, 5.5rem); /* 48 → 88 px */
+  --text-section--line-height: 0.9;
+  --text-sous-titre: clamp(1.875rem, 3.6vw, 3.25rem); /* 30 → 52 px */
+  --text-sous-titre--line-height: 0.9;
+  --text-courant: clamp(1.0625rem, 1.4vw, 1.25rem); /* 17 → 20 px */
+  --text-courant--line-height: 1.6;
+  --text-libelle: 0.8125rem; /* 13 px — eyebrows */
+  --text-libelle--letter-spacing: 4px;
+  --text-mini: 0.6875rem; /* 11 px — badges, en-têtes de tableaux */
+  --text-mini--letter-spacing: 3px;
+  --text-bouton: 0.9375rem; /* 15 px */
+  --text-bouton--letter-spacing: 2px;
+
+  /* MASTER §4 : marges 96 px et sections de 150 px à 1440 px. */
+  --spacing-gouttiere: clamp(1.25rem, 6.67vw, 6rem);
+  --spacing-section: clamp(4.5rem, 10.4vw, 9.375rem); /* accueil : 72 → 150 px */
+  --spacing-section-outil: clamp(3rem, 5vw, 4.5rem); /* pages outils : 48 → 72 px */
+  --container-contenu: 78rem; /* 1248 px */
+
+  /* MASTER §5 */
+  --radius-bouton: 2px;
+  --radius-carte: 4px;
+  --radius-panneau: 6px;
+  --radius-avatar: 8px;
+
+  --animate-balayage: balayage 7s ease-in-out infinite;
+  --animate-pulsation: pulsation 2s ease-in-out infinite;
+
+  @keyframes balayage {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  @keyframes pulsation {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 1; }
+  }
+}
+
+/* Panneau MASTER §5 : dégradé, bordure fine, reflet en haut. */
+@utility panneau {
+  background: linear-gradient(160deg, var(--color-surface), var(--color-surface-fin));
+  border: 1px solid rgba(245, 245, 244, 0.07);
+  border-radius: var(--radius-panneau);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Motif d'écailles très discret des zones d'ouverture (MASTER §5),
+   estompé vers le bas. */
+@utility fond-ecailles {
+  background-image: radial-gradient(
+    circle at 50% 0,
+    transparent 17px,
+    rgba(245, 245, 244, 0.035) 18px,
+    transparent 19px
+  );
+  background-size: 36px 22px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0));
+}
+
+/* Chiffre de rating : dégradé blanc → vert dans la lettre (MASTER §6). */
+@utility texte-rating {
+  background: linear-gradient(180deg, #ffffff 20%, var(--color-accent) 130%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Grand numéro de section en filigrane, texte évidé (MASTER §5). */
+@utility texte-evide {
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(245, 245, 244, 0.07);
+}
+
+/* Reflet lumineux qui balaie le bouton principal toutes les 7 s. */
+@utility reflet {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0));
+    transform: translateX(-100%);
+    animation: var(--animate-balayage);
+    pointer-events: none;
+  }
+}
+
+/* Tableaux MASTER §6 : pas de fond, filets entre lignes, en-têtes 11 px
+   en majuscules, chiffres alignés (tabular-nums). */
+@layer components {
+  .tableau {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  .tableau th {
+    padding: 0 16px 18px 0;
+    border-bottom: 1px solid var(--color-line-strong);
+    font-size: var(--text-mini);
+    font-weight: 500;
+    letter-spacing: var(--text-mini--letter-spacing);
+    text-align: left;
+    text-transform: uppercase;
+    color: var(--color-faint);
+    white-space: nowrap;
+  }
+  .tableau td {
+    padding: 18px 16px 18px 0;
+    border-bottom: 1px solid rgba(245, 245, 244, 0.06);
+    vertical-align: middle;
+  }
+  .tableau th:last-child,
+  .tableau td:last-child {
+    padding-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reflet::after,
+  .animate-balayage,
+  .animate-pulsation {
+    animation: none;
+  }
+  .reflet::after {
+    display: none;
+  }
+  .animate-pulsation {
+    opacity: 1;
+  }
+}
+
 /* Registre nuit unifié pour tout le site (12/09/2026 — voir CLAUDE.md §7,
    abandon du split clair/sombre). "encre" reste le ton le plus sombre du
    duo, "papier" le plus clair ; lequel des deux sert de fond ou de texte

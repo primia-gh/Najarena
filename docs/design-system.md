@@ -1,5 +1,7 @@
 # Design system Najarena
 
+> **OBSOLÈTE depuis le 23/09/2026.** Ce catalogue décrit l'ancienne direction artistique (registre « sceau / laiton », tag git `avant-nouveau-design`). Référence actuelle : `design-system/najarena/MASTER.md`, composants dans `src/components/design/`, charte vivante sur `/charte` — voir `CLAUDE.md` §7. Les composants ci-dessous restent dans le code uniquement tant que des pages ne sont pas migrées ; ne plus les utiliser dans du nouveau code.
+
 Référence des composants réutilisables — la direction artistique (couleurs, typographie, mouvement) est documentée dans `CLAUDE.md` §7 et `docs/direction-artistique.html` ; ce fichier catalogue les **composants concrets** qui la traduisent en code, pour éviter qu'une page réinvente son propre bouton ou sa propre carte.
 
 Principe directeur : un composant par rôle, jamais deux variantes légèrement différentes du même. Quand un nouveau besoin ressemble à un composant existant, l'étendre plutôt qu'en créer un nouveau.

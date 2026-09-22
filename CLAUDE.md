@@ -94,41 +94,27 @@ Schéma de base de données : `docs/schema.sql`.
 
 ## 7. Direction artistique
 
-Référence complète et jouable : `docs/direction-artistique.html`. Catalogue des composants réutilisables (Bouton, Badge, SectionTitre, CrestPalier, Squelette...) et de leurs états : `docs/design-system.md` — à consulter avant d'écrire un nouveau bouton, une nouvelle carte ou un nouvel état de chargement.
+**Source de vérité : `design-system/najarena/MASTER.md`**, complété par `design-system/najarena/pages/` (accueil, profil, tournoi — leurs règles priment sur MASTER pour leur page). Maquettes de référence (mise en page, textes, tailles) : `najarena-design/maquettes/` — format de maquette, pas du code à copier (voir `najarena-design/LISEZ-MOI.md`). Ne jamais régénérer MASTER.md sans accord du porteur du projet.
 
-**Principe :** registre officiel, pas arène à néons. Le site est **sombre et atmosphérique dans son ensemble** depuis le 12/09/2026 au soir (voir mises à jour ci-dessous) — la sobriété qui porte la crédibilité du classement s'exprime par la retenue du mouvement sur les pages preuve, pas par un registre clair séparé.
+**Principe :** nerveux, compétitif, premium — marque de sport haut de gamme, pas « gamer grand public ». Le vert Venin est **rare**. La crédibilité du classement passe avant l'effet : pages outils (profil, tournoi, classement) denses et peu animées, accueil spectaculaire.
 
-*Mise à jour du 12/09/2026, matin : refonte "arène" dark premium (navbar sticky, animations au scroll, sceau de fiabilité mis en vitrine, paliers et chiffres réels) — limitée dans un premier temps aux deux pages de découverte (accueil, hub `/lol`), les pages preuve (classement, profil, tournoi, cockpit) restant dans un registre clair. Composants dans `src/components/accueil/`.*
+**Traduction dans le code**
+- Jetons (couleurs, polices, tailles, espacements, rayons) : `src/app/globals.css`, second bloc `@theme` — `bg-bg`, `text-text`, `text-muted`, `bg-accent`, `text-on-accent`, `border-line`, `font-titre`, `font-texte`, `text-section`, `px-gouttiere`, `max-w-contenu`, `rounded-bouton`, utilitaires `panneau`, `fond-ecailles`, `texte-rating`, `reflet`, classe `.tableau`.
+- Composants : `src/components/design/` (BoutonLien, BoutonEnvoi, badges, PastilleResultat, ChiffreRating, IndicateurConfiance, Panneau, ReperesVisee, LibelleSection, NumeroFiligrane, Tableau, Icone, Logo). Les consulter avant d'écrire un bouton, un badge ou une carte.
+- Charte vivante : `/charte` (tous les composants rendus en vrai ; absente du site en ligne, visible en local et en prévisualisation).
+- Typographie : Big Shoulders (titres, chiffres clés, MAJUSCULES) + Chakra Petch (texte, libellés, boutons). Tout chiffre de preuve (rating, RD, delta, horodatage) en `tabular-nums`.
 
-*Mise à jour du 12/09/2026, soir : le registre clair des pages preuve a été abandonné — jugé plat et sans vie une fois comparé à l'accueil. Toute la palette nuit ci-dessous est désormais partagée par le site entier (jetons `--color-*` uniques dans `globals.css`, plus de scission `--nuit-*` / `.accueil`). `NavbarArene` et le fond animé (`FondArene` + `BracketBackground`) sont rendus une seule fois depuis `src/app/layout.tsx` et repris sur toutes les pages. Ce qui reste propre à l'accueil : l'intensité du mouvement (hero plein écran, animations denses), pas la palette — sur les pages preuve, le fond animé reste confiné à l'en-tête, discret, pour que le contenu reste scannable.*
+**Adaptations propres à Najarena — décidées le 23/09/2026, priment sur la maquette**
+- **Niveaux de verdict** (§3) : `BadgeVerdict`. Niveaux 3 et 2 → « ✓ VÉRIFIÉ » vert + source (code tournoi / historique). Niveau 1 → « MANUEL » gris avec plume, **jamais vert, jamais « vérifié »**. La maquette n'a qu'un badge « VÉRIFIÉ » : ne jamais l'appliquer à un verdict manuel.
+- **Sceau de fiabilité supprimé**, remplacé par `IndicateurConfiance` (« CONFIRMÉ » / « PROVISOIRE » + « Confiance N % ») — même calcul qu'avant (`ratings.est_classe`, `calibrationPct`).
+- **Couleurs de paliers** (Bronze → Champion, `lib/paliers.ts`) : seule exception tolérée au « tout vert ».
+- **Contraste** : `faint` vaut `#798079`, pas `#6F766F` (MASTER) — la valeur d'origine ne passe pas 4.5:1 (4.27 sur fond, 3.93 sur panneau), seuil que MASTER exige lui-même.
+- **Pas de bloc sans donnée réelle** : Talent Score, analyse IA, classement/rating par rôle, VOD, disponibilité, parcours, réglage public/privé par bloc — masqués tant que la fonctionnalité n'existe pas, jamais de valeurs fictives. Pas de promesse fausse dans les textes (pas d'« anti-smurf », les points se calculent à la clôture du tournoi, pas « après chaque match »).
+- **Aucun visuel Riot** (icônes de champions DDragon comprises) ; la mention légale Riot reste dans le pied de page.
+- **Navigation** : liens existants conservés (Tournois, Classement, Coéquipiers, Organiser, Tarifs), pas les « Équipes / Recruteurs » de la maquette tant que ces pages n'existent pas.
+- **Fond animé** : `BracketBackground` / `FondArene` remplacés par le motif d'écailles discret ; l'animation d'ouverture (logo qui se dessine) est réservée à l'accueil. `prefers-reduced-motion` coupe tout.
 
-**Couleurs**
-
-```
---encre        #E7E6E1    texte, surfaces claires
---papier       #0B0E14    fond de page
---sceau        #C4485C    validation, accent principal — décoratif uniquement (bordures, fonds, focus ring)
---sceau-texte  #CD6374    sceau en texte — #C4485C ne passe pas 4.5:1 sur papier/carte (voir ci-dessous)
---laiton       #D2A257    paliers, palmarès
---atteste      #3E9C6E    verdict niveau 3
---ardoise      #8A94A1    libellés, données secondaires
-```
-
-Les noms décrivent un ton (encre = le plus sombre du duo, papier = le plus clair), pas un rôle fixe fond/texte : depuis l'unification du 12/09/2026, encre sert de texte sur un fond papier sombre — c'était déjà l'inverse (encre = fond, papier = texte) côté accueil avant cette date, rien ne change dans la convention elle-même. `fond-2` (#10141B) et `carte` (#171C25) complètent la profondeur (fond secondaire, surfaces élevées).
-
-*Mise à jour du 13/09/2026 : audit d'accessibilité du registre nuit (jamais refait depuis l'unification du 12/09) — `sceau` en texte normal ne passait que 3,6 à 4,07:1 selon le fond (seuil AA : 4,5:1), calculé par luminance relative, pas à l'œil. `sceau-texte` ajouté pour tout texte réellement lu (messages d'erreur, liens, libellés de litige) ; `sceau` reste la référence pour tout usage décoratif (bordures, fonds de badge à faible opacité, focus ring, `accent-color`), où le seuil est 3:1 et déjà largement passé. `laiton`, `atteste`, `ardoise`, `encre` passent tous 4,5:1 sur `papier` et `carte` sans modification.*
-
-**Typographie — règle centrale**
-
-- Bricolage Grotesque 800 — titrage, tracking serré
-- Inter Tight — texte courant
-- **JetBrains Mono — tout ce qui constitue la preuve** : rating, RD, identifiants de match, horodatages
-
-Si un chiffre fait partie du dossier, il est en caractères machine. Si c'est du commentaire humain, il est en texte.
-
-**Élément signature :** le **sceau de fiabilité** sur la fiche joueur. Une couronne de crans dont le remplissage traduit le calibrage (RD). Un joueur non calibré a un sceau pâle et incomplet ; le tampon se referme à mesure que le classement devient fiable. Remplace toute barre de progression.
-
-**Mouvement :** fond animé dessiné directement sur canvas, sans bibliothèque externe (`BracketBackground`). Effet retenu : *Bracket* — des nœuds se cherchent et se relient. Référence jouable : `docs/fonds-animes.html`. Depuis le 12/09/2026 (soir), ce fond n'est plus réservé à l'accueil : repris en toile de fond de l'en-tête des pages preuve, mais confiné à cette zone (pas toute la page défilée) et sans la densité de l'accueil — la sobriété se joue dans l'intensité du mouvement, pas dans son absence. Verdicts et anneaux de palier (`CrestPalier`, petit frère du sceau de fiabilité) s'animent une fois au montage ; le reste du contenu apparaît au défilement (`Reveal`). `prefers-reduced-motion` respecté partout.
+**Transition en cours (branche `nouveau-design`)** : les anciens jetons (`encre`, `papier`, `sceau`, `laiton`, `atteste`, `ardoise`, `carte`, `trait`...), les polices Bricolage / Inter Tight / JetBrains Mono, `lib/ui.ts` et `components/ui/` + `components/accueil/` restent en place tant que des pages ne sont pas migrées. **Ne plus les utiliser dans du nouveau code** ; les supprimer une fois la dernière page passée au nouveau design. L'ancienne direction artistique (registre « sceau / laiton », sceau de fiabilité) est figée au tag git `avant-nouveau-design` ; `docs/direction-artistique.html`, `docs/fonds-animes.html` et `docs/design-system.md` la décrivent et sont **obsolètes**.
 
 ---
 
@@ -154,6 +140,7 @@ Si un chiffre fait partie du dossier, il est en caractères machine. Si c'est du
 /faq                       questions de confiance, dépliées par défaut (gratuité, affiliation Riot, délais, IA)
 /journal                   journal de bord public (docs/journal réel, voir src/lib/journal.ts)
 /note-du-fondateur         positionnement produit, en 1ère personne
+/charte                    charte graphique vivante (interne, absente du site en ligne)
 ```
 
 Le segment de jeu (`/lol/...`) est obligatoire dès maintenant : sans lui, l'ajout d'un second jeu imposerait une migration d'URL et une perte de référencement.

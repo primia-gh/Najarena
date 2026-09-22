@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Inter_Tight, JetBrains_Mono } from "next/font/google";
+import {
+  Big_Shoulders,
+  Bricolage_Grotesque,
+  Chakra_Petch,
+  Inter_Tight,
+  JetBrains_Mono,
+} from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Footer from "@/components/Footer";
@@ -24,6 +30,28 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "700"],
 });
 
+// Nouvelle identité (design-system/najarena/MASTER.md §3). Les trois
+// polices ci-dessus restent chargées tant que des pages n'ont pas été
+// migrées (refonte page par page sur la branche nouveau-design) — à
+// retirer une fois la dernière page passée au nouveau design.
+// "Big Shoulders Display" a été fusionné par Google dans la famille
+// variable "Big Shoulders" : l'axe opsz est calé sur 72 (= la coupe
+// Display) dans globals.css, --font-titre.
+const bigShoulders = Big_Shoulders({
+  variable: "--font-big-shoulders",
+  subsets: ["latin"],
+  axes: ["opsz"],
+  // Avertissement « Failed to find font override values » en dev : Next
+  // ne connaît pas encore les métriques de cette famille récente et ne
+  // génère donc pas de police de repli ajustée. Sans effet visuel.
+});
+
+const chakraPetch = Chakra_Petch({
+  variable: "--font-chakra-petch",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
 // À définir avec le vrai domaine avant mise en production (voir
 // .env.local) — repli sur localhost en dev, jamais un domaine inventé.
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -44,7 +72,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${bricolage.variable} ${interTight.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${bricolage.variable} ${interTight.variable} ${jetbrainsMono.variable} ${bigShoulders.variable} ${chakraPetch.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-body">
         <NavbarArene />
