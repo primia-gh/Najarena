@@ -4,7 +4,9 @@ import { LABEL_NIVEAU, type NiveauVerdict } from "@/lib/tournois";
 
 // Badges de la nouvelle identité (MASTER §6).
 
-const TEXTE_BADGE = "font-texte text-mini font-semibold uppercase";
+// whitespace-nowrap : un badge ne se coupe jamais sur deux lignes
+// (ui-ux-pro-max, « compact label overflow »).
+const TEXTE_BADGE = "whitespace-nowrap font-texte text-mini font-semibold uppercase";
 
 /** « ✓ VÉRIFIÉ » vert, sans fond — profil vérifié, résultat vérifié. */
 export function BadgeVerifie({ children = "Vérifié", className = "" }: { children?: ReactNode; className?: string }) {
@@ -21,8 +23,10 @@ export function BadgeVerifie({ children = "Vérifié", className = "" }: { child
  * Niveaux 3 et 2 (code tournoi, historique) : « VÉRIFIÉ » vert + source.
  * Niveau 1 (décision manuelle) : jamais vert, jamais « vérifié » — gris,
  * avec une icône de plume, car il ne compte pas pour le classement.
- * `compact` (bracket, espaces étroits) masque la source à l'écran mais la
- * garde dans l'infobulle et pour les lecteurs d'écran.
+ * `compact` (bracket, espaces étroits) : « ✓ CODE TOURNOI » / « ✓ HISTORIQUE »
+ * sans le mot « vérifié » — la source reste visible pour tous, jamais cachée
+ * dans une infobulle que seuls les utilisateurs à la souris verraient
+ * (ui-ux-pro-max : pas d'information réservée au survol).
  */
 export function BadgeVerdict({
   niveau,
@@ -39,10 +43,10 @@ export function BadgeVerdict({
     return (
       <span
         className={`inline-flex items-center gap-1.5 text-muted ${TEXTE_BADGE} ${className}`}
-        title="Décision manuelle de l'organisateur — ne compte pas pour le classement"
       >
         <Icone nom="crayon" taille={12} epaisseur={2.2} />
         {source}
+        <span className="sr-only"> — décision de l&apos;organisateur, ne compte pas pour le classement</span>
       </span>
     );
   }
@@ -50,9 +54,10 @@ export function BadgeVerdict({
   return (
     <BadgeVerifie className={className}>
       {compact ? (
-        <span title={`Vérifié — ${source}`}>
-          Vérifié<span className="sr-only"> — {source}</span>
-        </span>
+        <>
+          <span className="sr-only">Vérifié — </span>
+          {source}
+        </>
       ) : (
         <>
           Vérifié <span className="text-muted">· {source}</span>

@@ -77,7 +77,9 @@ const EXEMPLE_MATCHS: { res: "V" | "D"; date: string; tournoi: string; delta: st
 function Bloc({ numero, titre, children }: { numero: string; titre: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-8 border-t border-line py-section-outil">
-      <LibelleSection numero={numero}>{titre}</LibelleSection>
+      <LibelleSection numero={numero} as="h2">
+        {titre}
+      </LibelleSection>
       {children}
     </section>
   );
