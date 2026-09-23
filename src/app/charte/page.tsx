@@ -13,6 +13,8 @@ import NumeroFiligrane from "@/components/design/NumeroFiligrane";
 import Tableau from "@/components/design/Tableau";
 import Icone, { type NomIcone } from "@/components/design/Icone";
 import Logo from "@/components/design/Logo";
+import AfficheTournoi from "@/components/vitrine/AfficheTournoi";
+import ApercuClassement, { type LigneClassement } from "@/components/vitrine/ApercuClassement";
 
 // Charte vivante de la nouvelle identité : chaque composant de
 // components/design/ rendu tel qu'il sortira sur le site, pour valider la
@@ -72,6 +74,13 @@ const EXEMPLE_MATCHS: { res: "V" | "D"; date: string; tournoi: string; delta: st
   { res: "V", date: "21/09", tournoi: "Coupe Venin", delta: "+18" },
   { res: "D", date: "20/09", tournoi: "Quotidienne du soir", delta: "−11" },
   { res: "V", date: "19/09", tournoi: "Quotidienne du soir", delta: "+14" },
+];
+
+const EXEMPLE_TOP: LigneClassement[] = [
+  { pseudo: "Vipere", slug: null, avatarUrl: null, palier: "Champion", rating: 2214 },
+  { pseudo: "Crochet", slug: null, avatarUrl: null, palier: "Champion", rating: 2187 },
+  { pseudo: "Mue", slug: null, avatarUrl: null, palier: "Diamant", rating: 1842 },
+  { pseudo: "Ecaille", slug: null, avatarUrl: null, palier: "Platine", rating: 1655 },
 ];
 
 function Bloc({ numero, titre, children }: { numero: string; titre: string; children: React.ReactNode }) {
@@ -259,6 +268,15 @@ export default function PageCharte() {
               ))}
             </ul>
           </div>
+        </Bloc>
+
+        <Bloc numero="09" titre="Accueil : affiches et classement">
+          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
+            <AfficheTournoi nom="Coupe Venin" format="5v5" date="SAM. 27/09 · 21:00" variante={1} />
+            <AfficheTournoi nom="Nuit de l'Arène" format="5v5" date="VEN. 03/10 · 20:30" variante={2} />
+            <AfficheTournoi nom="Duel des Mids" format="1v1" date="DIM. 05/10 · 18:00" variante={3} />
+          </div>
+          <ApercuClassement lignes={EXEMPLE_TOP} legende="Exemple de top du classement" />
         </Bloc>
       </div>
     </main>

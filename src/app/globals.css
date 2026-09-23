@@ -187,6 +187,14 @@
   }
 }
 
+/* Bouton « Pause » de l'accueil (lib/pause-animations.ts, WCAG 2.2.2) :
+   fige toutes les animations CSS là où elles en sont. */
+html[data-animations="pause"] *,
+html[data-animations="pause"] *::before,
+html[data-animations="pause"] *::after {
+  animation-play-state: paused !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reflet::after,
   .animate-balayage,

@@ -1,0 +1,204 @@
+/* Animations de la page d'accueil (vitrine) — traduites des maquettes
+   najarena-design/maquettes/Ouverture-Anim, Boucle-*, accueil.dc.html.
+   Positions converties de pixels (maquette figée en 1440 × 860, boucles en
+   389 × 300) en pourcentages, pour suivre la largeur réelle de l'écran.
+   prefers-reduced-motion : tout est coupé, état final affiché (MASTER §7). */
+
+/* ─── Ouverture : le contour du logo se dessine, éclair, remplissage,
+   halo qui respire, braises qui montent ─── */
+@keyframes trace {
+  0% { stroke-dashoffset: 1; stroke-opacity: 0.95; }
+  75% { stroke-dashoffset: 0; stroke-opacity: 0.95; }
+  100% { stroke-dashoffset: 0; stroke-opacity: 0.3; }
+}
+@keyframes remplissage {
+  from { fill-opacity: 0; }
+  to { fill-opacity: 0.07; }
+}
+@keyframes apparait {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes respire {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.06); }
+}
+@keyframes eclair {
+  0% { opacity: 0; }
+  30% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+@keyframes braise {
+  0% { transform: translateY(0); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translateY(-260px); opacity: 0; }
+}
+
+.ouvertureEcailles {
+  background-image: radial-gradient(circle at 50% 0, transparent 17px, rgba(245, 245, 244, 0.035) 18px, transparent 19px);
+  background-size: 36px 22px;
+  mask-image: radial-gradient(ellipse at 70% 35%, rgb(0 0 0 / 1), rgb(0 0 0 / 0) 70%);
+  animation: apparait 3s ease-out 1s both;
+}
+.ouvertureHalo {
+  background: radial-gradient(circle, rgba(182, 255, 59, 0.14) 0%, rgba(182, 255, 59, 0.035) 40%, rgba(182, 255, 59, 0) 68%);
+  animation: apparait 1.5s ease-out 2.6s both, respire 7s ease-in-out 4.1s infinite;
+}
+.ouvertureEclair {
+  opacity: 0;
+  background: radial-gradient(circle, rgba(182, 255, 59, 0.28) 0%, rgba(182, 255, 59, 0) 60%);
+  animation: eclair 1.4s ease-out 3.1s both;
+}
+.ouvertureTrait {
+  stroke-dasharray: 1;
+  animation: trace 4s cubic-bezier(0.65, 0, 0.35, 1) 0.3s both;
+}
+.ouvertureRemplissage {
+  animation: remplissage 1.6s ease-out 2.9s both;
+}
+.braise {
+  opacity: 0;
+  border-radius: 50%;
+  background: #b6ff3b;
+  box-shadow: 0 0 8px rgba(182, 255, 59, 0.8);
+  animation-name: braise;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+}
+
+/* ─── Carte de profil flottante ─── */
+@keyframes flotte {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.flotte {
+  animation: flotte 9s ease-in-out infinite;
+}
+
+/* ─── Bandeau défilant : contenu dupliqué, décalé de moitié ─── */
+@keyframes defile {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.bandeau {
+  animation: defile 40s linear infinite;
+}
+/* Se met en pause au survol : du texte qui bouge en continu gêne la
+   lecture du reste de la page (vérification ui-ux-pro-max). */
+.bandeauCadre:hover .bandeau {
+  animation-play-state: paused;
+}
+.texteEvideBandeau {
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(245, 245, 244, 0.45);
+}
+
+/* ─── Halo de l'appel final ─── */
+@keyframes derive {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(50px, -30px) scale(1.08); }
+}
+.haloFinal {
+  background: radial-gradient(circle, rgba(182, 255, 59, 0.1) 0%, rgba(182, 255, 59, 0) 65%);
+  animation: derive 20s ease-in-out infinite;
+}
+
+/* ─── Boucle 1 : lier son compte ─── */
+@keyframes b1Ligne {
+  0%, 10% { transform: scaleX(0); }
+  40%, 100% { transform: scaleX(1); }
+}
+@keyframes b1Noeud {
+  0%, 35% { border-color: rgba(245, 245, 244, 0.15); box-shadow: none; }
+  45%, 100% { border-color: #b6ff3b; box-shadow: 0 0 30px rgba(182, 255, 59, 0.25); }
+}
+@keyframes b1Badge {
+  0%, 50% { opacity: 0; transform: translateY(8px); }
+  60%, 90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+/* En transform plutôt qu'en « left » (maquette) : le point glisse sans
+   recalcul de mise en page (vérification ui-ux-pro-max). Le cadre qui se
+   déplace fait la largeur de la piste : 100 % = bout de la piste. */
+@keyframes b1Point {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+.b1Ligne { transform-origin: left center; animation: b1Ligne 5s ease-in-out infinite; }
+.b1Noeud { animation: b1Noeud 5s ease-in-out infinite; }
+.b1Badge { animation: b1Badge 5s ease-in-out infinite; }
+.b1Point { animation: b1Point 1.2s linear infinite; }
+
+/* ─── Boucle 2 : le bracket avance ─── */
+@keyframes b2A {
+  0%, 15% { opacity: 0.25; }
+  25%, 100% { opacity: 1; }
+}
+@keyframes b2B {
+  0%, 40% { opacity: 0.25; }
+  50%, 100% { opacity: 1; }
+}
+@keyframes b2C {
+  0%, 65% { opacity: 0; transform: scale(0.92); }
+  75%, 92% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; }
+}
+@keyframes b2L1 {
+  0%, 15% { background: rgba(245, 245, 244, 0.12); }
+  25%, 100% { background: #b6ff3b; }
+}
+@keyframes b2L2 {
+  0%, 40% { background: rgba(245, 245, 244, 0.12); }
+  50%, 100% { background: #b6ff3b; }
+}
+.b2A { animation: b2A 6s ease-in-out infinite; }
+.b2B { animation: b2B 6s ease-in-out infinite; }
+.b2C { animation: b2C 6s ease-in-out infinite; }
+.b2L1 { background: #b6ff3b; animation: b2L1 6s ease-in-out infinite; }
+.b2L2 { background: #b6ff3b; animation: b2L2 6s ease-in-out infinite; }
+
+/* ─── Boucle 3 : la courbe de rating se trace ─── */
+@keyframes b3Trace {
+  0%, 8% { stroke-dashoffset: 420; }
+  60%, 100% { stroke-dashoffset: 0; }
+}
+@keyframes b3Apparait {
+  0%, 58% { opacity: 0; transform: translateY(10px); }
+  66%, 92% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; }
+}
+.b3Trace { stroke-dasharray: 420; animation: b3Trace 5s ease-out infinite; }
+.b3Apparait { animation: b3Apparait 5s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ouvertureEcailles,
+  .ouvertureHalo,
+  .ouvertureTrait,
+  .ouvertureRemplissage,
+  .flotte,
+  .bandeau,
+  .haloFinal,
+  .b1Ligne,
+  .b1Noeud,
+  .b1Badge,
+  .b2A,
+  .b2B,
+  .b2C,
+  .b2L1,
+  .b2L2,
+  .b3Trace,
+  .b3Apparait {
+    animation: none;
+  }
+  /* États finaux : logo dessiné, badges visibles, courbe tracée. */
+  .ouvertureTrait { stroke-dashoffset: 0; stroke-opacity: 0.3; }
+  .ouvertureRemplissage { fill-opacity: 0.07; }
+  .b1Noeud { border-color: #b6ff3b; }
+  .b3Trace { stroke-dashoffset: 0; }
+  .ouvertureEclair,
+  .braise,
+  .b1Point {
+    display: none;
+  }
+}

@@ -9,7 +9,7 @@ import {
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Footer from "@/components/Footer";
-import NavbarArene from "@/components/accueil/NavbarArene";
+import Navbar from "@/components/design/Navbar";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -75,7 +75,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${bricolage.variable} ${interTight.variable} ${jetbrainsMono.variable} ${bigShoulders.variable} ${chakraPetch.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-body">
-        <NavbarArene />
+        {/* Lien d'évitement : premier élément atteint au clavier, il saute la
+            barre de navigation (vérification ui-ux-pro-max, « skip links »). */}
+        <a
+          href="#contenu"
+          className="sr-only z-50 rounded-bouton bg-accent font-texte text-sm font-bold text-on-accent uppercase focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:px-4 focus:py-3"
+        >
+          Aller au contenu
+        </a>
+        <Navbar />
+        <div id="contenu" tabIndex={-1} className="outline-none" />
         {children}
         <Footer />
         <Analytics />

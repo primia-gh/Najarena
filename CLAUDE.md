@@ -101,6 +101,8 @@ Schéma de base de données : `docs/schema.sql`.
 **Traduction dans le code**
 - Jetons (couleurs, polices, tailles, espacements, rayons) : `src/app/globals.css`, second bloc `@theme` — `bg-bg`, `text-text`, `text-muted`, `bg-accent`, `text-on-accent`, `border-line`, `font-titre`, `font-texte`, `text-section`, `px-gouttiere`, `max-w-contenu`, `rounded-bouton`, utilitaires `panneau`, `fond-ecailles`, `texte-rating`, `reflet`, classe `.tableau`.
 - Composants : `src/components/design/` (BoutonLien, BoutonEnvoi, badges, PastilleResultat, ChiffreRating, IndicateurConfiance, Panneau, ReperesVisee, LibelleSection, NumeroFiligrane, Tableau, Icone, Logo). Les consulter avant d'écrire un bouton, un badge ou une carte.
+- Accueil : composants propres dans `src/components/vitrine/` (ouverture, boucles, affiches générées, cartes « EXEMPLE », top 10), animations dans `vitrine.module.css`. Barre de navigation `components/design/Navbar.tsx` et `components/Footer.tsx` partagés par tout le site ; lien « Aller au contenu » dans le layout.
+- Bouton « Pause » (bandeau de l'accueil) : fige toutes les animations du site (`html[data-animations="pause"]`, `lib/pause-animations.ts`) — exigence WCAG 2.2.2 pour tout contenu qui bouge seul plus de 5 s.
 - Charte vivante : `/charte` (tous les composants rendus en vrai ; absente du site en ligne, visible en local et en prévisualisation).
 - Typographie : Big Shoulders (titres, chiffres clés, MAJUSCULES) + Chakra Petch (texte, libellés, boutons). Tout chiffre de preuve (rating, RD, delta, horodatage) en `tabular-nums`.
 
@@ -109,6 +111,7 @@ Schéma de base de données : `docs/schema.sql`.
 - **Sceau de fiabilité supprimé**, remplacé par `IndicateurConfiance` (« CONFIRMÉ » / « PROVISOIRE » + « Confiance N % ») — même calcul qu'avant (`ratings.est_classe`, `calibrationPct`).
 - **Couleurs de paliers** (Bronze → Champion, `lib/paliers.ts`) : seule exception tolérée au « tout vert ».
 - **Contraste** : `faint` vaut `#798079`, pas `#6F766F` (MASTER) — la valeur d'origine ne passe pas 4.5:1 (4.27 sur fond, 3.93 sur panneau), seuil que MASTER exige lui-même.
+- **Illustrations du produit** (cartes CV de l'accueil) : étiquetées « EXEMPLE », jamais « VÉRIFIÉ » — un badge vérifié sur des chiffres fictifs contredirait la promesse.
 - **Pas de bloc sans donnée réelle** : Talent Score, analyse IA, classement/rating par rôle, VOD, disponibilité, parcours, réglage public/privé par bloc — masqués tant que la fonctionnalité n'existe pas, jamais de valeurs fictives. Pas de promesse fausse dans les textes (pas d'« anti-smurf », les points se calculent à la clôture du tournoi, pas « après chaque match »).
 - **Aucun visuel Riot** (icônes de champions DDragon comprises) ; la mention légale Riot reste dans le pied de page.
 - **Navigation** : liens existants conservés (Tournois, Classement, Coéquipiers, Organiser, Tarifs), pas les « Équipes / Recruteurs » de la maquette tant que ces pages n'existent pas.
@@ -121,7 +124,7 @@ Schéma de base de données : `docs/schema.sql`.
 ## 8. Arborescence
 
 ```
-/                          accueil (fond animé pleine intensité)
+/                          accueil (animation d'ouverture du logo, boucles « comment ça marche »)
 /lol                       hub du jeu
 /lol/tournois              liste + filtres
 /lol/tournois/[slug]       page tournoi
