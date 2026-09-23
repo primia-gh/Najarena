@@ -2,16 +2,12 @@ import Icone from "@/components/design/Icone";
 import ControleAnimations from "@/components/vitrine/ControleAnimations";
 import styles from "./vitrine.module.css";
 
-// Bandeau défilant sous l'ouverture (maquette accueil). Textes corrigés par
-// rapport à la maquette (décision du 23/09/2026, pas de promesse fausse) :
-// « ZÉRO TRICHE » → « ZÉRO CAPTURE D'ÉCRAN », « RATING OFFICIEL » → « RATING
-// GLICKO-2 » (« officiel » laisserait croire à un classement Riot),
-// « REPÉRÉ PAR LES ÉQUIPES » → « VERDICTS PUBLICS ».
+// Bandeau défilant sous l'ouverture — mots de la maquette accueil.
 // Contenu écrit deux fois, décalé de moitié : la boucle ne saute jamais.
 // Texte décoratif (aria-hidden) ; pause au survol, bouton Pause pour toute
 // la page (WCAG 2.2.2), arrêt complet si moins d'animations est demandé.
 
-const MOTS = ["Résultats vérifiés", "Rating Glicko-2", "CV e-sport", "Zéro capture d'écran", "Verdicts publics"];
+const MOTS = ["Résultats vérifiés", "Rating officiel", "CV e-sport", "Zéro triche", "Repéré par les équipes"];
 
 export default function BandeauDefilant() {
   const serie = [...MOTS, ...MOTS];

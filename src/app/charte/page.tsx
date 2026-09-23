@@ -77,10 +77,10 @@ const EXEMPLE_MATCHS: { res: "V" | "D"; date: string; tournoi: string; delta: st
 ];
 
 const EXEMPLE_TOP: LigneClassement[] = [
-  { pseudo: "Vipere", slug: null, avatarUrl: null, palier: "Champion", rating: 2214 },
-  { pseudo: "Crochet", slug: null, avatarUrl: null, palier: "Champion", rating: 2187 },
-  { pseudo: "Mue", slug: null, avatarUrl: null, palier: "Diamant", rating: 1842 },
-  { pseudo: "Ecaille", slug: null, avatarUrl: null, palier: "Platine", rating: 1655 },
+  { pseudo: "Vipere", slug: null, avatarUrl: null, palier: "Champion", rating: 2214, tendance: "monte" },
+  { pseudo: "Crochet", slug: null, avatarUrl: null, palier: "Champion", rating: 2187, tendance: "baisse" },
+  { pseudo: "Mue", slug: null, avatarUrl: null, palier: "Diamant", rating: 1842, tendance: "stable" },
+  { pseudo: "Ecaille", slug: null, avatarUrl: null, palier: "Platine", rating: 1655, tendance: "monte" },
 ];
 
 function Bloc({ numero, titre, children }: { numero: string; titre: string; children: React.ReactNode }) {

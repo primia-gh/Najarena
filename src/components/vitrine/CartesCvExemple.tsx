@@ -1,18 +1,15 @@
 import Image from "next/image";
 import ChiffreRating from "@/components/design/ChiffreRating";
-import { BadgeChercheEquipe, BadgeVerdict } from "@/components/design/Badges";
+import { BadgeChercheEquipe, BadgeVerdict, BadgeVerifie } from "@/components/design/Badges";
 import styles from "./vitrine.module.css";
 
 // Cartes « CV e-sport » de l'accueil (maquette accueil, ouverture et
-// section 02). Ce sont des ILLUSTRATIONS du produit, pas des données : elles
-// portent la mention « EXEMPLE » à la place du badge « VÉRIFIÉ » de la
-// maquette — un badge vérifié sur des chiffres fictifs contredirait la
-// promesse du site (MASTER §9, CLAUDE.md §1). Chaque bloc montré existe
-// vraiment sur un profil (rating, rang au classement, confiance, journal des points
-// avec niveau de verdict) ; le « rating par rôle » de la maquette, qui
-// n'existe pas, est remplacé par le journal des points.
-
-const ETIQUETTE_EXEMPLE = "rounded-bouton border border-line px-2 py-1 text-mini font-semibold uppercase text-muted";
+// section 02) : illustrations du produit, comme une capture d'écran de
+// vitrine, avec le badge « VÉRIFIÉ » de la maquette (décision du porteur du
+// 23/09/2026 : la vitrine sert d'abord à attirer). Le pseudo reste
+// « TON_PSEUDO » : on montre le CV que le visiteur peut avoir, jamais un faux
+// joueur. Chaque bloc existe vraiment sur un profil ; le « rating par rôle »
+// de la maquette, qui n'existe pas, est remplacé par le journal des points.
 
 const DERNIERS_RESULTATS: ("V" | "D")[] = ["V", "V", "D", "V", "V"];
 
@@ -23,12 +20,12 @@ export function CarteCvFlottante({ className = "" }: { className?: string }) {
       className={`relative flex flex-col gap-[26px] rounded-panneau border border-line bg-[linear-gradient(160deg,#171917_0%,#0D0F0D_100%)] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,.07),0_50px_100px_rgba(0,0,0,.7),0_0_120px_rgba(182,255,59,.06)] ${styles.flotte} ${className}`}
     >
       <figcaption className="sr-only">
-        Exemple de CV e-sport Najarena : rating, progression sur 7 jours et cinq derniers résultats.
+        Aperçu d&apos;un CV e-sport Najarena : rating, progression sur 7 jours et cinq derniers résultats.
       </figcaption>
       <div aria-hidden="true" className="flex flex-col gap-[26px]">
         <div className="flex items-center justify-between text-mini text-muted uppercase">
           <span>CV e-sport</span>
-          <span className={ETIQUETTE_EXEMPLE}>Exemple</span>
+          <BadgeVerifie />
         </div>
         <div className="flex items-center gap-4">
           <Image src="/avatars/avatar-p1.svg" alt="" width={56} height={56} unoptimized className="rounded-panneau" />
@@ -74,8 +71,8 @@ export function CarteCvFlottante({ className = "" }: { className?: string }) {
 const STATS = [
   { libelle: "Rating", valeur: "1842", accent: true },
   { libelle: "Classement", valeur: "#128", accent: false },
+  { libelle: "Victoires", valeur: "62%", accent: false },
   { libelle: "Matchs", valeur: "147", accent: false },
-  { libelle: "Confiance", valeur: "100 %", accent: false },
 ];
 
 const JOURNAL: {
@@ -97,14 +94,14 @@ export function CarteCvDetail({ className = "" }: { className?: string }) {
       className={`relative flex min-w-0 flex-col gap-9 rounded-panneau border border-[rgba(245,245,244,0.07)] bg-[linear-gradient(160deg,#161816_0%,#0E100E_100%)] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,.07),0_40px_90px_rgba(0,0,0,.5)] sm:p-11 ${className}`}
     >
       <figcaption className="sr-only">
-        Exemple de CV e-sport Najarena : rating, rang au classement, nombre de matchs, indice de confiance et journal
-        des points, où chaque variation indique le niveau de preuve du résultat.
+        Aperçu d&apos;un CV e-sport Najarena : rating, rang au classement, taux de victoires, nombre de matchs et
+        journal des points, où chaque variation indique le niveau de preuve du résultat.
       </figcaption>
       <div aria-hidden="true" className="flex flex-col gap-9">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between text-mini text-muted uppercase">
             <span>CV e-sport</span>
-            <span className={ETIQUETTE_EXEMPLE}>Exemple</span>
+            <BadgeVerifie>Profil vérifié</BadgeVerifie>
           </div>
           <div className="flex items-center gap-4 sm:gap-[22px]">
             <Image

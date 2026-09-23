@@ -6,14 +6,13 @@ import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
 import NumeroFiligrane from "@/components/design/NumeroFiligrane";
 import Icone from "@/components/design/Icone";
-import Panneau from "@/components/design/Panneau";
 import Apparition from "@/components/design/Apparition";
 import OuvertureLogo from "@/components/vitrine/OuvertureLogo";
 import BandeauDefilant from "@/components/vitrine/BandeauDefilant";
 import { BoucleBracket, BoucleCompte, BoucleRating } from "@/components/vitrine/Boucles";
 import { CarteCvDetail, CarteCvFlottante } from "@/components/vitrine/CartesCvExemple";
 import AfficheTournoi, { type VarianteAffiche } from "@/components/vitrine/AfficheTournoi";
-import ApercuClassement from "@/components/vitrine/ApercuClassement";
+import ApercuClassement, { type Tendance } from "@/components/vitrine/ApercuClassement";
 import { IllustrationEquipe, IllustrationRecherche } from "@/components/vitrine/IllustrationsPortes";
 import styles from "@/components/vitrine/vitrine.module.css";
 
@@ -21,9 +20,12 @@ import styles from "@/components/vitrine/vitrine.module.css";
 // maquette najarena-design/maquettes/accueil.dc.html). Seules les sections 03
 // (tournois) et 04 (classement) lisent la base, avec les mêmes requêtes que
 // /lol et /lol/classement. Pas de compteur de trafic (pages/accueil.md).
-// Textes corrigés par rapport à la maquette quand elle promettait ce que le
-// site ne fait pas (anti-smurf, classement par rôle, mise à jour « après
-// chaque match », recruteurs qui « consultent vraiment ») — CLAUDE.md §7.
+// Vitrine : son premier but est d'attirer (décision du porteur, 23/09/2026).
+// Textes et mise en scène de la maquette conservés ; seules les promesses
+// que le site ne tient pas (anti-smurf, rang vérifié, rating par rôle, mise
+// à jour « après chaque match », recruteurs qui « regardent ») sont
+// remplacées par des formules aussi fortes mais vraies. Jamais de section
+// vide : affiches et top 10 se complètent sans rien inventer — CLAUDE.md §7.
 
 // game_id=1 est LoL — seule ligne de `games` en V1 (même convention que
 // /lol et /lol/classement).
@@ -46,7 +48,7 @@ async function chargerAccueil() {
     ? ((
         await supabase
           .from("ratings")
-          .select("rating, profile:profiles(pseudo, slug, avatar_url)")
+          .select("profile_id, rating, profile:profiles(pseudo, slug, avatar_url)")
           .eq("game_id", 1)
           .eq("season_id", saison.id)
           .eq("est_classe", true)
@@ -55,9 +57,31 @@ async function chargerAccueil() {
       ).data ?? [])
     : [];
 
+  // Tendance = sens de la dernière variation de points de chaque joueur du
+  // top 10 cette saison (journal public rating_events, CLAUDE.md §4).
+  const tendances = new Map<string, Tendance>();
+  if (saison && classement.length > 0) {
+    const { data: evenements } = await supabase
+      .from("rating_events")
+      .select("profile_id, rating_avant, rating_apres")
+      .eq("game_id", 1)
+      .eq("season_id", saison.id)
+      .in(
+        "profile_id",
+        classement.map((c) => c.profile_id),
+      )
+      .order("cree_le", { ascending: false })
+      .limit(200);
+    for (const e of evenements ?? []) {
+      if (tendances.has(e.profile_id)) continue;
+      const delta = e.rating_apres - e.rating_avant;
+      tendances.set(e.profile_id, delta > 0.5 ? "monte" : delta < -0.5 ? "baisse" : "stable");
+    }
+  }
+
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
 
-  return { classement, paliers, tournois: tournoisData ?? [] };
+  return { classement, paliers, tendances, tournois: tournoisData ?? [] };
 }
 
 // Heure de Paris explicite : le serveur (Vercel) tourne en UTC.
@@ -82,13 +106,13 @@ const ETAPES = [
   {
     numero: "01",
     titre: "Lie ton compte",
-    texte: "Saisis ton Riot ID et prouve qu'il est à toi en changeant ton icône de profil.",
+    texte: "Connecte ton compte de jeu : on vérifie qu'il est bien à toi. Personne ne peut se faire passer pour toi.",
     boucle: <BoucleCompte />,
   },
   {
     numero: "02",
     titre: "Joue tes matchs",
-    texte: "Inscris-toi à un tournoi et joue. Le résultat est lu dans la donnée officielle du jeu.",
+    texte: "Inscris-toi à un tournoi et joue. Les résultats remontent tout seuls.",
     boucle: <BoucleBracket />,
   },
   {
@@ -100,20 +124,66 @@ const ETAPES = [
 ];
 
 const POINTS_CV = [
-  "Rating Glicko-2 et classement national",
-  "Niveau de preuve affiché sur chaque match",
-  "Historique complet et journal des points public",
+  "Rating vérifié et classement national",
+  "Chaque résultat prouvé, match par match",
+  "Historique complet des matchs",
   "Lien partageable avec les équipes",
 ];
 
 const REASSURANCE = [
   { icone: "bouclier", texte: "Données officielles" },
-  { icone: "joueur", texte: "Inscription gratuite" },
+  { icone: "joueur", texte: "Comptes vérifiés" },
   { icone: "coche", texte: "Sans pay-to-win" },
 ] as const;
 
+// Complète la rangée d'affiches quand moins de 3 tournois sont ouverts :
+// uniquement des choses qui existent (tournoi d'exemple, création de
+// tournoi, création d'équipe) — jamais un faux tournoi.
+const AFFICHES_COMPLEMENT = [
+  {
+    cle: "demo",
+    nom: "Najarena Cup",
+    format: "1v1",
+    etiquette: "Tournoi d'exemple",
+    info: "8 joueurs · bracket complet",
+    lien: "/lol/tournois/demo",
+    action: "Voir le bracket",
+  },
+  {
+    cle: "organiser",
+    nom: "Ton tournoi",
+    format: "1v1 · 5v5",
+    etiquette: "À toi de jouer",
+    info: "Check-in, bracket et résultats gérés pour toi",
+    lien: "/organiser/nouveau",
+    action: "Organiser",
+  },
+  {
+    cle: "equipe",
+    nom: "Ton équipe",
+    format: "5v5",
+    etiquette: "Monte ton roster",
+    info: "Recrute sur des profils vérifiés",
+    lien: "/equipe/nouvelle",
+    action: "Créer",
+  },
+];
+
 export default async function Home() {
-  const { classement, paliers, tournois } = await chargerAccueil();
+  const { classement, paliers, tendances, tournois } = await chargerAccueil();
+
+  const affiches = [
+    ...tournois.map((t) => ({
+      cle: t.slug,
+      nom: t.nom,
+      format: t.format,
+      etiquette: dateAffiche(t.debute_le),
+      info: `${t.capacite} places · ${t.region}`,
+      lien: `/lol/tournois/${t.slug}`,
+      action: "S'inscrire",
+    })),
+    ...AFFICHES_COMPLEMENT,
+  ].slice(0, 3);
 
   return (
     <main className="bg-bg font-texte text-text">
@@ -141,8 +211,8 @@ export default async function Home() {
               ton <span className="text-accent">niveau.</span>
             </h1>
             <p className="max-w-[520px] text-courant text-text-2">
-              Joue des tournois, grimpe au classement et construis un CV e-sport vérifié, à montrer aux
-              équipes comme aux recruteurs.
+              Joue des tournois, grimpe au classement et construis un CV e-sport que personne ne peut
+              contester.
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-x-9 gap-y-4">
               <BoutonLien href="/inscription" taille="grande">
@@ -178,7 +248,7 @@ export default async function Home() {
               <h2 className="font-titre text-section font-black uppercase">
                 Trois étapes.
                 <br />
-                Rien à déclarer.
+                Zéro triche.
               </h2>
             </div>
             <p className="max-w-[380px] text-lg leading-[1.6] text-muted">
@@ -221,8 +291,8 @@ export default async function Home() {
             </h2>
             <p className="text-lg leading-[1.65] text-text-2">
               Chaque match joué sur Najarena alimente un profil vérifiable : rating, classement national,
-              historique des matchs, journal des points. Le document que tu envoies quand une équipe te demande
-              ce que tu vaux.
+              historique, journal des points. Le document que tu envoies quand une équipe te demande ce que tu
+              vaux.
             </p>
             <ul className="flex flex-col">
               {POINTS_CV.map((p) => (
@@ -260,54 +330,35 @@ export default async function Home() {
             </BoutonLien>
           </Apparition>
 
-          {tournois.length > 0 ? (
-            <ul className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
-              {tournois.map((t, i) => (
-                <li key={t.slug}>
-                  <Apparition delai={i * 0.08} className="flex flex-col gap-6">
-                    <AfficheTournoi
-                      nom={t.nom}
-                      format={t.format}
-                      date={dateAffiche(t.debute_le)}
-                      variante={((i % 3) + 1) as VarianteAffiche}
-                    />
-                    <div className="flex justify-between gap-4 text-xs tracking-[3px] text-muted uppercase">
-                      <span>LoL · {t.format}</span>
-                      <span className="tabular-nums">{dateAffiche(t.debute_le)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 border-t border-[rgba(245,245,244,0.1)] pt-5">
-                      <span className="text-sm text-muted">
-                        {t.capacite} places · {t.region}
-                      </span>
-                      <Link
-                        href={`/lol/tournois/${t.slug}`}
-                        className="inline-flex min-h-11 items-center text-sm font-semibold tracking-[2px] text-accent uppercase transition-colors duration-200 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
-                      >
-                        S&apos;inscrire<span aria-hidden="true">&nbsp;→</span>
-                        <span className="sr-only"> au tournoi {t.nom}</span>
-                      </Link>
-                    </div>
-                  </Apparition>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Panneau reperes className="flex flex-col items-start gap-5 px-8 py-12 sm:px-12">
-              <p className="font-titre text-sous-titre font-extrabold uppercase">Aucun tournoi ouvert pour l&apos;instant.</p>
-              <p className="max-w-[560px] text-muted">
-                Les prochains créneaux s&apos;ouvrent ici dès qu&apos;un organisateur les publie. En attendant, un
-                tournoi d&apos;exemple montre un bracket complet, verdict par verdict.
-              </p>
-              <div className="flex flex-wrap gap-x-9 gap-y-2">
-                <BoutonLien href="/lol/tournois/demo" variante="secondaire">
-                  Voir le tournoi d&apos;exemple
-                </BoutonLien>
-                <BoutonLien href="/organiser/nouveau" variante="secondaire">
-                  Organiser un tournoi
-                </BoutonLien>
-              </div>
-            </Panneau>
-          )}
+          <ul className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
+            {affiches.map((a, i) => (
+              <li key={a.cle}>
+                <Apparition delai={i * 0.08} className="flex flex-col gap-6">
+                  <AfficheTournoi
+                    nom={a.nom}
+                    format={a.format}
+                    date={a.etiquette}
+                    variante={((i % 3) + 1) as VarianteAffiche}
+                  />
+                  <div className="flex justify-between gap-4 text-xs tracking-[3px] text-muted uppercase">
+                    <span>LoL · {a.format}</span>
+                    <span className="tabular-nums">{a.etiquette}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 border-t border-[rgba(245,245,244,0.1)] pt-5">
+                    <span className="text-sm text-muted">{a.info}</span>
+                    <Link
+                      href={a.lien}
+                      className="inline-flex min-h-11 shrink-0 items-center text-sm font-semibold tracking-[2px] text-accent uppercase transition-colors duration-200 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+                    >
+                      {a.action}
+                      <span aria-hidden="true">&nbsp;→</span>
+                      <span className="sr-only"> — {a.nom}</span>
+                    </Link>
+                  </div>
+                </Apparition>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
@@ -323,8 +374,8 @@ export default async function Home() {
               top 10.
             </h2>
             <p className="text-lg leading-[1.65] text-text-2">
-              Un classement national calculé en Glicko-2, mis à jour à la clôture de chaque tournoi. Public,
-              vérifiable, jamais remis à zéro.
+              Un classement national, recalculé à la fin de chaque tournoi. Public, vérifiable, impossible à
+              acheter : ta place se gagne en jouant.
             </p>
             <BoutonLien href="/lol/classement" variante="secondaire" className="self-start">
               Classement complet
@@ -332,29 +383,18 @@ export default async function Home() {
           </Apparition>
 
           <Apparition delai={0.1} className="min-w-0 flex-1">
-            {classement.length > 0 ? (
-              <ApercuClassement
-                legende="Top 10 du classement League of Legends, saison en cours"
-                lignes={classement.map((c) => ({
-                  pseudo: c.profile?.pseudo ?? "Joueur",
-                  slug: c.profile?.slug ?? null,
-                  avatarUrl: c.profile?.avatar_url ?? null,
-                  palier: trouverPalier(c.rating, paliers)?.nom ?? null,
-                  rating: arrondir(c.rating),
-                }))}
-              />
-            ) : (
-              <Panneau reperes className="flex flex-col items-start gap-5 px-8 py-12 sm:px-12">
-                <p className="font-titre text-sous-titre font-extrabold uppercase">Le top 10 reste à écrire.</p>
-                <p className="max-w-[560px] text-muted">
-                  Personne n&apos;est encore classé cette saison : il faut une dizaine de matchs vérifiés pour que
-                  le rating soit assez fiable (RD ≤ 150) et entrer au classement.
-                </p>
-                <BoutonLien href="/lol/tournois" variante="secondaire">
-                  Jouer mon premier tournoi
-                </BoutonLien>
-              </Panneau>
-            )}
+            <ApercuClassement
+              legende="Top 10 du classement League of Legends, saison en cours"
+              lienPremierePlace="/lol/tournois"
+              lignes={classement.map((c) => ({
+                pseudo: c.profile?.pseudo ?? "Joueur",
+                slug: c.profile?.slug ?? null,
+                avatarUrl: c.profile?.avatar_url ?? null,
+                palier: trouverPalier(c.rating, paliers)?.nom ?? null,
+                rating: arrondir(c.rating),
+                tendance: tendances.get(c.profile_id) ?? null,
+              }))}
+            />
           </Apparition>
         </div>
       </section>
@@ -368,8 +408,8 @@ export default async function Home() {
               <LibelleSection>Pour les équipes</LibelleSection>
               <h2 className="font-titre text-sous-titre leading-[0.95] font-black uppercase">Recrute sur des preuves.</h2>
               <p className="max-w-[500px] text-[17px] leading-[1.6] text-muted">
-                Crée ton équipe, publie ton annonce et trouve le joueur qui manque à ton roster parmi des profils
-                classés et vérifiés.
+                Trouve le joueur qui manque à ton roster grâce à des profils vérifiés, filtrés par rôle, niveau et
+                disponibilité.
               </p>
               <BoutonLien href="/equipe/nouvelle" variante="secondaire" className="mt-2 self-start">
                 Créer mon équipe
@@ -384,11 +424,11 @@ export default async function Home() {
                 Repère les talents en premier.
               </h2>
               <p className="max-w-[500px] text-[17px] leading-[1.6] text-muted">
-                Recherche de joueurs par niveau, liste de suivi, CV vérifiés et partageables : de quoi décider sur
-                des preuves.
+                Recherche avancée, progression dans le temps, historique vérifié : toutes les données pour décider
+                vite et bien.
               </p>
               <BoutonLien href="/tarifs" variante="secondaire" className="mt-2 self-start">
-                Voir les offres
+                Les offres pro
               </BoutonLien>
             </div>
           </Apparition>
