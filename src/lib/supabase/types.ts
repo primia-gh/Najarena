@@ -1000,8 +1000,8 @@ export type Database = {
           checkin_ouvre_le: string
           compte_pour_classement: boolean
           couleur_accent: string | null
-          creneau_auto: string | null
           cree_le: string
+          creneau_auto: string | null
           debute_le: string
           format: string
           game_id: number
@@ -1024,8 +1024,8 @@ export type Database = {
           checkin_ouvre_le: string
           compte_pour_classement?: boolean
           couleur_accent?: string | null
-          creneau_auto?: string | null
           cree_le?: string
+          creneau_auto?: string | null
           debute_le: string
           format: string
           game_id: number
@@ -1048,8 +1048,8 @@ export type Database = {
           checkin_ouvre_le?: string
           compte_pour_classement?: boolean
           couleur_accent?: string | null
-          creneau_auto?: string | null
           cree_le?: string
+          creneau_auto?: string | null
           debute_le?: string
           format?: string
           game_id?: number
