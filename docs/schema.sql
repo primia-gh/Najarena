@@ -1298,3 +1298,145 @@ $$;
 -- raison de le supprimer). Fusionner les policies redondantes réduirait la
 -- lisibilité pour un gain de performance nul à l'échelle actuelle — à
 -- reconsidérer si le site a un jour un vrai volume de trafic.
+
+-- ---------- Tournois automatiques (2026-09-24) ----------
+-- Tournoi quotidien créé, lancé ou annulé par la tâche planifiée
+-- /api/cron/tournois-auto (src/lib/tournois-auto/). creneau_auto = clé du
+-- créneau (src/lib/tournois-auto/creneaux.ts) ; nul pour un tournoi créé
+-- par un organisateur.
+alter table public.tournaments add column creneau_auto text;
+
+-- Un seul tournoi par créneau et par heure de début, même si l'adresse
+-- (slug) changeait un jour.
+create unique index tournaments_creneau_auto_debut_key
+  on public.tournaments (creneau_auto, debute_le)
+  where creneau_auto is not null;
+
+-- Rappels déjà envoyés : la tâche réserve la ligne avant d'envoyer, un
+-- joueur ne reçoit jamais deux fois le même rappel (CLAUDE.md §6.4).
+create table public.rappels_tournoi (
+  tournament_id uuid not null references public.tournaments(id) on delete cascade,
+  type          text not null check (type in ('annonce', 'checkin_ouvert', 'dernier_appel')),
+  envoye_le     timestamptz not null default now(),
+  primary key (tournament_id, type)
+);
+
+-- Aucune policy : lue et écrite uniquement par le serveur (service_role).
+alter table public.rappels_tournoi enable row level security;
+
+-- Bye d'un tournoi automatique, enregistré au démarrage par la tâche
+-- planifiée. Pendant d'enregistrer_verdict_manuel, qui exige un
+-- organisateur connecté (auth.uid()) — ici personne n'est connecté.
+-- Réservée au service_role, et ne sait faire QU'UN bye : elle revérifie
+-- elle-même qu'il n'y a qu'un joueur dans le match et qu'aucun adversaire
+-- ne peut encore arriver (bug #2 de src/lib/bracket.ts, revérifié côté
+-- base). Verdict de niveau 1 (manuel), jamais compté au classement.
+create or replace function public.enregistrer_bye_automatique(p_match_id uuid, p_gagnant_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_creneau text;
+begin
+  select t.creneau_auto
+  into v_creneau
+  from public.matches m
+  join public.tournaments t on t.id = m.tournament_id
+  where m.id = p_match_id;
+
+  if not found then
+    raise exception 'MATCH_INTROUVABLE';
+  end if;
+
+  if v_creneau is null then
+    raise exception 'TOURNOI_NON_AUTOMATIQUE';
+  end if;
+
+  -- Déjà résolu (relance de la tâche) : rien à refaire.
+  if exists (select 1 from public.match_verdicts where match_id = p_match_id) then
+    return;
+  end if;
+
+  if (select count(*) from public.match_participants where match_id = p_match_id) <> 1
+     or not exists (
+       select 1 from public.match_participants
+       where match_id = p_match_id and profile_id = p_gagnant_id
+     ) then
+    raise exception 'PAS_UN_BYE';
+  end if;
+
+  if exists (
+    select 1
+    from public.matches precedent
+    where precedent.match_suivant_id = p_match_id
+      and precedent.statut <> 'termine'
+      and exists (select 1 from public.match_participants p where p.match_id = precedent.id)
+  ) then
+    raise exception 'ADVERSAIRE_ATTENDU';
+  end if;
+
+  insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+  values (
+    p_match_id,
+    'manuel',
+    p_gagnant_id,
+    null,
+    'Bye — moins d''inscrits confirmés que de places dans le bracket.',
+    true
+  );
+
+  perform public.avancer_vainqueur(p_match_id, p_gagnant_id);
+end;
+$$;
+
+revoke all on function public.enregistrer_bye_automatique(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.enregistrer_bye_automatique(uuid, uuid) to service_role;
+
+-- ---------- Tâches planifiées dans la base (2026-09-24) ----------
+-- À appliquer APRÈS le déploiement du code des tournois automatiques.
+-- Le plan gratuit de Vercel limite ses tâches planifiées à une par jour
+-- (vercel.json). pg_cron (planificateur intégré à Postgres, gratuit sur
+-- Supabase) appelle donc ces deux routes toutes les 5 minutes, via pg_net
+-- (requêtes HTTP depuis la base) :
+-- - /api/cron/tournois-auto : création, check-in, rappels, démarrage ;
+-- - /api/cron/recherche-resultats : rapprochement niveau 2, sans lequel
+--   un tournoi du soir n'avancerait qu'une fois par jour.
+-- Le secret CRON_SECRET n'est jamais écrit ici ni dans Git : il est rangé
+-- dans le coffre-fort chiffré de Supabase (Vault) par le porteur du
+-- projet lui-même, depuis l'éditeur SQL de Supabase :
+--   select vault.create_secret('<valeur de CRON_SECRET sur Vercel>', 'najarena_cron_secret');
+-- Sans ce secret, les appels sont simplement refusés (401), sans effet.
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+select cron.schedule(
+  'najarena-tournois-auto',
+  '*/5 * * * *',
+  $$
+  select net.http_get(
+    url := 'https://najarena.vercel.app/api/cron/tournois-auto',
+    headers := jsonb_build_object(
+      'Authorization',
+      'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'najarena_cron_secret')
+    ),
+    timeout_milliseconds := 60000
+  );
+  $$
+);
+
+select cron.schedule(
+  'najarena-recherche-resultats',
+  '*/5 * * * *',
+  $$
+  select net.http_get(
+    url := 'https://najarena.vercel.app/api/cron/recherche-resultats',
+    headers := jsonb_build_object(
+      'Authorization',
+      'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'najarena_cron_secret')
+    ),
+    timeout_milliseconds := 60000
+  );
+  $$
+);

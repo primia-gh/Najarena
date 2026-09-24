@@ -14,6 +14,11 @@ import { traiterRechercheResultats } from "@/lib/rapprochement";
 // compte Pro pour retrouver une cadence proche de la cible (ex.
 // "*/5 * * * *") une fois le site prêt à être utilisé en conditions
 // réelles.
+// Mise à jour du 24/09/2026 : sans attendre un compte Pro, la base appelle
+// aussi cette route toutes les 5 minutes (pg_cron, tâche
+// « najarena-recherche-resultats », voir docs/schema.sql) — indispensable
+// pour qu'un tournoi du soir avance le soir même. Le passage quotidien de
+// vercel.json reste en secours.
 // Même mécanisme d'authentification que les autres routes /api/cron/*.
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;

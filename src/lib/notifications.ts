@@ -121,11 +121,82 @@ export async function notifierDiscord(contenu: string): Promise<void> {
     await fetch(webhookDiscord, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: contenu }),
+      // allowed_mentions vide : un nom de tournoi choisi par un
+      // organisateur (« @everyone ») ne doit jamais notifier tout le
+      // serveur (correctif du 24/09/2026).
+      body: JSON.stringify({ content: contenu, allowed_mentions: { parse: [] } }),
+      signal: AbortSignal.timeout(5000),
     });
   } catch {
     // Idem : jamais remonté à l'appelant.
   }
+}
+
+// Message privé Discord à un joueur (tournois automatiques, 24/09/2026) —
+// via le bot déjà créé pour /classement et /tournois (DISCORD_BOT_TOKEN).
+// Ne touche que les joueurs inscrits avec Discord (profiles.discord_id) et
+// qui partagent un serveur avec le bot : Discord refuse sinon, sans
+// conséquence. Repli gracieux identique aux autres canaux.
+const jetonBotDiscord = process.env.DISCORD_BOT_TOKEN;
+const API_DISCORD = "https://discord.com/api/v10";
+
+async function envoyerMessagePriveDiscord(discordId: string, contenu: string): Promise<void> {
+  if (!jetonBotDiscord) return;
+
+  const entetes = {
+    Authorization: `Bot ${jetonBotDiscord}`,
+    "Content-Type": "application/json",
+  };
+
+  try {
+    const reponseCanal = await fetch(`${API_DISCORD}/users/@me/channels`, {
+      method: "POST",
+      headers: entetes,
+      body: JSON.stringify({ recipient_id: discordId }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!reponseCanal.ok) return;
+    const canal = (await reponseCanal.json()) as { id?: string };
+    if (!canal.id) return;
+
+    await fetch(`${API_DISCORD}/channels/${canal.id}/messages`, {
+      method: "POST",
+      headers: entetes,
+      body: JSON.stringify({ content: contenu, allowed_mentions: { parse: [] } }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    // Jamais remonté à l'appelant.
+  }
+}
+
+/**
+ * Rappel à un joueur (check-in, début ou annulation d'un tournoi) : push
+ * + message privé Discord. Jamais d'e-mail pour ces rappels (CLAUDE.md
+ * §5), contrairement à notifierJoueur. Même contrat : n'échoue jamais.
+ */
+export async function envoyerRappel(
+  profileId: string,
+  titre: string,
+  texte: string,
+  lien: string,
+): Promise<void> {
+  const discordId = await (async () => {
+    if (!jetonBotDiscord) return null;
+    const admin = creerClientAdmin();
+    if (!admin) return null;
+    const { data } = await admin.from("profiles").select("discord_id").eq("id", profileId).maybeSingle();
+    return data?.discord_id ?? null;
+  })().catch(() => null);
+
+  await Promise.all([
+    // Lien sans texte : envoyerPush en fait la cible du clic, et le corps
+    // de la notification reste la seule phrase utile.
+    envoyerPush(profileId, titre, `<p>${texte}</p><a href="${lien}"></a>`).catch(() => undefined),
+    discordId
+      ? envoyerMessagePriveDiscord(discordId, `**${titre}**\n${texte}\n${lien}`)
+      : Promise.resolve(),
+  ]);
 }
 
 /**

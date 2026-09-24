@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
-import { ordreDesSeeds, calculerByesEnCascade } from "@/lib/bracket";
+import { construireBracket, melanger } from "@/lib/bracket-construction";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -72,15 +72,6 @@ export async function marquerAbsent(formData: FormData) {
   redirect(`/moi/organisation/${tournamentId}`);
 }
 
-function melanger<T>(items: T[]): T[] {
-  const copie = [...items];
-  for (let i = copie.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copie[i], copie[j]] = [copie[j], copie[i]];
-  }
-  return copie;
-}
-
 export async function genererBracket(formData: FormData) {
   const tournamentId = String(formData.get("tournament_id") ?? "");
 
@@ -114,88 +105,26 @@ export async function genererBracket(formData: FormData) {
     );
   }
 
-  const capacite = tournoi.capacite;
-  const nbTours = Math.log2(capacite);
+  const { ok } = await construireBracket(
+    supabase,
+    tournamentId,
+    tournoi.capacite,
+    joueurs,
+    async (matchId, gagnantId) => {
+      await supabase.rpc("enregistrer_verdict_manuel", {
+        p_match_id: matchId,
+        p_gagnant_id: gagnantId,
+        p_motif: "Bye — moins d'inscrits confirmés que de places dans le bracket.",
+      });
+    },
+  );
 
-  // Les tours se créent du dernier au premier : match_suivant_id doit
-  // référencer un match déjà existant.
-  const idParTourPosition = new Map<string, string>();
-  for (let tour = nbTours; tour >= 1; tour--) {
-    const nbMatchsCeTour = capacite / 2 ** tour;
-    for (let position = 1; position <= nbMatchsCeTour; position++) {
-      const matchSuivantId =
-        tour < nbTours ? idParTourPosition.get(`${tour + 1}-${Math.ceil(position / 2)}`) : null;
-
-      const { data: nouveauMatch, error } = await supabase
-        .from("matches")
-        .insert({ tournament_id: tournamentId, tour, position, match_suivant_id: matchSuivantId })
-        .select("id")
-        .single();
-
-      if (error || !nouveauMatch) {
-        redirect(
-          `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
-            "Impossible de générer le bracket pour l'instant.",
-          )}`,
-        );
-      }
-
-      idParTourPosition.set(`${tour}-${position}`, nouveauMatch.id);
-    }
-  }
-
-  // Place chaque joueur à la position que lui attribue l'ordre des seeds ;
-  // les places au-delà du nombre de joueurs confirmés restent vides (bye).
-  const ordre = ordreDesSeeds(capacite);
-  for (let slotIndex = 0; slotIndex < capacite; slotIndex++) {
-    const numeroSeed = ordre[slotIndex];
-    if (numeroSeed > joueurs.length) continue;
-
-    const position = Math.floor(slotIndex / 2) + 1;
-    const slot = (slotIndex % 2) + 1;
-    const matchId = idParTourPosition.get(`1-${position}`);
-    if (!matchId) continue;
-
-    await supabase.from("match_participants").insert({
-      match_id: matchId,
-      profile_id: joueurs[numeroSeed - 1],
-      slot,
-    });
-  }
-
-  // Un match du tour 1 dont les deux places sont occupées par de vrais
-  // joueurs démarre immédiatement (pas de bye à résoudre) : c'est le
-  // déclencheur de la recherche de résultat niveau 2 (docs/moteur-
-  // resultats.md §3 — la fenêtre T+8/.../T+25 se compte depuis ce moment).
-  for (let position = 1; position <= capacite / 2; position++) {
-    const seedA = ordre[(position - 1) * 2];
-    const seedB = ordre[(position - 1) * 2 + 1];
-    if (seedA > joueurs.length || seedB > joueurs.length) continue;
-
-    const matchId = idParTourPosition.get(`1-${position}`);
-    if (!matchId) continue;
-
-    await supabase
-      .from("matches")
-      .update({ statut: "en_cours", demarre_le: new Date().toISOString() })
-      .eq("id", matchId);
-  }
-
-  // Résout les byes en cascade (logique pure testée dans bracket.test.ts —
-  // cf. les commentaires de calculerByesEnCascade pour l'historique des
-  // trois bugs déjà trouvés sur cette logique). Chaque résolution avance
-  // le joueur directement au tour suivant, motif consigné comme tout
-  // verdict manuel.
-  const byes = calculerByesEnCascade(capacite, joueurs.length);
-  for (const bye of byes) {
-    const matchId = idParTourPosition.get(`${bye.tour}-${bye.position}`);
-    if (!matchId) continue;
-
-    await supabase.rpc("enregistrer_verdict_manuel", {
-      p_match_id: matchId,
-      p_gagnant_id: joueurs[bye.gagnantSeed - 1],
-      p_motif: "Bye — moins d'inscrits confirmés que de places dans le bracket.",
-    });
+  if (!ok) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+        "Impossible de générer le bracket pour l'instant.",
+      )}`,
+    );
   }
 
   await supabase.from("tournaments").update({ statut: "en_cours" }).eq("id", tournamentId);

@@ -3,6 +3,12 @@ import type { Metadata } from "next";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
 import { JsonLd } from "@/lib/json-ld";
+import { CRENEAUX } from "@/lib/tournois-auto/creneaux";
+
+// Réponse construite à partir de la configuration réelle des tournois
+// automatiques (lib/tournois-auto/creneaux.ts) : elle ne peut pas annoncer
+// un horaire ou une capacité qui n'existe pas.
+const QUOTIDIEN = CRENEAUX[0];
 
 export const metadata: Metadata = {
   title: "FAQ — Najarena",
@@ -25,6 +31,14 @@ const QUESTIONS = [
     reponse:
       "Non. League of Legends et Riot Games sont des marques déposées de Riot Games, Inc. Najarena n'est ni produit, ni approuvé, ni sponsorisé par Riot Games. Le site lit les données de match fournies par l'API officielle de Riot.",
   },
+  ...(QUOTIDIEN
+    ? [
+        {
+          question: "Y a-t-il un tournoi tous les jours ?",
+          reponse: `Oui : le ${QUOTIDIEN.nom}, un tournoi 1v1 ouvert à tous, chaque soir à ${QUOTIDIEN.heure} (heure de Paris) sur le serveur ${QUOTIDIEN.region}, ${QUOTIDIEN.capacite} places. Il se crée tout seul, la veille. Le check-in ouvre ${QUOTIDIEN.checkinMinutes} minutes avant le début : confirme ta présence depuis la page du tournoi (un rappel t'est envoyé si tu as activé les notifications). Sans check-in, pas de place dans le bracket. En dessous de ${QUOTIDIEN.minimumJoueurs} joueurs confirmés, le tournoi est annulé.`,
+        },
+      ]
+    : []),
   {
     question: "Comment un résultat est-il vérifié ?",
     reponse:
@@ -32,9 +46,11 @@ const QUESTIONS = [
   },
   {
     question: "Quand mon classement est-il mis à jour ?",
-    // Aligné sur vercel.json (cron recherche-resultats : "0 5 * * *").
+    // Aligné sur la tâche pg_cron « najarena-recherche-resultats » (toutes
+    // les 5 minutes, docs/schema.sql) — vercel.json garde un passage
+    // quotidien de secours.
     reponse:
-      "À la clôture du tournoi, c'est-à-dire quand le résultat de la finale est enregistré. Seuls les verdicts de niveau 2 ou 3 comptent : une décision manuelle de l'organisateur est enregistrée tout de suite mais ne modifie pas le classement. La recherche automatique dans l'historique Riot ne passe aujourd'hui qu'une fois par jour, à 05:00 UTC : un résultat de niveau 2 peut donc n'apparaître que le lendemain matin. Cette valeur sera mise à jour ici si elle change.",
+      "À la clôture du tournoi, c'est-à-dire quand le résultat de la finale est enregistré. Seuls les verdicts de niveau 2 ou 3 comptent : une décision manuelle de l'organisateur est enregistrée tout de suite mais ne modifie pas le classement. La recherche automatique dans l'historique Riot passe toutes les 5 minutes, à partir de 8 minutes après le début du match (l'historique Riot n'est pas immédiat). Cette valeur sera mise à jour ici si elle change.",
   },
   {
     question: "Que se passe-t-il si l'API Riot est indisponible ?",

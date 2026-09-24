@@ -174,6 +174,8 @@ Le profil joueur reste **hors** du segment de jeu, avec des onglets par jeu — 
 
 La précision du classement dépend du **nombre de matchs par joueur**, pas du nombre de joueurs. Compter environ **15 joueurs actifs par place de tournoi et par jour**. Ouvrir de nouveaux créneaux au fur et à mesure de la croissance, plutôt que d'entasser tout le monde sur un seul tournoi quotidien — un classement bruité détruit la valeur du CV e-sport, qui est le produit.
 
+**Tournois automatiques (24/09/2026)** : les créneaux quotidiens se règlent dans `src/lib/tournois-auto/creneaux.ts` (ajouter un créneau = ajouter une ligne ; ne jamais renommer la `cle` d'un créneau existant). La tâche `/api/cron/tournois-auto` crée les tournois, ouvre le check-in, envoie les rappels (push + message privé Discord, jamais d'e-mail), puis lance le bracket ou annule faute de joueurs. Elle est appelée toutes les 5 minutes par la base (pg_cron, voir `docs/schema.sql`), pas par Vercel (plan gratuit limité à une tâche par jour). Organisateur de ces tournois : `TOURNOIS_AUTO_ORGANISATEUR_ID`, sinon le premier compte de la table `admins`.
+
 ---
 
 ## 11. Conventions de code

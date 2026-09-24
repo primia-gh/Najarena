@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { sInscrireATournoi } from "@/lib/inscription-actions";
+import { confirmerMaPresence } from "@/lib/checkin-actions";
+import { checkinEstOuvert } from "@/lib/checkin";
 import { ouvrirLitige } from "@/lib/litige-actions";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { progressionPalier } from "@/lib/classement";
@@ -42,6 +44,13 @@ import OngletsTournoi from "@/components/tournoi/OngletsTournoi";
 // affiché tant que le RD n'est pas descendu sous le seuil de classement
 // (CLAUDE.md §4) — voir joueur/[pseudo] pour le même traitement.
 const COULEUR_NON_CLASSE = "var(--color-muted)";
+
+const LABEL_INSCRIPTION: Record<string, string> = {
+  inscrit: "Inscrit",
+  confirme: "Présence confirmée",
+  absent: "Absent",
+  retire: "Retiré",
+};
 
 interface TournoiPageProps {
   params: Promise<{ slug: string }>;
@@ -200,6 +209,10 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     ? inscriptions.find((i) => i.profile_id === utilisateur.id)
     : undefined;
 
+  // Check-in fait par le joueur lui-même (24/09/2026, lib/checkin-actions.ts).
+  const checkinOuvert = checkinEstOuvert(statut, tournoi.checkin_ouvre_le);
+  const estComplet = inscriptions.filter((i) => i.statut !== "retire").length >= tournoi.capacite;
+
   const rounds = new Map<number, typeof matchs>();
   for (const m of matchs) {
     const liste = rounds.get(m.tour) ?? [];
@@ -300,6 +313,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             <span className="text-text-2">
               LoL · {tournoi.format}
               {complements.typeBracket ? ` · ${complements.typeBracket}` : ""}
+              {complements.estQuotidien ? " · Tournoi quotidien" : ""}
             </span>
           </>
         }
@@ -340,9 +354,41 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 Gérer ce tournoi
               </BoutonLien>
             ) : inscriptionActuelle ? (
+              <>
+                {checkinOuvert && inscriptionActuelle.statut === "inscrit" && (
+                  <form action={confirmerMaPresence} className="flex flex-col gap-2">
+                    <input type="hidden" name="tournament_id" value={tournoi.id} />
+                    <BoutonEnvoi libelleEnCours="Confirmation…" className="w-full">
+                      Confirmer ma présence
+                    </BoutonEnvoi>
+                    <p className="text-[13px] leading-normal text-muted">
+                      Check-in ouvert : sans confirmation avant le début, pas de place dans le bracket.
+                    </p>
+                  </form>
+                )}
+                {statut === "ouvert" && !checkinOuvert && inscriptionActuelle.statut === "inscrit" && (
+                  <p className="text-[13px] leading-normal text-muted">
+                    Pense au check-in : il ouvre le{" "}
+                    <span className="tabular-nums text-text-2">{formaterDate(tournoi.checkin_ouvre_le)}</span>.
+                  </p>
+                )}
+                <p className="flex items-center justify-between gap-3 border-t border-line pt-[18px] text-[13px]">
+                  <span className="text-muted">Ton inscription</span>
+                  <span
+                    className={`font-bold uppercase ${
+                      inscriptionActuelle.statut === "absent" || inscriptionActuelle.statut === "retire"
+                        ? "text-muted"
+                        : "text-accent"
+                    }`}
+                  >
+                    {LABEL_INSCRIPTION[inscriptionActuelle.statut] ?? inscriptionActuelle.statut}
+                  </span>
+                </p>
+              </>
+            ) : statut === "ouvert" && estComplet ? (
               <p className="flex items-center justify-between gap-3 border-t border-line pt-[18px] text-[13px]">
-                <span className="text-muted">Ton inscription</span>
-                <span className="font-bold text-accent uppercase">Inscrit · {inscriptionActuelle.statut}</span>
+                <span className="text-muted">Inscriptions</span>
+                <span className="font-bold text-muted uppercase">Complet</span>
               </p>
             ) : statut === "ouvert" ? (
               utilisateur ? (

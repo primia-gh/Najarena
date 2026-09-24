@@ -524,6 +524,32 @@ export type Database = {
           },
         ]
       }
+      rappels_tournoi: {
+        Row: {
+          envoye_le: string
+          tournament_id: string
+          type: string
+        }
+        Insert: {
+          envoye_le?: string
+          tournament_id: string
+          type: string
+        }
+        Update: {
+          envoye_le?: string
+          tournament_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rappels_tournoi_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rating_events: {
         Row: {
           adversaire_id: string | null
@@ -974,6 +1000,7 @@ export type Database = {
           checkin_ouvre_le: string
           compte_pour_classement: boolean
           couleur_accent: string | null
+          creneau_auto: string | null
           cree_le: string
           debute_le: string
           format: string
@@ -997,6 +1024,7 @@ export type Database = {
           checkin_ouvre_le: string
           compte_pour_classement?: boolean
           couleur_accent?: string | null
+          creneau_auto?: string | null
           cree_le?: string
           debute_le: string
           format: string
@@ -1020,6 +1048,7 @@ export type Database = {
           checkin_ouvre_le?: string
           compte_pour_classement?: boolean
           couleur_accent?: string | null
+          creneau_auto?: string | null
           cree_le?: string
           debute_le?: string
           format?: string
@@ -1181,6 +1210,10 @@ export type Database = {
           p_volatilite_avant: number
         }
         Returns: boolean
+      }
+      enregistrer_bye_automatique: {
+        Args: { p_gagnant_id: string; p_match_id: string }
+        Returns: undefined
       }
       enregistrer_verdict_historique: {
         Args: {
