@@ -52,6 +52,14 @@ export interface ByeAResoudre {
  *    Corrigé ici : un prédécesseur sans aucun participant ne compte
  *    jamais comme "encore à décider", puisqu'il ne pourra structurellement
  *    plus jamais en obtenir un.
+ *
+ * Le garde-fou du bug #2 avait disparu lors de l'extraction de cette
+ * fonction (commit 174f636, 12/09/2026) : un match à 1 participant dont
+ * l'autre place attend le vainqueur d'un vrai match était de nouveau
+ * résolu comme bye (capacité 8, 5 à 7 joueurs). Rétabli le 24/09/2026 :
+ * un match « en attente » (vrai match à jouer en amont) ne se résout
+ * jamais ici — son adversaire arrivera par avancer_vainqueur une fois ce
+ * vrai match joué.
  */
 export function calculerByesEnCascade(capacite: number, nbJoueursConfirmes: number): ByeAResoudre[] {
   const nbTours = Math.log2(capacite);
@@ -73,6 +81,10 @@ export function calculerByesEnCascade(capacite: number, nbJoueursConfirmes: numb
 
   const resolutions: ByeAResoudre[] = [];
 
+  // Matchs dont une place dépend d'un vrai match pas encore joué, en
+  // amont (bug #2).
+  const enAttente = new Set<string>();
+
   for (let tour = 1; tour < nbTours; tour++) {
     const nbMatchsCeTour = capacite / 2 ** tour;
     for (let position = 1; position <= nbMatchsCeTour; position++) {
@@ -81,13 +93,20 @@ export function calculerByesEnCascade(capacite: number, nbJoueursConfirmes: numb
       const cleSuivante = `${tour + 1}-${positionSuivante}`;
       if (!participantsParMatch.has(cleSuivante)) participantsParMatch.set(cleSuivante, []);
 
+      // Vrai match à jouer (2 joueurs), ou match qui attend lui-même le
+      // vainqueur d'un vrai match : rien à propager tant que son verdict
+      // n'existe pas, et le match suivant attend à son tour.
+      if (participants.length === 2 || enAttente.has(`${tour}-${position}`)) {
+        enAttente.add(cleSuivante);
+        continue;
+      }
+
       if (participants.length === 1) {
         resolutions.push({ tour, position, gagnantSeed: participants[0] });
         participantsParMatch.get(cleSuivante)!.push(participants[0]);
       }
-      // participants.length === 0 : match vide, rien à propager (bug #3).
-      // participants.length === 2 : vrai match non joué, rien à propager
-      // tant que son verdict n'existe pas.
+      // participants.length === 0 (et rien en attente) : match vide qui ne
+      // recevra jamais personne, rien à propager (bug #3).
     }
   }
 

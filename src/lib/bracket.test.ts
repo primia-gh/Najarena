@@ -80,19 +80,23 @@ describe("calculerByesEnCascade", () => {
     expect(byes).toHaveLength(4);
   });
 
-  it("capacité 8, 5 joueurs : seed1 avance par bye jusqu'à attendre en finale un vrai match pas encore joué (bug #2 du 2026-09-11)", () => {
-    // seed4 vs seed5 (tour 1) et seed2 vs seed3 (tour 2, après leurs byes
-    // respectifs) sont de vrais matchs : jamais résolus ici. Seul seed1
-    // avance par bye jusqu'en finale, où il attend — la finale n'apparaît
-    // PAS dans la liste malgré son 1 seul participant à ce stade, parce
-    // qu'elle dépend encore d'un vrai match non joué (piège #1).
-    const byes = calculerByesEnCascade(8, 5);
+  it("capacité 8, 5 joueurs : seed1 attend au tour 2 le vainqueur de seed4 vs seed5, sans bye de plus (bug #2 du 2026-09-11, réapparu le 12/09, corrigé le 24/09)", () => {
+    // Tour 1 : seed1, seed2 et seed3 ont un bye ; seed4 vs seed5 est un
+    // vrai match. Au tour 2, seed1 attend le vainqueur de ce vrai match :
+    // il ne doit JAMAIS passer directement en finale. Jusqu'au 24/09, ce
+    // test affirmait l'inverse (bye de seed1 au tour 2), et le vainqueur
+    // de seed4 vs seed5 arrivait dans un match déjà terminé.
+    expect(calculerByesEnCascade(8, 5)).toEqual([
+      { tour: 1, position: 1, gagnantSeed: 1 },
+      { tour: 1, position: 3, gagnantSeed: 2 },
+      { tour: 1, position: 4, gagnantSeed: 3 },
+    ]);
+  });
 
-    expect(byes).toContainEqual({ tour: 1, position: 1, gagnantSeed: 1 });
+  it("capacité 16, 5 joueurs : les byes en cascade s'arrêtent devant le vrai match seed4 vs seed5", () => {
+    const byes = calculerByesEnCascade(16, 5);
     expect(byes).toContainEqual({ tour: 2, position: 1, gagnantSeed: 1 });
-    expect(byes.some((b) => b.tour === 3)).toBe(false);
-    expect(byes.some((b) => b.tour === 1 && b.position === 2)).toBe(false); // seed4 vs seed5
-    expect(byes.some((b) => b.tour === 2 && b.position === 2)).toBe(false); // seed2 vs seed3
+    expect(byes.some((b) => b.tour === 3 && b.position === 1)).toBe(false);
   });
 
   it("ne produit jamais deux fois la même position (chaque match n'est résolu qu'une fois)", () => {
@@ -100,6 +104,67 @@ describe("calculerByesEnCascade", () => {
       const byes = calculerByesEnCascade(capacite, nbJoueurs);
       const cles = byes.map((b) => `${b.tour}-${b.position}`);
       expect(new Set(cles).size).toBe(cles.length);
+    }
+  });
+
+  // Joue le bracket jusqu'au bout comme la base le ferait (byes, puis
+  // avancer_vainqueur après chaque vrai match — le plus petit seed gagne)
+  // et échoue au moindre joueur qui saute un tour ou arrive dans un
+  // match déjà décidé.
+  function jouerBracketComplet(capacite: number, nbJoueurs: number) {
+    const nbTours = Math.log2(capacite);
+    const ordre = ordreDesSeeds(capacite);
+    const matchs = new Map<string, { participants: number[]; gagnant?: number }>();
+    for (let tour = 1; tour <= nbTours; tour++) {
+      for (let position = 1; position <= capacite / 2 ** tour; position++) {
+        matchs.set(`${tour}-${position}`, { participants: [] });
+      }
+    }
+    for (let i = 0; i < capacite; i++) {
+      if (ordre[i] <= nbJoueurs) matchs.get(`1-${Math.floor(i / 2) + 1}`)!.participants.push(ordre[i]);
+    }
+
+    const avancer = (cle: string, gagnant: number) => {
+      const match = matchs.get(cle)!;
+      if (match.gagnant !== undefined) throw new Error(`${cle} déjà décidé`);
+      match.gagnant = gagnant;
+      const [tour, position] = cle.split("-").map(Number);
+      if (tour === nbTours) return;
+      const suivant = matchs.get(`${tour + 1}-${Math.ceil(position / 2)}`)!;
+      if (suivant.gagnant !== undefined) throw new Error(`seed ${gagnant} arrive dans un match déjà décidé`);
+      suivant.participants.push(gagnant);
+    };
+
+    for (const bye of calculerByesEnCascade(capacite, nbJoueurs)) {
+      const match = matchs.get(`${bye.tour}-${bye.position}`)!;
+      expect(match.participants).toEqual([bye.gagnantSeed]);
+      avancer(`${bye.tour}-${bye.position}`, bye.gagnantSeed);
+    }
+
+    let vraisMatchs = 0;
+    for (;;) {
+      const aJouer = Array.from(matchs.entries()).find(([, m]) => m.participants.length === 2 && m.gagnant === undefined);
+      if (!aJouer) break;
+      vraisMatchs += 1;
+      avancer(aJouer[0], Math.min(...aJouer[1].participants));
+    }
+
+    const bloques = Array.from(matchs.values()).filter((m) => m.participants.length === 1 && m.gagnant === undefined);
+    return { vraisMatchs, champion: matchs.get(`${nbTours}-1`)!.gagnant, bloques: bloques.length };
+  }
+
+  it("tous les brackets de 4 à 64 places, de 2 joueurs à complet : chacun joue ses vrais matchs, un seul vainqueur, rien de bloqué", () => {
+    for (const capacite of [4, 8, 16, 32, 64]) {
+      for (let nbJoueurs = 2; nbJoueurs <= capacite; nbJoueurs++) {
+        const { vraisMatchs, champion, bloques } = jouerBracketComplet(capacite, nbJoueurs);
+        expect({ capacite, nbJoueurs, vraisMatchs, champion, bloques }).toEqual({
+          capacite,
+          nbJoueurs,
+          vraisMatchs: nbJoueurs - 1,
+          champion: 1,
+          bloques: 0,
+        });
+      }
     }
   });
 });
