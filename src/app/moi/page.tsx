@@ -99,7 +99,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <div className="relative px-grille">
       {message && (
         <p className={"mb-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
       )}

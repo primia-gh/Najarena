@@ -120,7 +120,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
-      <FondEcailles />      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <FondEcailles />      <div className="relative px-grille">
       <Apparition>
       <Link
         href="/lol"

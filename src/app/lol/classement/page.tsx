@@ -61,7 +61,7 @@ export default async function ClassementPage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <div className="relative px-grille">
       <Apparition>
         <span className="block font-texte text-libelle font-medium text-muted uppercase">
           League of Legends

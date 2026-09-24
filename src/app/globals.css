@@ -82,6 +82,16 @@
   }
 }
 
+/* Marges latérales « grille » (24/09/2026) : la gouttière, ou davantage
+   sur un écran plus large que la grille (78rem), pour que le contenu
+   démarre toujours au même bord que le logo de la barre de navigation.
+   Équivaut à px-gouttiere + un enfant mx-auto max-w-contenu, en un seul
+   élément. Pages de lecture et formulaires y ajoutent une largeur maximale
+   calée à gauche (*:max-w-3xl, *:max-w-xl). */
+@utility px-grille {
+  padding-inline: max(var(--spacing-gouttiere), calc((100% - var(--container-contenu)) / 2));
+}
+
 /* Panneau MASTER §5 : dégradé, bordure fine, reflet en haut. */
 @utility panneau {
   background: linear-gradient(160deg, var(--color-surface), var(--color-surface-fin));

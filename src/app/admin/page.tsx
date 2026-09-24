@@ -40,7 +40,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (!admin) {
     return (
-      <main className="mx-auto box-content max-w-md px-gouttiere pt-32 pb-24 font-texte text-text">
+      <main className="px-grille *:max-w-xl pt-32 pb-24 font-texte text-text">
         <p className={classeCarte("sceau") + " text-sm text-danger"}>
           Accès réservé aux administrateurs.
         </p>
@@ -98,7 +98,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <div className="relative px-grille">
       <Apparition>
       <Link
         href="/moi"

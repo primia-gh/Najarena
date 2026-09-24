@@ -107,7 +107,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
 
   if (donnees.statut === "erreur") {
     return (
-      <main className="mx-auto max-w-5xl px-gouttiere pt-32 pb-24 font-texte text-text">
+      <main className="px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
         <p className="rounded-[3px] border border-danger/30 bg-danger/10 p-6 text-sm text-danger">
           Impossible de charger cette équipe pour l&apos;instant. Réessaie
           dans un instant.
@@ -121,7 +121,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <div className="relative px-grille">
       {erreur && (
         <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
       )}

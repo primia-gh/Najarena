@@ -96,7 +96,7 @@ export default function FaqPage() {
         }}
       />
       <FondEcailles />
-      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <div className="relative px-grille *:max-w-3xl">
         <Apparition>
           <span className="block font-texte text-libelle font-medium text-muted uppercase">
             FAQ

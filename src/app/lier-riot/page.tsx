@@ -38,7 +38,7 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative mx-auto box-content max-w-md px-gouttiere">
+      <div className="relative px-grille *:max-w-xl">
       <Apparition>
       <Link
         href="/moi"

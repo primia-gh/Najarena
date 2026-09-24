@@ -120,7 +120,7 @@ export default function PageCharte() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-contenu px-gouttiere">
+      <div className="px-grille">
         <Bloc numero="01" titre="Couleurs">
           <ul className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-5">
             {COULEURS.map((c) => (

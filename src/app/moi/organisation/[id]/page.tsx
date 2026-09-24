@@ -117,7 +117,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
         />
       )}
       <FondEcailles />
-      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <div className="relative px-grille">
       <Apparition>
       <Link
         href="/moi"

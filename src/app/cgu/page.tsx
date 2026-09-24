@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function CguPage() {
   return (
-    <main className="mx-auto max-w-3xl px-gouttiere pt-32 pb-24 font-texte text-text">
+    <main className="px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
       <Link
         href="/"
         className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"

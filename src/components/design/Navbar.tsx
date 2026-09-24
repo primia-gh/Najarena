@@ -80,7 +80,7 @@ export default function Navbar() {
   return (
     <nav
       aria-label="Navigation principale"
-      className={`print:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-6 px-gouttiere font-texte text-text transition-[padding,background-color,border-color] duration-300 ${
+      className={`print:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-6 px-grille font-texte text-text transition-[padding,background-color,border-color] duration-300 ${
         defile ? "border-b border-line bg-bg/85 py-3 backdrop-blur-md" : "border-b border-transparent py-5"
       }`}
     >
@@ -141,7 +141,7 @@ export default function Navbar() {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: mouvementReduit ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-x-0 top-full flex flex-col overflow-hidden border-b border-line bg-bg px-gouttiere py-4 xl:hidden"
+            className="absolute inset-x-0 top-full flex flex-col overflow-hidden border-b border-line bg-bg px-grille py-4 xl:hidden"
           >
             {LIENS.map((l) => (
               <Link

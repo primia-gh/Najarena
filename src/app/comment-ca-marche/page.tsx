@@ -58,7 +58,7 @@ const NIVEAUX = [
 export default function CommentCaMarchePage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
-      <FondEcailles />      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <FondEcailles />      <div className="relative px-grille *:max-w-5xl">
         <Apparition>
           <span className="block font-texte text-libelle font-medium text-muted uppercase">
             Guide
