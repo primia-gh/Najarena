@@ -1,12 +1,17 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { classeCarte, classeBoutonPrimaire } from "@/lib/ui";
-import Badge from "@/components/ui/Badge";
-import SectionTitre from "@/components/ui/SectionTitre";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
-import { LABEL_NIVEAU, COULEUR_NIVEAU, type NiveauVerdict } from "@/lib/tournois";
+import type { NiveauVerdict } from "@/lib/tournois";
+import BoutonLien from "@/components/design/BoutonLien";
+import LibelleSection from "@/components/design/LibelleSection";
+import AvatarJoueur from "@/components/design/AvatarJoueur";
+import { CaseMatch, ColonnesBracket } from "@/components/tournoi/Bracket";
+import {
+  Deroulement,
+  EnTeteTournoi,
+  EssentielReglement,
+  LegendeBracket,
+  StatutTournoi,
+} from "@/components/tournoi/BlocsTournoi";
+import OngletsTournoi from "@/components/tournoi/OngletsTournoi";
 
 export const metadata: Metadata = {
   title: "Exemple de tournoi — Najarena",
@@ -19,6 +24,8 @@ export const metadata: Metadata = {
 // public. Aucune donnée ici ne doit jamais compter dans les statistiques
 // du site (accueil, admin) : contrairement au reste des pages preuve,
 // cette page n'interroge jamais Supabase.
+// Refonte « Venin » du 24/09/2026 : mêmes blocs que la vraie page tournoi
+// (components/tournoi/), étiquette « Exemple » bien visible.
 interface JoueurDemo {
   pseudo: string;
   score: number | null;
@@ -107,122 +114,110 @@ export default function TournoiDemoPage() {
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
-        <Reveal>
-          <Link
-            href="/lol/tournois"
-            className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
-          >
-            ← Tournois
-          </Link>
+    <main className="bg-bg font-texte text-text">
+      <EnTeteTournoi
+        nom="Najarena Cup"
+        etiquettes={
+          <>
+            <span className="rounded-bouton bg-text px-2.5 py-1.5 text-on-accent">Exemple</span>
+            <StatutTournoi statut="termine" />
+            <span className="text-text-2">LoL · 1v1 · Élimination directe</span>
+          </>
+        }
+        details={
+          <>
+            Tournoi d&apos;exemple, avec des noms fictifs — pas une vraie compétition. Il montre un bracket
+            Najarena du premier tour à la finale, avec les trois niveaux de preuve possibles.
+          </>
+        }
+        infos={[
+          { libelle: "En jeu", valeur: "Exemple", grand: true, accent: false },
+          { libelle: "Inscrits", valeur: "8/8", grand: true, accent: false },
+          { libelle: "Format", valeur: "1v1 · BO1", grand: false, accent: false },
+          { libelle: "Région", valeur: "EUW", grand: false, accent: false },
+        ]}
+        action={
+          <BoutonLien href="/lol/tournois" className="w-full">
+            Voir les vrais tournois
+          </BoutonLien>
+        }
+      />
 
-          <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-sceau/30 bg-sceau/10 px-2.5 py-1 font-mono text-[0.62rem] tracking-[0.08em] text-sceau-texte uppercase">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-                Exemple
-              </span>
-              <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-encre">
-                Najarena Cup — démo
-              </h1>
-            </div>
+      <OngletsTournoi />
+
+      <section id="bracket" className="scroll-mt-28 px-gouttiere pt-12">
+        <div className="mx-auto flex max-w-contenu flex-col gap-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <LibelleSection as="h2">Bracket</LibelleSection>
+            <LegendeBracket avecLitige={false} />
           </div>
+          <ColonnesBracket
+            legende="Bracket du tournoi d'exemple"
+            tours={toursOrdonnes.map((tour) => ({
+              numero: tour,
+              libelle: NOM_TOUR[tour],
+              matchs: rounds.get(tour)!.map((m, i) => ({
+                id: `${tour}-${i}`,
+                joue: true,
+                atteint: true,
+                contenu: (
+                  <CaseMatch
+                    participants={m.joueurs.map((j) => ({
+                      cle: j.pseudo,
+                      pseudo: j.pseudo,
+                      slug: null,
+                      score: j.score,
+                      estGagnant: j.gagnant,
+                    }))}
+                    etat="verdict"
+                    niveau={m.niveau}
+                    motif={m.motif}
+                    monMatch={false}
+                  />
+                ),
+              })),
+            }))}
+          />
+        </div>
+      </section>
 
-          <div className="mt-3 font-mono text-[0.78rem] text-ardoise">
-            1v1 · 8 joueurs · EUW · terminé
+      <section id="inscrits" className="scroll-mt-28 px-gouttiere pt-section-outil">
+        <div className="mx-auto flex max-w-contenu flex-col gap-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <LibelleSection as="h2">Inscrits</LibelleSection>
+            <span className="text-xs text-muted tabular-nums">8 / 8 places</span>
           </div>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {INSCRITS_DEMO.map((pseudo) => (
+              <li key={pseudo} className="panneau flex items-center gap-3 px-4 py-3">
+                <AvatarJoueur pseudo={pseudo} taille={34} />
+                <span className="font-semibold">{pseudo}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
-          <p className="mt-4 max-w-lg text-sm text-ardoise">
-            Ceci est un tournoi d&apos;exemple, avec des noms fictifs — pas une vraie compétition. Il montre à
-            quoi ressemble un bracket Najarena du premier tour à la finale, avec les trois niveaux de preuve
-            possibles sur un même verdict.
+      <section className="px-gouttiere pt-section-outil pb-24">
+        <div className="mx-auto flex max-w-contenu flex-col gap-10">
+          <div className="grid gap-8 md:grid-cols-2">
+            <Deroulement
+              etapes={[
+                { titre: "Inscriptions", quand: "Terminées", etat: "fait" },
+                { titre: "Check-in", quand: "Terminé", etat: "fait" },
+                { titre: "Quarts", quand: "Terminé", etat: "fait" },
+                { titre: "Demi-finales", quand: "Terminé", etat: "fait" },
+                { titre: "Finale", quand: "Terminé", etat: "fait" },
+              ]}
+            />
+            <EssentielReglement />
+          </div>
+          <p className="flex flex-wrap items-center gap-x-6 gap-y-3 text-text-2">
+            Envie de voir ça avec ton propre nom dessus ?
+            <BoutonLien href="/lol/tournois">Voir les tournois ouverts</BoutonLien>
           </p>
-        </Reveal>
-
-        <Reveal delai={0.1}>
-          <section className="mt-10">
-            <SectionTitre>Inscrits</SectionTitre>
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {INSCRITS_DEMO.map((pseudo) => (
-                <li
-                  key={pseudo}
-                  className="flex items-center gap-2 rounded-full border border-trait bg-carte py-1 pr-3 pl-1.5 text-sm text-encre"
-                >
-                  <span
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sceau/16 font-display text-[0.68rem] font-extrabold text-sceau-texte"
-                    aria-hidden="true"
-                  >
-                    {pseudo.charAt(0).toUpperCase()}
-                  </span>
-                  {pseudo}
-                </li>
-              ))}
-            </ul>
-          </section>
-        </Reveal>
-
-        <Reveal delai={0.15}>
-          <section className="mt-10">
-            <SectionTitre>Bracket</SectionTitre>
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[0.78rem] text-ardoise">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-atteste" />
-                Niveau 2/3 — compte pour le classement
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-ardoise" />
-                Niveau 1 — décision manuelle, hors classement
-              </span>
-            </div>
-
-            <div className="mt-3 grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2">
-              {toursOrdonnes.map((tour) => (
-                <div key={tour} className="flex flex-col gap-3">
-                  <span className="font-mono text-[0.64rem] tracking-[0.14em] text-ardoise uppercase">
-                    {NOM_TOUR[tour]}
-                  </span>
-                  <ul className="flex flex-col gap-2">
-                    {rounds.get(tour)!.map((m, i) => {
-                      const accent =
-                        m.niveau === "code_tournoi" || m.niveau === "historique" ? "atteste" : "ardoise";
-                      return (
-                        <li key={i} className={classeCarte(accent)}>
-                          <div className="flex flex-col gap-1">
-                            {m.joueurs.map((j) => (
-                              <div key={j.pseudo} className="flex items-center justify-between">
-                                <span className={j.gagnant ? "font-semibold text-encre" : "text-encre"}>
-                                  {j.pseudo}
-                                </span>
-                                <span className="font-mono text-sm text-ardoise">{j.score ?? "—"}</span>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="mt-2 flex items-center gap-2 border-t border-trait pt-2">
-                            <Badge couleur={COULEUR_NIVEAU[m.niveau]}>{LABEL_NIVEAU[m.niveau]}</Badge>
-                            {m.motif && <span className="text-[0.72rem] text-ardoise">{m.motif}</span>}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </section>
-        </Reveal>
-
-        <Reveal delai={0.2}>
-          <p className="mt-10 text-sm text-ardoise">
-            Envie de voir ça avec ton propre nom dessus ?{" "}
-            <Link href="/lol/tournois" className={classeBoutonPrimaire() + " ml-1"}>
-              Voir les tournois ouverts
-            </Link>
-          </p>
-        </Reveal>
-      </div>
+        </div>
+      </section>
     </main>
   );
 }
