@@ -42,3 +42,18 @@ export function classeBoutonSecondaire(): string {
     "disabled:cursor-not-allowed disabled:opacity-50",
   ].join(" ");
 }
+
+/**
+ * Bouton contour : filet blanc à 25 %, MAJUSCULES — l'action secondaire
+ * des en-têtes (maquette profil : « PARTAGER LE CV », « SUIVRE »).
+ */
+export function classeBoutonContour(): string {
+  return [
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-bouton border border-[rgba(245,245,244,0.25)] px-6 py-3",
+    "font-texte text-sm font-semibold uppercase tracking-[2px] text-text",
+    "transition-[border-color,color,transform] duration-200 hover:border-accent hover:text-accent",
+    INTERACTION,
+    FOCUS,
+    "disabled:cursor-not-allowed disabled:opacity-50",
+  ].join(" ");
+}

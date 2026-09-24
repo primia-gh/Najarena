@@ -6,10 +6,10 @@
 
 import { useFormStatus } from "react-dom";
 import type { ButtonHTMLAttributes } from "react";
-import { classeBoutonPrincipal, classeBoutonSecondaire, type TailleBouton } from "@/lib/design";
+import { classeBoutonContour, classeBoutonPrincipal, classeBoutonSecondaire, type TailleBouton } from "@/lib/design";
 
 interface BoutonEnvoiProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variante?: "principal" | "secondaire";
+  variante?: "principal" | "secondaire" | "contour";
   taille?: TailleBouton;
   /** Libellé affiché pendant l'envoi — par défaut, le même texte. */
   libelleEnCours?: string;
@@ -26,7 +26,12 @@ export default function BoutonEnvoi({
   ...props
 }: BoutonEnvoiProps) {
   const { pending } = useFormStatus();
-  const classe = variante === "principal" ? classeBoutonPrincipal(taille) : classeBoutonSecondaire();
+  const classe =
+    variante === "principal"
+      ? classeBoutonPrincipal(taille)
+      : variante === "contour"
+        ? classeBoutonContour()
+        : classeBoutonSecondaire();
 
   return (
     <button

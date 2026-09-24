@@ -15,6 +15,7 @@ import Icone, { type NomIcone } from "@/components/design/Icone";
 import Logo from "@/components/design/Logo";
 import AfficheTournoi from "@/components/vitrine/AfficheTournoi";
 import ApercuClassement, { type LigneClassement } from "@/components/vitrine/ApercuClassement";
+import CourbeProgression from "@/components/profil/CourbeProgression";
 
 // Charte vivante de la nouvelle identité : chaque composant de
 // components/design/ rendu tel qu'il sortira sur le site, pour valider la
@@ -82,6 +83,11 @@ const EXEMPLE_TOP: LigneClassement[] = [
   { pseudo: "Mue", slug: null, avatarUrl: null, palier: "Diamant", rating: 1842, tendance: "stable" },
   { pseudo: "Ecaille", slug: null, avatarUrl: null, palier: "Platine", rating: 1655, tendance: "monte" },
 ];
+
+const EXEMPLE_COURBE = [1500, 1512, 1506, 1531, 1548, 1539, 1566, 1590, 1583, 1612, 1640].map((rating, i) => ({
+  rating,
+  le: new Date(2026, 8, 1 + i * 2).toISOString(),
+}));
 
 function Bloc({ numero, titre, children }: { numero: string; titre: string; children: React.ReactNode }) {
   return (
@@ -277,6 +283,12 @@ export default function PageCharte() {
             <AfficheTournoi nom="Duel des Mids" format="1v1" date="DIM. 05/10 · 18:00" variante={3} />
           </div>
           <ApercuClassement lignes={EXEMPLE_TOP} legende="Exemple de top du classement" />
+        </Bloc>
+
+        <Bloc numero="10" titre="Profil : progression du rating">
+          <Panneau className="p-6 sm:p-8">
+            <CourbeProgression points={EXEMPLE_COURBE} />
+          </Panneau>
         </Bloc>
       </div>
     </main>
