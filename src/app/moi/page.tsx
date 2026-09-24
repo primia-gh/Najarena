@@ -120,7 +120,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
         <form action={seDeconnecter}>
           <button
             type="submit"
-            className="rounded-[3px] border border-line px-3 py-2 font-texte tabular-nums text-[0.66rem] tracking-[0.1em] text-muted uppercase hover:border-text hover:text-text"
+            className="rounded-[3px] border border-line px-3 py-2 font-texte tabular-nums text-mini tracking-[0.1em] text-muted uppercase hover:border-text hover:text-text"
           >
             Se déconnecter
           </button>
@@ -194,7 +194,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             </select>
             <button
               type="submit"
-              className="font-texte tabular-nums text-[0.66rem] text-accent underline underline-offset-3"
+              className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-accent underline underline-offset-3"
             >
               Enregistrer
             </button>
@@ -205,7 +205,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             <span className="text-sm text-muted">Aucun Riot ID lié pour l&apos;instant.</span>
             <Link
               href="/lier-riot"
-              className="font-texte tabular-nums text-[0.7rem] text-accent underline underline-offset-3"
+              className="inline-flex min-h-11 items-center font-texte tabular-nums text-[0.7rem] text-accent underline underline-offset-3"
             >
               Lier mon Riot ID
             </Link>
@@ -236,7 +236,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             </Link>
             <Link
               href="/equipe/nouvelle"
-              className="font-texte tabular-nums text-[0.7rem] text-accent underline underline-offset-3"
+              className="inline-flex min-h-11 items-center font-texte tabular-nums text-[0.7rem] text-accent underline underline-offset-3"
             >
               Créer une équipe
             </Link>
@@ -256,7 +256,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                     <button
                       type="submit"
                       aria-label={`Accepter l'invitation de ${a.team?.nom}`}
-                      className="font-texte tabular-nums text-[0.66rem] text-accent underline underline-offset-3"
+                      className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-accent underline underline-offset-3"
                     >
                       Accepter
                     </button>
@@ -266,7 +266,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                     <button
                       type="submit"
                       aria-label={`Refuser l'invitation de ${a.team?.nom}`}
-                      className="font-texte tabular-nums text-[0.66rem] text-danger underline underline-offset-3"
+                      className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
                     >
                       Refuser
                     </button>
@@ -364,7 +364,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           <SectionTitre>Tournois que j&apos;organise</SectionTitre>
           <Link
             href="/organiser/nouveau"
-            className="font-texte tabular-nums text-[0.7rem] text-accent underline underline-offset-3"
+            className="inline-flex min-h-11 items-center font-texte tabular-nums text-[0.7rem] text-accent underline underline-offset-3"
           >
             Organiser un tournoi
           </Link>

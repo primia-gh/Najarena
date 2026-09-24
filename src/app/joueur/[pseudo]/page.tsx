@@ -407,7 +407,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
   ].filter((i): i is { cle: string; valeur: string } => i !== null);
 
   const CHAMP =
-    "w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+    "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
   const SOMMAIRE = "list-none [&::-webkit-details-marker]:hidden";
 
   return (

@@ -145,17 +145,17 @@ export function CaseMatch({ participants, etat, niveau, motif, monMatch, childre
         ))}
 
         {/* Étiquette posée sur le bord haut de la case (maquette). */}
-        <span className="absolute -top-2.5 right-2 bg-bg px-1.5 leading-none">
+        <span className="absolute -top-2 right-2 bg-bg px-1.5 leading-none">
           {etat === "direct" ? (
-            <BadgeEnDirect className="text-[9px]!" />
+            <BadgeEnDirect />
           ) : etat === "verdict" && niveau ? (
-            <BadgeVerdict niveau={niveau} compact className="text-[9px]! tracking-[2px]!" />
+            <BadgeVerdict niveau={niveau} compact />
           ) : etat === "litige" ? (
-            <span className="text-[9px] font-semibold tracking-[2px] text-danger uppercase">Litige</span>
+            <span className="text-mini font-semibold text-danger uppercase">Litige</span>
           ) : etat === "attente" ? (
-            <span className="text-[9px] font-semibold tracking-[2px] text-danger uppercase">À trancher</span>
+            <span className="text-mini font-semibold text-danger uppercase">À trancher</span>
           ) : (
-            <span className="text-[9px] font-semibold tracking-[2px] text-muted uppercase">À venir</span>
+            <span className="text-mini font-semibold text-muted uppercase">À venir</span>
           )}
         </span>
       </div>

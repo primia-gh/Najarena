@@ -17,7 +17,7 @@ export default function JournalPage() {
           <span className="block font-texte text-libelle font-medium text-muted uppercase">
             En coulisses
           </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             Journal de bord.
           </h1>
           <p className="mt-3 max-w-lg text-sm text-muted">
@@ -43,7 +43,7 @@ export default function JournalPage() {
                     {entree.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-full border border-line bg-surface px-2 py-0.5 font-texte tabular-nums text-[0.6rem] tracking-[0.06em] text-muted uppercase"
+                        className="rounded-full border border-line bg-surface px-2 py-0.5 font-texte tabular-nums text-mini tracking-[0.06em] text-muted uppercase"
                       >
                         {tag}
                       </span>

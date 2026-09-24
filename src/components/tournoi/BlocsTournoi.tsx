@@ -98,7 +98,7 @@ export function EnTeteTournoi({ nom, etiquettes, details, infos, action }: EnTet
           <dl className="grid grid-cols-2 gap-5">
             {infos.map((info) => (
               <div key={info.libelle} className="flex flex-col gap-1.5">
-                <dt className="text-[10px] tracking-[3px] text-muted uppercase">{info.libelle}</dt>
+                <dt className="text-mini text-muted uppercase">{info.libelle}</dt>
                 <dd
                   className={
                     info.grand

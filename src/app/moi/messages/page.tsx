@@ -59,11 +59,11 @@ export default async function MessagesPage() {
         <Apparition>
           <Link
             href="/moi"
-            className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+            className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
           >
             ← Mon compte
           </Link>
-          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             Messages
           </h1>
         </Apparition>
@@ -96,7 +96,7 @@ export default async function MessagesPage() {
                           )}
                         </div>
                         {dernier && (
-                          <span className="shrink-0 font-texte tabular-nums text-[0.66rem] text-muted">
+                          <span className="shrink-0 font-texte tabular-nums text-mini text-muted">
                             {formaterDate(dernier.envoyeLe)}
                           </span>
                         )}

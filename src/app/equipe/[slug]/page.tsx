@@ -209,7 +209,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 </span>
                 <div className="flex items-center gap-3">
                   {m.role && (
-                    <span className="font-texte tabular-nums text-[0.66rem] text-muted uppercase">
+                    <span className="font-texte tabular-nums text-mini text-muted uppercase">
                       {m.role}
                     </span>
                   )}
@@ -222,7 +222,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                         type="submit"
                         confirmation={`Retirer ${m.profile?.pseudo ?? "ce joueur"} de l'équipe ?`}
                         aria-label={`Retirer ${m.profile?.pseudo ?? "ce membre"} de l'équipe`}
-                        className="font-texte tabular-nums text-[0.64rem] text-danger underline underline-offset-3"
+                        className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
                       >
                         Retirer
                       </BoutonConfirmation>
@@ -240,7 +240,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
             <BoutonConfirmation
               type="submit"
               confirmation="Quitter cette équipe ? Il faudra une nouvelle invitation pour la rejoindre à nouveau."
-              className="font-texte tabular-nums text-[0.66rem] text-danger underline underline-offset-3"
+              className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
             >
               Quitter l&apos;équipe
             </BoutonConfirmation>
@@ -267,7 +267,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 maxLength={500}
                 defaultValue={equipe.description ?? ""}
                 placeholder="Présente ton équipe, ton ambition, ce que tu cherches"
-                className="resize-none rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="resize-none min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -279,7 +279,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 type="text"
                 defaultValue={equipe.contact_recrutement ?? ""}
                 placeholder="Discord, e-mail…"
-                className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               />
             </label>
 
@@ -325,7 +325,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 type="text"
                 required
                 placeholder="Pseudo du joueur à inviter"
-                className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               />
             </label>
             <Bouton libelleEnCours="Invitation…">Inviter</Bouton>
@@ -349,7 +349,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                       <button
                         type="submit"
                         aria-label={`Annuler l'invitation de ${m.profile?.pseudo ?? "ce joueur"}`}
-                        className="font-texte tabular-nums text-[0.64rem] text-danger underline underline-offset-3"
+                        className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
                       >
                         Annuler
                       </button>

@@ -85,7 +85,7 @@ export default function FaqPage() {
           <span className="block font-texte text-libelle font-medium text-muted uppercase">
             FAQ
           </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             Les questions de confiance.
           </h1>
           <p className="mt-3 max-w-lg text-sm text-muted">

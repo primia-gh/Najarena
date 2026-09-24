@@ -109,7 +109,7 @@ export default async function CvPage({ params }: CvPageProps) {
     <main className="min-h-screen bg-bg px-6 py-16 print:bg-white print:py-6 print:text-black">
       <div className="mx-auto max-w-2xl">
         <div className="print:hidden mb-8 flex items-center justify-between">
-          <Link href={`/joueur/${profil.slug}`} className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text">
+          <Link href={`/joueur/${profil.slug}`} className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text">
             ← Retour au profil
           </Link>
           <BoutonImprimer />
@@ -130,7 +130,7 @@ export default async function CvPage({ params }: CvPageProps) {
           </div>
           {infoOffre.offre !== "gratuit" && (
             <span
-              className="mt-2 inline-block font-texte tabular-nums text-[0.64rem] tracking-[0.06em] uppercase print:text-black"
+              className="mt-2 inline-block font-texte tabular-nums text-mini tracking-[0.06em] uppercase print:text-black"
               style={{ color: COULEUR_OFFRE[infoOffre.offre] }}
             >
               {LABEL_OFFRE[infoOffre.offre]}
@@ -141,23 +141,23 @@ export default async function CvPage({ params }: CvPageProps) {
 
         <section className="mt-6 grid grid-cols-4 gap-px overflow-hidden rounded-[3px] border border-line bg-line print:border-black print:bg-black">
           <div className="bg-surface p-3 text-center print:bg-white">
-            <div className="font-texte tabular-nums text-[0.58rem] tracking-[0.1em] text-muted uppercase print:text-black">Rating</div>
+            <div className="font-texte tabular-nums text-mini tracking-[0.1em] text-muted uppercase print:text-black">Rating</div>
             <div className="mt-0.5 font-texte tabular-nums text-xl font-bold text-text print:text-black">
               {rating ? arrondir(rating.rating) : "—"}
             </div>
           </div>
           <div className="bg-surface p-3 text-center print:bg-white">
-            <div className="font-texte tabular-nums text-[0.58rem] tracking-[0.1em] text-muted uppercase print:text-black">RD</div>
+            <div className="font-texte tabular-nums text-mini tracking-[0.1em] text-muted uppercase print:text-black">RD</div>
             <div className="mt-0.5 font-texte tabular-nums text-xl font-bold text-text print:text-black">
               {rating ? arrondir(rating.rd) : RD_INITIAL}
             </div>
           </div>
           <div className="bg-surface p-3 text-center print:bg-white">
-            <div className="font-texte tabular-nums text-[0.58rem] tracking-[0.1em] text-muted uppercase print:text-black">Calibrage</div>
+            <div className="font-texte tabular-nums text-mini tracking-[0.1em] text-muted uppercase print:text-black">Calibrage</div>
             <div className="mt-0.5 font-texte tabular-nums text-xl font-bold text-text print:text-black">{pct}%</div>
           </div>
           <div className="bg-surface p-3 text-center print:bg-white">
-            <div className="font-texte tabular-nums text-[0.58rem] tracking-[0.1em] text-muted uppercase print:text-black">Victoires</div>
+            <div className="font-texte tabular-nums text-mini tracking-[0.1em] text-muted uppercase print:text-black">Victoires</div>
             <div className="mt-0.5 font-texte tabular-nums text-xl font-bold text-text print:text-black">
               {tauxVictoire !== null ? `${tauxVictoire}%` : "—"}
             </div>
@@ -184,7 +184,7 @@ export default async function CvPage({ params }: CvPageProps) {
                   <span className="print:hidden">
                     <Badge couleur={COULEUR_NIVEAU[h.niveau]}>{LABEL_NIVEAU[h.niveau]}</Badge>
                   </span>
-                  <span className="hidden font-texte tabular-nums text-[0.62rem] text-black print:inline">
+                  <span className="hidden font-texte tabular-nums text-mini text-black print:inline">
                     {LABEL_NIVEAU[h.niveau]}
                   </span>
                   <span className={`font-texte tabular-nums text-sm font-bold ${h.estGagnant ? "text-accent" : "text-accent"} print:text-black`}>
@@ -196,7 +196,7 @@ export default async function CvPage({ params }: CvPageProps) {
           )}
         </section>
 
-        <footer className="mt-10 font-texte tabular-nums text-[0.62rem] text-muted print:text-black">
+        <footer className="mt-10 font-texte tabular-nums text-mini text-muted print:text-black">
           {matchsCalibres} matchs vérifiés · {victoires} victoires — profil complet : najarena.vercel.app/joueur/{profil.slug}
         </footer>
       </div>

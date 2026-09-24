@@ -44,12 +44,12 @@ export default async function OrganiserNouveauPage({
       <Apparition>
       <Link
         href="/moi"
-        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         ← Mon compte
       </Link>
 
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Organiser un tournoi
       </h1>
       <p className="mt-2 text-sm text-muted">
@@ -91,7 +91,7 @@ export default async function OrganiserNouveauPage({
             minLength={3}
             maxLength={60}
             placeholder="Ex. Tournoi du jeudi soir"
-            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
@@ -166,7 +166,7 @@ export default async function OrganiserNouveauPage({
             name="checkin_ouvre_le"
             type="datetime-local"
             required
-            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
@@ -179,7 +179,7 @@ export default async function OrganiserNouveauPage({
             name="debute_le"
             type="datetime-local"
             required
-            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 

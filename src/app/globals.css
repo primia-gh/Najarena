@@ -183,7 +183,9 @@ html[data-animations="pause"] *::after {
   .reflet::after,
   .animate-balayage,
   .animate-pulsation,
-  .animate-lueur {
+  .animate-lueur,
+  .animate-pulse,
+  .animate-spin {
     animation: none;
   }
   .reflet::after {

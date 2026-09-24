@@ -119,11 +119,11 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
         <Apparition>
           <Link
             href="/lol"
-            className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+            className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
           >
             ← League of Legends
           </Link>
-          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             Recherche de joueurs
           </h1>
           <p className="mt-2 max-w-lg text-sm text-muted">
@@ -206,7 +206,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                       <Link href={`/joueur/${r.slug}`} className="text-sm font-semibold text-text hover:underline">
                         {r.pseudo}
                       </Link>
-                      <div className="mt-0.5 font-texte tabular-nums text-[0.68rem] text-muted">
+                      <div className="mt-0.5 font-texte tabular-nums text-mini text-muted">
                         {r.role ? LABEL_ROLE[r.role] : "Rôle non renseigné"} · {r.region}
                         {r.disponible && <span className="text-accent"> · Disponible</span>}
                       </div>
@@ -219,17 +219,17 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                           progression={r.progression}
                         />
                       ) : (
-                        <span className="font-texte tabular-nums text-[0.66rem] text-muted">Non classé</span>
+                        <span className="font-texte tabular-nums text-mini text-muted">Non classé</span>
                       )}
                       {r.suivi ? (
-                        <span className="font-texte tabular-nums text-[0.62rem] text-accent uppercase">Suivi</span>
+                        <span className="font-texte tabular-nums text-mini text-accent uppercase">Suivi</span>
                       ) : (
                         <form action={suivreJoueur}>
                           <input type="hidden" name="joueur_suivi_id" value={r.profileId} />
                           <input type="hidden" name="retour" value="/lol/recherche" />
                           <button
                             type="submit"
-                            className="rounded-[3px] border border-line px-2.5 py-1 font-texte tabular-nums text-[0.62rem] text-text transition hover:border-text"
+                            className="rounded-[3px] border border-line px-2.5 py-1 font-texte tabular-nums text-mini text-text transition hover:border-text"
                           >
                             Suivre
                           </button>

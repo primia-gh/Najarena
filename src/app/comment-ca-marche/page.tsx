@@ -63,7 +63,7 @@ export default function CommentCaMarchePage() {
           <span className="block font-texte text-libelle font-medium text-muted uppercase">
             Guide
           </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             Comment ça marche.
           </h1>
           <p className="mt-3 max-w-lg text-sm text-muted">
@@ -78,7 +78,7 @@ export default function CommentCaMarchePage() {
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               {ETAPES.map((e) => (
                 <div key={e.n} className="rounded-[3px] border border-line border-t-[3px] border-t-accent bg-surface p-5">
-                  <span className="font-texte tabular-nums text-[0.64rem] tracking-[0.1em] text-accent uppercase">
+                  <span className="font-texte tabular-nums text-mini tracking-[0.1em] text-accent uppercase">
                     {e.n}
                   </span>
                   <h3 className="mt-1.5 font-titre uppercase text-base font-extrabold text-text">{e.titre}</h3>
@@ -133,7 +133,7 @@ export default function CommentCaMarchePage() {
             <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[3px] border border-line bg-line sm:grid-cols-4">
               <div className="bg-surface px-4 py-5 text-center">
                 <div className="font-texte tabular-nums text-xl font-bold text-text">{RATING_INITIAL}</div>
-                <div className="mt-1 font-texte tabular-nums text-[0.6rem] tracking-[0.08em] text-muted uppercase">
+                <div className="mt-1 font-texte tabular-nums text-mini tracking-[0.08em] text-muted uppercase">
                   Rating de départ
                 </div>
               </div>
@@ -141,19 +141,19 @@ export default function CommentCaMarchePage() {
                 <div className="font-texte tabular-nums text-xl font-bold text-text">
                   {RD_INITIAL} → {RD_SEUIL_CLASSEMENT}
                 </div>
-                <div className="mt-1 font-texte tabular-nums text-[0.6rem] tracking-[0.08em] text-muted uppercase">
+                <div className="mt-1 font-texte tabular-nums text-mini tracking-[0.08em] text-muted uppercase">
                   RD à calibrer
                 </div>
               </div>
               <div className="bg-surface px-4 py-5 text-center">
                 <div className="font-texte tabular-nums text-xl font-bold text-text">~10</div>
-                <div className="mt-1 font-texte tabular-nums text-[0.6rem] tracking-[0.08em] text-muted uppercase">
+                <div className="mt-1 font-texte tabular-nums text-mini tracking-[0.08em] text-muted uppercase">
                   Matchs avant classement
                 </div>
               </div>
               <div className="bg-surface px-4 py-5 text-center">
                 <div className="font-texte tabular-nums text-xl font-bold text-text">Jamais</div>
-                <div className="mt-1 font-texte tabular-nums text-[0.6rem] tracking-[0.08em] text-muted uppercase">
+                <div className="mt-1 font-texte tabular-nums text-mini tracking-[0.08em] text-muted uppercase">
                   De remise à zéro
                 </div>
               </div>

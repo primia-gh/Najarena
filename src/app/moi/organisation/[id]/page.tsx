@@ -121,7 +121,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       <Apparition>
       <Link
         href="/moi"
-        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         ← Mon compte
       </Link>
@@ -131,7 +131,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
           <span className="font-texte text-libelle font-medium text-muted uppercase">
             Cockpit organisateur
           </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             {tournoi.nom}
           </h1>
         </div>
@@ -176,7 +176,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                   {i.profile?.pseudo ?? "Joueur inconnu"}
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="font-texte tabular-nums text-[0.66rem] text-muted uppercase">
+                  <span className="font-texte tabular-nums text-mini text-muted uppercase">
                     {i.statut}
                   </span>
                   {i.statut !== "confirme" && (
@@ -186,7 +186,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       <button
                         type="submit"
                         aria-label={`Confirmer l'inscription de ${i.profile?.pseudo ?? "ce joueur"}`}
-                        className="font-texte tabular-nums text-[0.62rem] text-accent underline underline-offset-3"
+                        className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-accent underline underline-offset-3"
                       >
                         Confirmer
                       </button>
@@ -199,7 +199,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       <button
                         type="submit"
                         aria-label={`Marquer ${i.profile?.pseudo ?? "ce joueur"} comme absent`}
-                        className="font-texte tabular-nums text-[0.62rem] text-danger underline underline-offset-3"
+                        className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
                       >
                         Absent
                       </button>
@@ -290,7 +290,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                         )}
 
                         {!verdict && m.statut === "litige" && (
-                          <p className="mt-2 border-t border-line pt-2 font-texte tabular-nums text-[0.68rem] text-accent uppercase">
+                          <p className="mt-2 border-t border-line pt-2 font-texte tabular-nums text-mini text-accent uppercase">
                             Résultat non retrouvé automatiquement — décision manuelle requise
                           </p>
                         )}
@@ -312,7 +312,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                             <input type="hidden" name="match_id" value={m.id} />
                             <input type="hidden" name="tournament_id" value={tournoi.id} />
                             <fieldset className="flex flex-col gap-2">
-                              <legend className="font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
+                              <legend className="font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
                                 Déclarer le vainqueur —{" "}
                                 {participants
                                   .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
@@ -341,7 +341,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                                   .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
                                   .join(" vs ")}`}
                                 placeholder="Motif (obligatoire, affiché publiquement)"
-                                className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                               />
                             </fieldset>
                             <Bouton
@@ -390,7 +390,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       type="text"
                       required
                       placeholder="Résolution (obligatoire)"
-                      className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     />
                   </label>
                   <Bouton

@@ -11,12 +11,12 @@ export default function ConfidentialitePage() {
     <main className="mx-auto max-w-3xl px-gouttiere pt-32 pb-24 font-texte text-text">
       <Link
         href="/"
-        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         Najarena
       </Link>
 
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
 

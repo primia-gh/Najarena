@@ -66,7 +66,7 @@ export default async function ClassementPage() {
         <span className="block font-texte text-libelle font-medium text-muted uppercase">
           League of Legends
         </span>
-        <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
+        <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
           Classement
         </h1>
         {saison?.nom && (
@@ -86,7 +86,7 @@ export default async function ClassementPage() {
               return (
                 <span
                   key={p.nom}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 font-texte tabular-nums text-[0.64rem] tracking-[0.06em] uppercase"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 font-texte tabular-nums text-mini tracking-[0.06em] uppercase"
                   style={{ color: couleur }}
                 >
                   <span className="h-1.5 w-1.5 rounded-full" style={{ background: couleur }} />

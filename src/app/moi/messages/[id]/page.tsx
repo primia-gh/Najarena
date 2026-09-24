@@ -68,11 +68,11 @@ export default async function ConversationPage({ params, searchParams }: Convers
         <Apparition>
           <Link
             href="/moi/messages"
-            className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+            className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
           >
             ← Messages
           </Link>
-          <h1 className="mt-2 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-2 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             {autre?.pseudo ?? "Joueur inconnu"}
           </h1>
         </Apparition>
@@ -93,7 +93,7 @@ export default async function ConversationPage({ params, searchParams }: Convers
                   }`}
                 >
                   <p>{m.contenu}</p>
-                  <span className="mt-1 block font-texte tabular-nums text-[0.62rem] text-muted">
+                  <span className="mt-1 block font-texte tabular-nums text-mini text-muted">
                     {formaterDate(m.envoye_le)}
                   </span>
                 </div>
@@ -111,7 +111,7 @@ export default async function ConversationPage({ params, searchParams }: Convers
               maxLength={2000}
               required
               placeholder="Écris ton message…"
-              className="resize-none rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="resize-none min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             />
             <Bouton libelleEnCours="Envoi…" className="self-start">
               Envoyer

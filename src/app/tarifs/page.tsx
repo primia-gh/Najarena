@@ -63,7 +63,7 @@ const GRILLE_CARTES: Record<number, string> = {
 
 function PastilleBientot() {
   return (
-    <span className="ml-2 rounded-full border border-accent/30 bg-accent/12 px-1.5 py-0.5 font-texte tabular-nums text-[0.56rem] tracking-[0.08em] text-accent uppercase">
+    <span className="ml-2 rounded-full border border-accent/30 bg-accent/12 px-1.5 py-0.5 font-texte tabular-nums text-mini tracking-[0.08em] text-accent uppercase">
       Bientôt
     </span>
   );
@@ -180,7 +180,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
           <span className="block font-texte text-libelle font-medium text-muted uppercase">
             Tarifs
           </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             Ton niveau reste gratuit. Pour toujours.
           </h1>
           <p className="mt-3 max-w-lg text-sm text-muted">
@@ -208,7 +208,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                     key={f.libelle}
                     href={f.href}
                     aria-current={actif ? "page" : undefined}
-                    className={`rounded-[3px] border px-3 py-1.5 font-texte tabular-nums text-[0.64rem] tracking-[0.1em] uppercase transition ${
+                    className={`inline-flex min-h-11 items-center rounded-bouton border px-3 py-1.5 font-texte tabular-nums text-mini tracking-[0.1em] uppercase transition ${
                       actif
                         ? "border-text text-text"
                         : "border-line text-muted hover:border-muted hover:text-text"
@@ -225,7 +225,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                   key={p.nom}
                   className={`flex flex-col rounded-[3px] border border-line border-t-[3px] bg-surface p-5 ${ACCENT_BORDURE[p.accent]}`}
                 >
-                  <span className="font-texte tabular-nums text-[0.64rem] tracking-[0.1em] text-muted uppercase">
+                  <span className="font-texte tabular-nums text-mini tracking-[0.1em] text-muted uppercase">
                     {p.nom}
                   </span>
                   <div className="mt-1.5 flex items-baseline gap-1">
@@ -249,7 +249,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                   {p.cta.href ? (
                     <Link
                       href={p.cta.href}
-                      className="mt-5 rounded-[3px] bg-accent px-4 py-2 text-center text-sm font-semibold text-bg transition hover:brightness-110"
+                      className="mt-5 inline-flex min-h-11 items-center justify-center rounded-bouton bg-accent px-4 py-2 text-center text-sm font-semibold text-bg transition hover:brightness-110"
                     >
                       {p.cta.libelle}
                     </Link>
@@ -278,13 +278,13 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
               <table className="w-full min-w-[560px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-line">
-                    <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
+                    <th className="px-4 py-2 font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
                       Fonctionnalité
                     </th>
                     {paliersVisibles.map((p) => (
                       <th
                         key={p.nom}
-                        className="px-4 py-2 text-center font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase"
+                        className="px-4 py-2 text-center font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase"
                       >
                         {p.nom}
                       </th>
@@ -301,7 +301,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                         return (
                           <td key={p.nom} className="px-4 py-2 text-center">
                             {inclus && BIENTOT.has(ligne.fonctionnalite) ? (
-                              <span className="font-texte tabular-nums text-[0.6rem] tracking-[0.08em] text-accent uppercase">
+                              <span className="font-texte tabular-nums text-mini tracking-[0.08em] text-accent uppercase">
                                 Bientôt
                               </span>
                             ) : inclus ? (

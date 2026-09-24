@@ -42,12 +42,12 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
       <Apparition>
       <Link
         href="/moi"
-        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         ← Mon compte
       </Link>
 
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Lier mon Riot ID
       </h1>
       <p className="mt-1 text-sm text-muted">
@@ -93,7 +93,7 @@ function EtapeSaisie() {
             type="text"
             required
             placeholder="Pseudo#TAG"
-            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 

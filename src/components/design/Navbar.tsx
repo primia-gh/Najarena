@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/design/Logo";
 
@@ -73,6 +73,8 @@ export default function Navbar() {
   const masquerCta = pathname === cibleCompte;
 
   const masquerRejoindre = connecte || pathname === "/inscription";
+  // Mouvement réduit demandé : le menu mobile s'ouvre sans animation.
+  const mouvementReduit = useReducedMotion();
   const estActif = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
@@ -82,7 +84,7 @@ export default function Navbar() {
         defile ? "border-b border-line bg-bg/85 py-3 backdrop-blur-md" : "border-b border-transparent py-5"
       }`}
     >
-      <Link href="/" aria-label="Najarena — accueil" className={`shrink-0 rounded-bouton ${FOCUS}`}>
+      <Link href="/" aria-label="Najarena — accueil" className={`inline-flex min-h-11 shrink-0 items-center rounded-bouton ${FOCUS}`}>
         <Logo hauteur={defile ? 34 : 40} />
       </Link>
 
@@ -138,7 +140,7 @@ export default function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: mouvementReduit ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
             className="absolute inset-x-0 top-full flex flex-col overflow-hidden border-b border-line bg-bg px-gouttiere py-4 xl:hidden"
           >
             {LIENS.map((l) => (

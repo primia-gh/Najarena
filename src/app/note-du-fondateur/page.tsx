@@ -16,7 +16,7 @@ export default function NoteDuFondateurPage() {
           <span className="block font-texte text-libelle font-medium text-muted uppercase">
             Pourquoi Najarena
           </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             Une note du fondateur.
           </h1>
         </Apparition>

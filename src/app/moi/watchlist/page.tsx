@@ -69,11 +69,11 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
         <Apparition>
           <Link
             href="/moi"
-            className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+            className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
           >
             ← Mon compte
           </Link>
-          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
+          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
             Ma watchlist
           </h1>
           <p className="mt-2 max-w-lg text-sm text-muted">
@@ -119,7 +119,7 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
                             progression={progression}
                           />
                         ) : (
-                          <span className="font-texte tabular-nums text-[0.66rem] text-muted">Non classé</span>
+                          <span className="font-texte tabular-nums text-mini text-muted">Non classé</span>
                         )}
                         <form action={retirerDeLaWatchlist}>
                           <input type="hidden" name="joueur_suivi_id" value={s.joueur_suivi_id} />
@@ -127,7 +127,7 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
                           <button
                             type="submit"
                             aria-label={`Retirer ${s.joueur!.pseudo} de la watchlist`}
-                            className="font-texte tabular-nums text-[0.62rem] text-danger underline underline-offset-3"
+                            className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
                           >
                             Retirer
                           </button>

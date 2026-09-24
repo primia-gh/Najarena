@@ -23,7 +23,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
     <main className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <Apparition className="relative mx-auto w-full max-w-md px-6">
-      <h1 className="font-titre uppercase text-section font-black tracking-[1px] text-text">
+      <h1 className="font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Se connecter
       </h1>
       <p className="mt-1 text-sm text-muted">Retrouve ton classement vérifié.</p>
@@ -46,7 +46,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
             type="email"
             required
             autoComplete="email"
-            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
@@ -59,7 +59,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
             type="password"
             required
             autoComplete="current-password"
-            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 

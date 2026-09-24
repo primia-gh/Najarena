@@ -57,7 +57,7 @@ export default function UploadLogo({ type, id, logoActuel, nomChamp }: UploadLog
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-texte tabular-nums text-[0.62rem] tracking-[0.14em] text-muted uppercase">Logo</span>
+      <span className="font-texte tabular-nums text-mini tracking-[0.14em] text-muted uppercase">Logo</span>
       {url && (
         <Image
           src={url}

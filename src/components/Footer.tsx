@@ -24,7 +24,7 @@ export default function Footer() {
           <Link
             href="/"
             aria-label="Najarena — accueil"
-            className="self-start rounded-bouton focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+            className="inline-flex min-h-11 items-center self-start rounded-bouton focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
           >
             <Logo hauteur={36} />
           </Link>

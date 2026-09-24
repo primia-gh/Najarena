@@ -76,7 +76,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
         <span className="block font-texte text-libelle font-medium text-muted uppercase">
           League of Legends
         </span>
-        <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
+        <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
           Tournois
         </h1>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[0.78rem] text-muted">

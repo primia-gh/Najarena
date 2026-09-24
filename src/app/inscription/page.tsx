@@ -24,7 +24,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
     <main className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <Apparition className="relative mx-auto w-full max-w-md px-6">
-      <h1 className="font-titre uppercase text-section font-black tracking-[1px] text-text">
+      <h1 className="font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Créer un compte
       </h1>
       <p className="mt-1 text-sm text-muted">Ton niveau, vérifié — dès ton premier tournoi.</p>
@@ -48,7 +48,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             minLength={3}
             maxLength={20}
             autoComplete="username"
-            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
@@ -61,7 +61,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             type="email"
             required
             autoComplete="email"
-            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
@@ -75,7 +75,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             required
             minLength={6}
             autoComplete="new-password"
-            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 

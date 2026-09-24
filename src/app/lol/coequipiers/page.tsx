@@ -124,12 +124,12 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
       <Apparition>
       <Link
         href="/lol"
-        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         ← League of Legends
       </Link>
 
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Trouver un coéquipier
       </h1>
       <p className="mt-2 max-w-lg text-sm text-muted">
@@ -161,7 +161,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
             maxLength={200}
             defaultValue={monAnnonce?.message ?? ""}
             placeholder="Ex. « Support, dispo le soir, cherche une équipe régulière »"
-            className="resize-none rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="resize-none min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
           <div className="flex items-center gap-3">
             <Bouton libelleEnCours="Envoi…">
@@ -171,7 +171,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
               <button
                 type="submit"
                 formAction={retirerRechercheCoequipier}
-                className="font-texte tabular-nums text-[0.66rem] text-danger underline underline-offset-3"
+                className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
               >
                 Retirer mon annonce
               </button>
@@ -213,7 +213,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                       const offre = offresParJoueur.get(a.profile_id)?.offre;
                       return offre && offre !== "gratuit" ? (
                         <span
-                          className="rounded-full border border-line px-2 py-0.5 font-texte tabular-nums text-[0.58rem] tracking-[0.06em] uppercase"
+                          className="rounded-full border border-line px-2 py-0.5 font-texte tabular-nums text-mini tracking-[0.06em] uppercase"
                           style={{ color: COULEUR_OFFRE[offre] }}
                         >
                           {LABEL_OFFRE[offre]}
@@ -245,7 +245,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                         <button
                           type="submit"
                           aria-label={`Inviter ${a.profile?.pseudo ?? "ce joueur"} dans ${e.nom}`}
-                          className="rounded-[3px] border border-line px-3 py-1.5 font-texte tabular-nums text-[0.64rem] text-text transition hover:border-text"
+                          className="rounded-[3px] border border-line px-3 py-1.5 font-texte tabular-nums text-mini text-text transition hover:border-text"
                         >
                           Inviter dans {e.tag} {e.nom}
                         </button>

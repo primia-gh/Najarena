@@ -102,12 +102,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <Apparition>
       <Link
         href="/moi"
-        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         ← Mon compte
       </Link>
 
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Administration
       </h1>
       <p className="mt-1 font-texte tabular-nums text-[0.72rem] text-muted">Modération · Litiges</p>
@@ -125,7 +125,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <SectionTitre>Vue d&apos;ensemble</SectionTitre>
         <div className="mt-3 grid grid-cols-2 overflow-hidden rounded-[3px] border border-line bg-surface shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)] sm:grid-cols-4">
           <div className="border-r border-b border-line p-4 sm:border-b-0">
-            <div className="font-texte tabular-nums text-[0.6rem] tracking-[0.16em] text-muted uppercase">
+            <div className="font-texte tabular-nums text-mini tracking-[0.16em] text-muted uppercase">
               Joueurs
             </div>
             <div className="mt-0.5 font-texte tabular-nums text-2xl font-bold tracking-tight text-text">
@@ -133,7 +133,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
           </div>
           <div className="border-b border-line p-4 sm:border-r sm:border-b-0">
-            <div className="font-texte tabular-nums text-[0.6rem] tracking-[0.16em] text-muted uppercase">
+            <div className="font-texte tabular-nums text-mini tracking-[0.16em] text-muted uppercase">
               Tournois actifs
             </div>
             <div className="mt-0.5 font-texte tabular-nums text-2xl font-bold tracking-tight text-text">
@@ -141,7 +141,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
           </div>
           <div className="border-r border-line p-4">
-            <div className="font-texte tabular-nums text-[0.6rem] tracking-[0.16em] text-muted uppercase">
+            <div className="font-texte tabular-nums text-mini tracking-[0.16em] text-muted uppercase">
               Tournois créés
             </div>
             <div className="mt-0.5 font-texte tabular-nums text-2xl font-bold tracking-tight text-text">
@@ -149,7 +149,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
           </div>
           <div className="p-4">
-            <div className="font-texte tabular-nums text-[0.6rem] tracking-[0.16em] text-muted uppercase">
+            <div className="font-texte tabular-nums text-mini tracking-[0.16em] text-muted uppercase">
               Matchs enregistrés
             </div>
             <div className="mt-0.5 font-texte tabular-nums text-2xl font-bold tracking-tight text-text">
@@ -174,7 +174,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               type="text"
               required
               placeholder="Pseudo du joueur"
-              className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             />
           </label>
           <label>
@@ -182,7 +182,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <select
               name="offre"
               defaultValue="verifie"
-              className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto"
+              className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto"
             >
               <option value="gratuit">Gratuit (révoquer)</option>
               <option value="verifie">Vérifié</option>
@@ -209,19 +209,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-line">
-                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
+                  <th className="px-4 py-2 font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
                     Joueur
                   </th>
-                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
+                  <th className="px-4 py-2 font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
                     Inscrit le
                   </th>
-                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
+                  <th className="px-4 py-2 font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
                     Riot ID
                   </th>
-                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
+                  <th className="px-4 py-2 font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
                     Rôle
                   </th>
-                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
+                  <th className="px-4 py-2 font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
                     Offre
                   </th>
                 </tr>
@@ -281,7 +281,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 {l.match?.tournament && (
                   <Link
                     href={`/lol/tournois/${l.match.tournament.slug}`}
-                    className="font-texte tabular-nums text-[0.66rem] text-muted uppercase hover:text-text"
+                    className="font-texte tabular-nums text-mini text-muted uppercase hover:text-text"
                   >
                     {l.match.tournament.nom} · Tour {l.match.tour}
                   </Link>
@@ -306,7 +306,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       type="text"
                       required
                       placeholder="Résolution (obligatoire)"
-                      className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     />
                   </label>
                   <Bouton
@@ -336,7 +336,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             {litigesResolus.map((l) => (
               <li key={l.id} className={classeCarte("atteste")}>
                 {l.match?.tournament && (
-                  <span className="font-texte tabular-nums text-[0.66rem] text-muted uppercase">
+                  <span className="font-texte tabular-nums text-mini text-muted uppercase">
                     {l.match.tournament.nom} · Tour {l.match.tour}
                   </span>
                 )}

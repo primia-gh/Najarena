@@ -71,7 +71,7 @@ export function AssistantOrganisateur() {
         onChange={(e) => setDescription(e.target.value)}
         rows={2}
         placeholder="Ex. « Samedi soir, une trentaine de joueurs, EUW »"
-        className="mt-3 w-full resize-none rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="mt-3 w-full resize-none min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       />
       {erreur && <p className="mt-2 text-sm text-accent">{erreur}</p>}
       {proposition && (

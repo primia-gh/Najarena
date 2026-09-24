@@ -98,7 +98,7 @@ export default function PushOptIn() {
     <div className="mt-3 flex items-center justify-between rounded-[3px] border border-line bg-surface p-4">
       <div>
         <span className="text-sm text-text">Notifications push</span>
-        <p className="mt-0.5 font-texte tabular-nums text-[0.68rem] text-muted">
+        <p className="mt-0.5 font-texte tabular-nums text-mini text-muted">
           {etat === "actif" && "Activées sur cet appareil"}
           {etat === "inactif" && "Check-in, résultats, litiges — en plus de l'e-mail"}
           {etat === "refuse" && "Bloquées par ton navigateur — à réactiver dans ses réglages"}
@@ -109,7 +109,7 @@ export default function PushOptIn() {
           type="button"
           disabled={enCours}
           onClick={etat === "actif" ? desactiver : activer}
-          className="shrink-0 rounded-[3px] border border-line px-3 py-1.5 font-texte tabular-nums text-[0.66rem] tracking-[0.1em] text-muted uppercase hover:border-text hover:text-text disabled:opacity-50"
+          className="shrink-0 rounded-[3px] border border-line px-3 py-1.5 font-texte tabular-nums text-mini tracking-[0.1em] text-muted uppercase hover:border-text hover:text-text disabled:opacity-50"
         >
           {etat === "actif" ? "Désactiver" : "Activer"}
         </button>
