@@ -40,7 +40,7 @@ export default async function OrganiserNouveauPage({
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative mx-auto max-w-md px-gouttiere">
+      <div className="relative mx-auto box-content max-w-md px-gouttiere">
       <Apparition>
       <Link
         href="/moi"
@@ -104,7 +104,7 @@ export default async function OrganiserNouveauPage({
             name="capacite"
             required
             defaultValue="8"
-            className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             {CAPACITES.map((c) => (
               <option key={c} value={c}>
@@ -126,7 +126,7 @@ export default async function OrganiserNouveauPage({
               id="best_of"
               name="best_of"
               defaultValue="1"
-              className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
+              className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <option value="1">Best-of-1</option>
               <option value="3">Best-of-3</option>
@@ -144,7 +144,7 @@ export default async function OrganiserNouveauPage({
             name="region"
             required
             defaultValue=""
-            className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <option value="" disabled>
               Choisis une région

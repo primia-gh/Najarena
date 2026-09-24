@@ -30,7 +30,7 @@ export default async function EquipeNouvellePage({ searchParams }: EquipeNouvell
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative mx-auto max-w-md px-gouttiere">
+      <div className="relative mx-auto box-content max-w-md px-gouttiere">
       <Apparition>
       <Link
         href="/moi"

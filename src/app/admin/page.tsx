@@ -40,7 +40,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (!admin) {
     return (
-      <main className="mx-auto max-w-md px-gouttiere pt-32 pb-24 font-texte text-text">
+      <main className="mx-auto box-content max-w-md px-gouttiere pt-32 pb-24 font-texte text-text">
         <p className={classeCarte("sceau") + " text-sm text-danger"}>
           Accès réservé aux administrateurs.
         </p>

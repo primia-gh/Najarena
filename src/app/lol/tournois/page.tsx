@@ -98,7 +98,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
           <select
             name="statut"
             defaultValue={statutFiltre ?? ""}
-            className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <option value="">Tous</option>
             {STATUTS_PUBLICS.map((s) => (
@@ -116,7 +116,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
           <select
             name="region"
             defaultValue={regionFiltre ?? ""}
-            className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <option value="">Toutes</option>
             {regions.map((r) => (
@@ -132,7 +132,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
         {(statutFiltre || regionFiltre) && (
           <Link
             href="/lol/tournois"
-            className="font-texte tabular-nums text-[0.7rem] text-muted underline underline-offset-3 hover:text-text"
+            className="inline-flex min-h-11 items-center font-texte text-mini text-muted underline underline-offset-3 hover:text-text"
           >
             Réinitialiser
           </Link>
