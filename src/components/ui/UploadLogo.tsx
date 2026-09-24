@@ -57,14 +57,14 @@ export default function UploadLogo({ type, id, logoActuel, nomChamp }: UploadLog
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">Logo</span>
+      <span className="font-texte tabular-nums text-[0.62rem] tracking-[0.14em] text-muted uppercase">Logo</span>
       {url && (
         <Image
           src={url}
           alt=""
           width={64}
           height={64}
-          className="h-16 w-16 rounded-[3px] border border-trait object-cover"
+          className="h-16 w-16 rounded-[3px] border border-line object-cover"
           unoptimized
         />
       )}
@@ -75,11 +75,11 @@ export default function UploadLogo({ type, id, logoActuel, nomChamp }: UploadLog
           const fichier = e.target.files?.[0];
           if (fichier) gererFichier(fichier);
         }}
-        className="text-sm text-ardoise file:mr-3 file:rounded-[3px] file:border file:border-trait file:bg-carte file:px-3 file:py-1.5 file:text-sm file:text-encre"
+        className="text-sm text-muted file:mr-3 file:rounded-[3px] file:border file:border-line file:bg-surface file:px-3 file:py-1.5 file:text-sm file:text-text"
       />
       <input type="hidden" name={nomChamp} value={url} />
-      {enCours && <p className="text-[0.72rem] text-ardoise">Envoi en cours…</p>}
-      {erreur && <p className="text-[0.72rem] text-sceau-texte">{erreur}</p>}
+      {enCours && <p className="text-[0.72rem] text-muted">Envoi en cours…</p>}
+      {erreur && <p className="text-[0.72rem] text-accent">{erreur}</p>}
     </div>
   );
 }

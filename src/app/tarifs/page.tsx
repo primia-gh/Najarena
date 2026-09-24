@@ -5,9 +5,8 @@ import Bouton from "@/components/ui/Bouton";
 import { classeCarte } from "@/lib/ui";
 import { demarrerAbonnement } from "@/lib/stripe-actions";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Tarifs — Najarena",
@@ -64,7 +63,7 @@ const GRILLE_CARTES: Record<number, string> = {
 
 function PastilleBientot() {
   return (
-    <span className="ml-2 rounded-full border border-laiton/30 bg-laiton/12 px-1.5 py-0.5 font-mono text-[0.56rem] tracking-[0.08em] text-laiton-texte uppercase">
+    <span className="ml-2 rounded-full border border-accent/30 bg-accent/12 px-1.5 py-0.5 font-texte tabular-nums text-[0.56rem] tracking-[0.08em] text-accent uppercase">
       Bientôt
     </span>
   );
@@ -134,9 +133,9 @@ const PALIERS: Palier[] = [
 ];
 
 const ACCENT_BORDURE: Record<Palier["accent"], string> = {
-  sceau: "border-t-sceau",
-  laiton: "border-t-laiton",
-  none: "border-t-trait",
+  sceau: "border-t-accent",
+  laiton: "border-t-accent",
+  none: "border-t-line",
 };
 
 // Reprend mot pour mot les puces de PALIERS[].inclus, juste transposées en
@@ -175,32 +174,30 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
   const lignesVisibles = pour === "joueur" ? MATRICE.filter((l) => l.depuis !== "organisateur") : MATRICE;
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-5xl px-6">
-        <Reveal>
-          <span className="block font-mono text-[0.66rem] tracking-[0.22em] text-ardoise uppercase">
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />      <div className="relative mx-auto max-w-contenu px-gouttiere">
+        <Apparition>
+          <span className="block font-texte text-libelle font-medium text-muted uppercase">
             Tarifs
           </span>
-          <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight text-encre">
+          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
             Ton niveau reste gratuit. Pour toujours.
           </h1>
-          <p className="mt-3 max-w-lg text-sm text-ardoise">
+          <p className="mt-3 max-w-lg text-sm text-muted">
             Le classement, les verdicts et le profil public ne seront jamais payants — c&apos;est la
             promesse du site. Les paliers ci-dessous ajoutent de l&apos;identité et du confort,
             jamais un péage sur la preuve.
           </p>
-        </Reveal>
+        </Apparition>
 
         {erreur && (
-          <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+          <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
         )}
         {message && (
-          <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
+          <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
         )}
 
-        <Reveal delai={0.1}>
+        <Apparition delai={0.1}>
           <section className="mt-12">
             <SectionTitre>Les paliers</SectionTitre>
             <nav aria-label="Filtrer les paliers" className="mt-4 flex flex-wrap gap-2">
@@ -211,10 +208,10 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                     key={f.libelle}
                     href={f.href}
                     aria-current={actif ? "page" : undefined}
-                    className={`rounded-[3px] border px-3 py-1.5 font-mono text-[0.64rem] tracking-[0.1em] uppercase transition ${
+                    className={`rounded-[3px] border px-3 py-1.5 font-texte tabular-nums text-[0.64rem] tracking-[0.1em] uppercase transition ${
                       actif
-                        ? "border-encre text-encre"
-                        : "border-trait text-ardoise hover:border-ardoise hover:text-encre"
+                        ? "border-text text-text"
+                        : "border-line text-muted hover:border-muted hover:text-text"
                     }`}
                   >
                     {f.libelle}
@@ -226,21 +223,21 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
               {paliersVisibles.map((p) => (
                 <div
                   key={p.nom}
-                  className={`flex flex-col rounded-[3px] border border-trait border-t-[3px] bg-carte p-5 ${ACCENT_BORDURE[p.accent]}`}
+                  className={`flex flex-col rounded-[3px] border border-line border-t-[3px] bg-surface p-5 ${ACCENT_BORDURE[p.accent]}`}
                 >
-                  <span className="font-mono text-[0.64rem] tracking-[0.1em] text-ardoise uppercase">
+                  <span className="font-texte tabular-nums text-[0.64rem] tracking-[0.1em] text-muted uppercase">
                     {p.nom}
                   </span>
                   <div className="mt-1.5 flex items-baseline gap-1">
-                    <span className="font-mono text-2xl font-bold text-encre">{p.prix}</span>
-                    {p.periode && <span className="font-mono text-xs text-ardoise">{p.periode}</span>}
+                    <span className="font-texte tabular-nums text-2xl font-bold text-text">{p.prix}</span>
+                    {p.periode && <span className="font-texte tabular-nums text-xs text-muted">{p.periode}</span>}
                   </div>
-                  <p className="mt-1.5 text-sm text-ardoise">{p.accroche}</p>
+                  <p className="mt-1.5 text-sm text-muted">{p.accroche}</p>
 
-                  <ul className="mt-4 flex flex-1 flex-col gap-2 text-[0.82rem] text-encre">
+                  <ul className="mt-4 flex flex-1 flex-col gap-2 text-[0.82rem] text-text">
                     {p.inclus.map((i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ardoise" aria-hidden="true" />
+                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted" aria-hidden="true" />
                         <span>
                           {i}
                           {BIENTOT.has(i) && <PastilleBientot />}
@@ -252,7 +249,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                   {p.cta.href ? (
                     <Link
                       href={p.cta.href}
-                      className="mt-5 rounded-[3px] bg-sceau px-4 py-2 text-center text-sm font-semibold text-papier transition hover:brightness-110"
+                      className="mt-5 rounded-[3px] bg-accent px-4 py-2 text-center text-sm font-semibold text-bg transition hover:brightness-110"
                     >
                       {p.cta.libelle}
                     </Link>
@@ -267,27 +264,27 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                 </div>
               ))}
             </div>
-            <p className="mt-6 max-w-lg text-sm text-ardoise">
+            <p className="mt-6 max-w-lg text-sm text-muted">
               Vérifié, Elite et Organisateur sont en cours de lancement — ces prix sont indicatifs
               et pourront évoluer.
             </p>
           </section>
-        </Reveal>
+        </Apparition>
 
-        <Reveal delai={0.12}>
+        <Apparition delai={0.12}>
           <section className="mt-12">
             <SectionTitre>Comparer les paliers</SectionTitre>
-            <div className="mt-4 overflow-x-auto rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
+            <div className="mt-4 overflow-x-auto rounded-[3px] border border-line bg-surface shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
               <table className="w-full min-w-[560px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-trait">
-                    <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                  <tr className="border-b border-line">
+                    <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
                       Fonctionnalité
                     </th>
                     {paliersVisibles.map((p) => (
                       <th
                         key={p.nom}
-                        className="px-4 py-2 text-center font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase"
+                        className="px-4 py-2 text-center font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase"
                       >
                         {p.nom}
                       </th>
@@ -296,21 +293,21 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                 </thead>
                 <tbody>
                   {lignesVisibles.map((ligne) => (
-                    <tr key={ligne.fonctionnalite} className="border-b border-trait last:border-b-0">
-                      <td className="px-4 py-2 text-encre">{ligne.fonctionnalite}</td>
+                    <tr key={ligne.fonctionnalite} className="border-b border-line last:border-b-0">
+                      <td className="px-4 py-2 text-text">{ligne.fonctionnalite}</td>
                       {paliersVisibles.map((p) => {
                         const cle = (p.cle ?? "gratuit") as Offre;
                         const inclus = ORDRE_OFFRE[cle] >= ORDRE_OFFRE[ligne.depuis];
                         return (
                           <td key={p.nom} className="px-4 py-2 text-center">
                             {inclus && BIENTOT.has(ligne.fonctionnalite) ? (
-                              <span className="font-mono text-[0.6rem] tracking-[0.08em] text-laiton-texte uppercase">
+                              <span className="font-texte tabular-nums text-[0.6rem] tracking-[0.08em] text-accent uppercase">
                                 Bientôt
                               </span>
                             ) : inclus ? (
-                              <span className="text-atteste">✓</span>
+                              <span className="text-accent">✓</span>
                             ) : (
-                              <span className="text-ardoise/40">—</span>
+                              <span className="text-muted/40">—</span>
                             )}
                           </td>
                         );
@@ -320,25 +317,25 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                 </tbody>
               </table>
             </div>
-            <p className="mt-3 text-[0.78rem] text-ardoise">
+            <p className="mt-3 text-[0.78rem] text-muted">
               « Bientôt » : en cours de développement, inclus dans le palier dès leur mise en ligne.
             </p>
           </section>
-        </Reveal>
+        </Apparition>
 
-        <Reveal delai={0.15}>
-          <p className="mt-12 text-sm text-ardoise">
+        <Apparition delai={0.15}>
+          <p className="mt-12 text-sm text-muted">
             Une question sur les tarifs à venir ?{" "}
-            <Link href="/faq" className="text-encre underline underline-offset-3">
+            <Link href="/faq" className="text-text underline underline-offset-3">
               Voir la FAQ
             </Link>{" "}
             ou{" "}
-            <Link href="/comment-ca-marche" className="text-encre underline underline-offset-3">
+            <Link href="/comment-ca-marche" className="text-text underline underline-offset-3">
               comment ça marche
             </Link>
             .
           </p>
-        </Reveal>
+        </Apparition>
       </div>
     </main>
   );

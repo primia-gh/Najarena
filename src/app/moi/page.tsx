@@ -14,9 +14,8 @@ import Badge from "@/components/ui/Badge";
 import SectionTitre from "@/components/ui/SectionTitre";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
@@ -98,22 +97,21 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
   const equipesCapitaine = equipesCapitaineData ?? [];
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-5xl px-gouttiere">
       {message && (
-        <p className={"mb-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
+        <p className={"mb-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
       )}
 
-      <Reveal>
+      <Apparition>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-4xl font-extrabold tracking-tight text-encre break-words">
+          <h1 className="font-titre uppercase text-section font-black tracking-[1px] text-text break-words">
             {profil?.pseudo ?? "Mon compte"}
           </h1>
           {profil?.created_at && (
-            <p className="mt-1 font-mono text-[0.7rem] text-ardoise">
+            <p className="mt-1 font-texte tabular-nums text-[0.7rem] text-muted">
               Membre depuis le {formaterDate(profil.created_at)}
             </p>
           )}
@@ -122,7 +120,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
         <form action={seDeconnecter}>
           <button
             type="submit"
-            className="rounded-[3px] border border-trait px-3 py-2 font-mono text-[0.66rem] tracking-[0.1em] text-ardoise uppercase hover:border-encre hover:text-encre"
+            className="rounded-[3px] border border-line px-3 py-2 font-texte tabular-nums text-[0.66rem] tracking-[0.1em] text-muted uppercase hover:border-text hover:text-text"
           >
             Se déconnecter
           </button>
@@ -133,14 +131,14 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
         {profil?.slug && (
           <Link
             href={`/joueur/${profil.slug}`}
-            className="inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
+            className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
           >
             Voir mon profil public
           </Link>
         )}
         <Link
           href="/moi/messages"
-          className="inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
+          className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
         >
           Messages
         </Link>
@@ -148,44 +146,44 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           <>
             <Link
               href="/lol/recherche"
-              className="inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
+              className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
             >
               Rechercher des joueurs
             </Link>
             <Link
               href="/moi/watchlist"
-              className="inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
+              className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
             >
               Ma watchlist
             </Link>
           </>
         )}
       </div>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.08}>
+      <Apparition delai={0.08}>
       <section className="mt-10">
         <SectionTitre>Riot ID</SectionTitre>
         {comptesRiot ? (
           <div className={"mt-3 flex items-center justify-between " + classeCarte(comptesRiot.verifie_le ? "atteste" : "laiton")}>
-            <span className="font-mono text-sm text-encre">
+            <span className="font-texte tabular-nums text-sm text-text">
               {comptesRiot.riot_game_name}#{comptesRiot.riot_tag_line}{" "}
-              <span className="text-ardoise">· {comptesRiot.region}</span>
+              <span className="text-muted">· {comptesRiot.region}</span>
             </span>
-            <Badge couleur={comptesRiot.verifie_le ? "text-atteste" : "text-laiton-texte"}>
+            <Badge couleur={comptesRiot.verifie_le ? "text-accent" : "text-accent"}>
               {comptesRiot.verifie_le ? "Vérifié" : "Vérification en attente"}
             </Badge>
           </div>
         ) : null}
         {comptesRiot && (
           <form action={mettreAJourRolePrefere} className="mt-2 flex items-center gap-2">
-            <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+            <span className="font-texte text-mini font-medium text-muted uppercase">
               Rôle préféré
             </span>
             <select
               name="role_prefere"
               defaultValue={comptesRiot.role_prefere ?? ""}
-              className="rounded-[3px] border border-trait bg-papier px-2 py-1 text-sm text-encre"
+              className="rounded-[3px] border border-line bg-bg px-2 py-1 text-sm text-text"
             >
               <option value="">Non renseigné</option>
               {ROLES.map((r) => (
@@ -196,7 +194,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             </select>
             <button
               type="submit"
-              className="font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
+              className="font-texte tabular-nums text-[0.66rem] text-accent underline underline-offset-3"
             >
               Enregistrer
             </button>
@@ -204,41 +202,41 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
         )}
         {!comptesRiot && (
           <div className={"mt-3 flex items-center justify-between " + classeCarte("none")}>
-            <span className="text-sm text-ardoise">Aucun Riot ID lié pour l&apos;instant.</span>
+            <span className="text-sm text-muted">Aucun Riot ID lié pour l&apos;instant.</span>
             <Link
               href="/lier-riot"
-              className="font-mono text-[0.7rem] text-sceau-texte underline underline-offset-3"
+              className="font-texte tabular-nums text-[0.7rem] text-accent underline underline-offset-3"
             >
               Lier mon Riot ID
             </Link>
           </div>
         )}
       </section>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.12}>
+      <Apparition delai={0.12}>
       <section className="mt-10">
         <SectionTitre>Notifications</SectionTitre>
         <div className="mt-3">
           <PushOptIn />
         </div>
       </section>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.16}>
+      <Apparition delai={0.16}>
       <section className="mt-10">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SectionTitre>Mes équipes</SectionTitre>
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/lol/coequipiers"
-              className="font-mono text-[0.7rem] text-ardoise underline underline-offset-3 hover:text-encre"
+              className="font-texte tabular-nums text-[0.7rem] text-muted underline underline-offset-3 hover:text-text"
             >
               Trouver un coéquipier
             </Link>
             <Link
               href="/equipe/nouvelle"
-              className="font-mono text-[0.7rem] text-sceau-texte underline underline-offset-3"
+              className="font-texte tabular-nums text-[0.7rem] text-accent underline underline-offset-3"
             >
               Créer une équipe
             </Link>
@@ -249,7 +247,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           <ul className="mt-3 flex flex-col gap-2">
             {invitationsEnAttente.map((a) => (
               <li key={a.team_id} className={"flex items-center justify-between " + classeCarte("laiton")}>
-                <span className="text-sm text-encre">
+                <span className="text-sm text-text">
                   <strong>{a.team?.tag}</strong> {a.team?.nom} t&apos;invite
                 </span>
                 <div className="flex items-center gap-3">
@@ -258,7 +256,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                     <button
                       type="submit"
                       aria-label={`Accepter l'invitation de ${a.team?.nom}`}
-                      className="font-mono text-[0.66rem] text-atteste underline underline-offset-3"
+                      className="font-texte tabular-nums text-[0.66rem] text-accent underline underline-offset-3"
                     >
                       Accepter
                     </button>
@@ -268,7 +266,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                     <button
                       type="submit"
                       aria-label={`Refuser l'invitation de ${a.team?.nom}`}
-                      className="font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
+                      className="font-texte tabular-nums text-[0.66rem] text-danger underline underline-offset-3"
                     >
                       Refuser
                     </button>
@@ -290,41 +288,41 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             {equipesCapitaine.map((e) => (
               <li key={e.id}>
                 <Link href={`/equipe/${e.slug}`} className={"flex items-center justify-between " + classeCarte("laiton", true)}>
-                  <span className="text-sm font-medium text-encre">
+                  <span className="text-sm font-medium text-text">
                     <strong>{e.tag}</strong> {e.nom}
                   </span>
-                  <Badge couleur="text-laiton-texte">Capitaine</Badge>
+                  <Badge couleur="text-accent">Capitaine</Badge>
                 </Link>
               </li>
             ))}
             {equipesMembre.map((a) => (
               <li key={a.team_id}>
                 <Link href={`/equipe/${a.team!.slug}`} className={"flex items-center justify-between " + classeCarte("none", true)}>
-                  <span className="text-sm font-medium text-encre">
+                  <span className="text-sm font-medium text-text">
                     <strong>{a.team!.tag}</strong> {a.team!.nom}
                   </span>
-                  <Badge couleur="text-ardoise">Membre</Badge>
+                  <Badge couleur="text-muted">Membre</Badge>
                 </Link>
               </li>
             ))}
           </ul>
         )}
       </section>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.2}>
+      <Apparition delai={0.2}>
       <section className="mt-10">
         <SectionTitre>Mes inscriptions</SectionTitre>
 
         {erreurInscriptions ? (
-          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>
+          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-danger"}>
             Impossible de charger tes inscriptions pour l&apos;instant.
             Réessaie dans un instant.
           </p>
         ) : inscriptions.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-muted"}>
             Tu n&apos;es inscrit à aucun tournoi pour l&apos;instant.{" "}
-            <Link href="/lol/tournois" className="text-encre underline underline-offset-3">
+            <Link href="/lol/tournois" className="text-text underline underline-offset-3">
               Voir les tournois
             </Link>
             .
@@ -334,7 +332,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             {inscriptions.map((i) => {
               if (!i.tournament) return null;
               const statut = i.tournament.statut as StatutPublic;
-              const couleur = COULEUR_STATUT[statut] ?? "text-ardoise";
+              const couleur = COULEUR_STATUT[statut] ?? "text-muted";
               return (
                 <li key={i.id}>
                   <Link
@@ -342,12 +340,12 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                     className={"block " + classeCarte(accentDepuisCouleur(couleur), true)}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <span className="font-display text-lg font-extrabold tracking-tight text-encre">
+                      <span className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
                         {i.tournament.nom}
                       </span>
                       <Badge couleur={couleur}>{LABEL_STATUT[statut] ?? i.tournament.statut}</Badge>
                     </div>
-                    <div className="mt-2 font-mono text-[0.72rem] text-ardoise">
+                    <div className="mt-2 font-texte tabular-nums text-[0.72rem] text-muted">
                       {i.tournament.format} · {i.tournament.region} ·{" "}
                       {formaterDate(i.tournament.debute_le)}
                     </div>
@@ -358,33 +356,33 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           </ul>
         )}
       </section>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.24}>
+      <Apparition delai={0.24}>
       <section className="mt-10">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SectionTitre>Tournois que j&apos;organise</SectionTitre>
           <Link
             href="/organiser/nouveau"
-            className="font-mono text-[0.7rem] text-sceau-texte underline underline-offset-3"
+            className="font-texte tabular-nums text-[0.7rem] text-accent underline underline-offset-3"
           >
             Organiser un tournoi
           </Link>
         </div>
 
         {tournoisOrganises.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-muted"}>
             Tu n&apos;organises aucun tournoi pour l&apos;instant.
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {tournoisOrganises.map((t) => {
               const estBrouillon = t.statut === "brouillon";
-              const couleur = estBrouillon ? "text-ardoise" : COULEUR_STATUT[t.statut as StatutPublic] ?? "text-ardoise";
+              const couleur = estBrouillon ? "text-muted" : COULEUR_STATUT[t.statut as StatutPublic] ?? "text-muted";
               const contenu = (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="font-display text-lg font-extrabold tracking-tight text-encre">
+                    <span className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
                       {t.nom}
                     </span>
                     <Badge couleur={couleur}>
@@ -393,7 +391,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                         : LABEL_STATUT[t.statut as StatutPublic] ?? t.statut}
                     </Badge>
                   </div>
-                  <div className="mt-2 font-mono text-[0.72rem] text-ardoise">
+                  <div className="mt-2 font-texte tabular-nums text-[0.72rem] text-muted">
                     {t.format} · {t.region} · {formaterDate(t.debute_le)}
                   </div>
                 </>
@@ -410,7 +408,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           </ul>
         )}
       </section>
-      </Reveal>
+      </Apparition>
       </div>
     </main>
   );

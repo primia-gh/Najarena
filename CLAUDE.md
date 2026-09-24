@@ -99,7 +99,7 @@ Schéma de base de données : `docs/schema.sql`.
 **Principe :** nerveux, compétitif, premium — marque de sport haut de gamme, pas « gamer grand public ». Le vert Venin est **rare**. La crédibilité du classement passe avant l'effet : pages outils (profil, tournoi, classement) denses et peu animées, accueil spectaculaire.
 
 **Traduction dans le code**
-- Jetons (couleurs, polices, tailles, espacements, rayons) : `src/app/globals.css`, second bloc `@theme` — `bg-bg`, `text-text`, `text-muted`, `bg-accent`, `text-on-accent`, `border-line`, `font-titre`, `font-texte`, `text-section`, `px-gouttiere`, `max-w-contenu`, `rounded-bouton`, utilitaires `panneau`, `fond-ecailles`, `texte-rating`, `reflet`, classe `.tableau`.
+- Jetons (couleurs, polices, tailles, espacements, rayons) : `src/app/globals.css`, bloc `@theme` — `bg-bg`, `text-text`, `text-muted`, `bg-accent`, `text-on-accent`, `border-line`, `font-titre`, `font-texte`, `text-section`, `px-gouttiere`, `max-w-contenu`, `rounded-bouton`, utilitaires `panneau`, `fond-ecailles`, `texte-rating`, `reflet`, classe `.tableau`.
 - Composants : `src/components/design/` (BoutonLien, BoutonEnvoi, badges, PastilleResultat, ChiffreRating, IndicateurConfiance, Panneau, ReperesVisee, LibelleSection, NumeroFiligrane, Tableau, Icone, Logo). Les consulter avant d'écrire un bouton, un badge ou une carte.
 - Accueil : composants propres dans `src/components/vitrine/` (ouverture, boucles, affiches générées, cartes « EXEMPLE », top 10), animations dans `vitrine.module.css`. Barre de navigation `components/design/Navbar.tsx` et `components/Footer.tsx` partagés par tout le site ; lien « Aller au contenu » dans le layout.
 - Profil joueur : affichage refait, chargement d'origine (`chargerJoueur`) inchangé ; données d'affichage ajoutées (rang national, palier, courbe de saison, équipes, annonce, rôle) dans `lib/profil-vitrine.ts`, composants dans `src/components/profil/` (courbe, bouton Partager). « Partager le CV » partage le lien public du profil ; l'export imprimable `/cv` reste réservé à l'offre Elite.
@@ -119,7 +119,7 @@ Schéma de base de données : `docs/schema.sql`.
 - **Navigation** : liens existants conservés (Tournois, Classement, Coéquipiers, Organiser, Tarifs), pas les « Équipes / Recruteurs » de la maquette tant que ces pages n'existent pas.
 - **Fond animé** : `BracketBackground` / `FondArene` remplacés par le motif d'écailles discret ; l'animation d'ouverture (logo qui se dessine) est réservée à l'accueil. `prefers-reduced-motion` coupe tout.
 
-**Transition en cours (branche `nouveau-design`)** : les anciens jetons (`encre`, `papier`, `sceau`, `laiton`, `atteste`, `ardoise`, `carte`, `trait`...), les polices Bricolage / Inter Tight / JetBrains Mono, `lib/ui.ts` et `components/ui/` + `components/accueil/` restent en place tant que des pages ne sont pas migrées. **Ne plus les utiliser dans du nouveau code** ; les supprimer une fois la dernière page passée au nouveau design. L'ancienne direction artistique (registre « sceau / laiton », sceau de fiabilité) est figée au tag git `avant-nouveau-design` ; `docs/direction-artistique.html`, `docs/fonds-animes.html` et `docs/design-system.md` la décrivent et sont **obsolètes**.
+**Migration terminée (24/09/2026)** : toutes les pages sont passées à l'identité « Venin ». Les anciens jetons (`encre`, `papier`, `sceau`, `laiton`, `atteste`, `ardoise`, `carte`, `trait`…), les polices Bricolage / Inter Tight / JetBrains Mono et les anciens composants décoratifs (fond animé, sceau de fiabilité, compteur animé) sont **supprimés**. Les pages non refaites une à une ont été converties automatiquement (couleurs, polices, largeurs, champs) ; `lib/ui.ts` et `components/ui/` (Badge, Bouton, SectionTitre, EtatVide, Squelette, CrestPalier, illustrations d'états vides) restent comme **couche de compatibilité redessinée** : mêmes noms qu'avant, nouveau style. Pour du nouveau code, utiliser `lib/design.ts` et `components/design/`. Dans `lib/ui.ts`, les noms d'accent historiques restent (`classeCarte("sceau")` = rouge attention/erreur, `"atteste"`/`"laiton"` = vert). L'ancienne direction artistique est figée au tag git `avant-nouveau-design` ; `docs/direction-artistique.html`, `docs/fonds-animes.html` et `docs/design-system.md` la décrivent et sont **obsolètes**.
 
 ---
 
@@ -141,7 +141,7 @@ Schéma de base de données : `docs/schema.sql`.
 /moi/organisation/[id]     cockpit de tournoi
 /connexion /inscription /lier-riot
 /admin                     modération, litiges
-/comment-ca-marche         guide éditorial (verdict, Glicko-2, sceau)
+/comment-ca-marche         guide éditorial (verdict, Glicko-2, indice de confiance)
 /faq                       questions de confiance, dépliées par défaut (gratuité, affiliation Riot, délais, IA)
 /journal                   journal de bord public (docs/journal réel, voir src/lib/journal.ts)
 /note-du-fondateur         positionnement produit, en 1ère personne

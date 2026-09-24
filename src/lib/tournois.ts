@@ -21,11 +21,11 @@ export const LABEL_STATUT: Record<StatutPublic, string> = {
 };
 
 export const COULEUR_STATUT: Record<StatutPublic, string> = {
-  ouvert: "text-atteste",
-  checkin: "text-laiton-texte",
-  en_cours: "text-sceau-texte",
-  termine: "text-ardoise",
-  annule: "text-ardoise",
+  ouvert: "text-accent",
+  checkin: "text-accent",
+  en_cours: "text-accent",
+  termine: "text-muted",
+  annule: "text-muted",
 };
 
 export function estStatutPublic(valeur: string | undefined): valeur is StatutPublic {
@@ -46,9 +46,9 @@ export const LABEL_NIVEAU: Record<NiveauVerdict, string> = {
 };
 
 export const COULEUR_NIVEAU: Record<NiveauVerdict, string> = {
-  code_tournoi: "text-atteste",
-  historique: "text-laiton-texte",
-  manuel: "text-ardoise",
+  code_tournoi: "text-accent",
+  historique: "text-accent",
+  manuel: "text-muted",
 };
 
 export function formaterDate(iso: string) {

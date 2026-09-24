@@ -1,7 +1,7 @@
 "use client";
 
 // Apparition au défilement de la nouvelle identité (MASTER §7 : apparitions
-// 300–450 ms). Même mécanique que l'ancien components/accueil/Reveal.tsx,
+// 300–450 ms) : fondu + léger glissement vers le haut, une seule fois,
 // durées recalées sur MASTER. Mouvement réduit : contenu affiché tel quel.
 
 import type { ReactNode } from "react";

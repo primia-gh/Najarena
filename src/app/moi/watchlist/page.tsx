@@ -10,9 +10,8 @@ import { classeCarte } from "@/lib/ui";
 import CrestPalier from "@/components/ui/CrestPalier";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Ma watchlist — Najarena",
@@ -64,37 +63,36 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
-        <Reveal>
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-5xl px-gouttiere">
+        <Apparition>
           <Link
             href="/moi"
-            className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
+            className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
           >
             ← Mon compte
           </Link>
-          <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-encre">
+          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
             Ma watchlist
           </h1>
-          <p className="mt-2 max-w-lg text-sm text-ardoise">
+          <p className="mt-2 max-w-lg text-sm text-muted">
             Les joueurs que tu suis, avec leur palier actuel.{" "}
-            <Link href="/lol/recherche" className="text-encre underline underline-offset-3">
+            <Link href="/lol/recherche" className="text-text underline underline-offset-3">
               Rechercher des joueurs
             </Link>
             .
           </p>
-        </Reveal>
+        </Apparition>
 
         {erreur && (
-          <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+          <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
         )}
         {message && (
-          <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
+          <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
         )}
 
-        <Reveal delai={0.1}>
+        <Apparition delai={0.1}>
           <section className="mt-8">
             {suivis.length === 0 ? (
               <div className="mt-3">
@@ -110,18 +108,18 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
                     rating !== undefined ? progressionPalier(rating, paliers) : { palier: null, progression: 0 };
                   return (
                     <li key={s.joueur_suivi_id} className={"flex items-center justify-between gap-3 " + classeCarte("none")}>
-                      <Link href={`/joueur/${s.joueur!.slug}`} className="text-sm font-semibold text-encre hover:underline">
+                      <Link href={`/joueur/${s.joueur!.slug}`} className="text-sm font-semibold text-text hover:underline">
                         {s.joueur!.pseudo}
                       </Link>
                       <div className="flex shrink-0 items-center gap-3">
                         {palier ? (
                           <CrestPalier
                             nom={palier.nom}
-                            couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-ardoise)"}
+                            couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-muted)"}
                             progression={progression}
                           />
                         ) : (
-                          <span className="font-mono text-[0.66rem] text-ardoise">Non classé</span>
+                          <span className="font-texte tabular-nums text-[0.66rem] text-muted">Non classé</span>
                         )}
                         <form action={retirerDeLaWatchlist}>
                           <input type="hidden" name="joueur_suivi_id" value={s.joueur_suivi_id} />
@@ -129,7 +127,7 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
                           <button
                             type="submit"
                             aria-label={`Retirer ${s.joueur!.pseudo} de la watchlist`}
-                            className="font-mono text-[0.62rem] text-sceau-texte underline underline-offset-3"
+                            className="font-texte tabular-nums text-[0.62rem] text-danger underline underline-offset-3"
                           >
                             Retirer
                           </button>
@@ -141,7 +139,7 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
               </ul>
             )}
           </section>
-        </Reveal>
+        </Apparition>
       </div>
     </main>
   );

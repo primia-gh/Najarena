@@ -7,9 +7,8 @@ import { COULEUR_PALIER } from "@/lib/paliers";
 import CrestPalier from "@/components/ui/CrestPalier";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationSceauVide from "@/components/ui/IllustrationSceauVide";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Classement LoL — Najarena",
@@ -60,21 +59,20 @@ export default async function ClassementPage() {
   const paliersTries = [...paliers].sort((a, b) => a.ratingMin - b.ratingMin);
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
-      <Reveal>
-        <span className="block font-mono text-[0.66rem] tracking-[0.22em] text-ardoise uppercase">
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <Apparition>
+        <span className="block font-texte text-libelle font-medium text-muted uppercase">
           League of Legends
         </span>
-        <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight text-encre">
+        <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
           Classement
         </h1>
         {saison?.nom && (
-          <p className="mt-1 font-mono text-[0.72rem] text-ardoise">{saison.nom}</p>
+          <p className="mt-1 font-texte tabular-nums text-[0.72rem] text-muted">{saison.nom}</p>
         )}
-        <p className="mt-3 max-w-lg text-sm text-ardoise">
+        <p className="mt-3 max-w-lg text-sm text-muted">
           Calculé en Glicko-2, recalculé à la clôture de chaque tournoi. Un joueur entre au
           classement une fois son incertitude (RD) descendue sous 150 — une dizaine de matchs ; en
           dessous, il reste visible mais non classé.
@@ -84,11 +82,11 @@ export default async function ClassementPage() {
             {paliersTries.map((p, i) => {
               const suivant = paliersTries[i + 1]?.ratingMin;
               const seuil = i === 0 && suivant !== undefined ? `< ${suivant}` : String(p.ratingMin);
-              const couleur = COULEUR_PALIER[p.nom.toLowerCase()] ?? "var(--color-ardoise)";
+              const couleur = COULEUR_PALIER[p.nom.toLowerCase()] ?? "var(--color-muted)";
               return (
                 <span
                   key={p.nom}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-trait bg-carte px-2.5 py-1 font-mono text-[0.64rem] tracking-[0.06em] uppercase"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 font-texte tabular-nums text-[0.64rem] tracking-[0.06em] uppercase"
                   style={{ color: couleur }}
                 >
                   <span className="h-1.5 w-1.5 rounded-full" style={{ background: couleur }} />
@@ -98,9 +96,9 @@ export default async function ClassementPage() {
             })}
           </div>
         )}
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.1}>
+      <Apparition delai={0.1}>
       <div className="mt-8">
         {!saison ? (
           <EtatVide illustration={<IllustrationSceauVide />}>
@@ -108,7 +106,7 @@ export default async function ClassementPage() {
             en cours pour l&apos;instant.
           </EtatVide>
         ) : erreurClassement ? (
-          <p className={classeCarte("sceau") + " text-sm text-sceau-texte"}>
+          <p className={classeCarte("sceau") + " text-sm text-danger"}>
             Impossible de charger le classement pour l&apos;instant. Réessaie
             dans un instant.
           </p>
@@ -118,21 +116,21 @@ export default async function ClassementPage() {
             classement demande une dizaine de matchs joués.
           </EtatVide>
         ) : (
-          <ol className="overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
+          <ol className="overflow-hidden rounded-[3px] border border-line bg-surface shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
             {classement.map((r, i) => {
               const { palier, progression } = progressionPalier(r.rating, paliers);
               const podium = i < 3;
               return (
                 <li
                   key={r.profile?.slug ?? i}
-                  className={`grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 border-b border-trait px-4 py-3 text-sm last:border-b-0 ${
-                    podium ? "bg-laiton/8" : ""
+                  className={`grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 border-b border-line px-4 py-3 text-sm last:border-b-0 ${
+                    podium ? "bg-accent/8" : ""
                   }`}
                 >
-                  <span className={`font-mono text-[0.8rem] ${podium ? "font-bold text-laiton-texte" : "text-ardoise"}`}>
+                  <span className={`font-texte tabular-nums text-[0.8rem] ${podium ? "font-bold text-accent" : "text-muted"}`}>
                     #{i + 1}
                   </span>
-                  <span className="font-medium text-encre">
+                  <span className="font-medium text-text">
                     {r.profile ? (
                       <Link href={`/joueur/${r.profile.slug}`} className="hover:underline">
                         {r.profile.pseudo}
@@ -144,14 +142,14 @@ export default async function ClassementPage() {
                   {palier ? (
                     <CrestPalier
                       nom={palier.nom}
-                      couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-ardoise)"}
+                      couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-muted)"}
                       progression={progression}
                     />
                   ) : (
-                    <span className="text-ardoise">—</span>
+                    <span className="text-muted">—</span>
                   )}
-                  <span className="font-mono text-base font-bold text-encre">{arrondir(r.rating)}</span>
-                  <span className="font-mono text-[0.72rem] text-ardoise">
+                  <span className="font-texte tabular-nums text-base font-bold text-text">{arrondir(r.rating)}</span>
+                  <span className="font-texte tabular-nums text-[0.72rem] text-muted">
                     {r.matchs_joues} matchs
                   </span>
                 </li>
@@ -160,7 +158,7 @@ export default async function ClassementPage() {
           </ol>
         )}
       </div>
-      </Reveal>
+      </Apparition>
       </div>
     </main>
   );

@@ -13,9 +13,8 @@ import SectionTitre from "@/components/ui/SectionTitre";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import CrestPalier from "@/components/ui/CrestPalier";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Trouver un coéquipier — Najarena",
@@ -120,42 +119,40 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
     await chargerCoequipiers();
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
-      <Reveal>
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <Apparition>
       <Link
         href="/lol"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
+        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         ← League of Legends
       </Link>
 
-      <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-encre">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
         Trouver un coéquipier
       </h1>
-      <p className="mt-2 max-w-lg text-sm text-ardoise">
+      <p className="mt-2 max-w-lg text-sm text-muted">
         Pour jouer en 5v5 (les tournois 5v5 ouvriront bientôt) — une équipe compte jusqu&apos;à{" "}
         {TAILLE_MAX_EQUIPE} joueurs. Publie une annonce pour te rendre visible, ou invite directement un joueur disponible dans une équipe
         où il reste de la place.{" "}
-        <Link href="/equipe/nouvelle" className="text-encre underline underline-offset-3">
+        <Link href="/equipe/nouvelle" className="text-text underline underline-offset-3">
           Créer une équipe
         </Link>
         .
       </p>
-      </Reveal>
+      </Apparition>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
       )}
       {message && (
-        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
+        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
       )}
 
       {utilisateur ? (
         <form action={publierRechercheCoequipier} className={"mt-6 flex flex-col gap-2 " + classeCarte("none")}>
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             {monAnnonce ? "Modifier mon annonce" : "Se déclarer disponible"}
           </span>
           <textarea
@@ -164,7 +161,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
             maxLength={200}
             defaultValue={monAnnonce?.message ?? ""}
             placeholder="Ex. « Support, dispo le soir, cherche une équipe régulière »"
-            className="resize-none rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+            className="resize-none rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
           <div className="flex items-center gap-3">
             <Bouton libelleEnCours="Envoi…">
@@ -174,7 +171,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
               <button
                 type="submit"
                 formAction={retirerRechercheCoequipier}
-                className="font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
+                className="font-texte tabular-nums text-[0.66rem] text-danger underline underline-offset-3"
               >
                 Retirer mon annonce
               </button>
@@ -182,15 +179,15 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
           </div>
         </form>
       ) : (
-        <p className={"mt-6 " + classeCarte("none") + " text-sm text-ardoise"}>
-          <Link href="/connexion" className="text-encre underline underline-offset-3">
+        <p className={"mt-6 " + classeCarte("none") + " text-sm text-muted"}>
+          <Link href="/connexion" className="text-text underline underline-offset-3">
             Connecte-toi
           </Link>{" "}
           pour publier une annonce ou inviter un joueur dans ton équipe.
         </p>
       )}
 
-      <Reveal delai={0.1}>
+      <Apparition delai={0.1}>
       <section className="mt-10">
         <SectionTitre>Joueurs disponibles</SectionTitre>
         {annonces.length === 0 ? (
@@ -204,7 +201,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
             {annonces.map((a) => (
               <li key={a.profile_id} className={classeCarte("none")}>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex items-center gap-2 text-sm font-semibold text-encre">
+                  <span className="flex items-center gap-2 text-sm font-semibold text-text">
                     {a.profile ? (
                       <Link href={`/joueur/${a.profile.slug}`} className="hover:underline">
                         {a.profile.pseudo}
@@ -216,7 +213,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                       const offre = offresParJoueur.get(a.profile_id)?.offre;
                       return offre && offre !== "gratuit" ? (
                         <span
-                          className="rounded-full border border-trait px-2 py-0.5 font-mono text-[0.58rem] tracking-[0.06em] uppercase"
+                          className="rounded-full border border-line px-2 py-0.5 font-texte tabular-nums text-[0.58rem] tracking-[0.06em] uppercase"
                           style={{ color: COULEUR_OFFRE[offre] }}
                         >
                           {LABEL_OFFRE[offre]}
@@ -230,16 +227,16 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                     return palier ? (
                       <CrestPalier
                         nom={palier.nom}
-                        couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-ardoise)"}
+                        couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-muted)"}
                         progression={info.palier.progression}
                       />
                     ) : null;
                   })()}
                 </div>
-                {a.message && <p className="mt-1 text-sm text-ardoise">{a.message}</p>}
+                {a.message && <p className="mt-1 text-sm text-muted">{a.message}</p>}
 
                 {utilisateur?.id !== a.profile_id && mesEquipesAvecPlace.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2 border-t border-trait pt-3">
+                  <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                     {mesEquipesAvecPlace.map((e) => (
                       <form action={inviterMembre} key={e.id}>
                         <input type="hidden" name="team_id" value={e.id} />
@@ -248,7 +245,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                         <button
                           type="submit"
                           aria-label={`Inviter ${a.profile?.pseudo ?? "ce joueur"} dans ${e.nom}`}
-                          className="rounded-[3px] border border-trait px-3 py-1.5 font-mono text-[0.64rem] text-encre transition hover:border-encre"
+                          className="rounded-[3px] border border-line px-3 py-1.5 font-texte tabular-nums text-[0.64rem] text-text transition hover:border-text"
                         >
                           Inviter dans {e.tag} {e.nom}
                         </button>
@@ -261,7 +258,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
           </ul>
         )}
       </section>
-      </Reveal>
+      </Apparition>
       </div>
     </main>
   );

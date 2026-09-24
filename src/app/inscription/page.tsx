@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { sInscrire, seConnecterAvecDiscord } from "@/lib/auth-actions";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
-import FondArene from "@/components/accueil/FondArene";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Inscription — Najarena",
@@ -21,24 +21,24 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
   const { erreur } = await searchParams;
 
   return (
-    <main className="relative flex min-h-screen flex-col justify-center overflow-hidden py-16">
-      <FondArene />
-      <Reveal className="relative mx-auto w-full max-w-md px-6">
-      <h1 className="font-display text-3xl font-extrabold tracking-tight text-encre">
+    <main className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <Apparition className="relative mx-auto w-full max-w-md px-6">
+      <h1 className="font-titre uppercase text-section font-black tracking-[1px] text-text">
         Créer un compte
       </h1>
-      <p className="mt-1 text-sm text-ardoise">Ton niveau, vérifié — dès ton premier tournoi.</p>
-      <p className="mt-2 text-sm text-ardoise">
+      <p className="mt-1 text-sm text-muted">Ton niveau, vérifié — dès ton premier tournoi.</p>
+      <p className="mt-2 text-sm text-muted">
         Le Riot ID se lie ensuite, depuis ton profil.
       </p>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
       )}
 
       <form action={sInscrire} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Pseudo
           </span>
           <input
@@ -48,12 +48,12 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             minLength={3}
             maxLength={20}
             autoComplete="username"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             E-mail
           </span>
           <input
@@ -61,12 +61,12 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             type="email"
             required
             autoComplete="email"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Mot de passe
           </span>
           <input
@@ -75,21 +75,21 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             required
             minLength={6}
             autoComplete="new-password"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
-        <label className="flex items-start gap-2 text-sm text-ardoise">
+        <label className="flex items-start gap-2 text-sm text-muted">
           <input
             name="age_confirme"
             type="checkbox"
             required
-            className="mt-0.5 accent-sceau"
+            className="mt-0.5 accent-accent"
           />
           <span>
             J&apos;ai au moins 15 ans, ou j&apos;ai l&apos;autorisation de mon
             représentant légal (voir les{" "}
-            <Link href="/cgu" className="text-encre underline underline-offset-3">
+            <Link href="/cgu" className="text-text underline underline-offset-3">
               CGU
             </Link>
             ).
@@ -102,18 +102,18 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
       </form>
 
       <div className="mt-6 flex items-center gap-3">
-        <span className="h-px flex-1 bg-trait" />
-        <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">ou</span>
-        <span className="h-px flex-1 bg-trait" />
+        <span className="h-px flex-1 bg-line" />
+        <span className="font-texte text-mini font-medium text-muted uppercase">ou</span>
+        <span className="h-px flex-1 bg-line" />
       </div>
 
       <form action={seConnecterAvecDiscord} className="mt-6 flex flex-col gap-3">
-        <label className="flex items-start gap-2 text-sm text-ardoise">
-          <input name="age_confirme" type="checkbox" required className="mt-0.5 accent-sceau" />
+        <label className="flex items-start gap-2 text-sm text-muted">
+          <input name="age_confirme" type="checkbox" required className="mt-0.5 accent-accent" />
           <span>
             J&apos;ai au moins 15 ans, ou j&apos;ai l&apos;autorisation de mon
             représentant légal (voir les{" "}
-            <Link href="/cgu" className="text-encre underline underline-offset-3">
+            <Link href="/cgu" className="text-text underline underline-offset-3">
               CGU
             </Link>
             ).
@@ -124,13 +124,13 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
         </Bouton>
       </form>
 
-      <p className="mt-6 text-sm text-ardoise">
+      <p className="mt-6 text-sm text-muted">
         Déjà un compte ?{" "}
-        <Link href="/connexion" className="text-encre underline underline-offset-3">
+        <Link href="/connexion" className="text-text underline underline-offset-3">
           Se connecter
         </Link>
       </p>
-      </Reveal>
+      </Apparition>
     </main>
   );
 }

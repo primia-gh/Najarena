@@ -5,8 +5,11 @@
 export const COULEUR_PALIER: Record<string, string> = {
   bronze: "#8a6a52",
   argent: "#9aa4ae",
-  or: "var(--color-laiton)",
+  // Valeurs figées (refonte Venin, 24/09/2026) : les paliers sont la seule
+  // exception au « tout vert » (CLAUDE.md §7) et ne doivent pas dépendre
+  // des anciens jetons, supprimés à la fin de la refonte.
+  or: "#d2a257",
   platine: "#4fb8ae",
   diamant: "#6fa8e8",
-  champion: "var(--color-sceau)",
+  champion: "#c4485c",
 };

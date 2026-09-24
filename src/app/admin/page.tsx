@@ -11,9 +11,8 @@ import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Administration — Najarena",
@@ -41,13 +40,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (!admin) {
     return (
-      <main className="mx-auto max-w-md px-6 pt-28 pb-16">
-        <p className={classeCarte("sceau") + " text-sm text-sceau-texte"}>
+      <main className="mx-auto max-w-md px-gouttiere pt-32 pb-24 font-texte text-text">
+        <p className={classeCarte("sceau") + " text-sm text-danger"}>
           Accès réservé aux administrateurs.
         </p>
         <Link
           href="/moi"
-          className="mt-4 inline-block text-sm text-ardoise underline underline-offset-3 hover:text-encre"
+          className="mt-4 inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
         >
           Retour à mon compte
         </Link>
@@ -97,75 +96,74 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const offresParCompte = await chargerOffres(supabase, comptes.map((c) => c.id));
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
-      <Reveal>
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <Apparition>
       <Link
         href="/moi"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
+        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         ← Mon compte
       </Link>
 
-      <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-encre">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
         Administration
       </h1>
-      <p className="mt-1 font-mono text-[0.72rem] text-ardoise">Modération · Litiges</p>
+      <p className="mt-1 font-texte tabular-nums text-[0.72rem] text-muted">Modération · Litiges</p>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
       )}
       {message && (
-        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
+        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
       )}
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.1}>
+      <Apparition delai={0.1}>
       <section className="mt-10">
         <SectionTitre>Vue d&apos;ensemble</SectionTitre>
-        <div className="mt-3 grid grid-cols-2 overflow-hidden rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)] sm:grid-cols-4">
-          <div className="border-r border-b border-trait p-4 sm:border-b-0">
-            <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
+        <div className="mt-3 grid grid-cols-2 overflow-hidden rounded-[3px] border border-line bg-surface shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)] sm:grid-cols-4">
+          <div className="border-r border-b border-line p-4 sm:border-b-0">
+            <div className="font-texte tabular-nums text-[0.6rem] tracking-[0.16em] text-muted uppercase">
               Joueurs
             </div>
-            <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
+            <div className="mt-0.5 font-texte tabular-nums text-2xl font-bold tracking-tight text-text">
               {totalJoueurs ?? 0}
             </div>
           </div>
-          <div className="border-b border-trait p-4 sm:border-r sm:border-b-0">
-            <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
+          <div className="border-b border-line p-4 sm:border-r sm:border-b-0">
+            <div className="font-texte tabular-nums text-[0.6rem] tracking-[0.16em] text-muted uppercase">
               Tournois actifs
             </div>
-            <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
+            <div className="mt-0.5 font-texte tabular-nums text-2xl font-bold tracking-tight text-text">
               {tournoisActifs ?? 0}
             </div>
           </div>
-          <div className="border-r border-trait p-4">
-            <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
+          <div className="border-r border-line p-4">
+            <div className="font-texte tabular-nums text-[0.6rem] tracking-[0.16em] text-muted uppercase">
               Tournois créés
             </div>
-            <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
+            <div className="mt-0.5 font-texte tabular-nums text-2xl font-bold tracking-tight text-text">
               {tournoisTotal ?? 0}
             </div>
           </div>
           <div className="p-4">
-            <div className="font-mono text-[0.6rem] tracking-[0.16em] text-ardoise uppercase">
+            <div className="font-texte tabular-nums text-[0.6rem] tracking-[0.16em] text-muted uppercase">
               Matchs enregistrés
             </div>
-            <div className="mt-0.5 font-mono text-2xl font-bold tracking-tight text-encre">
+            <div className="mt-0.5 font-texte tabular-nums text-2xl font-bold tracking-tight text-text">
               {matchsEnregistres ?? 0}
             </div>
           </div>
         </div>
       </section>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.12}>
+      <Apparition delai={0.12}>
       <section className="mt-10">
         <SectionTitre>Attribuer une offre</SectionTitre>
-        <p className="mt-1 text-sm text-ardoise">
+        <p className="mt-1 text-sm text-muted">
           En attendant Stripe — comptes offerts, tests, streamers partenaires.
         </p>
         <form action={attribuerOffreAdmin} className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -176,7 +174,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               type="text"
               required
               placeholder="Pseudo du joueur"
-              className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+              className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             />
           </label>
           <label>
@@ -184,7 +182,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <select
               name="offre"
               defaultValue="verifie"
-              className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau sm:w-auto"
+              className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto"
             >
               <option value="gratuit">Gratuit (révoquer)</option>
               <option value="verifie">Vérifié</option>
@@ -195,9 +193,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <Bouton libelleEnCours="Attribution…">Attribuer</Bouton>
         </form>
       </section>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.15}>
+      <Apparition delai={0.15}>
       <section className="mt-10">
         <SectionTitre>Derniers inscrits</SectionTitre>
         {comptes.length === 0 ? (
@@ -207,23 +205,23 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </EtatVide>
           </div>
         ) : (
-          <div className="mt-3 overflow-x-auto rounded-[3px] border border-trait bg-carte shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
+          <div className="mt-3 overflow-x-auto rounded-[3px] border border-line bg-surface shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-trait">
-                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                <tr className="border-b border-line">
+                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
                     Joueur
                   </th>
-                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
                     Inscrit le
                   </th>
-                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
                     Riot ID
                   </th>
-                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
                     Rôle
                   </th>
-                  <th className="px-4 py-2 font-mono text-[0.6rem] tracking-[0.12em] text-ardoise uppercase">
+                  <th className="px-4 py-2 font-texte tabular-nums text-[0.6rem] tracking-[0.12em] text-muted uppercase">
                     Offre
                   </th>
                 </tr>
@@ -232,26 +230,26 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 {comptes.map((c) => {
                   const offre = offresParCompte.get(c.id)?.offre as Exclude<Offre, "gratuit"> | undefined;
                   return (
-                  <tr key={c.id} className="border-b border-trait last:border-b-0">
+                  <tr key={c.id} className="border-b border-line last:border-b-0">
                     <td className="px-4 py-2">
-                      <Link href={`/joueur/${c.slug}`} className="font-medium text-encre hover:underline">
+                      <Link href={`/joueur/${c.slug}`} className="font-medium text-text hover:underline">
                         {c.pseudo}
                       </Link>
                     </td>
-                    <td className="px-4 py-2 font-mono text-[0.72rem] text-ardoise">
+                    <td className="px-4 py-2 font-texte tabular-nums text-[0.72rem] text-muted">
                       {formaterDate(c.created_at)}
                     </td>
-                    <td className="px-4 py-2 font-mono text-[0.72rem]">
+                    <td className="px-4 py-2 font-texte tabular-nums text-[0.72rem]">
                       {c.game_accounts.some((g) => g.verifie_le) ? (
-                        <span className="text-atteste">Vérifié</span>
+                        <span className="text-accent">Vérifié</span>
                       ) : (
-                        <span className="text-ardoise">Non lié</span>
+                        <span className="text-muted">Non lié</span>
                       )}
                     </td>
-                    <td className="px-4 py-2 font-mono text-[0.72rem] text-ardoise">
+                    <td className="px-4 py-2 font-texte tabular-nums text-[0.72rem] text-muted">
                       {c.admins ? "Admin" : "Joueur"}
                     </td>
-                    <td className="px-4 py-2 font-mono text-[0.72rem] text-ardoise">
+                    <td className="px-4 py-2 font-texte tabular-nums text-[0.72rem] text-muted">
                       {offre ? LABEL_OFFRE[offre] : "Gratuit"}
                     </td>
                   </tr>
@@ -262,18 +260,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </div>
         )}
       </section>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.2}>
+      <Apparition delai={0.2}>
       <section className="mt-10">
         <SectionTitre>Litiges ouverts ({litigesOuverts.length})</SectionTitre>
 
         {erreurLitiges ? (
-          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>
+          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-danger"}>
             Impossible de charger les litiges pour l&apos;instant.
           </p>
         ) : litigesOuverts.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-muted"}>
             Aucun litige ouvert.
           </p>
         ) : (
@@ -283,17 +281,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 {l.match?.tournament && (
                   <Link
                     href={`/lol/tournois/${l.match.tournament.slug}`}
-                    className="font-mono text-[0.66rem] text-ardoise uppercase hover:text-encre"
+                    className="font-texte tabular-nums text-[0.66rem] text-muted uppercase hover:text-text"
                   >
                     {l.match.tournament.nom} · Tour {l.match.tour}
                   </Link>
                 )}
-                <p className="mt-1 text-sm text-encre">
+                <p className="mt-1 text-sm text-text">
                   Ouvert par{" "}
                   <span className="font-medium">{l.ouvert_par?.pseudo ?? "un joueur"}</span> le{" "}
                   {formaterDate(l.cree_le)}
                 </p>
-                <p className="mt-1 text-sm text-ardoise">{l.motif}</p>
+                <p className="mt-1 text-sm text-muted">{l.motif}</p>
                 <form action={resoudreLitigeAdmin} className="mt-3 flex flex-col gap-2">
                   <input type="hidden" name="dispute_id" value={l.id} />
                   <label>
@@ -308,7 +306,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       type="text"
                       required
                       placeholder="Résolution (obligatoire)"
-                      className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+                      className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     />
                   </label>
                   <Bouton
@@ -324,13 +322,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </ul>
         )}
       </section>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.25}>
+      <Apparition delai={0.25}>
       <section className="mt-10">
         <SectionTitre>Litiges résolus</SectionTitre>
         {litigesResolus.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-ardoise"}>
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-muted"}>
             Aucun litige résolu pour l&apos;instant.
           </p>
         ) : (
@@ -338,12 +336,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             {litigesResolus.map((l) => (
               <li key={l.id} className={classeCarte("atteste")}>
                 {l.match?.tournament && (
-                  <span className="font-mono text-[0.66rem] text-ardoise uppercase">
+                  <span className="font-texte tabular-nums text-[0.66rem] text-muted uppercase">
                     {l.match.tournament.nom} · Tour {l.match.tour}
                   </span>
                 )}
-                <p className="mt-1 text-sm text-encre">{l.motif}</p>
-                <p className="mt-1 text-sm text-atteste">
+                <p className="mt-1 text-sm text-text">{l.motif}</p>
+                <p className="mt-1 text-sm text-accent">
                   Résolu par {l.resolu_par?.pseudo ?? "un administrateur"} : {l.resolution}
                 </p>
               </li>
@@ -351,7 +349,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </ul>
         )}
       </section>
-      </Reveal>
+      </Apparition>
       </div>
     </main>
   );

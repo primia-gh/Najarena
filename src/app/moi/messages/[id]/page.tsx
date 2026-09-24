@@ -6,9 +6,8 @@ import { envoyerMessage } from "@/lib/messagerie-actions";
 import { formaterDate } from "@/lib/tournois";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Conversation — Najarena",
@@ -63,48 +62,47 @@ export default async function ConversationPage({ params, searchParams }: Convers
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-2xl px-6">
-        <Reveal>
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-3xl px-gouttiere">
+        <Apparition>
           <Link
             href="/moi/messages"
-            className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
+            className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
           >
             ← Messages
           </Link>
-          <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-encre">
+          <h1 className="mt-2 font-titre uppercase text-section font-black tracking-[1px] text-text">
             {autre?.pseudo ?? "Joueur inconnu"}
           </h1>
-        </Reveal>
+        </Apparition>
 
         {erreur && (
-          <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+          <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
         )}
 
-        <Reveal delai={0.1}>
+        <Apparition delai={0.1}>
           <div className="mt-6 flex flex-col gap-3">
             {messages.map((m) => {
               const estMoi = m.expediteur_id === userData.user!.id;
               return (
                 <div
                   key={m.id}
-                  className={`max-w-[80%] rounded-[3px] border border-trait px-3 py-2 text-sm ${
-                    estMoi ? "self-end bg-carte text-encre" : "self-start bg-papier text-encre"
+                  className={`max-w-[80%] rounded-[3px] border border-line px-3 py-2 text-sm ${
+                    estMoi ? "self-end bg-surface text-text" : "self-start bg-bg text-text"
                   }`}
                 >
                   <p>{m.contenu}</p>
-                  <span className="mt-1 block font-mono text-[0.62rem] text-ardoise">
+                  <span className="mt-1 block font-texte tabular-nums text-[0.62rem] text-muted">
                     {formaterDate(m.envoye_le)}
                   </span>
                 </div>
               );
             })}
           </div>
-        </Reveal>
+        </Apparition>
 
-        <Reveal delai={0.15}>
+        <Apparition delai={0.15}>
           <form action={envoyerMessage} className="mt-6 flex flex-col gap-2">
             <input type="hidden" name="conversation_id" value={conversation.id} />
             <textarea
@@ -113,13 +111,13 @@ export default async function ConversationPage({ params, searchParams }: Convers
               maxLength={2000}
               required
               placeholder="Écris ton message…"
-              className="resize-none rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+              className="resize-none rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             />
             <Bouton libelleEnCours="Envoi…" className="self-start">
               Envoyer
             </Bouton>
           </form>
-        </Reveal>
+        </Apparition>
       </div>
     </main>
   );

@@ -7,8 +7,8 @@ import { lierRiotId, verifierRiotId } from "@/lib/riot-actions";
 import { REGIONS, obtenirVersionDDragon, urlIconeProfil } from "@/lib/riot";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
-import FondArene from "@/components/accueil/FondArene";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Lier mon Riot ID — Najarena",
@@ -36,32 +36,32 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
     .maybeSingle();
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <div className="relative mx-auto max-w-md px-6">
-      <Reveal>
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-md px-gouttiere">
+      <Apparition>
       <Link
         href="/moi"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
+        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         ← Mon compte
       </Link>
 
-      <h1 className="mt-6 font-display text-3xl font-extrabold tracking-tight text-encre">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
         Lier mon Riot ID
       </h1>
-      <p className="mt-1 text-sm text-ardoise">
+      <p className="mt-1 text-sm text-muted">
         Cette vérification prouve que le compte t&apos;appartient — elle sert de base à ton CV
         e-sport vérifié.
       </p>
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
       )}
 
       {compte?.verifie_le ? (
         <div className={"mt-6 " + classeCarte("atteste")}>
-          <p className="font-mono text-sm text-atteste">
+          <p className="font-texte tabular-nums text-sm text-accent">
             Vérifié : {compte.riot_game_name}#{compte.riot_tag_line} · {compte.region}
           </p>
         </div>
@@ -70,7 +70,7 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
       ) : (
         <EtapeSaisie />
       )}
-      </Reveal>
+      </Apparition>
       </div>
     </main>
   );
@@ -79,13 +79,13 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
 function EtapeSaisie() {
   return (
     <>
-      <p className="mt-2 text-sm text-ardoise">
+      <p className="mt-2 text-sm text-muted">
         Entre ton Riot ID exactement comme il apparaît dans le client League
         of Legends.
       </p>
       <form action={lierRiotId} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Riot ID
           </span>
           <input
@@ -93,19 +93,19 @@ function EtapeSaisie() {
             type="text"
             required
             placeholder="Pseudo#TAG"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Région
           </span>
           <select
             name="region"
             required
             defaultValue=""
-            className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre"
+            className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
           >
             <option value="" disabled>
               Choisis ta région
@@ -138,7 +138,7 @@ async function EtapeVerification({
 
   return (
     <div className="mt-6">
-      <p className="text-sm text-ardoise">
+      <p className="text-sm text-muted">
         Pour prouver que ce compte t&apos;appartient, change ton icône de
         profil en jeu pour celle-ci, sauvegarde, puis reviens ici.
       </p>
@@ -148,7 +148,7 @@ async function EtapeVerification({
         alt={`Icône de profil numéro ${defiIconeId}`}
         width={96}
         height={96}
-        className="mt-4 rounded-[3px] border border-trait"
+        className="mt-4 rounded-[3px] border border-line"
         unoptimized
       />
 

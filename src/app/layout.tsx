@@ -1,39 +1,12 @@
 import type { Metadata } from "next";
-import {
-  Big_Shoulders,
-  Bricolage_Grotesque,
-  Chakra_Petch,
-  Inter_Tight,
-  JetBrains_Mono,
-} from "next/font/google";
+import { Big_Shoulders, Chakra_Petch } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/design/Navbar";
 import "./globals.css";
 
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
-  subsets: ["latin"],
-  weight: ["800"],
-});
-
-const interTight = Inter_Tight({
-  variable: "--font-inter-tight",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-});
-
-// Nouvelle identité (design-system/najarena/MASTER.md §3). Les trois
-// polices ci-dessus restent chargées tant que des pages n'ont pas été
-// migrées (refonte page par page sur la branche nouveau-design) — à
-// retirer une fois la dernière page passée au nouveau design.
+// Polices de l'identité « Venin » (design-system/najarena/MASTER.md §3).
 // "Big Shoulders Display" a été fusionné par Google dans la famille
 // variable "Big Shoulders" : l'axe opsz est calé sur 72 (= la coupe
 // Display) dans globals.css, --font-titre.
@@ -72,9 +45,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${bricolage.variable} ${interTight.variable} ${jetbrainsMono.variable} ${bigShoulders.variable} ${chakraPetch.variable} h-full antialiased`}
+      className={`${bigShoulders.variable} ${chakraPetch.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-body">
+      <body className="min-h-full flex flex-col font-texte">
         {/* Lien d'évitement : premier élément atteint au clavier, il saute la
             barre de navigation (vérification ui-ux-pro-max, « skip links »). */}
         <a

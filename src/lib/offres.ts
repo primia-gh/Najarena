@@ -14,8 +14,10 @@ export const LABEL_OFFRE: Record<Exclude<Offre, "gratuit">, string> = {
 };
 
 export const COULEUR_OFFRE: Record<Exclude<Offre, "gratuit">, string> = {
-  verifie: "var(--color-laiton)",
-  elite: "var(--color-sceau)",
+  // Refonte Venin (24/09/2026) : Vérifié en vert, Elite en or, Organisateur
+  // en bleu-vert — trois teintes distinctes, lisibles sur fond sombre (≥ 4.5:1).
+  verifie: "var(--color-accent)",
+  elite: "#d2a257",
   organisateur: "#4fb8ae",
 };
 

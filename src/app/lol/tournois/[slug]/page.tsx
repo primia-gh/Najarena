@@ -41,7 +41,7 @@ import OngletsTournoi from "@/components/tournoi/OngletsTournoi";
 // "Non classé" n'est pas un palier réel (table tiers) : jamais de rating
 // affiché tant que le RD n'est pas descendu sous le seuil de classement
 // (CLAUDE.md §4) — voir joueur/[pseudo] pour le même traitement.
-const COULEUR_NON_CLASSE = "var(--color-ardoise)";
+const COULEUR_NON_CLASSE = "var(--color-muted)";
 
 interface TournoiPageProps {
   params: Promise<{ slug: string }>;

@@ -6,9 +6,8 @@ import { formaterDate } from "@/lib/tournois";
 import { classeCarte } from "@/lib/ui";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Messages — Najarena",
@@ -54,23 +53,22 @@ export default async function MessagesPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
-        <Reveal>
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-5xl px-gouttiere">
+        <Apparition>
           <Link
             href="/moi"
-            className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
+            className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
           >
             ← Mon compte
           </Link>
-          <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-encre">
+          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
             Messages
           </h1>
-        </Reveal>
+        </Apparition>
 
-        <Reveal delai={0.1}>
+        <Apparition delai={0.1}>
           <section className="mt-8">
             {conversations.length === 0 ? (
               <div className="mt-3">
@@ -87,18 +85,18 @@ export default async function MessagesPage() {
                     <li key={c.id}>
                       <Link
                         href={`/moi/messages/${c.id}`}
-                        className={"flex items-center justify-between gap-3 " + classeCarte(dernier?.nonLu ? "sceau" : "none", true)}
+                        className={"flex items-center justify-between gap-3 " + classeCarte(dernier?.nonLu ? "atteste" : "none", true)}
                       >
                         <div className="min-w-0">
-                          <span className="text-sm font-semibold text-encre">
+                          <span className="text-sm font-semibold text-text">
                             {autre?.pseudo ?? "Joueur inconnu"}
                           </span>
                           {dernier && (
-                            <p className="mt-0.5 truncate text-sm text-ardoise">{dernier.contenu}</p>
+                            <p className="mt-0.5 truncate text-sm text-muted">{dernier.contenu}</p>
                           )}
                         </div>
                         {dernier && (
-                          <span className="shrink-0 font-mono text-[0.66rem] text-ardoise">
+                          <span className="shrink-0 font-texte tabular-nums text-[0.66rem] text-muted">
                             {formaterDate(dernier.envoyeLe)}
                           </span>
                         )}
@@ -109,7 +107,7 @@ export default async function MessagesPage() {
               </ul>
             )}
           </section>
-        </Reveal>
+        </Apparition>
       </div>
     </main>
   );

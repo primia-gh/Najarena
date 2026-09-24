@@ -3,5 +3,5 @@
 // prefers-reduced-motion via la règle globale sur .animate-pulse
 // (globals.css).
 export default function Squelette({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-[3px] bg-carte ${className}`} />;
+  return <div className={`animate-pulse rounded-carte bg-surface ${className}`} />;
 }

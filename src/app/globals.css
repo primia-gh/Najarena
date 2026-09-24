@@ -1,41 +1,10 @@
 @import "tailwindcss";
 
-@theme {
-  --color-encre: #e7e6e1;
-  --color-papier: #0b0e14;
-  --color-sceau: #c4485c;
-  --color-sceau-lueur: rgba(196, 72, 92, 0.35);
-  /* #C4485C ne passe pas WCAG AA en texte sur papier/carte (3.6-4.07:1,
-     il faut 4.5:1) — même piège que laiton-texte sur l'ancien registre
-     clair, revérifié le 13/09/2026. Réservé au texte ; #c4485c reste la
-     référence pour tout usage décoratif (bordures, fonds, icônes,
-     focus ring) où le seuil est 3:1, déjà largement passé. */
-  --color-sceau-texte: #cd6374;
-  --color-laiton: #d2a257;
-  --color-laiton-texte: #d2a257;
-  --color-laiton-lueur: rgba(210, 162, 87, 0.24);
-  --color-atteste: #3e9c6e;
-  --color-atteste-lueur: rgba(62, 156, 110, 0.24);
-  --color-ardoise: #8a94a1;
-
-  /* Structure du registre (voir docs/direction-artistique.html) : papier =
-     fond de page, fond-2 = fond secondaire (dégradés, survols), carte =
-     surface élevée (cartes, listes) — profondeur croissante. */
-  --color-fond-2: #10141b;
-  --color-trait: rgba(255, 255, 255, 0.08);
-  --color-trait-fort: rgba(255, 255, 255, 0.18);
-  --color-carte: #171c25;
-
-  --font-display: var(--font-bricolage), system-ui, sans-serif;
-  --font-body: var(--font-inter-tight), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
-}
-
 /* ─── Nouvelle identité « Venin » ───────────────────────────────────────
    Source de vérité : design-system/najarena/MASTER.md (§2 à §5). Les
-   jetons ci-dessus (encre, papier, sceau...) restent en place tant que
-   des pages n'ont pas été migrées ; ceux-ci ne les écrasent pas (aucun
-   nom en commun), pour qu'une page non migrée ne change pas d'un coup.
+   anciens jetons (encre, papier, sceau, laiton, atteste, ardoise…) ont été
+   supprimés le 24/09/2026, une fois toutes les pages passées au nouveau
+   design — voir le tag git avant-nouveau-design pour l'ancienne version.
    Utilitaires générés : bg-bg, text-text, text-muted, bg-accent,
    text-on-accent, border-line, font-titre, text-section, px-gouttiere,
    max-w-contenu, rounded-bouton... */
@@ -225,50 +194,25 @@ html[data-animations="pause"] *::after {
   }
 }
 
-/* Registre nuit unifié pour tout le site (12/09/2026 — voir CLAUDE.md §7,
-   abandon du split clair/sombre). "encre" reste le ton le plus sombre du
-   duo, "papier" le plus clair ; lequel des deux sert de fond ou de texte
-   dépend du sens du registre, pas du nom — c'était déjà vrai avant
-   l'unification (encre = fond / papier = texte côté nuit, l'inverse côté
-   clair), rien ne change dans cette convention, seules les valeurs sont
-   maintenant partagées par tout le site. */
+/* Fond et texte de base de tout le site — identité « Venin » depuis le
+   24/09/2026 (étape 7 de la refonte : toutes les pages sont passées au
+   nouveau design). */
 :root {
-  --background: var(--color-papier);
-  --foreground: var(--color-encre);
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-body);
+  font-family: var(--font-texte);
 }
 
-/* Estampille d'un verdict qui vient d'apparaître — déclenchée une seule
-   fois au montage, jamais en boucle (voir Badge/verdicts sur les pages
-   preuve). */
-@keyframes stampIn {
-  0% { transform: scale(1.5) rotate(-6deg); opacity: 0; }
-  55% { transform: scale(0.94) rotate(2deg); opacity: 1; }
-  100% { transform: scale(1) rotate(0); opacity: 1; }
-}
-.animation-stamp {
-  animation: stampIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .animation-stamp {
-    animation: none;
-  }
-  .animate-pulse {
-    animation: none;
-  }
-}
-
-/* Illustrations décoratives des états vides (sceau/bracket/effectif —
-   voir components/ui/Illustration*Vide.tsx) : même principe que
-   .animation-stamp ci-dessus, une entrée qui se joue une fois au
-   montage, sans JS. scanner/pulse-spine/capitaine-glow bouclent ensuite
-   à l'infini, très lentement — seul mouvement permanent du site avec
-   BracketBackground, jamais ailleurs. */
+/* Illustrations décoratives des états vides (anneau/bracket/effectif —
+   voir components/ui/Illustration*Vide.tsx) : une entrée qui se joue une
+   fois au montage, sans JS ; scanner/pulse-spine/capitaine-glow bouclent
+   ensuite très lentement. Figées par le bouton Pause et par le mouvement
+   réduit (plus bas). */
 @keyframes illustrationTickIn {
   from { opacity: 0; }
   to { opacity: var(--op-cible, 1); }

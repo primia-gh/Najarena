@@ -13,9 +13,8 @@ import SectionTitre from "@/components/ui/SectionTitre";
 import CrestPalier from "@/components/ui/CrestPalier";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Recherche de joueurs — Najarena",
@@ -114,38 +113,37 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
     .sort((a, b) => (b.palier && a.palier ? 0 : a.palier ? -1 : b.palier ? 1 : 0));
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-4xl px-6">
-        <Reveal>
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-contenu px-gouttiere">
+        <Apparition>
           <Link
             href="/lol"
-            className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
+            className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
           >
             ← League of Legends
           </Link>
-          <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-encre">
+          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
             Recherche de joueurs
           </h1>
-          <p className="mt-2 max-w-lg text-sm text-ardoise">
+          <p className="mt-2 max-w-lg text-sm text-muted">
             Filtre par rôle, palier, région et disponibilité — réservé à l&apos;offre Organisateur.
           </p>
-        </Reveal>
+        </Apparition>
 
         {erreur && (
-          <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+          <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
         )}
         {message && (
-          <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
+          <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
         )}
 
-        <Reveal delai={0.1}>
+        <Apparition delai={0.1}>
           <form className="mt-6 flex flex-wrap gap-3">
             <select
               name="role"
               defaultValue={role ?? ""}
-              className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre"
+              className="rounded-[3px] border border-line bg-surface px-3 py-2 text-sm text-text"
             >
               <option value="">Tous les rôles</option>
               {ROLES.map((r) => (
@@ -157,7 +155,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
             <select
               name="region"
               defaultValue={region ?? ""}
-              className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre"
+              className="rounded-[3px] border border-line bg-surface px-3 py-2 text-sm text-text"
             >
               <option value="">Toutes régions</option>
               {REGIONS.map((r) => (
@@ -169,7 +167,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
             <select
               name="palier_min"
               defaultValue={palierMinNom ?? ""}
-              className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre"
+              className="rounded-[3px] border border-line bg-surface px-3 py-2 text-sm text-text"
             >
               <option value="">Palier minimum</option>
               {paliers.map((p) => (
@@ -178,20 +176,20 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                 </option>
               ))}
             </select>
-            <label className="flex items-center gap-2 rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre">
-              <input type="checkbox" name="disponible" value="1" defaultChecked={disponible === "1"} className="accent-sceau" />
+            <label className="flex items-center gap-2 rounded-[3px] border border-line bg-surface px-3 py-2 text-sm text-text">
+              <input type="checkbox" name="disponible" value="1" defaultChecked={disponible === "1"} className="accent-accent" />
               Disponible pour une équipe
             </label>
             <button
               type="submit"
-              className="rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
+              className="rounded-[3px] bg-accent px-4 py-2 text-sm font-semibold text-bg transition hover:brightness-110"
             >
               Filtrer
             </button>
           </form>
-        </Reveal>
+        </Apparition>
 
-        <Reveal delai={0.15}>
+        <Apparition delai={0.15}>
           <section className="mt-8">
             <SectionTitre>{resultats.length} joueur{resultats.length !== 1 ? "s" : ""}</SectionTitre>
             {resultats.length === 0 ? (
@@ -205,33 +203,33 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                 {resultats.map((r) => (
                   <li key={r.profileId} className={"flex items-center justify-between gap-3 " + classeCarte("none")}>
                     <div className="min-w-0">
-                      <Link href={`/joueur/${r.slug}`} className="text-sm font-semibold text-encre hover:underline">
+                      <Link href={`/joueur/${r.slug}`} className="text-sm font-semibold text-text hover:underline">
                         {r.pseudo}
                       </Link>
-                      <div className="mt-0.5 font-mono text-[0.68rem] text-ardoise">
+                      <div className="mt-0.5 font-texte tabular-nums text-[0.68rem] text-muted">
                         {r.role ? LABEL_ROLE[r.role] : "Rôle non renseigné"} · {r.region}
-                        {r.disponible && <span className="text-atteste"> · Disponible</span>}
+                        {r.disponible && <span className="text-accent"> · Disponible</span>}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       {r.palier ? (
                         <CrestPalier
                           nom={r.palier.nom}
-                          couleur={COULEUR_PALIER[r.palier.nom.toLowerCase()] ?? "var(--color-ardoise)"}
+                          couleur={COULEUR_PALIER[r.palier.nom.toLowerCase()] ?? "var(--color-muted)"}
                           progression={r.progression}
                         />
                       ) : (
-                        <span className="font-mono text-[0.66rem] text-ardoise">Non classé</span>
+                        <span className="font-texte tabular-nums text-[0.66rem] text-muted">Non classé</span>
                       )}
                       {r.suivi ? (
-                        <span className="font-mono text-[0.62rem] text-atteste uppercase">Suivi</span>
+                        <span className="font-texte tabular-nums text-[0.62rem] text-accent uppercase">Suivi</span>
                       ) : (
                         <form action={suivreJoueur}>
                           <input type="hidden" name="joueur_suivi_id" value={r.profileId} />
                           <input type="hidden" name="retour" value="/lol/recherche" />
                           <button
                             type="submit"
-                            className="rounded-[3px] border border-trait px-2.5 py-1 font-mono text-[0.62rem] text-encre transition hover:border-encre"
+                            className="rounded-[3px] border border-line px-2.5 py-1 font-texte tabular-nums text-[0.62rem] text-text transition hover:border-text"
                           >
                             Suivre
                           </button>
@@ -243,7 +241,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
               </ul>
             )}
           </section>
-        </Reveal>
+        </Apparition>
       </div>
     </main>
   );

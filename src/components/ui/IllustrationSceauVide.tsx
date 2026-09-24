@@ -46,7 +46,7 @@ export default function IllustrationSceauVide({ className = "" }: { className?: 
           y1={c.y1}
           x2={c.x2}
           y2={c.y2}
-          stroke="var(--color-ardoise)"
+          stroke="var(--color-muted)"
           strokeWidth="1.4"
           className="illustration-tick"
           style={{ "--i": i, "--op-cible": 0.22 } as CSSProperties}
@@ -57,7 +57,7 @@ export default function IllustrationSceauVide({ className = "" }: { className?: 
         cy={CY}
         r={RAYON_ANNEAU_1}
         fill="none"
-        stroke="var(--color-ardoise)"
+        stroke="var(--color-muted)"
         strokeWidth="1.4"
         opacity=".5"
         className="illustration-anneau"
@@ -69,20 +69,20 @@ export default function IllustrationSceauVide({ className = "" }: { className?: 
         cy={CY}
         r={RAYON_ANNEAU_2}
         fill="none"
-        stroke="var(--color-ardoise)"
+        stroke="var(--color-muted)"
         strokeWidth="1"
         opacity=".3"
         className="illustration-anneau"
         strokeDasharray={circonference2}
         style={{ "--longueur": circonference2, animationDelay: "0.15s" } as CSSProperties}
       />
-      <circle cx={CX} cy={CY} r="3" fill="var(--color-ardoise)" opacity=".45" />
+      <circle cx={CX} cy={CY} r="3" fill="var(--color-muted)" opacity=".45" />
       <line
         x1={arrondir(CX + Math.cos(angleScanner) * R_INT)}
         y1={arrondir(CY + Math.sin(angleScanner) * R_INT)}
         x2={arrondir(CX + Math.cos(angleScanner) * (R_EXT + 3))}
         y2={arrondir(CY + Math.sin(angleScanner) * (R_EXT + 3))}
-        stroke="var(--color-sceau-texte)"
+        stroke="var(--color-accent)"
         strokeWidth="2.4"
         strokeLinecap="round"
         className="illustration-scanner"

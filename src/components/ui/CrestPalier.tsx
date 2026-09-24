@@ -68,7 +68,7 @@ export default function CrestPalier({ nom, couleur, progression }: CrestPalierPr
         )}
       </svg>
       <span
-        className="font-mono text-[0.66rem] tracking-[0.06em] uppercase"
+        className="font-texte tabular-nums text-[0.66rem] tracking-[0.06em] uppercase"
         style={{ color: couleur }}
       >
         {nom}

@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 
-// Titre de section du registre clair avec liseré laiton — remplace les h2
-// nus répétés sur chaque page (Inscrits, Bracket, Membres, Mes équipes...).
+// Titre de section des pages outils — même mode d'emploi qu'avant, mis au
+// style « Venin » le 24/09/2026 : filet vert à gauche, Big Shoulders en
+// MAJUSCULES (MASTER §3).
 export default function SectionTitre({ children }: { children: ReactNode }) {
   return (
-    <h2 className="border-l-4 border-laiton pl-3 font-display text-xl font-extrabold tracking-tight text-encre">
+    <h2 className="border-l-[3px] border-accent pl-3 font-titre text-2xl leading-none font-extrabold tracking-[1px] text-text uppercase">
       {children}
     </h2>
   );

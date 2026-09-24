@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 import { JsonLd } from "@/lib/json-ld";
 
 export const metadata: Metadata = {
@@ -68,7 +67,7 @@ const LIENS = [
 
 export default function FaqPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -80,47 +79,46 @@ export default function FaqPage() {
           })),
         }}
       />
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
-        <Reveal>
-          <span className="block font-mono text-[0.66rem] tracking-[0.22em] text-ardoise uppercase">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-5xl px-gouttiere">
+        <Apparition>
+          <span className="block font-texte text-libelle font-medium text-muted uppercase">
             FAQ
           </span>
-          <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight text-encre">
+          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
             Les questions de confiance.
           </h1>
-          <p className="mt-3 max-w-lg text-sm text-ardoise">
+          <p className="mt-3 max-w-lg text-sm text-muted">
             Les réponses que tu cherches avant de t&apos;inscrire — sans détour, et toutes vérifiées
             dans le fonctionnement réel du site.
           </p>
-        </Reveal>
+        </Apparition>
 
         <div className="mt-10 flex flex-col gap-4">
           {QUESTIONS.map((q, i) => (
-            <Reveal key={q.question} delai={Math.min(i * 0.05, 0.25)}>
-              <article className="rounded-[3px] border border-trait border-l-[3px] border-l-sceau bg-carte p-5">
-                <h2 className="font-display text-base font-extrabold text-encre">{q.question}</h2>
-                <p className="mt-1.5 text-sm text-ardoise">{q.reponse}</p>
+            <Apparition key={q.question} delai={Math.min(i * 0.05, 0.25)}>
+              <article className="rounded-[3px] border border-line border-l-[3px] border-l-accent bg-surface p-5">
+                <h2 className="font-titre uppercase text-base font-extrabold text-text">{q.question}</h2>
+                <p className="mt-1.5 text-sm text-muted">{q.reponse}</p>
               </article>
-            </Reveal>
+            </Apparition>
           ))}
         </div>
 
-        <Reveal delai={0.1}>
-          <p className="mt-12 text-sm text-ardoise">
+        <Apparition delai={0.1}>
+          <p className="mt-12 text-sm text-muted">
             Pour aller plus loin :{" "}
             {LIENS.map((l, i) => (
               <span key={l.href}>
                 {i > 0 && " · "}
-                <Link href={l.href} className="text-encre underline underline-offset-3">
+                <Link href={l.href} className="text-text underline underline-offset-3">
                   {l.libelle}
                 </Link>
               </span>
             ))}
             .
           </p>
-        </Reveal>
+        </Apparition>
       </div>
     </main>
   );

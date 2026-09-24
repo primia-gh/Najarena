@@ -8,24 +8,24 @@ export const metadata: Metadata = {
 
 export default function MentionsLegalesPage() {
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto max-w-3xl px-gouttiere pt-32 pb-24 font-texte text-text">
       <Link
         href="/"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
+        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         Najarena
       </Link>
 
-      <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-encre">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
         Mentions légales
       </h1>
 
-      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-encre">
+      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
         <section>
-          <h2 className="font-display text-lg font-extrabold tracking-tight text-encre">
+          <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             Éditeur du site
           </h2>
-          <p className="mt-2 text-ardoise">
+          <p className="mt-2 text-muted">
             Le site Najarena est édité par une personne physique :
           </p>
           <p className="mt-2">
@@ -34,35 +34,35 @@ export default function MentionsLegalesPage() {
             France
             <br />
             Contact :{" "}
-            <a href="mailto:robbie.kammerer@gmail.com" className="text-encre underline underline-offset-3">
+            <a href="mailto:robbie.kammerer@gmail.com" className="text-text underline underline-offset-3">
               robbie.kammerer@gmail.com
             </a>
           </p>
-          <p className="mt-2 text-ardoise">
+          <p className="mt-2 text-muted">
             Directeur de la publication : Robbie Kammerer.
           </p>
         </section>
 
         <section>
-          <h2 className="font-display text-lg font-extrabold tracking-tight text-encre">
+          <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             Hébergement
           </h2>
-          <p className="mt-2 text-ardoise">
+          <p className="mt-2 text-muted">
             Le site est hébergé par Vercel Inc., 440 N Barranca Ave #4133,
             Covina, CA 91723, États-Unis.
           </p>
         </section>
 
         <section>
-          <h2 className="font-display text-lg font-extrabold tracking-tight text-encre">
+          <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             Propriété intellectuelle
           </h2>
-          <p className="mt-2 text-ardoise">
+          <p className="mt-2 text-muted">
             L&apos;ensemble des éléments du site Najarena (textes, mise en
             page, identité visuelle, code) est protégé par le droit
             d&apos;auteur. Toute reproduction sans autorisation est interdite.
           </p>
-          <p className="mt-2 text-ardoise">
+          <p className="mt-2 text-muted">
             League of Legends et Riot Games sont des marques déposées de Riot
             Games, Inc. Najarena n&apos;est ni produit, ni approuvé, ni
             sponsorisé par Riot Games.
@@ -70,12 +70,12 @@ export default function MentionsLegalesPage() {
         </section>
 
         <section>
-          <h2 className="font-display text-lg font-extrabold tracking-tight text-encre">
+          <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             Données personnelles
           </h2>
-          <p className="mt-2 text-ardoise">
+          <p className="mt-2 text-muted">
             Le traitement des données personnelles est détaillé dans la{" "}
-            <Link href="/confidentialite" className="text-encre underline underline-offset-3">
+            <Link href="/confidentialite" className="text-text underline underline-offset-3">
               politique de confidentialité
             </Link>
             .

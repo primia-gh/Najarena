@@ -28,7 +28,7 @@ export default function IllustrationEffectifVide({ className = "" }: { className
       aria-label="Effectif vide"
     >
       {POSTES.map((p, i) => {
-        const couleur = p.capitaine ? "var(--color-atteste)" : "var(--color-ardoise)";
+        const couleur = p.capitaine ? "var(--color-accent)" : "var(--color-muted)";
         const largeurTrait = p.capitaine ? 1.8 : 1.4;
         const opaciteCercle = p.capitaine ? 0.7 : 0.45;
         const opaciteCroix = p.capitaine ? 0.7 : 0.5;
@@ -48,7 +48,7 @@ export default function IllustrationEffectifVide({ className = "" }: { className
                 cy={p.y}
                 r={p.rayon + 7}
                 fill="none"
-                stroke="var(--color-atteste)"
+                stroke="var(--color-accent)"
                 strokeWidth="1"
                 className="illustration-capitaine-glow"
                 style={{ transformOrigin: `${p.x}px ${p.y}px` }}

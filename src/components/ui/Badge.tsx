@@ -1,14 +1,15 @@
 import type { ReactNode } from "react";
 
-// Pastille pleine plutôt qu'un texte coloré nu — même sémantique de couleur
-// que l'existant (COULEUR_NIVEAU / COULEUR_STATUT dans lib/tournois.ts),
-// juste rendue plus visible. `couleur` reçoit directement une de ces
-// classes text-* pour ne pas dupliquer la logique métier des niveaux.
+// Pastille de statut — même mode d'emploi qu'avant (la page passe une des
+// classes text-* de COULEUR_NIVEAU / COULEUR_STATUT, lib/tournois.ts), mise
+// au style « Venin » le 24/09/2026 : coin de 2 px, MAJUSCULES espacées
+// (MASTER §6). Vert = vérifié / ouvert / en cours ; gris = manuel /
+// terminé ; rouge = erreur. Un point de couleur + le texte : jamais la
+// couleur seule.
 const FOND: Record<string, string> = {
-  "text-atteste": "bg-atteste/10 border-atteste/25",
-  "text-laiton-texte": "bg-laiton/12 border-laiton/30",
-  "text-ardoise": "bg-ardoise/10 border-ardoise/25",
-  "text-sceau-texte": "bg-sceau/10 border-sceau/25",
+  "text-accent": "bg-accent/10 border-accent/30",
+  "text-muted": "bg-muted/10 border-line-strong",
+  "text-danger": "bg-danger/10 border-danger/30",
 };
 
 interface BadgeProps {
@@ -18,12 +19,12 @@ interface BadgeProps {
 }
 
 export default function Badge({ couleur, children, className = "" }: BadgeProps) {
-  const fond = FOND[couleur] ?? "bg-ardoise/10 border-ardoise/25";
+  const fond = FOND[couleur] ?? "bg-muted/10 border-line-strong";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[0.62rem] tracking-[0.08em] uppercase ${couleur} ${fond} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-bouton border px-2 py-1 font-texte text-mini font-semibold whitespace-nowrap uppercase ${couleur} ${fond} ${className}`}
     >
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+      <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
       {children}
     </span>
   );

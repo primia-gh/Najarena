@@ -8,8 +8,8 @@ import { chargerOffre } from "@/lib/offres";
 import { AssistantOrganisateur } from "@/components/AssistantOrganisateur";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
-import FondArene from "@/components/accueil/FondArene";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Organiser un tournoi — Najarena",
@@ -38,21 +38,21 @@ export default async function OrganiserNouveauPage({
   const estOrganisateurPremium = offre === "organisateur";
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <div className="relative mx-auto max-w-md px-6">
-      <Reveal>
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-md px-gouttiere">
+      <Apparition>
       <Link
         href="/moi"
-        className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre"
+        className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
       >
         ← Mon compte
       </Link>
 
-      <h1 className="mt-6 font-display text-3xl font-extrabold tracking-tight text-encre">
+      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text">
         Organiser un tournoi
       </h1>
-      <p className="mt-2 text-sm text-ardoise">
+      <p className="mt-2 text-sm text-muted">
         League of Legends · 1v1 — seul format disponible pour l&apos;instant. Une fois publié, ton
         tournoi apparaît immédiatement dans la liste et les joueurs peuvent s&apos;inscrire ; en
         brouillon, lui seul reste visible pour toi.
@@ -60,16 +60,16 @@ export default async function OrganiserNouveauPage({
       {estOrganisateurPremium && (
         <Link
           href="/lol/recherche"
-          className="mt-2 inline-block text-sm text-sceau-texte underline underline-offset-3"
+          className="mt-2 inline-block text-sm text-accent underline underline-offset-3"
         >
           Rechercher des joueurs à recruter
         </Link>
       )}
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.1}>
+      <Apparition delai={0.1}>
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
       )}
 
       {Boolean(process.env.ANTHROPIC_API_KEY) && (
@@ -80,7 +80,7 @@ export default async function OrganiserNouveauPage({
 
       <form action={creerTournoi} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Nom du tournoi
           </span>
           <input
@@ -91,12 +91,12 @@ export default async function OrganiserNouveauPage({
             minLength={3}
             maxLength={60}
             placeholder="Ex. Tournoi du jeudi soir"
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Capacité
           </span>
           <select
@@ -104,7 +104,7 @@ export default async function OrganiserNouveauPage({
             name="capacite"
             required
             defaultValue="8"
-            className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre"
+            className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
           >
             {CAPACITES.map((c) => (
               <option key={c} value={c}>
@@ -119,14 +119,14 @@ export default async function OrganiserNouveauPage({
 
         {estOrganisateurPremium && (
           <label className="flex flex-col gap-1">
-            <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+            <span className="font-texte text-mini font-medium text-muted uppercase">
               Format (Best-of)
             </span>
             <select
               id="best_of"
               name="best_of"
               defaultValue="1"
-              className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre"
+              className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
             >
               <option value="1">Best-of-1</option>
               <option value="3">Best-of-3</option>
@@ -136,7 +136,7 @@ export default async function OrganiserNouveauPage({
         )}
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Région
           </span>
           <select
@@ -144,7 +144,7 @@ export default async function OrganiserNouveauPage({
             name="region"
             required
             defaultValue=""
-            className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre"
+            className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
           >
             <option value="" disabled>
               Choisis une région
@@ -158,7 +158,7 @@ export default async function OrganiserNouveauPage({
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Ouverture du check-in
           </span>
           <input
@@ -166,12 +166,12 @@ export default async function OrganiserNouveauPage({
             name="checkin_ouvre_le"
             type="datetime-local"
             required
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Début du tournoi
           </span>
           <input
@@ -179,26 +179,26 @@ export default async function OrganiserNouveauPage({
             name="debute_le"
             type="datetime-local"
             required
-            className="rounded-[3px] border border-trait bg-carte px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+            className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <legend className="font-texte text-mini font-medium text-muted uppercase">
             Statut initial
           </legend>
-          <label className="flex items-center gap-2 text-sm text-encre">
+          <label className="flex items-center gap-2 text-sm text-text">
             <input
               type="radio"
               name="statut_initial"
               value="ouvert"
               defaultChecked
-              className="accent-sceau"
+              className="accent-accent"
             />
             Publier immédiatement (visible et ouvert aux inscriptions)
           </label>
-          <label className="flex items-center gap-2 text-sm text-encre">
-            <input type="radio" name="statut_initial" value="brouillon" className="accent-sceau" />
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input type="radio" name="statut_initial" value="brouillon" className="accent-accent" />
             Garder en brouillon (non visible publiquement)
           </label>
         </fieldset>
@@ -207,7 +207,7 @@ export default async function OrganiserNouveauPage({
           Créer le tournoi
         </Bouton>
       </form>
-      </Reveal>
+      </Apparition>
       </div>
     </main>
   );

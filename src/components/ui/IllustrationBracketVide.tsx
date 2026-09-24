@@ -21,7 +21,7 @@ export default function IllustrationBracketVide({ className = "" }: { className?
       role="img"
       aria-label="Bracket vide"
     >
-      <g fill="none" stroke="var(--color-ardoise)" strokeWidth="1.5" opacity=".5">
+      <g fill="none" stroke="var(--color-muted)" strokeWidth="1.5" opacity=".5">
         {NOEUDS_TOUR_1.map((n, i) => (
           <circle
             key={`n1-${i}`}
@@ -55,7 +55,7 @@ export default function IllustrationBracketVide({ className = "" }: { className?
         cy="61"
         r="6"
         fill="none"
-        stroke="var(--color-laiton)"
+        stroke="var(--color-accent)"
         strokeWidth="2"
         opacity=".8"
         className="illustration-slot"
@@ -66,7 +66,7 @@ export default function IllustrationBracketVide({ className = "" }: { className?
         cy="61"
         r="11"
         fill="none"
-        stroke="var(--color-laiton)"
+        stroke="var(--color-accent)"
         strokeWidth="1"
         opacity=".3"
         className="illustration-slot"
@@ -78,7 +78,7 @@ export default function IllustrationBracketVide({ className = "" }: { className?
           key={`pulse-${i}`}
           d={d}
           fill="none"
-          stroke="var(--color-laiton)"
+          stroke="var(--color-accent)"
           strokeWidth="1.8"
           strokeDasharray="3 21"
           className="illustration-pulse-spine"

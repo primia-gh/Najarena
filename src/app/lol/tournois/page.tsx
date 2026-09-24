@@ -15,9 +15,8 @@ import Badge from "@/components/ui/Badge";
 import Bouton from "@/components/ui/Bouton";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationBracketVide from "@/components/ui/IllustrationBracketVide";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 export const metadata: Metadata = {
   title: "Tournois LoL — Najarena",
@@ -70,18 +69,17 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
   const regions = Array.from(new Set((regionsData ?? []).map((r) => r.region))).sort();
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
-      <Reveal>
-        <span className="block font-mono text-[0.66rem] tracking-[0.22em] text-ardoise uppercase">
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-5xl px-gouttiere">
+      <Apparition>
+        <span className="block font-texte text-libelle font-medium text-muted uppercase">
           League of Legends
         </span>
-        <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight text-encre">
+        <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text">
           Tournois
         </h1>
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[0.78rem] text-ardoise">
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[0.78rem] text-muted">
           {STATUTS_PUBLICS.map((s) => (
             <span key={s} className="inline-flex items-center gap-1.5">
               <span className={`h-2 w-2 rounded-full bg-current ${COULEUR_STATUT[s]}`} />
@@ -89,18 +87,18 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
             </span>
           ))}
         </div>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.1}>
+      <Apparition delai={0.1}>
       <form method="get" className={`mt-8 flex flex-wrap items-end gap-4 ${classeCarte("none")}`}>
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Statut
           </span>
           <select
             name="statut"
             defaultValue={statutFiltre ?? ""}
-            className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre"
+            className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
           >
             <option value="">Tous</option>
             {STATUTS_PUBLICS.map((s) => (
@@ -112,13 +110,13 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
             Région
           </span>
           <select
             name="region"
             defaultValue={regionFiltre ?? ""}
-            className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre"
+            className="rounded-[3px] border border-line bg-bg px-3 py-2 text-sm text-text"
           >
             <option value="">Toutes</option>
             {regions.map((r) => (
@@ -134,25 +132,25 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
         {(statutFiltre || regionFiltre) && (
           <Link
             href="/lol/tournois"
-            className="font-mono text-[0.7rem] text-ardoise underline underline-offset-3 hover:text-encre"
+            className="font-texte tabular-nums text-[0.7rem] text-muted underline underline-offset-3 hover:text-text"
           >
             Réinitialiser
           </Link>
         )}
       </form>
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.15}>
+      <Apparition delai={0.15}>
       <div className="mt-8">
         {erreurConnexion ? (
-          <p className={classeCarte("sceau") + " text-sm text-sceau-texte"}>
+          <p className={classeCarte("sceau") + " text-sm text-danger"}>
             Impossible de charger les tournois pour l&apos;instant. Réessaie
             dans un instant.
           </p>
         ) : tournois.length === 0 ? (
           <EtatVide illustration={<IllustrationBracketVide />}>
             Aucun tournoi ne correspond à ces critères pour l&apos;instant.{" "}
-            <Link href="/lol/tournois/demo" className="text-encre underline underline-offset-3">
+            <Link href="/lol/tournois/demo" className="text-text underline underline-offset-3">
               Voir à quoi ressemble un tournoi Najarena
             </Link>
             .
@@ -166,14 +164,14 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
                   className={`block ${classeCarte(accentDepuisCouleur(COULEUR_STATUT[t.statut as StatutPublic]), true)}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="font-display text-lg font-extrabold tracking-tight text-encre">
+                    <span className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
                       {t.nom}
                     </span>
                     <Badge couleur={COULEUR_STATUT[t.statut as StatutPublic]}>
                       {LABEL_STATUT[t.statut as StatutPublic]}
                     </Badge>
                   </div>
-                  <div className="mt-2 font-mono text-[0.72rem] text-ardoise">
+                  <div className="mt-2 font-texte tabular-nums text-[0.72rem] text-muted">
                     {t.format} · {t.capacite} joueurs · {t.region} ·{" "}
                     {formaterDate(t.debute_le)}
                   </div>
@@ -183,7 +181,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
           </ul>
         )}
       </div>
-      </Reveal>
+      </Apparition>
       </div>
     </main>
   );

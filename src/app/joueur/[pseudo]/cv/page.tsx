@@ -106,20 +106,20 @@ export default async function CvPage({ params }: CvPageProps) {
   const pct = rating ? calibrationPct(rating.rd) : 0;
 
   return (
-    <main className="min-h-screen bg-papier px-6 py-16 print:bg-white print:py-6 print:text-black">
+    <main className="min-h-screen bg-bg px-6 py-16 print:bg-white print:py-6 print:text-black">
       <div className="mx-auto max-w-2xl">
         <div className="print:hidden mb-8 flex items-center justify-between">
-          <Link href={`/joueur/${profil.slug}`} className="font-mono text-[0.66rem] tracking-[0.18em] text-ardoise uppercase hover:text-encre">
+          <Link href={`/joueur/${profil.slug}`} className="font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text">
             ← Retour au profil
           </Link>
           <BoutonImprimer />
         </div>
 
-        <header className="border-b-2 border-encre pb-4 print:border-black">
-          <h1 className="font-display text-4xl font-extrabold tracking-tight text-encre print:text-black">
+        <header className="border-b-2 border-text pb-4 print:border-black">
+          <h1 className="font-titre uppercase text-section font-black tracking-[1px] text-text print:text-black">
             {profil.pseudo}
           </h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[0.8rem] text-ardoise print:text-black">
+          <div className="mt-1 flex flex-wrap items-center gap-2 font-texte tabular-nums text-[0.8rem] text-muted print:text-black">
             {compteRiot && (
               <span>
                 {compteRiot.riot_game_name}#{compteRiot.riot_tag_line} · League of Legends · {compteRiot.region}
@@ -130,64 +130,64 @@ export default async function CvPage({ params }: CvPageProps) {
           </div>
           {infoOffre.offre !== "gratuit" && (
             <span
-              className="mt-2 inline-block font-mono text-[0.64rem] tracking-[0.06em] uppercase print:text-black"
+              className="mt-2 inline-block font-texte tabular-nums text-[0.64rem] tracking-[0.06em] uppercase print:text-black"
               style={{ color: COULEUR_OFFRE[infoOffre.offre] }}
             >
               {LABEL_OFFRE[infoOffre.offre]}
             </span>
           )}
-          {infoOffre.bio && <p className="mt-2 text-sm text-encre print:text-black">{infoOffre.bio}</p>}
+          {infoOffre.bio && <p className="mt-2 text-sm text-text print:text-black">{infoOffre.bio}</p>}
         </header>
 
-        <section className="mt-6 grid grid-cols-4 gap-px overflow-hidden rounded-[3px] border border-trait bg-trait print:border-black print:bg-black">
-          <div className="bg-carte p-3 text-center print:bg-white">
-            <div className="font-mono text-[0.58rem] tracking-[0.1em] text-ardoise uppercase print:text-black">Rating</div>
-            <div className="mt-0.5 font-mono text-xl font-bold text-encre print:text-black">
+        <section className="mt-6 grid grid-cols-4 gap-px overflow-hidden rounded-[3px] border border-line bg-line print:border-black print:bg-black">
+          <div className="bg-surface p-3 text-center print:bg-white">
+            <div className="font-texte tabular-nums text-[0.58rem] tracking-[0.1em] text-muted uppercase print:text-black">Rating</div>
+            <div className="mt-0.5 font-texte tabular-nums text-xl font-bold text-text print:text-black">
               {rating ? arrondir(rating.rating) : "—"}
             </div>
           </div>
-          <div className="bg-carte p-3 text-center print:bg-white">
-            <div className="font-mono text-[0.58rem] tracking-[0.1em] text-ardoise uppercase print:text-black">RD</div>
-            <div className="mt-0.5 font-mono text-xl font-bold text-encre print:text-black">
+          <div className="bg-surface p-3 text-center print:bg-white">
+            <div className="font-texte tabular-nums text-[0.58rem] tracking-[0.1em] text-muted uppercase print:text-black">RD</div>
+            <div className="mt-0.5 font-texte tabular-nums text-xl font-bold text-text print:text-black">
               {rating ? arrondir(rating.rd) : RD_INITIAL}
             </div>
           </div>
-          <div className="bg-carte p-3 text-center print:bg-white">
-            <div className="font-mono text-[0.58rem] tracking-[0.1em] text-ardoise uppercase print:text-black">Calibrage</div>
-            <div className="mt-0.5 font-mono text-xl font-bold text-encre print:text-black">{pct}%</div>
+          <div className="bg-surface p-3 text-center print:bg-white">
+            <div className="font-texte tabular-nums text-[0.58rem] tracking-[0.1em] text-muted uppercase print:text-black">Calibrage</div>
+            <div className="mt-0.5 font-texte tabular-nums text-xl font-bold text-text print:text-black">{pct}%</div>
           </div>
-          <div className="bg-carte p-3 text-center print:bg-white">
-            <div className="font-mono text-[0.58rem] tracking-[0.1em] text-ardoise uppercase print:text-black">Victoires</div>
-            <div className="mt-0.5 font-mono text-xl font-bold text-encre print:text-black">
+          <div className="bg-surface p-3 text-center print:bg-white">
+            <div className="font-texte tabular-nums text-[0.58rem] tracking-[0.1em] text-muted uppercase print:text-black">Victoires</div>
+            <div className="mt-0.5 font-texte tabular-nums text-xl font-bold text-text print:text-black">
               {tauxVictoire !== null ? `${tauxVictoire}%` : "—"}
             </div>
           </div>
         </section>
 
         <section className="mt-8">
-          <h2 className="font-display text-lg font-extrabold text-encre print:text-black">
+          <h2 className="font-titre uppercase text-lg font-extrabold text-text print:text-black">
             Registre des matchs récents
           </h2>
           {historique.length === 0 ? (
-            <p className="mt-2 text-sm text-ardoise print:text-black">Aucun résultat enregistré pour l&apos;instant.</p>
+            <p className="mt-2 text-sm text-muted print:text-black">Aucun résultat enregistré pour l&apos;instant.</p>
           ) : (
             <ul className="mt-2 flex flex-col gap-1.5">
               {historique.map((h) => (
                 <li
                   key={h.matchId}
-                  className="flex items-center justify-between gap-3 border-b border-trait py-1.5 text-sm print:border-black"
+                  className="flex items-center justify-between gap-3 border-b border-line py-1.5 text-sm print:border-black"
                 >
-                  <span className="font-mono text-[0.7rem] text-ardoise print:text-black">
+                  <span className="font-texte tabular-nums text-[0.7rem] text-muted print:text-black">
                     {formaterDate(h.creeLe)}
                   </span>
-                  <span className="flex-1 text-encre print:text-black">{h.tournoi ?? "—"}</span>
+                  <span className="flex-1 text-text print:text-black">{h.tournoi ?? "—"}</span>
                   <span className="print:hidden">
                     <Badge couleur={COULEUR_NIVEAU[h.niveau]}>{LABEL_NIVEAU[h.niveau]}</Badge>
                   </span>
-                  <span className="hidden font-mono text-[0.62rem] text-black print:inline">
+                  <span className="hidden font-texte tabular-nums text-[0.62rem] text-black print:inline">
                     {LABEL_NIVEAU[h.niveau]}
                   </span>
-                  <span className={`font-mono text-sm font-bold ${h.estGagnant ? "text-atteste" : "text-sceau-texte"} print:text-black`}>
+                  <span className={`font-texte tabular-nums text-sm font-bold ${h.estGagnant ? "text-accent" : "text-accent"} print:text-black`}>
                     {h.estGagnant ? "V" : "D"}
                   </span>
                 </li>
@@ -196,7 +196,7 @@ export default async function CvPage({ params }: CvPageProps) {
           )}
         </section>
 
-        <footer className="mt-10 font-mono text-[0.62rem] text-ardoise print:text-black">
+        <footer className="mt-10 font-texte tabular-nums text-[0.62rem] text-muted print:text-black">
           {matchsCalibres} matchs vérifiés · {victoires} victoires — profil complet : najarena.vercel.app/joueur/{profil.slug}
         </footer>
       </div>

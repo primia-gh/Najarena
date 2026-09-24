@@ -13,9 +13,8 @@ import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import UploadLogo from "@/components/ui/UploadLogo";
-import FondArene from "@/components/accueil/FondArene";
-import BracketBackground from "@/components/BracketBackground";
-import Reveal from "@/components/accueil/Reveal";
+import FondEcailles from "@/components/design/FondEcailles";
+import Apparition from "@/components/design/Apparition";
 
 interface EquipePageProps {
   params: Promise<{ slug: string }>;
@@ -108,8 +107,8 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
 
   if (donnees.statut === "erreur") {
     return (
-      <main className="mx-auto max-w-3xl px-6 pt-28 pb-16">
-        <p className="rounded-[3px] border border-sceau/30 bg-sceau/10 p-6 text-sm text-sceau-texte">
+      <main className="mx-auto max-w-5xl px-gouttiere pt-32 pb-24 font-texte text-text">
+        <p className="rounded-[3px] border border-danger/30 bg-danger/10 p-6 text-sm text-danger">
           Impossible de charger cette équipe pour l&apos;instant. Réessaie
           dans un instant.
         </p>
@@ -120,19 +119,18 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
   const { equipe, jeu, capitaine, membres, invitesEnAttente, estCapitaine, peutQuitter, peutBranding } = donnees;
 
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <FondArene />
-      <BracketBackground />
-      <div className="relative mx-auto max-w-3xl px-6">
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative mx-auto max-w-5xl px-gouttiere">
       {erreur && (
-        <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-sceau-texte"}>{erreur}</p>
+        <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
       )}
 
       {message && (
-        <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-atteste"}>{message}</p>
+        <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
       )}
 
-      <Reveal>
+      <Apparition>
       <div className="flex items-center gap-3">
         {equipe.logo_url ? (
           <Image
@@ -140,54 +138,54 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
             alt=""
             width={40}
             height={40}
-            className="h-10 w-10 rounded-[3px] border border-trait object-cover"
+            className="h-10 w-10 rounded-[3px] border border-line object-cover"
             unoptimized
           />
         ) : (
           <span
-            className="rounded-[3px] px-2 py-1 font-mono text-sm font-bold text-papier"
-            style={{ background: equipe.couleur_accent ?? "var(--color-laiton)" }}
+            className="rounded-[3px] px-2 py-1 font-texte tabular-nums text-sm font-bold text-bg"
+            style={{ background: equipe.couleur_accent ?? "#d2a257" }}
           >
             {equipe.tag}
           </span>
         )}
         <h1
-          className="font-display text-4xl font-extrabold tracking-tight"
-          style={{ color: equipe.couleur_accent ?? "var(--color-encre)" }}
+          className="font-titre uppercase text-4xl font-extrabold tracking-tight"
+          style={{ color: equipe.couleur_accent ?? "var(--color-text)" }}
         >
           {equipe.nom}
         </h1>
       </div>
 
       {jeu?.nom && (
-        <div className="mt-1 font-mono text-[0.72rem] tracking-[0.14em] text-ardoise uppercase">
+        <div className="mt-1 font-texte tabular-nums text-[0.72rem] tracking-[0.14em] text-muted uppercase">
           {jeu.nom}
         </div>
       )}
-      <div className="mt-1 font-mono text-[0.72rem] text-laiton">
+      <div className="mt-1 font-texte tabular-nums text-[0.72rem] text-accent">
         {membres.length + 1}/{TAILLE_MAX_EQUIPE} joueurs
       </div>
 
       {equipe.description && (
-        <p className="mt-3 max-w-md text-sm text-encre">{equipe.description}</p>
+        <p className="mt-3 max-w-md text-sm text-text">{equipe.description}</p>
       )}
       {equipe.contact_recrutement && (
-        <p className="mt-1 text-sm text-ardoise">
-          Recrutement : <span className="text-encre">{equipe.contact_recrutement}</span>
+        <p className="mt-1 text-sm text-muted">
+          Recrutement : <span className="text-text">{equipe.contact_recrutement}</span>
         </p>
       )}
 
       {capitaine && (
-        <div className="mt-3 font-mono text-[0.78rem] text-ardoise">
+        <div className="mt-3 font-texte tabular-nums text-[0.78rem] text-muted">
           Capitaine :{" "}
-          <Link href={`/joueur/${capitaine.slug}`} className="text-encre hover:underline">
+          <Link href={`/joueur/${capitaine.slug}`} className="text-text hover:underline">
             {capitaine.pseudo}
           </Link>
         </div>
       )}
-      </Reveal>
+      </Apparition>
 
-      <Reveal delai={0.1}>
+      <Apparition delai={0.1}>
       <section className="mt-10">
         <SectionTitre>Membres</SectionTitre>
         {membres.length === 0 ? (
@@ -200,7 +198,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
           <ul className="mt-3 flex flex-col gap-2">
             {membres.map((m) => (
               <li key={m.profile_id} className={"flex items-center justify-between " + classeCarte("none")}>
-                <span className="text-sm font-medium text-encre">
+                <span className="text-sm font-medium text-text">
                   {m.profile ? (
                     <Link href={`/joueur/${m.profile.slug}`} className="hover:underline">
                       {m.profile.pseudo}
@@ -211,7 +209,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 </span>
                 <div className="flex items-center gap-3">
                   {m.role && (
-                    <span className="font-mono text-[0.66rem] text-ardoise uppercase">
+                    <span className="font-texte tabular-nums text-[0.66rem] text-muted uppercase">
                       {m.role}
                     </span>
                   )}
@@ -224,7 +222,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                         type="submit"
                         confirmation={`Retirer ${m.profile?.pseudo ?? "ce joueur"} de l'équipe ?`}
                         aria-label={`Retirer ${m.profile?.pseudo ?? "ce membre"} de l'équipe`}
-                        className="font-mono text-[0.64rem] text-sceau-texte underline underline-offset-3"
+                        className="font-texte tabular-nums text-[0.64rem] text-danger underline underline-offset-3"
                       >
                         Retirer
                       </BoutonConfirmation>
@@ -242,25 +240,25 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
             <BoutonConfirmation
               type="submit"
               confirmation="Quitter cette équipe ? Il faudra une nouvelle invitation pour la rejoindre à nouveau."
-              className="font-mono text-[0.66rem] text-sceau-texte underline underline-offset-3"
+              className="font-texte tabular-nums text-[0.66rem] text-danger underline underline-offset-3"
             >
               Quitter l&apos;équipe
             </BoutonConfirmation>
           </form>
         )}
       </section>
-      </Reveal>
+      </Apparition>
 
       {estCapitaine && (
         <>
-        <Reveal delai={0.12}>
+        <Apparition delai={0.12}>
         <section className="mt-10">
           <SectionTitre>Vitrine &amp; recrutement</SectionTitre>
           <form action={mettreAJourEquipe} className="mt-3 flex flex-col gap-3">
             <input type="hidden" name="team_id" value={equipe.id} />
             <input type="hidden" name="slug" value={equipe.slug} />
             <label className="flex flex-col gap-1">
-              <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+              <span className="font-texte text-mini font-medium text-muted uppercase">
                 Description (500 caractères max)
               </span>
               <textarea
@@ -269,11 +267,11 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 maxLength={500}
                 defaultValue={equipe.description ?? ""}
                 placeholder="Présente ton équipe, ton ambition, ce que tu cherches"
-                className="resize-none rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+                className="resize-none rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+              <span className="font-texte text-mini font-medium text-muted uppercase">
                 Contact recrutement
               </span>
               <input
@@ -281,7 +279,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 type="text"
                 defaultValue={equipe.contact_recrutement ?? ""}
                 placeholder="Discord, e-mail…"
-                className="rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+                className="rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               />
             </label>
 
@@ -289,19 +287,19 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
               <>
                 <UploadLogo type="equipe" id={equipe.id} logoActuel={equipe.logo_url} nomChamp="logo_url" />
                 <label className="flex flex-col gap-1">
-                  <span className="font-mono text-[0.62rem] tracking-[0.14em] text-ardoise uppercase">
+                  <span className="font-texte text-mini font-medium text-muted uppercase">
                     Couleur d&apos;accent
                   </span>
                   <input
                     name="couleur_accent"
                     type="color"
                     defaultValue={equipe.couleur_accent ?? "#D2A257"}
-                    className="h-9 w-16 rounded-[3px] border border-trait bg-papier"
+                    className="h-9 w-16 rounded-[3px] border border-line bg-bg"
                   />
                 </label>
               </>
             ) : (
-              <p className="text-[0.78rem] text-ardoise">
+              <p className="text-[0.78rem] text-muted">
                 Logo et couleur d&apos;accent demandent l&apos;offre Vérifié ou plus.
               </p>
             )}
@@ -311,9 +309,9 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
             </Bouton>
           </form>
         </section>
-        </Reveal>
+        </Apparition>
 
-        <Reveal delai={0.15}>
+        <Apparition delai={0.15}>
         <section className="mt-10">
           <SectionTitre>Gérer l&apos;équipe</SectionTitre>
 
@@ -327,7 +325,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 type="text"
                 required
                 placeholder="Pseudo du joueur à inviter"
-                className="w-full rounded-[3px] border border-trait bg-papier px-3 py-2 text-sm text-encre outline-none focus:border-encre focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sceau"
+                className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               />
             </label>
             <Bouton libelleEnCours="Invitation…">Inviter</Bouton>
@@ -335,13 +333,13 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
 
           {invitesEnAttente.length > 0 && (
             <div className="mt-4">
-              <h3 className="font-mono text-[0.64rem] tracking-[0.14em] text-ardoise uppercase">
+              <h3 className="font-texte text-mini font-medium text-muted uppercase">
                 Invitations en attente
               </h3>
               <ul className="mt-2 flex flex-col gap-2">
                 {invitesEnAttente.map((m) => (
                   <li key={m.profile_id} className={"flex items-center justify-between " + classeCarte("none")}>
-                    <span className="text-sm text-ardoise">
+                    <span className="text-sm text-muted">
                       {m.profile?.pseudo ?? "Joueur inconnu"}
                     </span>
                     <form action={retirerMembre}>
@@ -351,7 +349,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                       <button
                         type="submit"
                         aria-label={`Annuler l'invitation de ${m.profile?.pseudo ?? "ce joueur"}`}
-                        className="font-mono text-[0.64rem] text-sceau-texte underline underline-offset-3"
+                        className="font-texte tabular-nums text-[0.64rem] text-danger underline underline-offset-3"
                       >
                         Annuler
                       </button>
@@ -362,7 +360,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
             </div>
           )}
         </section>
-        </Reveal>
+        </Apparition>
         </>
       )}
       </div>

@@ -8,7 +8,7 @@ export default function BoutonImprimer() {
     <button
       type="button"
       onClick={() => window.print()}
-      className="print:hidden rounded-[3px] bg-sceau px-4 py-2 text-sm font-semibold text-papier transition hover:brightness-110"
+      className="print:hidden rounded-[3px] bg-accent px-4 py-2 text-sm font-semibold text-bg transition hover:brightness-110"
     >
       Imprimer / Enregistrer en PDF
     </button>
