@@ -1407,9 +1407,10 @@ grant execute on function public.enregistrer_bye_automatique(uuid, uuid) to serv
 -- dans le coffre-fort chiffré de Supabase (Vault) par le porteur du
 -- projet lui-même, depuis l'éditeur SQL de Supabase :
 --   select vault.create_secret('<valeur de CRON_SECRET sur Vercel>', 'najarena_cron_secret');
--- Sans ce secret, les appels sont simplement refusés (401), sans effet.
+-- Sans ce secret, les appels partent avec une autorisation vide et sont
+-- simplement refusés (401), sans effet.
 create extension if not exists pg_cron;
-create extension if not exists pg_net;
+create extension if not exists pg_net with schema extensions;
 
 select cron.schedule(
   'najarena-tournois-auto',
@@ -1419,7 +1420,7 @@ select cron.schedule(
     url := 'https://najarena.vercel.app/api/cron/tournois-auto',
     headers := jsonb_build_object(
       'Authorization',
-      'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'najarena_cron_secret')
+      'Bearer ' || coalesce((select decrypted_secret from vault.decrypted_secrets where name = 'najarena_cron_secret'), '')
     ),
     timeout_milliseconds := 60000
   );
@@ -1434,7 +1435,7 @@ select cron.schedule(
     url := 'https://najarena.vercel.app/api/cron/recherche-resultats',
     headers := jsonb_build_object(
       'Authorization',
-      'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'najarena_cron_secret')
+      'Bearer ' || coalesce((select decrypted_secret from vault.decrypted_secrets where name = 'najarena_cron_secret'), '')
     ),
     timeout_milliseconds := 60000
   );
