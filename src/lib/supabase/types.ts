@@ -978,6 +978,24 @@ export type Database = {
           },
         ]
       }
+      recaps_semaine: {
+        Row: {
+          annonce: boolean
+          publie_le: string
+          semaine: string
+        }
+        Insert: {
+          annonce: boolean
+          publie_le?: string
+          semaine: string
+        }
+        Update: {
+          annonce?: boolean
+          publie_le?: string
+          semaine?: string
+        }
+        Relationships: []
+      }
       registrations: {
         Row: {
           confirme_le: string | null

@@ -19,6 +19,7 @@ import { verifierCleRiot } from "@/lib/riot";
 import {
   capaciteEffective,
   CRENEAUX,
+  ajouterJours,
   heureParis,
   jourLisibleParis,
   jourParis,
@@ -29,6 +30,8 @@ import {
 import { planifier, type Action, type TournoiSuivi, type TypeRappel } from "./planification";
 import { echapperDiscord } from "@/lib/echappement";
 import { doitPublierEmpreinte } from "@/lib/registre";
+import { lundiDeLaSemaine, messageRecap } from "@/lib/recap-semaine";
+import { chargerRecapSemaine } from "@/lib/recap-semaine-serveur";
 
 type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
 
@@ -95,7 +98,40 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     resultats.push(`empreinte du registre : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
   }
 
+  try {
+    resultats.push(...(await publierRecapSemaine(admin, maintenant)));
+  } catch (erreur) {
+    resultats.push(`récap de la semaine : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
   return { simulation, actions, resultats };
+}
+
+// Récap de la semaine (28/09/2026, audit N17) : le lundi à partir de
+// 10 h (heure de Paris), la semaine précédente est racontée sur Discord,
+// une seule fois (ligne de recaps_semaine) — jamais une semaine vide.
+async function publierRecapSemaine(admin: ClientAdmin, maintenant: Date): Promise<string[]> {
+  const lundi = lundiDeLaSemaine(maintenant);
+  if (jourParis(maintenant) !== lundi || heureParis(maintenant.toISOString()) < "10:00") return [];
+  const semaine = ajouterJours(lundi, -7);
+
+  const { data: deja } = await admin.from("recaps_semaine").select("semaine").eq("semaine", semaine).maybeSingle();
+  if (deja) return [];
+
+  const { recap, joueurs } = await chargerRecapSemaine(admin, semaine);
+  const { data: inseree } = await admin
+    .from("recaps_semaine")
+    .insert({ semaine, annonce: recap !== null })
+    .select("semaine")
+    .maybeSingle();
+  if (!inseree || !recap) return inseree ? [`récap de la semaine du ${semaine} : semaine vide, rien publié`] : [];
+
+  const nom = (id: string) => {
+    const j = joueurs.get(id);
+    return j && !j.supprime ? `**${echapperDiscord(j.pseudo)}**` : "un compte supprimé";
+  };
+  await notifierDiscord(messageRecap(recap, nom, `${URL_SITE}/lol/semaine/${semaine}`));
+  return [`récap de la semaine du ${semaine} : publié`];
 }
 
 // Empreinte du soir (28/09/2026, audit N8) : la dernière empreinte du

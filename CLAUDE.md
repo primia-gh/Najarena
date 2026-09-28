@@ -138,6 +138,7 @@ Schéma de base de données : `docs/schema.sql`.
 /lol/tournois/demo         tournoi d'exemple (données statiques, jamais en base)
 /lol/classement            leaderboard
 /lol/saisons               saisons : dates, jours restants, classements finaux archivés
+/lol/semaine/[lundi]       récap de la semaine (publié aussi sur Discord le lundi)
 /registre                  registre des points scellé (preuve publique, export, vérification)
 /lol/coequipiers           recherche de coéquipiers (5v5)
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol

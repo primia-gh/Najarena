@@ -15,7 +15,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createClient();
 
-  const [{ data: tournois }, { data: ratings }, { data: equipes }] = await Promise.all([
+  const [{ data: tournois }, { data: ratings }, { data: equipes }, { data: recaps }] = await Promise.all([
     supabase
       .from("tournaments")
       .select("slug, cree_le")
@@ -25,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ),
     supabase.from("ratings").select("maj_le, profil:profiles(slug)").gt("matchs_joues", 0),
     supabase.from("teams").select("slug, cree_le"),
+    supabase.from("recaps_semaine").select("semaine, publie_le").eq("annonce", true).order("semaine", { ascending: false }).limit(52),
   ]);
 
   const pagesStatiques: MetadataRoute.Sitemap = [
@@ -76,5 +77,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.4,
   }));
 
-  return [...pagesStatiques, ...pagesTournois, ...pagesJoueurs, ...pagesEquipes];
+  // Récaps de semaine publiés (semaines avec au moins un tournoi clôturé).
+  const pagesRecaps: MetadataRoute.Sitemap = (recaps ?? []).map((r) => ({
+    url: `${BASE_URL}/lol/semaine/${r.semaine}`,
+    lastModified: r.publie_le,
+    changeFrequency: "yearly",
+    priority: 0.4,
+  }));
+
+  return [...pagesStatiques, ...pagesTournois, ...pagesJoueurs, ...pagesEquipes, ...pagesRecaps];
 }

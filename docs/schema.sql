@@ -3519,3 +3519,17 @@ drop trigger if exists certificats_immuables on public.certificats;
 create trigger certificats_immuables
   before update on public.certificats
   for each row execute function public.refuser_modification_certificat();
+
+-- ---------- Récap de la semaine (2026-09-28, audit N17) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Chaque lundi, la tâche des tournois automatiques calcule le récap de la
+-- semaine précédente (page /lol/semaine/[lundi]) et le publie sur Discord,
+-- une seule fois ; une semaine sans tournoi clôturé n'est jamais annoncée.
+create table if not exists public.recaps_semaine (
+  semaine    date primary key, -- lundi de la semaine racontée
+  annonce    boolean not null, -- false : semaine vide, rien publié
+  publie_le  timestamptz not null default now()
+);
+alter table public.recaps_semaine enable row level security;
+create policy "recaps lisibles par tous" on public.recaps_semaine for select using (true);
+revoke insert, update, delete on public.recaps_semaine from anon, authenticated;
