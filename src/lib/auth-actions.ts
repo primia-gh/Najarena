@@ -5,8 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { slugifier } from "@/lib/slug";
 import { URL_SITE } from "@/lib/notifications";
-
-const PSEUDO_REGEX = /^[a-zA-Z0-9 _-]{3,20}$/;
+import { estPseudoAutomatique, MESSAGE_PSEUDO_INVALIDE, PSEUDO_REGEX } from "@/lib/pseudo";
 
 // 8 caractères au moins (audit du 27/09/2026, F1 : Supabase en accepte 6
 // par défaut). À aligner dans le tableau de bord Supabase (Authentication >
@@ -95,9 +94,13 @@ export async function sInscrire(formData: FormData) {
   }
 
   if (!PSEUDO_REGEX.test(pseudo)) {
+    redirect(`/inscription?erreur=${encodeURIComponent(MESSAGE_PSEUDO_INVALIDE)}`);
+  }
+
+  if (estPseudoAutomatique(pseudo)) {
     redirect(
       `/inscription?erreur=${encodeURIComponent(
-        "Le pseudo doit faire entre 3 et 20 caractères (lettres, chiffres, espaces, - ou _).",
+        "Les pseudos « Joueur-… » sont réservés aux comptes qui n'ont pas encore choisi le leur.",
       )}`,
     );
   }
@@ -112,6 +115,14 @@ export async function sInscrire(formData: FormData) {
   }
 
   const supabase = await createClient();
+
+  // Ancienne adresse d'un joueur qui a changé de pseudo : elle redirige vers
+  // son CV et ne se reprend pas (la base le refuse aussi, sans ce message).
+  const { data: ancienneAdresse } = await supabase.from("anciens_slugs").select("slug").eq("slug", slug).maybeSingle();
+  if (ancienneAdresse) {
+    redirect(`/inscription?erreur=${encodeURIComponent("Ce pseudo est déjà pris.")}`);
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password: motDePasse,

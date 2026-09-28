@@ -106,6 +106,22 @@ begin
 end $$;
 grant execute on function public.verifie(text, boolean) to anon, authenticated, service_role;
 
+-- refus : l'instruction doit échouer avec exactement ce message d'erreur
+-- (distingue « pseudo déjà pris » de « pseudo invalide », par exemple).
+create or replace function public.refus(p_libelle text, p_sql text, p_erreur text)
+returns void language plpgsql as $$
+declare r text := '(aucune erreur)';
+begin
+  begin
+    execute p_sql;
+  exception when others then
+    r := sqlerrm;
+  end;
+  raise notice '% %  (erreur attendue : %, obtenue : %)',
+    case when r = p_erreur then 'OK   ' else 'ÉCHEC' end, p_libelle, p_erreur, r;
+end $$;
+grant execute on function public.refus(text, text, text) to anon, authenticated, service_role;
+
 create or replace function public.en_tant_que(p uuid) returns void language sql as $$
   select set_config('request.jwt.claim.sub', p::text, false);
 $$;

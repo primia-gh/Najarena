@@ -37,6 +37,32 @@ export type Database = {
           },
         ]
       }
+      anciens_slugs: {
+        Row: {
+          profile_id: string
+          remplace_le: string
+          slug: string
+        }
+        Insert: {
+          profile_id: string
+          remplace_le?: string
+          slug: string
+        }
+        Update: {
+          profile_id?: string
+          remplace_le?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anciens_slugs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comptes_offres: {
         Row: {
           attribue_le: string
@@ -480,7 +506,9 @@ export type Database = {
           id: string
           pays: string | null
           pseudo: string
+          pseudo_modifie_le: string | null
           slug: string
+          visites_anonymes: boolean
         }
         Insert: {
           avatar_url?: string | null
@@ -489,7 +517,9 @@ export type Database = {
           id: string
           pays?: string | null
           pseudo: string
+          pseudo_modifie_le?: string | null
           slug: string
+          visites_anonymes?: boolean
         }
         Update: {
           avatar_url?: string | null
@@ -498,7 +528,9 @@ export type Database = {
           id?: string
           pays?: string | null
           pseudo?: string
+          pseudo_modifie_le?: string | null
           slug?: string
+          visites_anonymes?: boolean
         }
         Relationships: []
       }
@@ -1254,9 +1286,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      mes_reglages_profil: {
+        Args: never
+        Returns: { pseudo_modifie_le: string | null; visites_anonymes: boolean }[]
+      }
+      modifier_mon_profil: {
+        Args: { p_pays: string | null; p_pseudo: string; p_visites_anonymes: boolean }
+        Returns: string
+      }
       reconnaitre_defaite: { Args: { p_match_id: string }; Returns: string }
       s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
       se_desinscrire: { Args: { p_tournament_id: string }; Returns: boolean }
+      visites_anonymes_actives: { Args: never; Returns: boolean }
     }
     Enums: {
       match_status: "en_attente" | "en_cours" | "termine" | "litige" | "forfait"

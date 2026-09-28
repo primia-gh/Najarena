@@ -16,6 +16,7 @@ import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import { estPseudoAutomatique } from "@/lib/pseudo";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
@@ -135,6 +136,22 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
         </Link>
       ))}
 
+      {profil && estPseudoAutomatique(profil.pseudo) && (
+        <Link
+          href="/moi/profil"
+          className={"mb-6 flex flex-wrap items-center justify-between gap-3 " + classeCarte("atteste", true)}
+        >
+          <span className="flex min-w-0 flex-col">
+            <span className="text-mini text-accent uppercase">Choisis ton pseudo</span>
+            <span className="text-sm text-text-2">
+              « {profil.pseudo} » est un pseudo automatique : c&apos;est lui qui s&apos;affiche sur ton CV et dans
+              les brackets.
+            </span>
+          </span>
+          <span className="text-sm text-text-2 underline underline-offset-3">Choisir mon pseudo →</span>
+        </Link>
+      )}
+
       <Apparition>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
@@ -167,6 +184,12 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             Voir mon profil public
           </Link>
         )}
+        <Link
+          href="/moi/profil"
+          className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
+        >
+          Modifier mon profil
+        </Link>
         <Link
           href="/moi/messages"
           className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"

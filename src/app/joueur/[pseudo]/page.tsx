@@ -1,7 +1,8 @@
-import { Fragment } from "react";
+import { cache, Fragment } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { after } from "next/server";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { calibrationPct, arrondir, RATING_INITIAL, RD_INITIAL } from "@/lib/classement";
@@ -13,6 +14,7 @@ import { demarrerConversation } from "@/lib/messagerie-actions";
 import { chargerMoyennes, genererRevue, type StatsMatch } from "@/lib/revue-match";
 import { JsonLd } from "@/lib/json-ld";
 import { chargerComplementsProfil } from "@/lib/profil-vitrine";
+import { adresseActuelleProfil, enregistrerVisite } from "@/lib/visites-profil";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { classeBoutonContour, classeBoutonPrincipal } from "@/lib/design";
 import BoutonLien from "@/components/design/BoutonLien";
@@ -51,7 +53,9 @@ interface JoueurPageProps {
   params: Promise<{ pseudo: string }>;
 }
 
-async function chargerJoueur(slug: string) {
+// cache : generateMetadata et la page partagent un seul chargement par
+// requête (audit M12 — tout était chargé deux fois, visite comprise).
+const chargerJoueur = cache(async (slug: string) => {
   const supabase = await createClient();
 
   // Le segment d'URL s'appelle "pseudo" (arborescence CLAUDE.md) mais
@@ -67,7 +71,9 @@ async function chargerJoueur(slug: string) {
     return { statut: "erreur" as const };
   }
   if (!profil) {
-    return { statut: "introuvable" as const };
+    // Ancienne adresse d'un joueur qui a changé de pseudo.
+    const adresse = await adresseActuelleProfil(supabase, slug);
+    return adresse ? { statut: "deplace" as const, slug: adresse } : { statut: "introuvable" as const };
   }
 
   // Étage 1 : ne dépendent que de profil.id, indépendantes entre elles —
@@ -114,16 +120,8 @@ async function chargerJoueur(slug: string) {
   ]);
 
   const estProprietaire = visiteurData.user?.id === profil.id;
-
-  // Enregistrer la vue — jamais pour un visiteur anonyme, jamais pour le
-  // propriétaire qui regarde son propre profil (ce n'est pas une "vue").
-  if (visiteurData.user && !estProprietaire) {
-    await supabase.from("vues_profil").upsert({
-      profile_id: profil.id,
-      vu_par: visiteurData.user.id,
-      derniere_vue_le: new Date().toISOString(),
-    });
-  }
+  // Visite enregistrée par la page après son envoi (enregistrerVisite).
+  const visiteurId = visiteurData.user?.id ?? null;
 
   // Un visiteur organisateur peut suivre/contacter ce joueur — chargé
   // seulement pour un visiteur connecté qui n'est pas le propriétaire.
@@ -253,20 +251,26 @@ async function chargerJoueur(slug: string) {
     offreVisiteur,
     dejaSuivi,
     peutRevue,
+    visiteurId,
   };
-}
+});
 
 export async function generateMetadata({ params }: JoueurPageProps): Promise<Metadata> {
   const { pseudo } = await params;
   const donnees = await chargerJoueur(pseudo);
 
+  if (donnees.statut === "deplace") {
+    permanentRedirect(`/joueur/${donnees.slug}`);
+  }
   if (donnees.statut !== "ok") {
     return { title: "Profil introuvable — Najarena" };
   }
 
   return {
     title: `${donnees.profil.pseudo} — Najarena`,
-    description: `Profil vérifié de ${donnees.profil.pseudo} sur Najarena. Résultats League of Legends lus dans la donnée officielle Riot.`,
+    description: donnees.compteRiot?.verifie_le
+      ? `Profil vérifié de ${donnees.profil.pseudo} sur Najarena. Résultats League of Legends lus dans la donnée officielle Riot.`
+      : `Profil de ${donnees.profil.pseudo} sur Najarena. Résultats League of Legends lus dans la donnée officielle Riot.`,
   };
 }
 
@@ -274,6 +278,9 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
   const { pseudo } = await params;
   const donnees = await chargerJoueur(pseudo);
 
+  if (donnees.statut === "deplace") {
+    permanentRedirect(`/joueur/${donnees.slug}`);
+  }
   if (donnees.statut === "introuvable") {
     notFound();
   }
@@ -288,7 +295,12 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     );
   }
 
-  const { profil, compteRiot, rating, historique, evenementsPoints, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi, peutRevue } = donnees;
+  const { profil, compteRiot, rating, historique, evenementsPoints, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi, peutRevue, visiteurId } = donnees;
+
+  // Jamais pour un visiteur déconnecté ni pour le propriétaire lui-même.
+  if (visiteurId && !estProprietaire) {
+    after(() => enregistrerVisite(profil.id, visiteurId));
+  }
   const peutPersonnaliser = ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie;
   const visiteurEstOrganisateur = offreVisiteur === "organisateur";
   const pct = rating ? calibrationPct(rating.rd) : 0;
@@ -397,10 +409,13 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     },
   ];
 
+  // Riot ID et région seulement une fois le compte vérifié (audit M9) : un
+  // Riot ID simplement saisi peut appartenir à quelqu'un d'autre.
+  const compteVerifie = compteRiot?.verifie_le ? compteRiot : null;
   const infos = [
-    compteRiot ? { cle: "Riot ID", valeur: `${compteRiot.riot_game_name}#${compteRiot.riot_tag_line}` } : null,
+    compteVerifie ? { cle: "Riot ID", valeur: `${compteVerifie.riot_game_name}#${compteVerifie.riot_tag_line}` } : null,
     complements.roleLibelle ? { cle: "Rôle", valeur: complements.roleLibelle } : null,
-    compteRiot ? { cle: "Région", valeur: compteRiot.region } : null,
+    compteVerifie ? { cle: "Région", valeur: compteVerifie.region } : null,
     profil.pays ? { cle: "Pays", valeur: profil.pays } : null,
     equipeActuelle ? { cle: "Équipe", valeur: equipeActuelle.nom } : null,
     { cle: "Membre depuis", valeur: moisAnnee.format(new Date(profil.created_at)) },

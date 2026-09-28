@@ -2516,3 +2516,180 @@ create policy "tournois publies lisibles par tous"
   on public.tournaments for select using (
     statut <> 'brouillon' or organisateur_id = (select auth.uid())
   );
+
+-- ---------- Profil modifiable, visites anonymes (2026-09-28, audit E7, M10) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Aucun écran ne permettait de changer son pseudo ni son pays : un compte
+-- créé via Discord gardait à vie un pseudo « Joueur-1a2b3c4d » sur son CV.
+-- - modifier_mon_profil : pseudo (mêmes règles qu'à l'inscription, unique
+--   sans tenir compte des majuscules), pays, préférence de visite. Le
+--   premier changement est libre (quitter le pseudo automatique), ensuite un
+--   tous les 30 jours au plus, pour qu'un CV ne change pas d'identité à
+--   volonté. Les pseudos « Joueur-xxxxxxxx » restent réservés aux comptes
+--   qui n'ont pas encore choisi le leur.
+-- - anciens_slugs : l'ancienne adresse d'un CV redirige vers la nouvelle
+--   (liens déjà partagés, référencement), et ne peut pas être reprise par
+--   quelqu'un d'autre.
+-- - visites_anonymes : ne pas apparaître dans « Qui a consulté mon profil »
+--   (offre Vérifié), un traitement jusqu'ici ni annoncé ni refusable.
+alter table public.profiles add column if not exists pseudo_modifie_le timestamptz;
+alter table public.profiles add column if not exists visites_anonymes boolean not null default false;
+-- Colonnes privées : pas de grant select (voir mes_reglages_profil).
+
+create table if not exists public.anciens_slugs (
+  slug        text primary key,
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  remplace_le timestamptz not null default now()
+);
+create index if not exists anciens_slugs_profile_id_idx on public.anciens_slugs (profile_id);
+alter table public.anciens_slugs enable row level security;
+create policy "anciennes adresses lisibles par tous" on public.anciens_slugs for select using (true);
+-- Aucune policy d'écriture : seule modifier_mon_profil y écrit.
+revoke insert, update, delete on public.anciens_slugs from anon, authenticated;
+
+create or replace function public.modifier_mon_profil(p_pseudo text, p_pays text, p_visites_anonymes boolean)
+returns text -- adresse (slug) du profil après modification
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_actuel record;
+  v_pseudo text := btrim(coalesce(p_pseudo, ''));
+  v_pays text := nullif(btrim(coalesce(p_pays, '')), '');
+  v_slug text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select pseudo, slug, pseudo_modifie_le into v_actuel
+  from public.profiles
+  where id = v_joueur
+  for update;
+
+  -- Mêmes règles qu'à l'inscription (src/lib/auth-actions.ts, PSEUDO_REGEX).
+  if v_pseudo !~ '^[a-zA-Z0-9 _-]{3,20}$' then
+    raise exception 'PSEUDO_INVALIDE';
+  end if;
+
+  if v_pays is not null and (char_length(v_pays) > 40 or v_pays !~ '^[[:alpha:] ''-]+$') then
+    raise exception 'PAYS_INVALIDE';
+  end if;
+
+  -- Même calcul que slugifier (src/lib/slug.ts) pour un pseudo ASCII.
+  v_slug := btrim(regexp_replace(lower(v_pseudo), '[^a-z0-9]+', '-', 'g'), '-');
+  if v_slug = '' then
+    raise exception 'PSEUDO_INVALIDE';
+  end if;
+
+  if v_pseudo <> v_actuel.pseudo then
+    if v_pseudo ~* '^joueur-[0-9a-f]{8}$' then
+      raise exception 'PSEUDO_RESERVE';
+    end if;
+
+    if v_actuel.pseudo_modifie_le > now() - interval '30 days' then
+      raise exception 'PSEUDO_RECEMMENT_MODIFIE';
+    end if;
+
+    if exists (
+         select 1 from public.profiles
+         where id <> v_joueur and (lower(pseudo) = lower(v_pseudo) or slug = v_slug)
+       )
+       or exists (select 1 from public.anciens_slugs where slug = v_slug and profile_id <> v_joueur) then
+      raise exception 'PSEUDO_PRIS';
+    end if;
+
+    if v_slug <> v_actuel.slug then
+      insert into public.anciens_slugs (slug, profile_id)
+      values (v_actuel.slug, v_joueur)
+      on conflict (slug) do nothing;
+      -- Retour à une ancienne adresse du même joueur : elle redevient la sienne.
+      delete from public.anciens_slugs where slug = v_slug and profile_id = v_joueur;
+    end if;
+
+    update public.profiles
+    set pseudo = v_pseudo, slug = v_slug, pseudo_modifie_le = now()
+    where id = v_joueur;
+  end if;
+
+  update public.profiles
+  set pays = v_pays, visites_anonymes = coalesce(p_visites_anonymes, false)
+  where id = v_joueur;
+
+  -- Passer en anonyme efface aussi les visites déjà enregistrées.
+  if coalesce(p_visites_anonymes, false) then
+    delete from public.vues_profil where vu_par = v_joueur;
+  end if;
+
+  return v_slug;
+end;
+$$;
+
+revoke execute on function public.modifier_mon_profil(text, text, boolean) from public, anon;
+grant execute on function public.modifier_mon_profil(text, text, boolean) to authenticated;
+
+-- Une ancienne adresse de CV n'est pas reprise par un nouveau compte
+-- (l'inscription le vérifie aussi, pour afficher un message clair).
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_pseudo text;
+  v_slug text;
+  v_discord_id text;
+begin
+  v_pseudo := new.raw_user_meta_data->>'pseudo';
+  v_slug := new.raw_user_meta_data->>'slug';
+
+  if v_pseudo is null or v_slug is null then
+    v_pseudo := 'Joueur-' || substr(new.id::text, 1, 8);
+    v_slug := lower(v_pseudo);
+  elsif exists (select 1 from public.anciens_slugs where slug = v_slug) then
+    raise exception 'PSEUDO_PRIS';
+  end if;
+
+  if new.raw_app_meta_data->>'provider' = 'discord' then
+    v_discord_id := coalesce(
+      new.raw_user_meta_data->>'provider_id',
+      new.raw_user_meta_data->>'sub'
+    );
+  end if;
+
+  insert into public.profiles (id, pseudo, slug, discord_id)
+  values (new.id, v_pseudo, v_slug, v_discord_id);
+  return new;
+end;
+$$;
+
+-- Réglages privés du joueur connecté (page « Modifier mon profil ») :
+-- personne d'autre ne sait qui navigue en anonyme.
+create or replace function public.mes_reglages_profil()
+returns table (pseudo_modifie_le timestamptz, visites_anonymes boolean)
+language sql stable
+security definer set search_path = public
+as $$
+  select p.pseudo_modifie_le, p.visites_anonymes
+  from public.profiles p
+  where p.id = (select auth.uid());
+$$;
+revoke execute on function public.mes_reglages_profil() from public, anon;
+grant execute on function public.mes_reglages_profil() to authenticated;
+
+create or replace function public.visites_anonymes_actives()
+returns boolean
+language sql stable
+security definer set search_path = public
+as $$
+  select coalesce((select visites_anonymes from public.profiles where id = (select auth.uid())), false);
+$$;
+revoke execute on function public.visites_anonymes_actives() from public, anon;
+grant execute on function public.visites_anonymes_actives() to authenticated;
+
+-- Un joueur qui a choisi l'anonymat n'enregistre plus ses visites.
+alter policy "un joueur enregistre sa propre visite" on public.vues_profil
+  with check ((select auth.uid()) = vu_par and not (select public.visites_anonymes_actives()));
+alter policy "un joueur met a jour sa propre visite" on public.vues_profil
+  using ((select auth.uid()) = vu_par and not (select public.visites_anonymes_actives()));
