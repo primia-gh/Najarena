@@ -180,6 +180,7 @@ export function EssentielReglement({ organisateur }: { organisateur?: string | n
     "Compte Riot vérifié obligatoire pour s'inscrire, dans la région du tournoi : c'est lui qui permet de retrouver ton résultat automatiquement.",
     `Le vainqueur est lu dans l'historique de partie Riot. Sans résultat retrouvé, ${organisateur ?? "l'organisateur"} tranche et affiche son motif — jamais un résultat supposé.`,
     "Check-in obligatoire : sans confirmation de présence, l'organisateur peut t'exclure du bracket.",
+    "Tu as perdu ? Reconnais ta défaite depuis le bracket : ton adversaire avance tout de suite. Le résultat ne compte au classement que si la partie est retrouvée chez Riot.",
     "Un forfait ne rapporte aucun point, à aucun des deux joueurs. Au-delà de 3 victoires contre le même adversaire en 24 h, les suivantes ne comptent pas.",
     "Les règles (capacité, format, dates) sont figées dès la première inscription. Toute tentative de manipulation peut entraîner la suspension du compte.",
   ];

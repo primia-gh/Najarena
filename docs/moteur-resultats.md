@@ -48,6 +48,10 @@ Sans résultat, le match passe en `litige` après **30 + 30 × Best-of minutes**
 
 Logique pure (séries, calendrier) : `src/lib/serie.ts` ; orchestration : `src/lib/rapprochement.ts`.
 
+### Défaite reconnue
+
+Un joueur peut reconnaître sa défaite depuis le bracket (`reconnaitre_defaite`). Match en cours : la recherche Riot a encore 20 minutes ; si la partie est retrouvée, le verdict est de niveau 2 et compte ; sinon la tâche tranche au niveau 1 (manuel, hors classement) avec le motif public « Défaite reconnue par … ». Match déjà en litige : tranché tout de suite, au niveau 1. La parole du perdant ne compte jamais au classement ; elle évite seulement qu'un tournoi reste bloqué en attendant un organisateur.
+
 ### Critères de rapprochement (niveau 2)
 
 Une partie de l'historique est retenue si **toutes** ces conditions sont vraies :

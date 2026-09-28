@@ -6,6 +6,7 @@ import { sInscrireATournoi } from "@/lib/inscription-actions";
 import { confirmerMaPresence } from "@/lib/checkin-actions";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { ouvrirLitige } from "@/lib/litige-actions";
+import { reconnaitreDefaite } from "@/lib/match-actions";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { progressionPalier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
@@ -97,7 +98,7 @@ async function chargerTournoi(slug: string) {
     supabase
       .from("matches")
       .select(
-        "id, tour, position, statut, match_participants(profile_id, slot, score, est_gagnant, profile:profiles(pseudo, slug))",
+        "id, tour, position, statut, defaite_reconnue_par, match_participants(profile_id, slot, score, est_gagnant, profile:profiles(pseudo, slug))",
       )
       .eq("tournament_id", tournoi.id)
       .order("tour", { ascending: true })
@@ -462,6 +463,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                     ? m.match_participants.some((p) => p.profile_id === utilisateur.id)
                     : false;
                   const peutSignalerLitige = estParticipantDuMatch && verdict && !litige;
+                  const enJeu =
+                    !verdict && (m.statut === "en_cours" || m.statut === "litige") && m.match_participants.length === 2;
+                  const perdantDeclare = m.defaite_reconnue_par
+                    ? (m.match_participants.find((p) => p.profile_id === m.defaite_reconnue_par)?.profile?.pseudo ??
+                      "un joueur")
+                    : null;
                   const etat: EtatMatch =
                     litige && !litige.resolution
                       ? "litige"
@@ -495,10 +502,41 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                         motif={verdict?.motif}
                         monMatch={estParticipantDuMatch}
                       >
-                        {!verdict && m.statut === "litige" && (
+                        {!verdict && m.statut === "litige" && !perdantDeclare && (
                           <p className="text-xs text-danger">
-                            Résultat non retrouvé automatiquement — en attente de l&apos;organisateur.
+                            Partie pas encore retrouvée chez Riot — la recherche continue, l&apos;organisateur peut
+                            trancher.
                           </p>
+                        )}
+                        {enJeu && perdantDeclare && (
+                          <p className="text-xs text-muted">
+                            Défaite reconnue par {perdantDeclare} — en attente de l&apos;historique Riot (20 min au
+                            plus).
+                          </p>
+                        )}
+                        {enJeu && !perdantDeclare && estParticipantDuMatch && (
+                          <details>
+                            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-mini font-semibold text-muted uppercase hover:text-text [&::-webkit-details-marker]:hidden">
+                              J&apos;ai perdu ce match
+                            </summary>
+                            <form action={reconnaitreDefaite} className="flex flex-col gap-2">
+                              <input type="hidden" name="match_id" value={m.id} />
+                              <input type="hidden" name="slug" value={tournoi.slug} />
+                              <p className="text-xs leading-normal text-muted">
+                                Ton adversaire avance sans attendre l&apos;organisateur. Si la partie est retrouvée
+                                chez Riot, le résultat compte au classement ; sinon, il est enregistré sur ta parole,
+                                hors classement.
+                              </p>
+                              <BoutonEnvoi
+                                variante="contour"
+                                libelleEnCours="Envoi…"
+                                aria-label={`Confirmer ma défaite — ${libelleMatch}`}
+                                className="self-start"
+                              >
+                                Confirmer ma défaite
+                              </BoutonEnvoi>
+                            </form>
+                          </details>
                         )}
                         {litige && (
                           <p className={`text-xs ${litige.resolution ? "text-muted" : "text-danger"}`}>

@@ -20,10 +20,11 @@ import {
   type DetailsMatchRiot,
   type ParticipantMatchRiot,
 } from "@/lib/riot";
-import { envoyerRappel, notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
-import { cloturerTournoi } from "@/lib/classement-actions";
+import { envoyerRappel, notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { apresVerdict } from "@/lib/apres-verdict";
 import {
   deciderSerie,
+  defaiteReconnueATrancher,
   doitChercher,
   doitPasserEnLitige,
   DUREE_MIN_SECONDES,
@@ -126,6 +127,8 @@ interface MatchCandidat {
   match_suivant_id: string | null;
   statut: string;
   demarre_le: string | null;
+  defaite_reconnue_par: string | null;
+  defaite_reconnue_le: string | null;
   tournament: {
     game_id: number;
     nom: string;
@@ -138,38 +141,6 @@ interface MatchCandidat {
 }
 
 type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
-
-/**
- * Tout ce qui suit un verdict, quel que soit son niveau : prévenir les
- * joueurs, et si c'était la finale (aucun match suivant), clôturer le
- * tournoi — calcul Glicko-2 — et annoncer le vainqueur.
- */
-async function apresVerdict(m: MatchCandidat, gagnantId: string, source: string): Promise<void> {
-  if (!m.tournament) return;
-  const tournoi = m.tournament;
-
-  await Promise.all(
-    m.match_participants.map((p) => {
-      const aGagne = p.profile_id === gagnantId;
-      return notifierJoueur(
-        p.profile_id,
-        `Résultat enregistré — ${tournoi.nom}`,
-        aGagne ? "Victoire enregistrée" : "Résultat de ton match",
-        `<p>${source}</p>
-         <p><a href="${URL_SITE}/lol/tournois/${tournoi.slug}">Voir le bracket</a></p>`,
-      );
-    }),
-  );
-
-  if (m.match_suivant_id === null) {
-    await cloturerTournoi(m.tournament_id);
-    const nomGagnant =
-      m.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ?? "le vainqueur";
-    await notifierDiscord(
-      `🏆 **${nomGagnant}** remporte **${tournoi.nom}**.\n${URL_SITE}/lol/tournois/${tournoi.slug}`,
-    );
-  }
-}
 
 async function enregistrerSerie(
   admin: ClientAdmin,
@@ -210,10 +181,26 @@ async function enregistrerSerie(
 
   const manches = serie.parties.length > 1 ? ` (${serie.parties.length} manches)` : "";
   await apresVerdict(
-    m,
+    m.id,
     gagnantId,
     `La partie officielle${manches} a été retrouvée automatiquement dans l'historique Riot : ce résultat est vérifié.`,
   );
+  return true;
+}
+
+// Défaite reconnue par le perdant et toujours pas de partie Riot après le
+// délai d'attente : verdict de niveau 1 (hors classement), motif public.
+async function trancherDefaiteReconnue(admin: ClientAdmin, m: MatchCandidat): Promise<boolean> {
+  const { data: ecrit } = await admin.rpc("enregistrer_defaite_reconnue", { p_match_id: m.id });
+  if (!ecrit) return false;
+  const gagnant = m.match_participants.find((p) => p.profile_id !== m.defaite_reconnue_par);
+  if (gagnant) {
+    await apresVerdict(
+      m.id,
+      gagnant.profile_id,
+      "Défaite reconnue par le perdant : la partie n'a pas été retrouvée dans l'historique Riot, le match est tranché sur sa parole (verdict manuel, hors classement).",
+    );
+  }
   return true;
 }
 
@@ -275,7 +262,7 @@ export async function traiterRechercheResultats(): Promise<{
   const { data: candidatsData } = await supabase
     .from("matches")
     .select(
-      "id, tournament_id, match_suivant_id, statut, demarre_le, tournament:tournaments(game_id, nom, slug, best_of, format, organisateur_id), match_participants(profile_id, profile:profiles(pseudo))",
+      "id, tournament_id, match_suivant_id, statut, demarre_le, defaite_reconnue_par, defaite_reconnue_le, tournament:tournaments(game_id, nom, slug, best_of, format, organisateur_id), match_participants(profile_id, profile:profiles(pseudo))",
     )
     .in("statut", ["en_cours", "litige"])
     .not("demarre_le", "is", null)
@@ -347,6 +334,18 @@ export async function traiterRechercheResultats(): Promise<{
           // résultat inventé, on retentera au prochain passage.
         }
       }
+    }
+
+    // Défaite reconnue : tranchée si Riot n'a toujours rien après le délai
+    // d'attente. Tant qu'elle attend, le match ne passe pas en litige.
+    if (m.defaite_reconnue_par && m.defaite_reconnue_le) {
+      const minutesDepuisDefaite = (Date.now() - new Date(m.defaite_reconnue_le).getTime()) / 60000;
+      if (defaiteReconnueATrancher(minutesDepuisDefaite) && (await trancherDefaiteReconnue(admin, m))) {
+        trouves += 1;
+      } else {
+        ignores += 1;
+      }
+      continue;
     }
 
     if (statut === "en_cours" && doitPasserEnLitige(ageMinutes, bestOf)) {

@@ -2099,3 +2099,174 @@ $$;
 
 revoke execute on function public.s_inscrire_tournoi(uuid) from public, anon;
 grant execute on function public.s_inscrire_tournoi(uuid) to authenticated;
+
+-- ---------- Défaite reconnue (2026-09-28, audit N3 et M8) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Un match sans résultat retrouvé bloquait son tournoi jusqu'à
+-- l'intervention d'un organisateur (pour les tournois automatiques : un
+-- administrateur présent à 21h). Le perdant peut désormais reconnaître sa
+-- défaite en un clic :
+-- - match en cours : on laisse encore 20 minutes à l'historique Riot. Si la
+--   partie y est retrouvée, le verdict est de niveau 2 et compte au
+--   classement ; sinon, la tâche de recherche tranche au niveau 1
+--   (manuel, hors classement), motif public « Défaite reconnue par … » ;
+-- - match déjà en litige : tranché tout de suite, au niveau 1.
+-- La parole du perdant ne compte jamais au classement : seule la partie
+-- Riot le fait.
+alter table public.matches add column if not exists defaite_reconnue_par uuid references public.profiles(id);
+alter table public.matches add column if not exists defaite_reconnue_le timestamptz;
+create index if not exists matches_defaite_reconnue_par_idx on public.matches (defaite_reconnue_par);
+
+-- Ces deux colonnes ne s'écrivent que par reconnaitre_defaite : ajoutées
+-- aux colonnes figées du contrôle des écritures directes (même fonction
+-- qu'au-dessus, republiée en entier).
+create or replace function public.controler_ecriture_match()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.statut <> 'en_attente' or new.demarre_le is not null or new.code_tournoi is not null
+       or new.defaite_reconnue_par is not null or new.defaite_reconnue_le is not null then
+      raise exception 'CHAMP_RESERVE';
+    end if;
+    return new;
+  end if;
+
+  if (new.tournament_id, new.tour, new.position, new.match_suivant_id, new.code_tournoi,
+      new.defaite_reconnue_par, new.defaite_reconnue_le)
+     is distinct from
+     (old.tournament_id, old.tour, old.position, old.match_suivant_id, old.code_tournoi,
+      old.defaite_reconnue_par, old.defaite_reconnue_le) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+
+  if new.statut is distinct from old.statut
+     and not (old.statut = 'en_attente' and new.statut = 'en_cours') then
+    raise exception 'CHANGEMENT_DE_STATUT_INTERDIT';
+  end if;
+
+  if new.demarre_le is distinct from old.demarre_le and not (
+       old.demarre_le is null
+       and new.demarre_le between now() - interval '2 minutes' and now() + interval '2 minutes'
+  ) then
+    raise exception 'HEURE_DE_DEBUT_RESERVEE';
+  end if;
+
+  return new;
+end;
+$$;
+
+-- Verdict tiré d'une défaite reconnue. Réservée au service_role (tâche de
+-- recherche) et à reconnaitre_defaite ci-dessous ; idempotente.
+create or replace function public.enregistrer_defaite_reconnue(p_match_id uuid)
+returns boolean -- true si écrit, false si le match était déjà décidé
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_perdant uuid;
+  v_gagnant uuid;
+  v_pseudo text;
+begin
+  select defaite_reconnue_par into v_perdant
+  from public.matches
+  where id = p_match_id
+  for update;
+
+  if v_perdant is null then
+    raise exception 'AUCUNE_DEFAITE_RECONNUE';
+  end if;
+
+  if exists (select 1 from public.match_verdicts where match_id = p_match_id and est_definitif) then
+    return false;
+  end if;
+
+  select profile_id into v_gagnant
+  from public.match_participants
+  where match_id = p_match_id and profile_id <> v_perdant;
+
+  select pseudo into v_pseudo from public.profiles where id = v_perdant;
+
+  insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+  values (
+    p_match_id,
+    'manuel',
+    v_gagnant,
+    null,
+    'Défaite reconnue par ' || coalesce(v_pseudo, 'le joueur') || ' — partie non retrouvée dans l''historique Riot.',
+    true
+  );
+
+  perform public.avancer_vainqueur(p_match_id, v_gagnant);
+  return true;
+end;
+$$;
+
+revoke all on function public.enregistrer_defaite_reconnue(uuid) from public, anon, authenticated;
+grant execute on function public.enregistrer_defaite_reconnue(uuid) to service_role;
+
+-- Appelée par le joueur qui a perdu. Renvoie 'en_attente' (la recherche Riot
+-- a encore 20 minutes) ou 'tranche' (match déjà en litige : verdict posé).
+create or replace function public.reconnaitre_defaite(p_match_id uuid)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_statut public.match_status;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select statut into v_statut
+  from public.matches
+  where id = p_match_id
+  for update;
+
+  if not found then
+    raise exception 'MATCH_INTROUVABLE';
+  end if;
+
+  if not exists (
+    select 1 from public.match_participants
+    where match_id = p_match_id and profile_id = v_joueur
+  ) then
+    raise exception 'NON_PARTICIPANT';
+  end if;
+
+  if (select count(*) from public.match_participants where match_id = p_match_id) <> 2 then
+    raise exception 'ADVERSAIRE_ABSENT';
+  end if;
+
+  if v_statut not in ('en_cours', 'litige')
+     or exists (select 1 from public.match_verdicts where match_id = p_match_id and est_definitif) then
+    raise exception 'MATCH_DEJA_DECIDE';
+  end if;
+
+  update public.matches
+  set defaite_reconnue_par = v_joueur, defaite_reconnue_le = now()
+  where id = p_match_id and defaite_reconnue_par is null;
+
+  if not found then
+    raise exception 'DEFAITE_DEJA_RECONNUE';
+  end if;
+
+  if v_statut = 'litige' then
+    perform public.enregistrer_defaite_reconnue(p_match_id);
+    return 'tranche';
+  end if;
+
+  return 'en_attente';
+end;
+$$;
+
+revoke execute on function public.reconnaitre_defaite(uuid) from public, anon;
+grant execute on function public.reconnaitre_defaite(uuid) to authenticated;

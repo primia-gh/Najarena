@@ -1,0 +1,63 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { apresVerdict } from "@/lib/apres-verdict";
+
+// Refus de la fonction reconnaitre_defaite (docs/schema.sql).
+const MESSAGES_REFUS: Record<string, string> = {
+  NON_PARTICIPANT: "Tu ne joues pas ce match.",
+  ADVERSAIRE_ABSENT: "Ton adversaire n'est pas encore connu.",
+  MATCH_DEJA_DECIDE: "Ce match a déjà un résultat.",
+  DEFAITE_DEJA_RECONNUE: "Une défaite a déjà été reconnue pour ce match.",
+  MATCH_INTROUVABLE: "Ce match n'existe pas.",
+};
+
+// « J'ai perdu ce match » (28/09/2026, audit N3) : le perdant débloque son
+// adversaire sans attendre un organisateur. Sa parole ne compte jamais au
+// classement — seule la partie retrouvée chez Riot le fait, et la
+// recherche lui laisse encore 20 minutes (src/lib/rapprochement.ts).
+export async function reconnaitreDefaite(formData: FormData) {
+  const matchId = String(formData.get("match_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const page = `/lol/tournois/${slug}`;
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { data: issue, error } = await supabase.rpc("reconnaitre_defaite", { p_match_id: matchId });
+
+  if (error) {
+    const code = Object.keys(MESSAGES_REFUS).find((c) => error.message.includes(c));
+    redirect(
+      `${page}?erreur=${encodeURIComponent(code ? MESSAGES_REFUS[code] : "Impossible d'enregistrer ta défaite pour l'instant.")}`,
+    );
+  }
+
+  if (issue === "tranche") {
+    // Match déjà en litige : le verdict vient d'être posé par la base.
+    const { data: adversaire } = await supabase
+      .from("match_participants")
+      .select("profile_id")
+      .eq("match_id", matchId)
+      .neq("profile_id", userData.user.id)
+      .maybeSingle();
+    if (adversaire) {
+      await apresVerdict(
+        matchId,
+        adversaire.profile_id,
+        "Défaite reconnue par le perdant : le match est tranché sur sa parole (verdict manuel, hors classement).",
+      );
+    }
+    redirect(`${page}?message=${encodeURIComponent("Défaite enregistrée : le match est tranché, ton adversaire avance.")}`);
+  }
+
+  redirect(
+    `${page}?message=${encodeURIComponent(
+      "Défaite enregistrée. Si la partie est retrouvée dans l'historique Riot d'ici 20 minutes, le résultat comptera au classement ; sinon, le match sera tranché sur ta parole.",
+    )}`,
+  );
+}

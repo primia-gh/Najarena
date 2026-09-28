@@ -372,6 +372,8 @@ export type Database = {
       matches: {
         Row: {
           code_tournoi: string | null
+          defaite_reconnue_le: string | null
+          defaite_reconnue_par: string | null
           demarre_le: string | null
           id: string
           match_suivant_id: string | null
@@ -382,6 +384,8 @@ export type Database = {
         }
         Insert: {
           code_tournoi?: string | null
+          defaite_reconnue_le?: string | null
+          defaite_reconnue_par?: string | null
           demarre_le?: string | null
           id?: string
           match_suivant_id?: string | null
@@ -392,6 +396,8 @@ export type Database = {
         }
         Update: {
           code_tournoi?: string | null
+          defaite_reconnue_le?: string | null
+          defaite_reconnue_par?: string | null
           demarre_le?: string | null
           id?: string
           match_suivant_id?: string | null
@@ -401,6 +407,13 @@ export type Database = {
           tournament_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "matches_defaite_reconnue_par_fkey"
+            columns: ["defaite_reconnue_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "matches_match_suivant_id_fkey"
             columns: ["match_suivant_id"]
@@ -1216,6 +1229,7 @@ export type Database = {
         Args: { p_gagnant_id: string; p_match_id: string }
         Returns: undefined
       }
+      enregistrer_defaite_reconnue: { Args: { p_match_id: string }; Returns: boolean }
       enregistrer_verdict_historique: {
         Args: {
           p_gagnant_id: string
@@ -1240,6 +1254,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      reconnaitre_defaite: { Args: { p_match_id: string }; Returns: string }
       s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
     }
     Enums: {
