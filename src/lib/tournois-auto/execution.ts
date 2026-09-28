@@ -12,7 +12,7 @@
 //   joueur ne reçoit jamais deux fois le même rappel.
 
 import { creerClientAdmin } from "@/lib/supabase/admin";
-import { construireBracket, melanger } from "@/lib/bracket-construction";
+import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { envoyerRappel, notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import {
@@ -313,7 +313,7 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
 
   const { data: inscriptions } = await admin
     .from("registrations")
-    .select("profile_id, statut, inscrit_le, confirme_le")
+    .select("profile_id, statut, inscrit_le, confirme_le, rating_a_inscription")
     .eq("tournament_id", tournoiId);
 
   // Premiers arrivés, premiers servis : si le bracket est plein, les
@@ -362,7 +362,11 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
     .eq("tournament_id", tournoiId)
     .eq("statut", "inscrit");
 
-  const retenus = confirmes.slice(0, t.capacite).map((c) => c.profile_id);
+  // Les premiers à avoir fait leur check-in ont leur place ; parmi eux, les
+  // têtes de série suivent le rating à l'inscription.
+  const retenus = ordonnerParRating(
+    confirmes.slice(0, t.capacite).map((c) => ({ profileId: c.profile_id, rating: c.rating_a_inscription })),
+  );
   const surplus = confirmes.slice(t.capacite).map((c) => c.profile_id);
 
   // Bracket à la taille des présents (voir capaciteEffective).
@@ -372,7 +376,7 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
   }
 
   let byesEchoues = 0;
-  const { ok } = await construireBracket(admin, tournoiId, capacite, melanger(retenus), async (matchId, gagnantId) => {
+  const { ok } = await construireBracket(admin, tournoiId, capacite, retenus, async (matchId, gagnantId) => {
     const { error } = await admin.rpc("enregistrer_bye_automatique", {
       p_match_id: matchId,
       p_gagnant_id: gagnantId,

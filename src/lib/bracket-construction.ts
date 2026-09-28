@@ -14,15 +14,36 @@ import { ordreDesSeeds, calculerByesEnCascade } from "@/lib/bracket";
 // CRON_SECRET). Seule différence entre les deux : la façon d'enregistrer
 // un bye (resoudreBye).
 
-// Tirage au sort des places (seeds) — identique pour les tournois
-// d'organisateur et les tournois automatiques.
-export function melanger<T>(items: T[]): T[] {
+// Tirage au sort (mélange de Fisher-Yates).
+export function melanger<T>(items: T[], aleatoire: () => number = Math.random): T[] {
   const copie = [...items];
   for (let i = copie.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(aleatoire() * (i + 1));
     [copie[i], copie[j]] = [copie[j], copie[i]];
   }
   return copie;
+}
+
+export interface JoueurASeeder {
+  profileId: string;
+  /** Rating figé à l'inscription (registrations.rating_a_inscription) ; nul si pas encore de rating. */
+  rating: number | null;
+}
+
+/**
+ * Ordre des têtes de série (28/09/2026, audit F3 ; docs/moteur-resultats.md
+ * §7 : « byes au premier tour pour les mieux classés »). Le meilleur rating
+ * à l'inscription est seed 1 ; avec l'ordre standard du bracket
+ * (ordreDesSeeds), les deux meilleurs ne peuvent se croiser qu'en finale et
+ * les byes vont aux mieux classés. Joueurs sans rating à la fin ; tirage au
+ * sort entre joueurs à égalité (le tri est stable, le mélange le précède).
+ * Identique pour les tournois d'organisateur et les tournois automatiques.
+ */
+export function ordonnerParRating(joueurs: JoueurASeeder[], aleatoire: () => number = Math.random): string[] {
+  const valeur = (j: JoueurASeeder) => j.rating ?? Number.NEGATIVE_INFINITY;
+  return melanger(joueurs, aleatoire)
+    .sort((a, b) => (valeur(a) === valeur(b) ? 0 : valeur(b) - valeur(a)))
+    .map((j) => j.profileId);
 }
 
 export async function construireBracket(

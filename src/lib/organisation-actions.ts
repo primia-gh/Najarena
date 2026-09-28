@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
-import { construireBracket, melanger } from "@/lib/bracket-construction";
+import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -91,11 +91,15 @@ export async function genererBracket(formData: FormData) {
 
   const { data: confirmes } = await supabase
     .from("registrations")
-    .select("profile_id")
+    .select("profile_id, rating_a_inscription")
     .eq("tournament_id", tournamentId)
     .eq("statut", "confirme");
 
-  const joueurs = melanger((confirmes ?? []).map((c) => c.profile_id));
+  // Têtes de série selon le rating à l'inscription (le tirage au sort ne
+  // départage plus que les égalités et les joueurs sans rating).
+  const joueurs = ordonnerParRating(
+    (confirmes ?? []).map((c) => ({ profileId: c.profile_id, rating: c.rating_a_inscription })),
+  );
 
   if (joueurs.length < 2) {
     redirect(
