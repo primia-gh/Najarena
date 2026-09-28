@@ -7,6 +7,7 @@ import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { echapperDiscord, echapperHtml } from "@/lib/echappement";
+import { prevenirMatchOuvert } from "@/lib/apres-verdict";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -206,6 +207,10 @@ export async function enregistrerResultat(formData: FormData) {
         );
       }),
     );
+  }
+
+  if (matchDecide?.match_suivant_id) {
+    await prevenirMatchOuvert(matchDecide.match_suivant_id);
   }
 
   if (matchDecide && matchDecide.match_suivant_id === null) {

@@ -6,7 +6,7 @@
 // l'appelant a lui-même écrit le verdict par une fonction contrôlée.
 
 import { creerClientAdmin } from "@/lib/supabase/admin";
-import { notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { echapperDiscord, echapperHtml } from "@/lib/echappement";
 
@@ -37,10 +37,46 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
     ),
   );
 
+  if (m.match_suivant_id) {
+    await prevenirMatchOuvert(m.match_suivant_id);
+  }
+
   // Aucun match suivant : c'était la finale.
   if (m.match_suivant_id === null) {
     await cloturerTournoi(m.tournament_id);
     const nomGagnant = m.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ?? "le vainqueur";
     await notifierDiscord(`🏆 **${echapperDiscord(nomGagnant)}** remporte **${echapperDiscord(tournoi.nom)}**.\n${URL_SITE}/lol/tournois/${tournoi.slug}`);
   }
+}
+
+/**
+ * Le match suivant vient de s'ouvrir (ses deux joueurs sont connus) :
+ * rappel push + message privé Discord aux deux, avec le lien de la salle de
+ * match (28/09/2026, audit N6). Sans effet tant qu'un seul joueur est
+ * qualifié : c'est le verdict qui qualifie le second qui prévient.
+ */
+export async function prevenirMatchOuvert(matchId: string): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+
+  const { data: suivant } = await admin
+    .from("matches")
+    .select("statut, tournament:tournaments(nom, slug), match_participants(profile_id, profile:profiles(pseudo))")
+    .eq("id", matchId)
+    .maybeSingle();
+  if (!suivant?.tournament || suivant.statut !== "en_cours" || suivant.match_participants.length !== 2) return;
+
+  const { nom, slug } = suivant.tournament;
+  await Promise.all(
+    suivant.match_participants.map((p) => {
+      const adversaire =
+        suivant.match_participants.find((q) => q.profile_id !== p.profile_id)?.profile?.pseudo ?? "ton adversaire";
+      return envoyerRappel(
+        p.profile_id,
+        `Ton match est ouvert — ${nom}`,
+        `Adversaire : ${adversaire}. Son Riot ID, qui crée la partie et les règles sont dans la salle de match.`,
+        `${URL_SITE}/lol/tournois/${slug}#ton-match`,
+      );
+    }),
+  );
 }
