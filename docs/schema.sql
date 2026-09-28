@@ -1409,6 +1409,8 @@ grant execute on function public.enregistrer_bye_automatique(uuid, uuid) to serv
 --   select vault.create_secret('<valeur de CRON_SECRET sur Vercel>', 'najarena_cron_secret');
 -- Sans ce secret, les appels partent avec une autorisation vide et sont
 -- simplement refusés (401), sans effet.
+-- [supabase-uniquement:debut] (pg_cron, pg_net et Vault n'existent que sur
+-- Supabase : scripts/tester-base.sh saute ce bloc sur une base de test)
 create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;
 
@@ -1441,6 +1443,7 @@ select cron.schedule(
   );
   $$
 );
+-- [supabase-uniquement:fin]
 
 -- ---------- Liaison Riot réservée au serveur (2026-09-28, audit C2) ----------
 -- À appliquer sur la base AVANT la mise en ligne du code du même commit :

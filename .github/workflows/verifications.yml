@@ -1,0 +1,60 @@
+# Vérifications automatiques à chaque envoi de code (audit du 27/09/2026,
+# M15) : jusqu'ici, tests et contrôles ne tournaient que si quelqu'un
+# pensait à les lancer.
+name: Vérifications
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  code:
+    name: Tests, types, lint et construction
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Types des routes (nécessaires à la vérification des types)
+        run: npx next typegen
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      - name: Construction du site
+        run: npm run build
+        env:
+          # Valeurs factices : la construction ne contacte pas Supabase.
+          NEXT_PUBLIC_SUPABASE_URL: https://exemple.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: cle-factice
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  base:
+    name: Règles de la base de données
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rejoue docs/schema.sql et les scénarios de tests/sql
+        run: bash scripts/tester-base.sh
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres

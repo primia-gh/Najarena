@@ -18,6 +18,17 @@ npm test
 Lance la suite de tests automatisés (logique pure : Glicko-2, placement
 de bracket, classement) — à faire passer avant tout déploiement.
 
+```bash
+npm run test:base
+```
+
+Rejoue `docs/schema.sql` sur une base PostgreSQL de test (serveur
+PostgreSQL 15+ et `psql` nécessaires, connexion par `PGHOST`/`PGPORT`/
+`PGUSER`/`PGPASSWORD`), puis essaie chaque règle d'accès et chaque fonction
+de la base comme le ferait un visiteur, un organisateur ou le serveur
+(`tests/sql/`). Les deux suites tournent aussi automatiquement sur GitHub à
+chaque envoi de code (`.github/workflows/verifications.yml`).
+
 Nécessite un fichier `.env.local` (non committé, voir `.gitignore`) —
 demander les valeurs à qui a déployé le projet, ou suivre la liste
 ci-dessous pour les créer soi-même.

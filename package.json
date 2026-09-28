@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "discord:commandes": "node scripts/enregistrer-commandes-discord.mjs"
+    "discord:commandes": "node scripts/enregistrer-commandes-discord.mjs",
+    "test:base": "bash scripts/tester-base.sh"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.74.0",
