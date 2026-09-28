@@ -54,6 +54,9 @@ function traduireErreurAuth(message: string): string {
       : "Un compte existe déjà avec cet e-mail.";
   }
   if (m.includes("invalid login credentials")) return "E-mail ou mot de passe incorrect.";
+  if (m.includes("banned")) {
+    return "Ce compte est suspendu. Le motif t'a été envoyé par e-mail ; pour contester, écris à l'adresse des mentions légales.";
+  }
   if (m.includes("rate limit")) return "Trop de tentatives récentes, réessaie dans quelques minutes.";
   if (m.includes("email not confirmed")) return "Confirme ton adresse e-mail avant de te connecter (vérifie tes emails).";
   if (m.includes("password") && (m.includes("least") || m.includes("6"))) {

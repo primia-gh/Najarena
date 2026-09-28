@@ -2693,3 +2693,56 @@ alter policy "un joueur enregistre sa propre visite" on public.vues_profil
   with check ((select auth.uid()) = vu_par and not (select public.visites_anonymes_actives()));
 alter policy "un joueur met a jour sa propre visite" on public.vues_profil
   using ((select auth.uid()) = vu_par and not (select public.visites_anonymes_actives()));
+
+-- ---------- Suspension de compte (2026-09-28, audit M14) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Les CGU annoncent qu'un compte peut être suspendu ; aucun outil ne le
+-- permettait. La suspension (page /admin) coupe la connexion (bannissement
+-- côté Supabase Auth, fait par le serveur), retire le joueur des tournois
+-- pas encore commencés, et la base refuse toute inscription ou tout
+-- check-in tant qu'elle n'est pas levée. Historique conservé (qui, quand,
+-- pourquoi), lisible par les seuls administrateurs.
+create table if not exists public.suspensions (
+  id            uuid primary key default gen_random_uuid(),
+  profile_id    uuid not null references public.profiles(id) on delete cascade,
+  motif         text not null check (char_length(motif) between 3 and 500),
+  suspendu_par  uuid references public.profiles(id) on delete set null,
+  suspendu_le   timestamptz not null default now(),
+  levee_par     uuid references public.profiles(id) on delete set null,
+  levee_le      timestamptz
+);
+create unique index if not exists suspensions_une_active_par_joueur
+  on public.suspensions (profile_id) where levee_le is null;
+create index if not exists suspensions_suspendu_par_idx on public.suspensions (suspendu_par);
+create index if not exists suspensions_levee_par_idx on public.suspensions (levee_par);
+alter table public.suspensions enable row level security;
+create policy "les administrateurs lisent les suspensions" on public.suspensions
+  for select using (exists (select 1 from public.admins a where a.profile_id = (select auth.uid())));
+-- Écriture réservée au serveur (actions de /admin, client service_role).
+revoke insert, update, delete on public.suspensions from anon, authenticated;
+
+-- S'applique à toute écriture, quel que soit l'auteur (s_inscrire_tournoi,
+-- confirmer_presence, organisateur, serveur) : contrairement aux fonctions
+-- de contrôle plus haut, elle ne dépend pas de current_user, et peut donc
+-- être security definer pour lire la table des suspensions, que personne
+-- d'autre que les administrateurs ne voit.
+create or replace function public.refuser_compte_suspendu()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.statut in ('inscrit', 'confirme')
+     and (tg_op = 'INSERT' or new.statut is distinct from old.statut)
+     and exists (select 1 from public.suspensions where profile_id = new.profile_id and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_compte_suspendu() from public, anon, authenticated;
+
+drop trigger if exists registrations_refuser_compte_suspendu on public.registrations;
+create trigger registrations_refuser_compte_suspendu
+  before insert or update of statut on public.registrations
+  for each row execute function public.refuser_compte_suspendu();

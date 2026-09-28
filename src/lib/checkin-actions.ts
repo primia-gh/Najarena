@@ -44,6 +44,10 @@ export async function confirmerMaPresence(formData: FormData) {
     p_tournament_id: tournamentId,
   });
 
+  if (error?.message.includes("COMPTE_SUSPENDU")) {
+    redirect(`${page}?erreur=${encodeURIComponent("Ton compte est suspendu : tu ne peux pas confirmer ta présence.")}`);
+  }
+
   if (error?.message.includes("CHECKIN_FERME")) {
     redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
   }

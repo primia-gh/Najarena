@@ -33,7 +33,7 @@ export async function confirmerInscription(formData: FormData) {
   const supabase = await createClient();
   const { tournoi } = await verifierOrganisateur(supabase, tournamentId);
 
-  const { data: inscription } = await supabase
+  const { data: inscription, error: erreurConfirmation } = await supabase
     .from("registrations")
     .update({ statut: "confirme", confirme_le: new Date().toISOString() })
     .eq("id", registrationId)
@@ -42,6 +42,12 @@ export async function confirmerInscription(formData: FormData) {
     .neq("statut", "retire")
     .select("profile_id")
     .maybeSingle();
+
+  if (erreurConfirmation?.message.includes("COMPTE_SUSPENDU")) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce joueur est suspendu : son inscription ne peut pas être confirmée.")}`,
+    );
+  }
 
   if (inscription) {
     const { data: t } = await supabase.from("tournaments").select("nom, slug").eq("id", tournoi.id).maybeSingle();

@@ -534,6 +534,58 @@ export type Database = {
         }
         Relationships: []
       }
+      suspensions: {
+        Row: {
+          id: string
+          levee_le: string | null
+          levee_par: string | null
+          motif: string
+          profile_id: string
+          suspendu_le: string
+          suspendu_par: string | null
+        }
+        Insert: {
+          id?: string
+          levee_le?: string | null
+          levee_par?: string | null
+          motif: string
+          profile_id: string
+          suspendu_le?: string
+          suspendu_par?: string | null
+        }
+        Update: {
+          id?: string
+          levee_le?: string | null
+          levee_par?: string | null
+          motif?: string
+          profile_id?: string
+          suspendu_le?: string
+          suspendu_par?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suspensions_levee_par_fkey"
+            columns: ["levee_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspensions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspensions_suspendu_par_fkey"
+            columns: ["suspendu_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string

@@ -2,7 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { creerClientAdmin } from "@/lib/supabase/admin";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { echapperHtml } from "@/lib/echappement";
+import { slugifier } from "@/lib/slug";
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -52,4 +55,136 @@ export async function resoudreLitigeAdmin(formData: FormData) {
   }
 
   redirect("/admin");
+}
+
+// ---------- Suspension de compte (28/09/2026, audit M14) ----------
+// Les CGU annoncent qu'un compte peut être suspendu en cas de manquement
+// manifeste : voici l'outil. La base refuse ensuite toute inscription ou
+// tout check-in du joueur (docs/schema.sql, « Suspension de compte ») ; ses
+// résultats passés restent affichés, le journal des points ne change pas.
+
+// Supabase Auth n'a pas de bannissement « sans fin » : 100 ans.
+const DUREE_BANNISSEMENT = "876000h";
+
+function retourSuspensions(parametre: "erreur" | "message", texte: string): never {
+  redirect(`/admin?${parametre}=${encodeURIComponent(texte)}#suspensions`);
+}
+
+export async function suspendreCompte(formData: FormData) {
+  const pseudo = String(formData.get("pseudo") ?? "").trim();
+  const motif = String(formData.get("motif") ?? "").trim();
+
+  const supabase = await createClient();
+  const utilisateur = await verifierAdmin(supabase);
+
+  if (motif.length < 3 || motif.length > 500) {
+    retourSuspensions("erreur", "Le motif doit faire entre 3 et 500 caractères : il est communiqué au joueur.");
+  }
+
+  const { data: profil } = await supabase
+    .from("profiles")
+    .select("id, pseudo")
+    .eq("slug", slugifier(pseudo))
+    .maybeSingle();
+  if (!profil) {
+    retourSuspensions("erreur", `Aucun joueur avec le pseudo « ${pseudo} ».`);
+  }
+  if (profil.id === utilisateur.id) {
+    retourSuspensions("erreur", "Tu ne peux pas suspendre ton propre compte.");
+  }
+
+  const { data: cibleAdmin } = await supabase.from("admins").select("profile_id").eq("profile_id", profil.id).maybeSingle();
+  if (cibleAdmin) {
+    retourSuspensions("erreur", "Un administrateur ne se suspend pas d'ici : retire-lui d'abord ses droits.");
+  }
+
+  const admin = creerClientAdmin();
+  if (!admin) {
+    retourSuspensions("erreur", "Suspension indisponible (SUPABASE_SERVICE_ROLE_KEY manquante).");
+  }
+
+  const { error: erreurSuspension } = await admin
+    .from("suspensions")
+    .insert({ profile_id: profil.id, motif, suspendu_par: utilisateur.id });
+  // 23505 : déjà suspendu — on réapplique la coupure sans renvoyer d'e-mail.
+  const dejaSuspendu = erreurSuspension?.code === "23505";
+  if (erreurSuspension && !dejaSuspendu) {
+    retourSuspensions("erreur", "Suspension impossible pour l'instant. Réessaie dans un instant.");
+  }
+
+  // Plus de connexion ni de renouvellement de session : la session en cours
+  // expire d'elle-même (une heure au plus), et la base bloque déjà tout le
+  // reste.
+  const { error: erreurBannissement } = await admin.auth.admin.updateUserById(profil.id, {
+    ban_duration: DUREE_BANNISSEMENT,
+  });
+
+  // Retrait des tournois pas encore commencés.
+  const { data: tournoisAVenir } = await admin.from("tournaments").select("id").in("statut", ["ouvert", "checkin"]);
+  const idsAVenir = (tournoisAVenir ?? []).map((t) => t.id);
+  if (idsAVenir.length > 0) {
+    await admin
+      .from("registrations")
+      .update({ statut: "retire" })
+      .eq("profile_id", profil.id)
+      .in("statut", ["inscrit", "confirme"])
+      .in("tournament_id", idsAVenir);
+  }
+
+  if (!dejaSuspendu) {
+    await notifierJoueur(
+      profil.id,
+      "Compte suspendu — Najarena",
+      "Ton compte Najarena est suspendu",
+      `<p>Motif : ${echapperHtml(motif)}</p>
+       <p>Tu ne peux plus te connecter ni t'inscrire aux tournois. Pour contester cette décision, écris-nous à l'adresse indiquée dans les <a href="${URL_SITE}/mentions-legales">mentions légales</a>.</p>`,
+    );
+  }
+
+  if (erreurBannissement) {
+    retourSuspensions(
+      "erreur",
+      `${profil.pseudo} est suspendu (inscriptions bloquées), mais sa connexion n'a pas pu être coupée : relance la suspension.`,
+    );
+  }
+  retourSuspensions("message", dejaSuspendu ? `${profil.pseudo} était déjà suspendu : connexion coupée à nouveau.` : `${profil.pseudo} est suspendu.`);
+}
+
+export async function leverSuspension(formData: FormData) {
+  const suspensionId = String(formData.get("suspension_id") ?? "");
+
+  const supabase = await createClient();
+  const utilisateur = await verifierAdmin(supabase);
+
+  const admin = creerClientAdmin();
+  if (!admin) {
+    retourSuspensions("erreur", "Levée indisponible (SUPABASE_SERVICE_ROLE_KEY manquante).");
+  }
+
+  const { data: suspension } = await admin
+    .from("suspensions")
+    .update({ levee_le: new Date().toISOString(), levee_par: utilisateur.id })
+    .eq("id", suspensionId)
+    .is("levee_le", null)
+    .select("profile_id, profil:profiles!suspensions_profile_id_fkey(pseudo)")
+    .maybeSingle();
+  if (!suspension) {
+    retourSuspensions("erreur", "Suspension introuvable ou déjà levée.");
+  }
+
+  const { error } = await admin.auth.admin.updateUserById(suspension.profile_id, { ban_duration: "none" });
+
+  await notifierJoueur(
+    suspension.profile_id,
+    "Suspension levée — Najarena",
+    "Ton compte Najarena est de nouveau actif",
+    `<p>Tu peux te reconnecter et t'inscrire aux tournois.</p>
+     <p><a href="${URL_SITE}/connexion">Se connecter</a></p>`,
+  );
+
+  const pseudo = suspension.profil?.pseudo ?? "Le joueur";
+  if (error) {
+    retourSuspensions("erreur", `Suspension levée pour ${pseudo}, mais sa connexion est encore bloquée : relance la levée depuis Supabase (Authentication > Users).`);
+  }
+  retourSuspensions("message", `Suspension levée pour ${pseudo}.`);
 }

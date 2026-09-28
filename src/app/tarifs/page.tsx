@@ -38,6 +38,10 @@ const BIENTOT = new Set([
   "Inscription prioritaire aux tournois",
   "Alertes Discord avancées",
   "Accès aux formats premium",
+  // Ajoutés le 28/09/2026 (audit M14) : ni personnalisation visuelle d'un
+  // tournoi, ni canal de support n'existent encore.
+  "Branding de tournoi",
+  "Support prioritaire",
 ]);
 
 const FILTRES: { pour: Profil | null; libelle: string; href: string }[] = [
@@ -76,7 +80,7 @@ const PALIERS: Palier[] = [
     accroche: "Le cœur du produit, pour toujours.",
     inclus: [
       "Classement Glicko-2 et paliers",
-      "Verdicts vérifiés sur chaque match",
+      "Niveau de fiabilité affiché sur chaque match",
       "Profil public partageable",
       "Tournois 1v1 quotidiens",
       "Recherche de coéquipier",
@@ -146,7 +150,7 @@ const ACCENT_BORDURE: Record<Palier["accent"], string> = {
 // les colonnes à partir de ce palier.
 const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
   { fonctionnalite: "Classement Glicko-2 et paliers", depuis: "gratuit" },
-  { fonctionnalite: "Verdicts vérifiés sur chaque match", depuis: "gratuit" },
+  { fonctionnalite: "Niveau de fiabilité affiché sur chaque match", depuis: "gratuit" },
   { fonctionnalite: "Profil public partageable", depuis: "gratuit" },
   { fonctionnalite: "Tournois 1v1 quotidiens", depuis: "gratuit" },
   { fonctionnalite: "Recherche de coéquipier", depuis: "gratuit" },
@@ -175,7 +179,8 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
-      <FondEcailles />      <div className="relative px-grille">
+      <FondEcailles />
+      <div className="relative px-grille">
         <Apparition>
           <span className="block font-texte text-libelle font-medium text-muted uppercase">
             Tarifs

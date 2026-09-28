@@ -2,12 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { resoudreLitigeAdmin } from "@/lib/admin-actions";
+import { leverSuspension, resoudreLitigeAdmin, suspendreCompte } from "@/lib/admin-actions";
 import { attribuerOffreAdmin } from "@/lib/offres-actions";
 import { LABEL_OFFRE, chargerOffres, type Offre } from "@/lib/offres";
 import { formaterDate } from "@/lib/tournois";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
+import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import SectionTitre from "@/components/ui/SectionTitre";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
@@ -66,6 +67,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { count: tournoisTotal },
     { count: matchsEnregistres },
     { data: derniersInscrits },
+    { data: suspensionsData },
   ] = await Promise.all([
     supabase
       .from("disputes")
@@ -89,12 +91,20 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       )
       .order("created_at", { ascending: false })
       .limit(15),
+    supabase
+      .from("suspensions")
+      .select(
+        "id, motif, suspendu_le, profil:profiles!suspensions_profile_id_fkey(pseudo, slug), auteur:profiles!suspensions_suspendu_par_fkey(pseudo)",
+      )
+      .is("levee_le", null)
+      .order("suspendu_le", { ascending: false }),
   ]);
 
   const litiges = litigesData ?? [];
   const litigesOuverts = litiges.filter((l) => !l.resolution);
   const litigesResolus = litiges.filter((l) => l.resolution);
   const comptes = derniersInscrits ?? [];
+  const suspensions = suspensionsData ?? [];
   const offresParCompte = await chargerOffres(supabase, comptes.map((c) => c.id));
 
   return (
@@ -194,6 +204,86 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </label>
           <Bouton libelleEnCours="Attribution…">Attribuer</Bouton>
         </form>
+      </section>
+      </Apparition>
+
+      <Apparition delai={0.13}>
+      <section id="suspensions" className="mt-10 scroll-mt-28">
+        <SectionTitre>Suspendre un compte</SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          En cas de manquement manifeste aux CGU. Le joueur ne peut plus se connecter ni s&apos;inscrire, il
+          est retiré des tournois pas encore commencés et reçoit le motif par e-mail. Ses résultats passés
+          restent affichés.
+        </p>
+        <form action={suspendreCompte} className="mt-3 flex max-w-2xl flex-col gap-2">
+          <label>
+            <span className="sr-only">Pseudo du joueur</span>
+            <input
+              name="pseudo"
+              type="text"
+              required
+              placeholder="Pseudo du joueur"
+              className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            />
+          </label>
+          <label>
+            <span className="sr-only">Motif (communiqué au joueur)</span>
+            <textarea
+              name="motif"
+              required
+              minLength={3}
+              maxLength={500}
+              rows={2}
+              placeholder="Motif, communiqué au joueur"
+              className="w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            />
+          </label>
+          <BoutonConfirmation
+            type="submit"
+            confirmation="Suspendre ce compte ? Le joueur est déconnecté, retiré des tournois à venir et prévenu par e-mail."
+            className="inline-flex min-h-11 items-center self-start font-texte tabular-nums text-mini text-danger uppercase underline underline-offset-3"
+          >
+            Suspendre le compte
+          </BoutonConfirmation>
+        </form>
+
+        {suspensions.length > 0 && (
+          <ul className="mt-5 flex max-w-2xl flex-col">
+            {suspensions.map((su) => (
+              <li
+                key={su.id}
+                className="flex flex-wrap items-start justify-between gap-3 border-b border-line py-3 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm">
+                    {su.profil ? (
+                      <Link href={`/joueur/${su.profil.slug}`} className="font-semibold text-text hover:underline">
+                        {su.profil.pseudo}
+                      </Link>
+                    ) : (
+                      "Compte supprimé"
+                    )}{" "}
+                    <span className="text-muted tabular-nums">
+                      · suspendu le {formaterDate(su.suspendu_le)}
+                      {su.auteur ? ` par ${su.auteur.pseudo}` : ""}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-text-2">{su.motif}</p>
+                </div>
+                <form action={leverSuspension}>
+                  <input type="hidden" name="suspension_id" value={su.id} />
+                  <BoutonConfirmation
+                    type="submit"
+                    confirmation="Lever cette suspension ? Le joueur pourra se reconnecter et s'inscrire."
+                    className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-accent uppercase underline underline-offset-3"
+                  >
+                    Lever
+                  </BoutonConfirmation>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
       </Apparition>
 

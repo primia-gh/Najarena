@@ -109,7 +109,11 @@ export default function CguPage() {
             s&apos;inscrit avec loyauté, et à ne pas tenter de manipuler un
             résultat ou un classement. Najarena se réserve le droit de
             suspendre un compte en cas de manquement manifeste, après examen
-            par un organisateur ou un administrateur.
+            par un administrateur. Le motif est communiqué au joueur par
+            e-mail ; il peut contester la décision à l&apos;adresse indiquée
+            dans les mentions légales. Un compte suspendu ne peut plus se
+            connecter ni s&apos;inscrire aux tournois ; ses résultats déjà
+            enregistrés restent affichés.
           </p>
         </section>
 

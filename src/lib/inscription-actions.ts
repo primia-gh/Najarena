@@ -18,6 +18,7 @@ const MESSAGES_REFUS: Record<string, string> = {
   // E2) : sans lui, aucun résultat ne peut être retrouvé automatiquement.
   COMPTE_RIOT_REQUIS: "Lie et vérifie ton compte Riot avant de t'inscrire : c'est lui qui permet de retrouver tes résultats.",
   REGION_DIFFERENTE: "Ce tournoi se joue sur une autre région que ton compte Riot vérifié.",
+  COMPTE_SUSPENDU: "Ton compte est suspendu : tu ne peux pas t'inscrire aux tournois.",
 };
 
 export async function sInscrireATournoi(formData: FormData) {
