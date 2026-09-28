@@ -3,6 +3,7 @@ import {
   ajouterJours,
   capaciteEffective,
   heureParis,
+  instantDepuisSaisieParis,
   instantParis,
   jourParis,
   nomTournoi,
@@ -93,5 +94,26 @@ describe("capaciteEffective", () => {
     for (let n = 0; n <= 70; n++) {
       expect([4, 8, 16, 32, 64]).toContain(capaciteEffective(n, 64));
     }
+  });
+});
+
+describe("instantDepuisSaisieParis", () => {
+  it("20:00 saisi en été = 18:00 UTC (et non 20:00 UTC)", () => {
+    expect(instantDepuisSaisieParis("2026-09-30T20:00")?.toISOString()).toBe("2026-09-30T18:00:00.000Z");
+  });
+
+  it("20:00 saisi en hiver = 19:00 UTC", () => {
+    expect(instantDepuisSaisieParis("2026-12-05T20:00")?.toISOString()).toBe("2026-12-05T19:00:00.000Z");
+  });
+
+  it("accepte les secondes envoyées par certains navigateurs", () => {
+    expect(instantDepuisSaisieParis("2026-09-30T20:00:00")?.toISOString()).toBe("2026-09-30T18:00:00.000Z");
+  });
+
+  it("refuse une date impossible, une heure impossible ou un format inconnu", () => {
+    expect(instantDepuisSaisieParis("2026-02-31T20:00")).toBeNull();
+    expect(instantDepuisSaisieParis("2026-09-30T24:30")).toBeNull();
+    expect(instantDepuisSaisieParis("30/09/2026 20:00")).toBeNull();
+    expect(instantDepuisSaisieParis("")).toBeNull();
   });
 });

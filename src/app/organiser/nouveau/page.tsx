@@ -159,7 +159,7 @@ export default async function OrganiserNouveauPage({
 
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
-            Ouverture du check-in
+            Ouverture du check-in (heure de Paris)
           </span>
           <input
             id="checkin_ouvre_le"
@@ -172,7 +172,7 @@ export default async function OrganiserNouveauPage({
 
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
-            Début du tournoi
+            Début du tournoi (heure de Paris)
           </span>
           <input
             id="debute_le"

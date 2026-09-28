@@ -6,6 +6,7 @@ import { slugifier } from "@/lib/slug";
 import { notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { formaterDate } from "@/lib/tournois";
 import { chargerOffre } from "@/lib/offres";
+import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 
 const CAPACITES = [4, 8, 16, 32, 64] as const;
 const CAPACITE_ETENDUE = 128;
@@ -54,10 +55,12 @@ export async function creerTournoi(formData: FormData) {
     redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Choisis une région.")}`);
   }
 
-  const debuteLe = new Date(debuteLeBrut);
-  const checkinOuvreLe = new Date(checkinOuvreLeBrut);
+  // Heures saisies = heure de Paris (le serveur tourne en UTC : lues telles
+  // quelles, « 20:00 » devenait un tournoi à 22h00 l'été).
+  const debuteLe = instantDepuisSaisieParis(debuteLeBrut);
+  const checkinOuvreLe = instantDepuisSaisieParis(checkinOuvreLeBrut);
 
-  if (Number.isNaN(debuteLe.getTime()) || Number.isNaN(checkinOuvreLe.getTime())) {
+  if (!debuteLe || !checkinOuvreLe) {
     redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Dates invalides.")}`);
   }
 
