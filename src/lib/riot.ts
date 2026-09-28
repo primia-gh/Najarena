@@ -126,13 +126,17 @@ export interface DetailsMatchRiot {
 }
 
 // match-v5 — historique de matchs (niveau 2, docs/moteur-resultats.md §3).
-// Routage continental, comme account-v1.
+// Routage continental, comme account-v1. `queue` filtre côté Riot (0 =
+// parties personnalisées) : les parties classées ou normales jouées entre-
+// temps ne coûtent plus une requête de détail chacune.
 export async function recupererIdsMatchsRecents(
   puuid: string,
   continent: Continent,
   depuisSecondes: number,
+  queue?: number,
 ): Promise<string[]> {
-  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?startTime=${depuisSecondes}&count=20`;
+  const filtreQueue = queue === undefined ? "" : `&queue=${queue}`;
+  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${encodeURIComponent(puuid)}/ids?startTime=${depuisSecondes}&count=20${filtreQueue}`;
   return appelRiot<string[]>(url);
 }
 

@@ -1,8 +1,14 @@
 // Rapprochement par historique — verdict de niveau 2 (docs/moteur-
 // resultats.md §3). Retrouve, dans l'historique Riot des deux joueurs
-// d'un match, la partie officielle qui correspond, et journalise le
-// résultat. Ne consomme jamais l'API Riot depuis le navigateur (§6.2) —
-// ce fichier n'est appelé que depuis du code serveur.
+// d'un match, la ou les parties officielles qui correspondent, et
+// journalise le résultat. Ne consomme jamais l'API Riot depuis le
+// navigateur (§6.2) — ce fichier n'est appelé que depuis du code serveur.
+//
+// Refonte du 28/09/2026 (audit du 27/09, E3 et E4) : séries Best-of 3/5
+// (seule la première manche était lue), délai avant litige adapté au
+// format, recherche poursuivie après le passage en litige, organisateur et
+// joueurs prévenus du litige. Logique pure (séries, calendrier) dans
+// src/lib/serie.ts.
 
 import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
@@ -11,92 +17,99 @@ import {
   recupererIdsMatchsRecents,
   recupererDetailsMatch,
   type Continent,
+  type DetailsMatchRiot,
   type ParticipantMatchRiot,
 } from "@/lib/riot";
-import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
+import { envoyerRappel, notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { cloturerTournoi } from "@/lib/classement-actions";
+import {
+  deciderSerie,
+  doitChercher,
+  doitPasserEnLitige,
+  DUREE_MIN_SECONDES,
+  QUEUE_ID_PERSONNALISEE,
+  RECHERCHE_APRES_LITIGE_HEURES,
+  type PartieSerie,
+  type StatutRecherche,
+} from "@/lib/serie";
 
-// Cadence de recherche : pas avant T+8 (l'historique Riot n'est pas
-// immédiat), litige si rien trouvé à T+25.
-const PREMIERE_RECHERCHE_MINUTES = 8;
-const LIMITE_LITIGE_MINUTES = 25;
-
-// Seuil de remake : une partie plus courte que ça n'est pas un vrai
-// résultat (abandon précoce, remake voté). Valeur communément admise
-// dans l'écosystème LoL — à ajuster si Riot publie un seuil officiel.
-const DUREE_MIN_SECONDES = 300;
-
-// queueId 0 = partie personnalisée. Il n'existe pas de file matchmakée
-// "1v1" officielle côté Riot : un tournoi communautaire 1v1 se joue
-// forcément en lobby personnalisé, donc ce n'est pas un choix produit
-// arbitraire mais une contrainte structurelle de l'API.
-const QUEUE_ID_PERSONNALISEE = 0;
-
-interface PartieTrouvee {
-  riotMatchId: string;
-  gagnantPuuid: string;
+interface PartieTrouvee extends PartieSerie {
   // Stats des deux participants et durée — déjà présentes dans la réponse
-  // Riot récupérée pendant la recherche ci-dessous, capturées ici pour
-  // alimenter stats_match_joueur sans appel supplémentaire (voir
-  // traiterRechercheResultats).
+  // Riot lue pendant la recherche, capturées pour stats_match_joueur sans
+  // appel supplémentaire.
   participantA: ParticipantMatchRiot;
   participantB: ParticipantMatchRiot;
   dureeSecondes: number;
 }
 
+interface SerieTrouvee {
+  gagnantPuuid: string;
+  parties: PartieTrouvee[];
+}
+
+// Détails de partie déjà demandés pendant ce passage de la tâche : deux
+// matchs (ou les deux joueurs d'un même match) partagent souvent les mêmes
+// parties, inutile de consommer deux fois le quota Riot.
+type CacheDetails = Map<string, Promise<DetailsMatchRiot>>;
+
+function detailsEnCache(cache: CacheDetails, matchId: string, continent: Continent): Promise<DetailsMatchRiot> {
+  let details = cache.get(matchId);
+  if (!details) {
+    details = recupererDetailsMatch(matchId, continent);
+    cache.set(matchId, details);
+  }
+  return details;
+}
+
 /**
- * Applique les 4 critères de docs/moteur-resultats.md §3 sur l'historique
- * du joueur A pour retrouver la partie jouée contre le joueur B. Si
- * plusieurs parties correspondent, retient la plus ancienne postérieure à
- * l'ouverture du match (comme spécifié).
+ * Applique les critères de docs/moteur-resultats.md §3 à l'historique du
+ * joueur A pour retrouver les parties jouées contre le joueur B depuis
+ * l'ouverture du match, puis décide la série (Bo1, Bo3, Bo5). Null tant
+ * qu'aucun joueur n'a atteint le nombre de victoires nécessaire.
  */
-export async function trouverPartieCorrespondante(
+export async function trouverSerieCorrespondante(
   puuidA: string,
   puuidB: string,
   continent: Continent,
   ouvertureLe: Date,
-): Promise<PartieTrouvee | null> {
-  const idsRecents = await recupererIdsMatchsRecents(
+  bestOf: number,
+  unContreUn: boolean,
+  cache: CacheDetails = new Map(),
+): Promise<SerieTrouvee | null> {
+  const ids = await recupererIdsMatchsRecents(
     puuidA,
     continent,
     Math.floor(ouvertureLe.getTime() / 1000),
+    QUEUE_ID_PERSONNALISEE,
   );
 
-  let meilleure: (PartieTrouvee & { debut: number }) | null = null;
-
-  for (const matchId of idsRecents) {
-    const details = await recupererDetailsMatch(matchId, continent);
-    const { info } = details;
+  const parties: PartieTrouvee[] = [];
+  for (const riotMatchId of ids) {
+    const { info } = await detailsEnCache(cache, riotMatchId, continent);
 
     const participantA = info.participants.find((p) => p.puuid === puuidA);
     const participantB = info.participants.find((p) => p.puuid === puuidB);
-    if (!participantA || !participantB) continue; // critère 1 : les deux puuid y figurent
+    if (!participantA || !participantB) continue; // les deux puuid y figurent
+    if (participantA.win === participantB.win) continue; // dans des camps opposés
+    // En 1v1, une partie personnalisée à dix entre amis ne compte pas.
+    if (unContreUn && info.participants.length !== 2) continue;
+    if (info.gameStartTimestamp < ouvertureLe.getTime()) continue; // postérieure à l'ouverture
+    if (info.queueId !== QUEUE_ID_PERSONNALISEE) continue; // partie personnalisée
+    if (info.gameDuration < DUREE_MIN_SECONDES) continue; // au-delà du seuil de remake
 
-    if (info.gameStartTimestamp < ouvertureLe.getTime()) continue; // critère 2 : postérieure à l'ouverture
-    if (info.queueId !== QUEUE_ID_PERSONNALISEE) continue; // critère 3 : mode annoncé
-    if (info.gameDuration < DUREE_MIN_SECONDES) continue; // critère 4 : au-delà du seuil de remake
-
-    if (!meilleure || info.gameStartTimestamp < meilleure.debut) {
-      meilleure = {
-        riotMatchId: matchId,
-        gagnantPuuid: participantA.win ? puuidA : puuidB,
-        participantA,
-        participantB,
-        dureeSecondes: info.gameDuration,
-        debut: info.gameStartTimestamp,
-      };
-    }
+    parties.push({
+      riotMatchId,
+      debut: info.gameStartTimestamp,
+      gagnantEstA: participantA.win,
+      participantA,
+      participantB,
+      dureeSecondes: info.gameDuration,
+    });
   }
 
-  return meilleure
-    ? {
-        riotMatchId: meilleure.riotMatchId,
-        gagnantPuuid: meilleure.gagnantPuuid,
-        participantA: meilleure.participantA,
-        participantB: meilleure.participantB,
-        dureeSecondes: meilleure.dureeSecondes,
-      }
-    : null;
+  const serie = deciderSerie(parties, bestOf);
+  if (!serie) return null;
+  return { gagnantPuuid: serie.gagnantEstA ? puuidA : puuidB, parties: serie.parties };
 }
 
 interface CompteRapprochement {
@@ -107,11 +120,143 @@ interface CompteRapprochement {
   game_id: number;
 }
 
+interface MatchCandidat {
+  id: string;
+  tournament_id: string;
+  match_suivant_id: string | null;
+  statut: string;
+  demarre_le: string | null;
+  tournament: {
+    game_id: number;
+    nom: string;
+    slug: string;
+    best_of: number;
+    format: string;
+    organisateur_id: string;
+  } | null;
+  match_participants: { profile_id: string; profile: { pseudo: string } | null }[];
+}
+
+type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
+
 /**
- * Worker de recherche de résultats (docs/moteur-resultats.md §6, "1 min").
- * Parcourt les matchs en_cours démarrés depuis au moins 8 minutes ; pour
- * chacun, tente le rapprochement niveau 2. Passé 25 minutes sans partie
- * trouvée, le match passe en litige — jamais de résultat inventé.
+ * Tout ce qui suit un verdict, quel que soit son niveau : prévenir les
+ * joueurs, et si c'était la finale (aucun match suivant), clôturer le
+ * tournoi — calcul Glicko-2 — et annoncer le vainqueur.
+ */
+async function apresVerdict(m: MatchCandidat, gagnantId: string, source: string): Promise<void> {
+  if (!m.tournament) return;
+  const tournoi = m.tournament;
+
+  await Promise.all(
+    m.match_participants.map((p) => {
+      const aGagne = p.profile_id === gagnantId;
+      return notifierJoueur(
+        p.profile_id,
+        `Résultat enregistré — ${tournoi.nom}`,
+        aGagne ? "Victoire enregistrée" : "Résultat de ton match",
+        `<p>${source}</p>
+         <p><a href="${URL_SITE}/lol/tournois/${tournoi.slug}">Voir le bracket</a></p>`,
+      );
+    }),
+  );
+
+  if (m.match_suivant_id === null) {
+    await cloturerTournoi(m.tournament_id);
+    const nomGagnant =
+      m.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ?? "le vainqueur";
+    await notifierDiscord(
+      `🏆 **${nomGagnant}** remporte **${tournoi.nom}**.\n${URL_SITE}/lol/tournois/${tournoi.slug}`,
+    );
+  }
+}
+
+async function enregistrerSerie(
+  admin: ClientAdmin,
+  m: MatchCandidat,
+  serie: SerieTrouvee,
+  compteA: CompteRapprochement,
+  compteB: CompteRapprochement,
+): Promise<boolean> {
+  const gagnantId = serie.gagnantPuuid === compteA.puuid ? compteA.profile_id : compteB.profile_id;
+
+  const { data: ecrit } = await admin.rpc("enregistrer_verdict_historique", {
+    p_match_id: m.id,
+    p_gagnant_id: gagnantId,
+    // Toutes les manches de la série, dans l'ordre (une seule en Bo1).
+    p_riot_match_id: serie.parties.map((p) => p.riotMatchId).join(","),
+  });
+  if (!ecrit) return false;
+
+  // Stats de la manche décisive (stats « par partie » : revue de match et
+  // moyennes du profil, src/lib/revue-match.ts). Best-effort : une erreur
+  // ici ne doit jamais remettre en cause le verdict.
+  const decisive = serie.parties[serie.parties.length - 1];
+  const statA = decisive.participantA;
+  const statB = decisive.participantB;
+  const ligne = (profileId: string, stat: ParticipantMatchRiot) => ({
+    match_id: m.id,
+    profile_id: profileId,
+    champion: stat.championName,
+    kills: stat.kills,
+    deaths: stat.deaths,
+    assists: stat.assists,
+    cs: stat.totalMinionsKilled + stat.neutralMinionsKilled,
+    or_gagne: stat.goldEarned,
+    duree_secondes: decisive.dureeSecondes,
+    gagne: profileId === gagnantId,
+  });
+  await admin.from("stats_match_joueur").upsert([ligne(compteA.profile_id, statA), ligne(compteB.profile_id, statB)]);
+
+  const manches = serie.parties.length > 1 ? ` (${serie.parties.length} manches)` : "";
+  await apresVerdict(
+    m,
+    gagnantId,
+    `La partie officielle${manches} a été retrouvée automatiquement dans l'historique Riot : ce résultat est vérifié.`,
+  );
+  return true;
+}
+
+async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat): Promise<void> {
+  const { data: bascule } = await admin
+    .from("matches")
+    .update({ statut: "litige" })
+    .eq("id", m.id)
+    .eq("statut", "en_cours")
+    .select("id");
+  if (!bascule?.length || !m.tournament) return;
+
+  const tournoi = m.tournament;
+  const libelle = m.match_participants.map((p) => p.profile?.pseudo ?? "Joueur inconnu").join(" vs ");
+  const lienTournoi = `${URL_SITE}/lol/tournois/${tournoi.slug}`;
+
+  // L'organisateur tranche (CLAUDE.md §3 : en cas de doute, on escalade) —
+  // jusqu'ici, rien ne le prévenait qu'un match l'attendait.
+  await Promise.all([
+    notifierJoueur(
+      tournoi.organisateur_id,
+      `Match en litige — ${tournoi.nom}`,
+      "Un match attend ta décision",
+      `<p>Aucune partie officielle n'a été retrouvée pour le match ${libelle}. La recherche continue pendant 24 h ; si les joueurs n'ont pas joué ou ne peuvent pas jouer, tranche depuis ton cockpit (verdict manuel, motif public).</p>
+       <p><a href="${URL_SITE}/moi/organisation/${m.tournament_id}">Ouvrir le cockpit</a></p>`,
+    ),
+    ...m.match_participants.map((p) =>
+      envoyerRappel(
+        p.profile_id,
+        `Résultat introuvable — ${tournoi.nom}`,
+        "Aucune partie retrouvée dans l'historique Riot pour ton match. La recherche continue ; l'organisateur a été prévenu. Si la partie n'a pas eu lieu, jouez-la maintenant en partie personnalisée.",
+        lienTournoi,
+      ),
+    ),
+  ]);
+}
+
+/**
+ * Tâche de recherche de résultats (docs/moteur-resultats.md §6), appelée
+ * toutes les 5 minutes. Parcourt les matchs en cours (et en litige depuis
+ * moins de 24 h) ; pour chacun, tente le rapprochement niveau 2. Passé le
+ * délai du format sans résultat, le match passe en litige — jamais de
+ * résultat inventé.
  *
  * Destinée à être appelée par un déclencheur planifié (voir
  * src/app/api/cron/recherche-resultats/route.ts) — jamais par le client.
@@ -127,25 +272,22 @@ export async function traiterRechercheResultats(): Promise<{
     return { trouves: 0, litiges: 0, ignores: 0 };
   }
 
-  const seuilRecherche = new Date(
-    Date.now() - PREMIERE_RECHERCHE_MINUTES * 60 * 1000,
-  ).toISOString();
-
-  const { data: candidats } = await supabase
+  const { data: candidatsData } = await supabase
     .from("matches")
     .select(
-      "id, tournament_id, match_suivant_id, demarre_le, tournament:tournaments(game_id, nom, slug), match_participants(profile_id, profile:profiles(pseudo))",
+      "id, tournament_id, match_suivant_id, statut, demarre_le, tournament:tournaments(game_id, nom, slug, best_of, format, organisateur_id), match_participants(profile_id, profile:profiles(pseudo))",
     )
-    .eq("statut", "en_cours")
-    .lte("demarre_le", seuilRecherche);
+    .in("statut", ["en_cours", "litige"])
+    .not("demarre_le", "is", null)
+    // Un match en litige n'est plus cherché au-delà de 24 h (RECHERCHE_APRES_LITIGE_HEURES).
+    .or(`statut.eq.en_cours,demarre_le.gte.${new Date(Date.now() - (RECHERCHE_APRES_LITIGE_HEURES + 1) * 3_600_000).toISOString()}`);
 
-  // Un seul aller-retour pour tous les comptes Riot de tous les matchs
-  // candidats, plutôt qu'une requête par match dans la boucle ci-dessous
-  // (correctif du 13/09/2026, même logique que sur l'accueil — ici sous
-  // forme de N+1 plutôt que de série indépendante).
+  const candidats = (candidatsData ?? []) as MatchCandidat[];
+
+  // Un seul aller-retour pour tous les comptes Riot des matchs candidats.
   const tousLesParticipantIds = Array.from(
     new Set(
-      (candidats ?? [])
+      candidats
         .filter((m) => m.match_participants.length === 2 && m.tournament)
         .flatMap((m) => m.match_participants.map((p) => p.profile_id)),
     ),
@@ -157,9 +299,7 @@ export async function traiterRechercheResultats(): Promise<{
           .from("game_accounts")
           .select("profile_id, puuid, region, verifie_le, game_id")
           .in("profile_id", tousLesParticipantIds)
-          // Un joueur peut avoir lié plusieurs comptes : seul le principal
-          // (un par jeu, garanti par la base depuis le 28/09/2026) est
-          // cherché — avant, l'un d'eux était retenu au hasard.
+          // Un seul compte principal par joueur et par jeu (garanti par la base).
           .eq("est_principal", true)
       : { data: [] as CompteRapprochement[] };
 
@@ -167,132 +307,50 @@ export async function traiterRechercheResultats(): Promise<{
     (tousLesComptes ?? []).map((c) => [`${c.profile_id}:${c.game_id}`, c]),
   );
 
+  const cache: CacheDetails = new Map();
   let trouves = 0;
   let litiges = 0;
   let ignores = 0;
 
-  for (const m of candidats ?? []) {
-    const demarreLe = new Date(m.demarre_le!);
-    const ageMinutes = (Date.now() - demarreLe.getTime()) / 60000;
+  for (const m of candidats) {
+    if (!m.tournament || !m.demarre_le) {
+      ignores += 1;
+      continue;
+    }
+    const statut = m.statut as StatutRecherche;
+    const ageMinutes = (Date.now() - new Date(m.demarre_le).getTime()) / 60000;
+    const bestOf = m.tournament.best_of;
     const participantIds = m.match_participants.map((p) => p.profile_id);
 
-    let partieTrouvee: PartieTrouvee | null = null;
-    let compteA: CompteRapprochement | undefined;
-    let compteB: CompteRapprochement | undefined;
+    if (participantIds.length === 2 && doitChercher(statut, ageMinutes)) {
+      const compteA = compteParJoueurEtJeu.get(`${participantIds[0]}:${m.tournament.game_id}`);
+      const compteB = compteParJoueurEtJeu.get(`${participantIds[1]}:${m.tournament.game_id}`);
+      const region = compteA ? trouverRegion(compteA.region) : undefined;
 
-    if (participantIds.length === 2 && m.tournament) {
-      compteA = compteParJoueurEtJeu.get(`${participantIds[0]}:${m.tournament.game_id}`);
-      compteB = compteParJoueurEtJeu.get(`${participantIds[1]}:${m.tournament.game_id}`);
-
-      if (compteA?.verifie_le && compteB?.verifie_le && compteA.region === compteB.region) {
-        const region = trouverRegion(compteA.region);
-        if (region) {
-          try {
-            partieTrouvee = await trouverPartieCorrespondante(
-              compteA.puuid,
-              compteB.puuid,
-              region.continent,
-              demarreLe,
-            );
-          } catch {
-            // Erreur API Riot (quota, réseau, clé expirée...) — on
-            // n'invente jamais de résultat, on retentera au prochain
-            // passage du worker.
-          }
-        }
-      }
-    }
-
-    if (partieTrouvee && compteA && compteB) {
-      const gagnantId =
-        partieTrouvee.gagnantPuuid === compteA.puuid ? compteA.profile_id : compteB.profile_id;
-
-      const { data: ecrit } = await admin.rpc("enregistrer_verdict_historique", {
-        p_match_id: m.id,
-        p_gagnant_id: gagnantId,
-        p_riot_match_id: partieTrouvee.riotMatchId,
-      });
-
-      if (ecrit) {
-        trouves += 1;
-
-        // Capture des stats détaillées pour la revue de match écrite
-        // (offre Elite) — les deux blocs participants viennent de la même
-        // réponse Riot que celle qui a déjà servi à trouver la partie,
-        // aucun appel API de plus. Best-effort : une erreur ici ne doit
-        // jamais empêcher le verdict lui-même d'être acquis.
-        const statA =
-          partieTrouvee.participantA.puuid === compteA.puuid
-            ? partieTrouvee.participantA
-            : partieTrouvee.participantB;
-        const statB =
-          statA === partieTrouvee.participantA ? partieTrouvee.participantB : partieTrouvee.participantA;
-
-        await admin.from("stats_match_joueur").upsert([
-          {
-            match_id: m.id,
-            profile_id: compteA.profile_id,
-            champion: statA.championName,
-            kills: statA.kills,
-            deaths: statA.deaths,
-            assists: statA.assists,
-            cs: statA.totalMinionsKilled + statA.neutralMinionsKilled,
-            or_gagne: statA.goldEarned,
-            duree_secondes: partieTrouvee.dureeSecondes,
-            gagne: compteA.profile_id === gagnantId,
-          },
-          {
-            match_id: m.id,
-            profile_id: compteB.profile_id,
-            champion: statB.championName,
-            kills: statB.kills,
-            deaths: statB.deaths,
-            assists: statB.assists,
-            cs: statB.totalMinionsKilled + statB.neutralMinionsKilled,
-            or_gagne: statB.goldEarned,
-            duree_secondes: partieTrouvee.dureeSecondes,
-            gagne: compteB.profile_id === gagnantId,
-          },
-        ]);
-
-        if (m.tournament) {
-          // Une notification par participant, indépendantes les unes des
-          // autres — lancées en parallèle plutôt qu'en série (correctif du
-          // 13/09/2026, même logique que sur l'accueil).
-          await Promise.all(
-            participantIds.map((profileId) => {
-              const aGagne = profileId === gagnantId;
-              return notifierJoueur(
-                profileId,
-                `Résultat trouvé — ${m.tournament!.nom}`,
-                aGagne ? "Victoire confirmée dans l'historique Riot" : "Résultat confirmé dans l'historique Riot",
-                `<p>La partie officielle a été retrouvée automatiquement dans l'historique Riot.</p>
-               <p><a href="${URL_SITE}/lol/tournois/${m.tournament!.slug}">Voir le bracket</a></p>`,
-              );
-            }),
+      if (compteA?.verifie_le && compteB?.verifie_le && compteA.region === compteB.region && region) {
+        try {
+          const serie = await trouverSerieCorrespondante(
+            compteA.puuid,
+            compteB.puuid,
+            region.continent,
+            new Date(m.demarre_le),
+            bestOf,
+            m.tournament.format === "1v1",
+            cache,
           );
-
-          // Même logique que enregistrerResultat (organisation-actions.ts) :
-          // aucun match_suivant_id = c'était la finale. Avant ce correctif,
-          // ce chemin (verdict niveau 2, celui qui compte vraiment pour le
-          // classement — CLAUDE.md §3) ne déclenchait jamais la clôture du
-          // tournoi ni le calcul Glicko-2, contrairement au verdict manuel.
-          if (m.match_suivant_id === null) {
-            await cloturerTournoi(m.tournament_id);
-            const nomGagnant =
-              m.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ??
-              "le vainqueur";
-            await notifierDiscord(
-              `🏆 **${nomGagnant}** remporte **${m.tournament.nom}** — résultat confirmé dans l'historique Riot.\n${URL_SITE}/lol/tournois/${m.tournament.slug}`,
-            );
+          if (serie && (await enregistrerSerie(admin, m, serie, compteA, compteB))) {
+            trouves += 1;
+            continue;
           }
+        } catch {
+          // Erreur API Riot (quota, réseau, clé expirée...) : jamais de
+          // résultat inventé, on retentera au prochain passage.
         }
-        continue;
       }
     }
 
-    if (ageMinutes >= LIMITE_LITIGE_MINUTES) {
-      await admin.from("matches").update({ statut: "litige" }).eq("id", m.id);
+    if (statut === "en_cours" && doitPasserEnLitige(ageMinutes, bestOf)) {
+      await passerEnLitige(admin, m);
       litiges += 1;
     } else {
       ignores += 1;

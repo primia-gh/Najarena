@@ -32,7 +32,7 @@ en_attente ──[les 2 joueurs présents]──> en_cours
                                             │
               ┌─────────────────────────────┼──────────────────────┐
               ▼                             ▼                      ▼
-      partie trouvée              aucune partie (T+25min)     abandon déclaré
+      partie trouvée          aucune partie (T+60 min en Bo1)   abandon déclaré
               │                             │                      │
               ▼                             ▼                      ▼
       verdict niveau 2/3              statut: litige          statut: forfait
@@ -42,19 +42,22 @@ en_attente ──[les 2 joueurs présents]──> en_cours
 
 ### Déclenchement de la recherche
 
-Le worker interroge les deux joueurs à T+8, T+12, T+18 et T+25 minutes après l'ouverture du match. Pas de recherche avant T+8 : l'historique Riot n'est pas immédiat, et interroger trop tôt consomme du quota pour rien.
+La tâche de recherche passe toutes les 5 minutes (pg_cron). Pas de recherche avant T+8 : l'historique Riot n'est pas immédiat, et interroger trop tôt consomme du quota pour rien. Seules les parties personnalisées sont demandées à Riot (filtre `queue=0`), et une partie déjà lue pendant un passage n'est pas redemandée.
+
+Sans résultat, le match passe en `litige` après **30 + 30 × Best-of minutes** : 60 min en Bo1, 120 en Bo3, 180 en Bo5 (il faut créer la partie, la jouer jusqu'au Nexus, puis attendre que Riot publie l'historique). L'organisateur est prévenu, les joueurs aussi. **La recherche continue ensuite pendant 24 h**, environ toutes les 30 minutes : une partie retrouvée plus tard (historique lent, clé Riot renouvelée) résout le litige et compte au classement. *(Jusqu'au 28/09/2026 : litige à T+25 min, puis plus aucune recherche.)*
+
+Logique pure (séries, calendrier) : `src/lib/serie.ts` ; orchestration : `src/lib/rapprochement.ts`.
 
 ### Critères de rapprochement (niveau 2)
 
-Une partie de l'historique est retenue si **les quatre** conditions sont vraies :
+Une partie de l'historique est retenue si **toutes** ces conditions sont vraies :
 
-1. les `puuid` des deux joueurs y figurent ;
+1. les `puuid` des deux joueurs y figurent, dans des camps opposés ;
 2. son horodatage de début est postérieur à l'ouverture du match ;
-3. le mode de jeu correspond au format annoncé ;
-4. sa durée dépasse le seuil de remake.
+3. c'est une partie personnalisée (`queueId` 0), à deux joueurs exactement pour un tournoi 1v1 ;
+4. sa durée dépasse le seuil de remake (5 minutes).
 
-Si plusieurs parties correspondent, on retient la plus ancienne postérieure à l'ouverture.
-Si aucune ne correspond à T+25, le match passe en `litige`.
+Les parties retenues sont rejouées dans l'ordre chronologique : en Bo1 la première décide, en Bo3 / Bo5 la série s'arrête dès qu'un joueur atteint 2 / 3 victoires. Une série inachevée (1-1) n'est jamais tranchée par déduction. Le verdict garde les identifiants Riot de toutes les manches (`riot_match_id`, séparés par des virgules) ; les statistiques enregistrées sont celles de la manche décisive.
 
 ---
 
@@ -104,7 +107,7 @@ Appliqués au moment du calcul, avant la mise à jour Glicko-2.
 
 | Tâche | Fréquence | Rôle |
 |---|---|---|
-| Recherche de résultats | 1 min | Traite la file des matchs en cours |
+| Recherche de résultats | 5 min (pg_cron) | Traite les matchs en cours, et ceux en litige depuis moins de 24 h |
 | Ouverture du check-in | 1 min | Passe les tournois en `checkin` |
 | Génération de bracket | 1 min | À la fermeture du check-in, byes inclus |
 | Clôture de tournoi | 1 min | Déclenche le calcul du classement |
