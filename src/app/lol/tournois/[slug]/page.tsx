@@ -10,6 +10,7 @@ import { ouvrirLitige } from "@/lib/litige-actions";
 import { reconnaitreDefaite } from "@/lib/match-actions";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { progressionPalier } from "@/lib/classement";
+import { chancesSiExploit, ETAT_DE_DEPART, pourcentages, type EtatRating } from "@/lib/estimations";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import {
   estVisiblePubliquement,
@@ -69,7 +70,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -130,18 +131,30 @@ const chargerTournoi = cache(async (slug: string) => {
   // userData) mais pas les unes des autres — parallélisées de même.
   const [
     { data: ratingsData },
+    { data: departsData },
     { data: verdictsData },
     { data: litigesData },
     { data: monCompteRiot },
     { data: compteAdversaire },
   ] = await Promise.all([
     profileIds.length > 0
-      ? supabase
-          .from("ratings")
-          .select("profile_id, rating, est_classe")
-          .eq("game_id", tournoi.game_id)
-          .in("profile_id", profileIds)
+      ? (() => {
+          // Rating de la saison du tournoi (un joueur a une ligne par saison).
+          const requete = supabase
+            .from("ratings")
+            .select("profile_id, rating, rd, est_classe")
+            .eq("game_id", tournoi.game_id)
+            .in("profile_id", profileIds);
+          return tournoi.season_id ? requete.eq("season_id", tournoi.season_id) : requete;
+        })()
       : Promise.resolve({ data: [] }),
+    // Tournoi clôturé : rating et RD de chacun au début du tournoi, tels que
+    // le journal des points les a figés — base des chances estimées.
+    supabase
+      .from("rating_events")
+      .select("profile_id, rating_avant, rd_avant")
+      .eq("tournament_id", tournoi.id)
+      .eq("motif", "tournoi"),
     matchIds.length > 0
       ? supabase
           .from("match_verdicts")
@@ -175,6 +188,19 @@ const chargerTournoi = cache(async (slug: string) => {
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
+
+  // État de départ de chaque joueur pour les chances estimées (audit N10) :
+  // journal du tournoi s'il est clôturé, sinon rating actuel, sinon celui
+  // de départ de tous.
+  const departParProfile = new Map<string, EtatRating>(
+    (departsData ?? []).map((d) => [d.profile_id, { rating: d.rating_avant, rd: d.rd_avant }]),
+  );
+  const etatDepart = (profileId: string): EtatRating => {
+    const depart = departParProfile.get(profileId);
+    if (depart) return depart;
+    const actuel = ratingParProfile.get(profileId);
+    return actuel ? { rating: actuel.rating, rd: actuel.rd } : ETAT_DE_DEPART;
+  };
   const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
   const litigeParMatch = new Map((litigesData ?? []).map((l) => [l.match_id, l]));
 
@@ -193,6 +219,7 @@ const chargerTournoi = cache(async (slug: string) => {
       compteAdversaire?.verifie_le ? `${compteAdversaire.riot_game_name}#${compteAdversaire.riot_tag_line}` : null,
     paliers,
     ratingParProfile,
+    etatDepart,
   };
 });
 
@@ -265,6 +292,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     riotIdAdversaire,
     paliers,
     ratingParProfile,
+    etatDepart,
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
@@ -325,6 +353,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             demarreLe: monMatch.demarre_le,
             bestOf: tournoi.best_of,
             perdantDeclare: perdant,
+            chances: adversaire
+              ? (() => {
+                  const [moi, lui] = pourcentages(etatDepart(utilisateur.id), etatDepart(adversaire.profile_id));
+                  return { moi, adversaire: lui };
+                })()
+              : null,
           };
         })()
       : null;
@@ -581,7 +615,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         <div className="mx-auto flex max-w-contenu flex-col gap-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <LibelleSection as="h2">Bracket</LibelleSection>
-            <LegendeBracket />
+            <LegendeBracket avecEstimations />
           </div>
 
           {toursOrdonnes.length === 0 ? (
@@ -620,25 +654,38 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                   const libelleMatch = m.match_participants
                     .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
                     .join(" vs ");
+                  // Chances estimées (match à jouer) et exploit (victoire
+                  // vérifiée d'un joueur donné perdant) — audit N10.
+                  const duo = [...m.match_participants].sort((a, b) => a.slot - b.slot);
+                  const chances =
+                    duo.length === 2 ? pourcentages(etatDepart(duo[0].profile_id), etatDepart(duo[1].profile_id)) : null;
+                  const perdantVerifie =
+                    verdict && verdict.niveau !== "manuel" && verdict.gagnant_id
+                      ? duo.find((p) => p.profile_id !== verdict.gagnant_id)
+                      : undefined;
+                  const exploit =
+                    verdict?.gagnant_id && perdantVerifie
+                      ? chancesSiExploit(etatDepart(verdict.gagnant_id), etatDepart(perdantVerifie.profile_id))
+                      : null;
                   return {
                     id: m.id,
                     joue: Boolean(verdict),
                     atteint: m.match_participants.length > 0,
                     contenu: (
                       <CaseMatch
-                        participants={[...m.match_participants]
-                          .sort((a, b) => a.slot - b.slot)
-                          .map((p) => ({
-                            cle: p.profile_id,
-                            pseudo: p.profile?.pseudo ?? null,
-                            slug: p.profile?.slug ?? null,
-                            score: p.score,
-                            estGagnant: p.est_gagnant,
-                          }))}
+                        participants={duo.map((p, i) => ({
+                          cle: p.profile_id,
+                          pseudo: p.profile?.pseudo ?? null,
+                          slug: p.profile?.slug ?? null,
+                          score: p.score,
+                          estGagnant: p.est_gagnant,
+                          chances: chances ? chances[i] : null,
+                        }))}
                         etat={etat}
                         niveau={verdict?.niveau}
                         motif={verdict?.motif}
                         monMatch={estParticipantDuMatch}
+                        exploit={exploit}
                       >
                         {!verdict && m.statut === "litige" && !perdantDeclare && (
                           <p className="text-xs text-danger">

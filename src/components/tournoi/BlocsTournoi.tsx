@@ -120,7 +120,14 @@ export function EnTeteTournoi({ nom, etiquettes, details, infos, action }: EnTet
 }
 
 /** Légende des niveaux de preuve, au-dessus du bracket (CLAUDE.md §3). */
-export function LegendeBracket({ avecLitige = true }: { avecLitige?: boolean }) {
+export function LegendeBracket({
+  avecLitige = true,
+  avecEstimations = false,
+}: {
+  avecLitige?: boolean;
+  /** Chances estimées et exploits (page d'un vrai tournoi). */
+  avecEstimations?: boolean;
+}) {
   return (
     <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
       <li className="inline-flex items-center gap-1.5">
@@ -136,6 +143,17 @@ export function LegendeBracket({ avecLitige = true }: { avecLitige?: boolean }) 
           <span aria-hidden="true" className="h-2 w-2 rounded-full bg-danger" />
           Litige — en attente de l&apos;organisateur
         </li>
+      )}
+      {avecEstimations && (
+        <>
+          <li className="inline-flex items-center gap-1.5">
+            <span className="tabular-nums">62 %</span> — chances estimées avant le match (ratings Glicko-2)
+          </li>
+          <li className="inline-flex items-center gap-1.5">
+            <span className="font-semibold text-accent uppercase">Exploit</span> — victoire vérifiée d&apos;un joueur qui
+            avait moins de 35 % de chances
+          </li>
+        </>
       )}
     </ul>
   );

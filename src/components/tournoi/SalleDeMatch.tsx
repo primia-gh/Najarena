@@ -22,10 +22,12 @@ export interface InfosSalleDeMatch {
   demarreLe: string | null;
   bestOf: number;
   perdantDeclare: string | null;
+  /** Chances estimées avant le match, en % (ratings Glicko-2). */
+  chances?: { moi: number; adversaire: number } | null;
 }
 
 export default function SalleDeMatch({ infos, actions }: { infos: InfosSalleDeMatch; actions?: ReactNode }) {
-  const { tour, etat, adversaire, jeCreeLaPartie, demarreLe, bestOf, perdantDeclare } = infos;
+  const { tour, etat, adversaire, jeCreeLaPartie, demarreLe, bestOf, perdantDeclare, chances } = infos;
 
   return (
     <Panneau as="section" className="flex flex-col gap-5 px-6 py-6 sm:px-8">
@@ -71,6 +73,13 @@ export default function SalleDeMatch({ infos, actions }: { infos: InfosSalleDeMa
               <p className="text-sm text-muted">Riot ID de ton adversaire indisponible : demande-le-lui.</p>
             )}
           </div>
+
+          {chances && (
+            <p className="text-xs text-muted tabular-nums">
+              Chances estimées : toi {chances.moi} % · {adversaire.pseudo} {chances.adversaire} % — d&apos;après vos
+              ratings Glicko-2 au début du tournoi, à titre indicatif.
+            </p>
+          )}
 
           <p
             className={`text-sm ${etat === "litige" ? "text-danger" : "text-text-2"}`}

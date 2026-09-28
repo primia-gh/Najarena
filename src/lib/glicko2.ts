@@ -34,6 +34,21 @@ function E(mu: number, muAdversaire: number, phiAdversaire: number): number {
 }
 
 /**
+ * Probabilité que A batte B, d'après leurs ratings et leurs incertitudes
+ * (Glickman) : plus l'un des deux est incertain (RD élevé), plus
+ * l'estimation se rapproche de 50 %. Une estimation affichée avant un match
+ * (audit N10), jamais une donnée du classement.
+ */
+export function probabiliteVictoire(
+  a: { rating: number; rd: number },
+  b: { rating: number; rd: number },
+): number {
+  const ecart = (a.rating - b.rating) / GLICKO_SCALE;
+  const phi = Math.sqrt(a.rd * a.rd + b.rd * b.rd) / GLICKO_SCALE;
+  return 1 / (1 + Math.exp(-g(phi) * ecart));
+}
+
+/**
  * Met à jour l'état d'un joueur pour UNE période de notation (= un tournoi,
  * cf. CLAUDE.md §4 — jamais match par match). `resultats` doit déjà avoir
  * exclu les matchs qui ne comptent pas (verdict manuel, forfait, plafond

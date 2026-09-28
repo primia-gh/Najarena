@@ -88,6 +88,10 @@ Avant l'étape 5, vérifier qu'aucune ligne `rating_events` n'existe déjà pour
 ### État de départ périmé et reprise
 `cloturer_rating_joueur` verrouille la ligne `ratings` du joueur et refuse d'écrire si son rating ou son RD ne correspondent plus à l'état de départ utilisé pour le calcul (un autre tournoi du même joueur clôturé entre-temps) : `ETAT_DE_DEPART_PERIME`. Le tournoi reste alors « en cours » et la tâche des tournois automatiques (toutes les 5 minutes) reprend la clôture de tout tournoi dont la finale est jouée. À la reprise, un joueur déjà crédité sert d'adversaire avec son état d'avant tournoi, lu dans le journal.
 
+### Chances estimées et exploits
+
+Avant un match, la page du tournoi affiche les chances de chaque joueur, calculées par Glicko-2 à partir des ratings **au début du tournoi** (journal du tournoi s'il est clôturé, sinon rating actuel de la saison, sinon 1500 / 350) : `probabiliteVictoire` (`src/lib/glicko2.ts`), qui tient compte de l'incertitude des deux joueurs. Une victoire **vérifiée** (niveau 2 ou 3) d'un joueur qui avait moins de 35 % de chances est marquée « Exploit ». Ce sont des estimations affichées comme telles : elles n'entrent jamais dans le calcul du classement.
+
 ### Joueur inactif
 Tâche mensuelle : pour tout joueur sans match depuis 30 jours, augmenter le RD selon la formule Glicko-2, **sans toucher au rating**. Un joueur absent devient incertain, il ne devient pas mauvais.
 
