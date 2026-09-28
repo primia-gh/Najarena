@@ -2914,3 +2914,54 @@ alter table public.teams drop constraint if exists teams_couleur_accent_format;
 alter table public.teams add constraint teams_couleur_accent_format check (
   couleur_accent is null or couleur_accent ~ '^#[0-9a-fA-F]{6}$'
 );
+
+-- ---------- Assistant IA : limite par compte (2026-09-28, audit F2) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Chaque demande à l'assistant de création de tournoi coûte un appel payant
+-- à l'API Anthropic ; il n'y avait aucune limite par personne. 10 demandes
+-- par 24 heures et par compte ; seule la date de chaque demande est
+-- gardée, 7 jours au plus.
+create table if not exists public.appels_assistant_ia (
+  id          bigint generated always as identity primary key,
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  cree_le     timestamptz not null default now()
+);
+create index if not exists appels_assistant_ia_profile_cree_le_idx
+  on public.appels_assistant_ia (profile_id, cree_le);
+alter table public.appels_assistant_ia enable row level security;
+-- Aucune policy : seule reserver_appel_assistant_ia y écrit.
+revoke all on public.appels_assistant_ia from anon, authenticated;
+
+create or replace function public.reserver_appel_assistant_ia()
+returns boolean -- false : limite du jour atteinte
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_nombre integer;
+begin
+  if v_joueur is null then
+    return false;
+  end if;
+
+  -- Une demande à la fois par joueur : deux onglets ne dépassent pas la limite.
+  perform 1 from public.profiles where id = v_joueur for update;
+
+  delete from public.appels_assistant_ia where cree_le < now() - interval '7 days';
+
+  select count(*) into v_nombre
+  from public.appels_assistant_ia
+  where profile_id = v_joueur and cree_le > now() - interval '24 hours';
+
+  -- Même valeur que LIMITE_ASSISTANT_IA (src/lib/ia-actions.ts).
+  if v_nombre >= 10 then
+    return false;
+  end if;
+
+  insert into public.appels_assistant_ia (profile_id) values (v_joueur);
+  return true;
+end;
+$$;
+revoke execute on function public.reserver_appel_assistant_ia() from public, anon;
+grant execute on function public.reserver_appel_assistant_ia() to authenticated;

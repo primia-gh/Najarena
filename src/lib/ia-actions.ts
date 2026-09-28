@@ -37,6 +37,12 @@ interface ReponseAnthropic {
   content: BlocContenuAnthropic[];
 }
 
+// 10 demandes par 24 heures et par compte : chaque demande est un appel
+// payant à l'API (audit F2). Même valeur que reserver_appel_assistant_ia
+// (docs/schema.sql), qui applique la limite.
+const LIMITE_ASSISTANT_IA = 10;
+const LONGUEUR_MAX_DESCRIPTION = 500;
+
 const ERREUR_GENERIQUE = "Assistant IA indisponible pour l'instant.";
 const ERREUR_CONFIGURATION_INVALIDE = "L'assistant a proposé une configuration invalide, réessaie ou remplis le formulaire toi-même.";
 
@@ -57,6 +63,19 @@ export async function suggererConfigurationTournoi(description: string): Promise
   const texte = description.trim();
   if (texte.length < 3) {
     return { erreur: "Décris ton tournoi d'abord (ex. \"samedi soir, une trentaine de joueurs, EUW\")." };
+  }
+  if (texte.length > LONGUEUR_MAX_DESCRIPTION) {
+    return { erreur: `Description trop longue : ${LONGUEUR_MAX_DESCRIPTION} caractères au plus.` };
+  }
+
+  const { data: autorise, error: erreurLimite } = await supabase.rpc("reserver_appel_assistant_ia");
+  if (erreurLimite) {
+    return { erreur: ERREUR_GENERIQUE };
+  }
+  if (!autorise) {
+    return {
+      erreur: `Tu as utilisé tes ${LIMITE_ASSISTANT_IA} demandes à l'assistant des dernières 24 heures : remplis le formulaire toi-même, ou réessaie demain.`,
+    };
   }
 
   // L'IA propose une date plausible, jamais engageante : l'organisateur la

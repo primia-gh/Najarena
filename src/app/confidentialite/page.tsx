@@ -232,6 +232,7 @@ export default function ConfidentialitePage() {
             <li>Messages privés : tant que ton compte existe.</li>
             <li>Abonnements aux notifications : jusqu&apos;à leur désactivation, ou dès que ton navigateur les révoque.</li>
             <li>Tentatives de connexion échouées (protection contre les essais de mots de passe) : 24 heures.</li>
+            <li>Demandes à l&apos;assistant de création de tournoi : la date de chaque demande seulement, 7 jours (limite de 10 demandes par jour).</li>
           </ul>
         </section>
 

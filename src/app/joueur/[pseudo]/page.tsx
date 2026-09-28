@@ -523,7 +523,9 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
               <a
                 href={infoOffre.lien_externe}
                 target="_blank"
-                rel="noopener noreferrer"
+                // Lien choisi par le joueur : pas de caution de Najarena
+                // aux yeux des moteurs de recherche (audit F2).
+                rel="nofollow ugc noopener noreferrer"
                 className="self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {infoOffre.lien_externe}

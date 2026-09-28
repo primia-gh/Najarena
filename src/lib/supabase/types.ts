@@ -63,6 +63,32 @@ export type Database = {
           },
         ]
       }
+      appels_assistant_ia: {
+        Row: {
+          cree_le: string
+          id: number
+          profile_id: string
+        }
+        Insert: {
+          cree_le?: string
+          id?: never
+          profile_id: string
+        }
+        Update: {
+          cree_le?: string
+          id?: never
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appels_assistant_ia_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comptes_offres: {
         Row: {
           attribue_le: string
@@ -1354,6 +1380,7 @@ export type Database = {
         Returns: string
       }
       reconnaitre_defaite: { Args: { p_match_id: string }; Returns: string }
+      reserver_appel_assistant_ia: { Args: never; Returns: boolean }
       s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
       se_desinscrire: { Args: { p_tournament_id: string }; Returns: boolean }
       visites_anonymes_actives: { Args: never; Returns: boolean }
