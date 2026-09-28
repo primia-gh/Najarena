@@ -11,6 +11,27 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "28 septembre",
+    titre: "Le registre des points, scellé",
+    texte:
+      "Chaque variation de points porte désormais l'empreinte de la précédente, comme les maillons d'une chaîne : retoucher une seule ligne passée, même depuis l'intérieur de Najarena, se verrait. L'empreinte du jour est publiée chaque soir sur Discord, et n'importe qui peut refaire le calcul depuis la page /registre.",
+    tags: ["Fiabilité"],
+  },
+  {
+    date: "28 septembre",
+    titre: "Chances, exploits et récits",
+    texte:
+      "Avant chaque match, les chances estimées de chaque joueur (d'après les ratings Glicko-2). Après, un badge « Exploit » quand le moins probable l'emporte sur un résultat vérifié. Et chaque tournoi terminé se raconte en quelques phrases : vainqueur, parcours, exploit, matchs vérifiés.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "28 septembre",
+    titre: "Les saisons, visibles",
+    texte:
+      "Une page par saison : dates, jours restants, et le classement final archivé une fois la saison terminée. Ton palier de fin de saison s'inscrit au parcours de ton CV.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "28 septembre",
     titre: "La salle de match",
     texte:
       "En haut de la page du tournoi : ton adversaire, son Riot ID à copier, qui crée la partie et les règles du 1v1. Un rappel arrive dès que ton match suivant s'ouvre, et le tournoi s'ajoute à ton agenda en un clic.",
