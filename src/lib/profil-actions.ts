@@ -110,3 +110,23 @@ export async function supprimerMonCompte(formData: FormData) {
   await supabase.auth.signOut().catch(() => undefined);
   redirect(`/connexion?message=${encodeURIComponent("Ton compte a été supprimé.")}`);
 }
+
+// Certificat de niveau vérifiable (28/09/2026, audit N9) : instantané daté
+// et figé, calculé par la base (emettre_certificat), à partager à la place
+// d'une capture d'écran.
+export async function emettreCertificat() {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) redirect("/connexion");
+
+  const { data: code, error } = await supabase.rpc("emettre_certificat", {});
+  if (error || !code) {
+    const message = error?.message.includes("LIMITE_CERTIFICATS")
+      ? "Tu as déjà émis 5 certificats ces dernières 24 heures : réessaie demain."
+      : error?.message.includes("AUCUN_RATING")
+        ? "Pas encore de rating cette saison : un certificat se délivre après ton premier tournoi clôturé."
+        : "Impossible d'émettre un certificat pour l'instant.";
+    redirect(`/moi?erreur=${encodeURIComponent(message)}`);
+  }
+  redirect(`/certificat/${code}?nouveau=1`);
+}

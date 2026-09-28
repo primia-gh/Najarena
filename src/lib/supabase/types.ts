@@ -121,6 +121,62 @@ export type Database = {
           },
         ]
       }
+      certificats: {
+        Row: {
+          code: string
+          cree_le: string
+          est_classe: boolean
+          game_id: number
+          matchs_verifies: number
+          palier: string | null
+          profile_id: string
+          rating: number
+          rd: number
+          registre_empreinte: string | null
+          registre_numero: number | null
+          saison: string | null
+          victoires: number
+        }
+        Insert: {
+          code: string
+          cree_le?: string
+          est_classe: boolean
+          game_id: number
+          matchs_verifies: number
+          palier?: string | null
+          profile_id: string
+          rating: number
+          rd: number
+          registre_empreinte?: string | null
+          registre_numero?: number | null
+          saison?: string | null
+          victoires: number
+        }
+        Update: {
+          code?: string
+          cree_le?: string
+          est_classe?: boolean
+          game_id?: number
+          matchs_verifies?: number
+          palier?: string | null
+          profile_id?: string
+          rating?: number
+          rd?: number
+          registre_empreinte?: string | null
+          registre_numero?: number | null
+          saison?: string | null
+          victoires?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificats_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comptes_offres: {
         Row: {
           attribue_le: string
@@ -1434,6 +1490,7 @@ export type Database = {
         Returns: undefined
       }
       delier_compte_riot: { Args: { p_game_id: number }; Returns: boolean }
+      emettre_certificat: { Args: { p_game_id?: number }; Returns: string }
       enregistrer_consentement: { Args: { p_version: string }; Returns: boolean }
       enregistrer_defaite_reconnue: { Args: { p_match_id: string }; Returns: boolean }
       enregistrer_verdict_historique: {
@@ -1459,6 +1516,26 @@ export type Database = {
           p_riot_tag_line: string
         }
         Returns: undefined
+      }
+      lire_certificat: {
+        Args: { p_code: string }
+        Returns: {
+          code: string
+          compte_supprime: boolean
+          cree_le: string
+          est_classe: boolean
+          matchs_verifies: number
+          palier: string | null
+          profile_id: string
+          pseudo: string
+          rating: number
+          rd: number
+          registre_empreinte: string | null
+          registre_numero: number | null
+          saison: string | null
+          slug: string
+          victoires: number
+        }[]
       }
       mes_reglages_profil: {
         Args: never

@@ -141,6 +141,7 @@ Schéma de base de données : `docs/schema.sql`.
 /registre                  registre des points scellé (preuve publique, export, vérification)
 /lol/coequipiers           recherche de coéquipiers (5v5)
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
+/certificat/[code]         certificat de niveau daté et figé, émis depuis le CV (non indexé)
 /equipe/[slug]             page publique d'équipe
 /equipe/nouvelle           création d'équipe
 /organiser/nouveau         création de tournoi

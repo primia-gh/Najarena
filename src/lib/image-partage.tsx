@@ -149,12 +149,24 @@ export interface CarteProfil {
   victoires: number;
 }
 
-export function ContenuCarteProfil({ carte, logo }: { carte: CarteProfil; logo: string }) {
+export function ContenuCarteProfil({
+  carte,
+  logo,
+  rubrique = "CV E-SPORT · LEAGUE OF LEGENDS",
+  chemin,
+}: {
+  carte: CarteProfil;
+  logo: string;
+  /** En-tête de l'image (le certificat y met sa date). */
+  rubrique?: string;
+  /** Adresse affichée en pied d'image (par défaut, le CV). */
+  chemin?: string;
+}) {
   const couleurPalier = carte.palier ? (COULEUR_PALIER[carte.palier.nom.toLowerCase()] ?? COULEURS.muted) : COULEURS.muted;
   const defaites = carte.matchsVerifies - carte.victoires;
 
   return (
-    <CadreImage logo={logo} rubrique="CV E-SPORT · LEAGUE OF LEGENDS" adresse={adresseAffichee(`/joueur/${carte.slug}`)}>
+    <CadreImage logo={logo} rubrique={rubrique} adresse={adresseAffichee(chemin ?? `/joueur/${carte.slug}`)}>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 48 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 18, width: 640 }}>
           {carte.compteVerifie ? (

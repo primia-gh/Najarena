@@ -73,6 +73,10 @@ export default function ConfidentialitePage() {
               Si tu souscris à une offre payante : ton identifiant client et l&apos;état de ton
               abonnement chez Stripe (jamais tes coordonnées bancaires).
             </li>
+            <li>
+              Certificats de niveau que tu émets toi-même : instantané daté de ton rating, de ton palier
+              et de tes matchs vérifiés, lisible par toute personne à qui tu envoies son lien.
+            </li>
           </ul>
         </section>
 
@@ -235,6 +239,7 @@ export default function ConfidentialitePage() {
           <ul className="mt-2 flex flex-col gap-1.5 text-muted">
             <li>Visites de profil : jusqu&apos;à ce que tu passes en visites anonymes, ou jusqu&apos;à la suppression de ton compte.</li>
             <li>Messages privés : tant que ton compte existe.</li>
+            <li>Certificats de niveau : tant que ton compte existe (effacés avec lui).</li>
             <li>Abonnements aux notifications : jusqu&apos;à leur désactivation, ou dès que ton navigateur les révoque.</li>
             <li>Tentatives de connexion échouées (adresse e-mail et adresse IP, protection contre les essais de mots de passe) : 24 heures.</li>
             <li>Demandes à l&apos;assistant de création de tournoi : la date de chaque demande seulement, 7 jours (limite de 10 demandes par jour).</li>

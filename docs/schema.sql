@@ -3386,3 +3386,136 @@ create table if not exists public.empreintes_publiees (
 alter table public.empreintes_publiees enable row level security;
 create policy "empreintes publiees lisibles par tous" on public.empreintes_publiees for select using (true);
 revoke insert, update, delete on public.empreintes_publiees from anon, authenticated;
+
+-- ---------- Certificat de niveau vérifiable (2026-09-28, audit N9) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Un joueur émet un lien daté : « au 28/09/2026, 1 720 ± 60, 34 matchs
+-- vérifiés, palier Diamant ». L'instantané est calculé par la base (jamais
+-- saisi), figé (aucune modification possible) et adossé à la ligne du
+-- registre des points scellé à cet instant : il remplace la capture
+-- d'écran, falsifiable. Lecture par le code seulement (pas de liste
+-- publique des certificats) ; 5 émissions par jour et par joueur.
+create table if not exists public.certificats (
+  code               text primary key,
+  profile_id         uuid not null references public.profiles(id) on delete cascade,
+  game_id            smallint not null references public.games(id),
+  cree_le            timestamptz not null default now(),
+  saison             text,
+  rating             numeric(7,2) not null,
+  rd                 numeric(6,2) not null,
+  est_classe         boolean not null,
+  palier             text,
+  matchs_verifies    integer not null,
+  victoires          integer not null,
+  registre_numero    bigint,
+  registre_empreinte text
+);
+create index if not exists certificats_profile_cree_le_idx on public.certificats (profile_id, cree_le);
+alter table public.certificats enable row level security;
+create policy "un joueur voit ses propres certificats" on public.certificats
+  for select using ((select auth.uid()) = profile_id);
+revoke insert, update, delete on public.certificats from anon, authenticated;
+
+create or replace function public.emettre_certificat(p_game_id smallint default 1)
+returns text -- code du certificat
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_saison record;
+  v_rating record;
+  v_palier text;
+  v_matchs integer;
+  v_victoires integer;
+  v_registre record;
+  v_code text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  -- Une émission à la fois par joueur, et 5 par jour au plus.
+  perform 1 from public.profiles where id = v_joueur for update;
+  if (select count(*) from public.certificats
+      where profile_id = v_joueur and cree_le > now() - interval '24 hours') >= 5 then
+    raise exception 'LIMITE_CERTIFICATS';
+  end if;
+
+  select id, coalesce(nom, 'Saison ' || numero) as nom into v_saison
+  from public.seasons where game_id = p_game_id and est_courante;
+
+  select rating, rd, est_classe into v_rating
+  from public.ratings
+  where profile_id = v_joueur and game_id = p_game_id and season_id = v_saison.id;
+  if v_rating is null then
+    raise exception 'AUCUN_RATING';
+  end if;
+
+  if v_rating.est_classe then
+    select nom into v_palier from public.tiers
+    where game_id = p_game_id and rating_min <= v_rating.rating
+    order by rating_min desc limit 1;
+  end if;
+
+  -- Matchs vérifiés dans la donnée Riot (niveaux 2 et 3), jamais les verdicts manuels.
+  select count(*), count(*) filter (where mp.est_gagnant)
+  into v_matchs, v_victoires
+  from public.match_participants mp
+  join public.matches m on m.id = mp.match_id
+  join public.tournaments t on t.id = m.tournament_id
+  join public.match_verdicts v on v.match_id = mp.match_id and v.est_definitif
+  where mp.profile_id = v_joueur and t.game_id = p_game_id and v.niveau <> 'manuel';
+
+  select numero, empreinte into v_registre
+  from public.rating_events order by numero desc limit 1;
+
+  v_code := substr(replace(gen_random_uuid()::text, '-', ''), 1, 12);
+  insert into public.certificats (
+    code, profile_id, game_id, saison, rating, rd, est_classe, palier,
+    matchs_verifies, victoires, registre_numero, registre_empreinte
+  ) values (
+    v_code, v_joueur, p_game_id, v_saison.nom, v_rating.rating, v_rating.rd, v_rating.est_classe, v_palier,
+    v_matchs, v_victoires, v_registre.numero, v_registre.empreinte
+  );
+  return v_code;
+end;
+$$;
+revoke execute on function public.emettre_certificat(smallint) from public, anon;
+grant execute on function public.emettre_certificat(smallint) to authenticated;
+
+-- Lecture d'un certificat par son code (page /certificat/[code]).
+create or replace function public.lire_certificat(p_code text)
+returns table (
+  code text, cree_le timestamptz, saison text, rating numeric, rd numeric, est_classe boolean,
+  palier text, matchs_verifies integer, victoires integer, registre_numero bigint,
+  registre_empreinte text, profile_id uuid, pseudo text, slug text, compte_supprime boolean
+)
+language sql stable
+security definer set search_path = public
+as $$
+  select c.code, c.cree_le, c.saison, c.rating, c.rd, c.est_classe, c.palier, c.matchs_verifies,
+         c.victoires, c.registre_numero, c.registre_empreinte, c.profile_id, p.pseudo, p.slug,
+         p.supprime_le is not null
+  from public.certificats c
+  join public.profiles p on p.id = c.profile_id
+  where c.code = p_code;
+$$;
+grant execute on function public.lire_certificat(text) to anon, authenticated;
+
+-- Figé, comme le registre : aucune retouche ni suppression (hors
+-- suppression du compte, qui efface ses certificats par cascade).
+create or replace function public.refuser_modification_certificat()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  raise exception 'CERTIFICAT_IMMUABLE';
+end;
+$$;
+revoke execute on function public.refuser_modification_certificat() from public, anon, authenticated;
+drop trigger if exists certificats_immuables on public.certificats;
+create trigger certificats_immuables
+  before update on public.certificats
+  for each row execute function public.refuser_modification_certificat();

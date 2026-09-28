@@ -57,6 +57,15 @@ describe("images de partage", () => {
     expect(estPng(await rendre(<ContenuCarteProfil carte={debutant} logo={logo} />, "carte-cv-debutant"))).toBe(true);
   }, 30_000);
 
+  it("dessine la carte d'un certificat de niveau daté", async () => {
+    const { logo } = await ressourcesImage();
+    const png = await rendre(
+      <ContenuCarteProfil carte={carte} logo={logo} rubrique="CERTIFICAT DE NIVEAU · 28/09/2026" chemin="/certificat/1a2b3c4d5e6f" />,
+      "certificat",
+    );
+    expect(estPng(png)).toBe(true);
+  }, 30_000);
+
   it("dessine l'affiche d'un tournoi, avec un nom long", async () => {
     const { logo } = await ressourcesImage();
     expect(estPng(await rendre(<ContenuAfficheTournoi affiche={affiche} logo={logo} />, "affiche-tournoi"))).toBe(true);

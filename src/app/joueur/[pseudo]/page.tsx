@@ -15,6 +15,7 @@ import { chargerMoyennes, genererRevue, type StatsMatch } from "@/lib/revue-matc
 import { JsonLd } from "@/lib/json-ld";
 import { chargerComplementsProfil } from "@/lib/profil-vitrine";
 import { adresseActuelleProfil, enregistrerVisite } from "@/lib/visites-profil";
+import { emettreCertificat } from "@/lib/profil-actions";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { classeBoutonContour, classeBoutonPrincipal } from "@/lib/design";
 import BoutonLien from "@/components/design/BoutonLien";
@@ -579,6 +580,14 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                   <BoutonLien href={`/joueur/${profil.slug}/cv`} variante="contour">
                     Exporter mon CV
                   </BoutonLien>
+                )}
+                {rating && (
+                  // Instantané daté et figé à envoyer (audit N9).
+                  <form action={emettreCertificat}>
+                    <BoutonEnvoi variante="contour" libelleEnCours="Émission…">
+                      Certificat daté
+                    </BoutonEnvoi>
+                  </form>
                 )}
                 {!compteRiot?.verifie_le ? (
                   <BoutonLien href="/lier-riot">Lier mon Riot ID</BoutonLien>
