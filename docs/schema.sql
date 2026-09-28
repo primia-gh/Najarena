@@ -1441,3 +1441,98 @@ select cron.schedule(
   );
   $$
 );
+
+-- ---------- Liaison Riot réservée au serveur (2026-09-28, audit C2) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit :
+-- src/lib/riot-actions.ts appelle la nouvelle signature (p_profile_id).
+-- lier_compte_riot était appelable directement par tout compte connecté,
+-- avec des paramètres choisis par lui : puuid visé, nom affiché ET icône-
+-- défi. En indiquant l'icône que la victime porte déjà, verifierRiotId
+-- (src/lib/riot-actions.ts) confirmait un compte Riot qui n'était pas le
+-- sien, sans aucun changement en jeu ; le nom affiché pouvait aussi être
+-- faux. Désormais :
+-- - la fonction n'est plus appelable que par le service_role, depuis le
+--   serveur Next.js, avec le puuid et le Riot ID renvoyés par l'API Riot
+--   et une icône-défi tirée par le serveur (toujours différente de
+--   l'icône portée au moment de la liaison) ;
+-- - le profil est un paramètre (auth.uid() est vide pour le service_role),
+--   fourni par le serveur après lecture de la session ;
+-- - un seul compte principal par joueur et par jeu : le profil public et
+--   le rapprochement niveau 2 lisent ce compte-là (plusieurs comptes
+--   « principaux » cassaient l'affichage du profil et rendaient le
+--   rapprochement aléatoire).
+drop function if exists public.lier_compte_riot(smallint, text, text, text, text, smallint);
+
+-- Données existantes : un joueur qui a lié plusieurs comptes garde comme
+-- principal le plus récemment vérifié (à défaut, le dernier lié).
+with classes as (
+  select id,
+         row_number() over (
+           partition by profile_id, game_id
+           order by verifie_le desc nulls last, derniere_sync_le desc nulls last, id
+         ) as rang
+  from public.game_accounts
+  where est_principal
+)
+update public.game_accounts g
+set est_principal = false
+from classes c
+where g.id = c.id and c.rang > 1;
+
+create unique index if not exists game_accounts_un_principal_par_jeu
+  on public.game_accounts (profile_id, game_id)
+  where est_principal;
+
+create or replace function public.lier_compte_riot(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_puuid text,
+  p_riot_game_name text,
+  p_riot_tag_line text,
+  p_region text,
+  p_defi_icone_id smallint
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  -- Le nouveau compte devient le principal : les autres comptes de ce
+  -- joueur pour ce jeu cessent de l'être (annulé avec le reste si la
+  -- liaison échoue plus bas).
+  update public.game_accounts
+  set est_principal = false
+  where profile_id = p_profile_id
+    and game_id = p_game_id
+    and puuid <> p_puuid
+    and est_principal;
+
+  insert into public.game_accounts (
+    profile_id, game_id, puuid, riot_game_name, riot_tag_line, region,
+    est_principal, defi_icone_id, methode_verification
+  )
+  values (
+    p_profile_id, p_game_id, p_puuid, p_riot_game_name, p_riot_tag_line, p_region,
+    true, p_defi_icone_id, 'icone_profil'
+  )
+  on conflict (game_id, puuid) do update set
+    riot_game_name = excluded.riot_game_name,
+    riot_tag_line = excluded.riot_tag_line,
+    region = excluded.region,
+    est_principal = true,
+    defi_icone_id = excluded.defi_icone_id,
+    methode_verification = 'icone_profil',
+    verifie_le = null
+  -- Compte déjà lié à un autre profil : aucune ligne touchée, refus.
+  -- Vérifié dans la même instruction que l'écriture : deux liaisons
+  -- simultanées du même compte ne peuvent pas passer toutes les deux.
+  where public.game_accounts.profile_id = p_profile_id;
+
+  if not found then
+    raise exception 'RIOT_ACCOUNT_TAKEN';
+  end if;
+end;
+$$;
+
+revoke execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint) from public, anon, authenticated;
+grant execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint) to service_role;

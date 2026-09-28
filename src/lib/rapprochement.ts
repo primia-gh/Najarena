@@ -157,6 +157,10 @@ export async function traiterRechercheResultats(): Promise<{
           .from("game_accounts")
           .select("profile_id, puuid, region, verifie_le, game_id")
           .in("profile_id", tousLesParticipantIds)
+          // Un joueur peut avoir lié plusieurs comptes : seul le principal
+          // (un par jeu, garanti par la base depuis le 28/09/2026) est
+          // cherché — avant, l'un d'eux était retenu au hasard.
+          .eq("est_principal", true)
       : { data: [] as CompteRapprochement[] };
 
   const compteParJoueurEtJeu = new Map(

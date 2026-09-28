@@ -1231,6 +1231,7 @@ export type Database = {
         Args: {
           p_defi_icone_id: number
           p_game_id: number
+          p_profile_id: string
           p_puuid: string
           p_region: string
           p_riot_game_name: string

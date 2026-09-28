@@ -54,10 +54,27 @@ export async function lierRiotId(formData: FormData) {
 
   const cible = tirerIconeCible(invocateur.profileIconId);
 
+  // Écriture réservée au serveur (audit du 27/09/2026, C2) : appelable
+  // depuis le navigateur, lier_compte_riot laissait le joueur choisir lui-
+  // même le puuid, le nom affiché et l'icône-défi — donc « vérifier » un
+  // compte Riot qui n'était pas le sien en indiquant l'icône déjà portée.
+  // Ici, puuid et Riot ID viennent de la réponse Riot, l'icône-défi est
+  // tirée par le serveur (toujours différente de l'icône actuelle), et le
+  // profil vient de la session.
+  const admin = creerClientAdmin();
+  if (!admin) {
+    redirect(
+      `/lier-riot?erreur=${encodeURIComponent(
+        "La liaison n'est pas encore activée côté serveur (SUPABASE_SERVICE_ROLE_KEY manquante).",
+      )}`,
+    );
+  }
+
   // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
   // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
   // l'id depuis un slug.
-  const { error } = await supabase.rpc("lier_compte_riot", {
+  const { error } = await admin.rpc("lier_compte_riot", {
+    p_profile_id: userData.user.id,
     p_game_id: 1,
     p_puuid: compte.puuid,
     p_riot_game_name: compte.gameName,
