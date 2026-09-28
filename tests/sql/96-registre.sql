@@ -51,8 +51,9 @@ select essai('Visiteur : publie une fausse empreinte du jour',
 reset role;
 
 -- Récap de la semaine : publication réservée au serveur.
+insert into recaps_semaine (semaine, annonce) values ('2026-09-14', true);
 set role anon;
-select essai('Visiteur : lit la liste des récaps publiés', $q$select 1 from recaps_semaine where false union all select 1$q$, 'passe');
+select essai('Visiteur : lit la liste des récaps publiés', $q$select 1 from recaps_semaine where semaine = '2026-09-14'$q$, 'passe');
 select essai('Visiteur : marque une semaine comme publiée',
   $q$insert into recaps_semaine (semaine, annonce) values ('2026-09-21', true)$q$, 'bloque');
 reset role;
