@@ -5,6 +5,7 @@ import Panneau from "@/components/design/Panneau";
 import BoutonLien from "@/components/design/BoutonLien";
 import Icone from "@/components/design/Icone";
 import { LABEL_STATUT, type StatutPublic } from "@/lib/tournois";
+import { REGLE_PARTIE_1V1 } from "@/lib/reglement";
 
 // Blocs communs à la page tournoi et au tournoi d'exemple (maquette
 // tournoi.dc.html) : en-tête d'affiche, légende du bracket,
@@ -178,6 +179,7 @@ export function Deroulement({ etapes }: { etapes: { titre: string; quand: string
 export function EssentielReglement({ organisateur }: { organisateur?: string | null }) {
   const regles = [
     "Compte Riot vérifié obligatoire pour s'inscrire, dans la région du tournoi : c'est lui qui permet de retrouver ton résultat automatiquement.",
+    REGLE_PARTIE_1V1,
     `Le vainqueur est lu dans l'historique de partie Riot. Sans résultat retrouvé, ${organisateur ?? "l'organisateur"} tranche et affiche son motif — jamais un résultat supposé.`,
     "Check-in obligatoire : sans confirmation de présence, l'organisateur peut t'exclure du bracket.",
     "Tu as perdu ? Reconnais ta défaite depuis le bracket : ton adversaire avance tout de suite. Le résultat ne compte au classement que si la partie est retrouvée chez Riot.",

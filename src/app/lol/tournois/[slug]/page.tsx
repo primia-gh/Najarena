@@ -33,6 +33,7 @@ import {
   type InfoTournoi,
 } from "@/components/tournoi/BlocsTournoi";
 import OngletsTournoi from "@/components/tournoi/OngletsTournoi";
+import SalleDeMatch, { type InfosSalleDeMatch } from "@/components/tournoi/SalleDeMatch";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
@@ -99,7 +100,7 @@ async function chargerTournoi(slug: string) {
     supabase
       .from("matches")
       .select(
-        "id, tour, position, statut, defaite_reconnue_par, match_participants(profile_id, slot, score, est_gagnant, profile:profiles(pseudo, slug))",
+        "id, tour, position, statut, demarre_le, defaite_reconnue_par, match_participants(profile_id, slot, score, est_gagnant, profile:profiles(pseudo, slug))",
       )
       .eq("tournament_id", tournoi.id)
       .order("tour", { ascending: true })
@@ -110,9 +111,27 @@ async function chargerTournoi(slug: string) {
   const profileIds = (inscriptionsData ?? []).map((i) => i.profile_id);
   const matchIds = (matchsData ?? []).map((m) => m.id);
 
+  // Salle de match : le match que le visiteur doit jouer (ou attend), et son
+  // adversaire. Un match décidé passe « terminé » : il n'est plus retenu.
+  const moi = userData.user?.id;
+  const monMatch = moi
+    ? (matchsData ?? []).find(
+        (m) =>
+          ["en_attente", "en_cours", "litige"].includes(m.statut) &&
+          m.match_participants.some((p) => p.profile_id === moi),
+      )
+    : undefined;
+  const adversaireId = monMatch?.match_participants.find((p) => p.profile_id !== moi)?.profile_id;
+
   // Étage 2 : dépendent des résultats de l'étage 1 (profileIds, matchIds,
   // userData) mais pas les unes des autres — parallélisées de même.
-  const [{ data: ratingsData }, { data: verdictsData }, { data: litigesData }, { data: monCompteRiot }] = await Promise.all([
+  const [
+    { data: ratingsData },
+    { data: verdictsData },
+    { data: litigesData },
+    { data: monCompteRiot },
+    { data: compteAdversaire },
+  ] = await Promise.all([
     profileIds.length > 0
       ? supabase
           .from("ratings")
@@ -141,6 +160,15 @@ async function chargerTournoi(slug: string) {
           .eq("est_principal", true)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    adversaireId
+      ? supabase
+          .from("game_accounts")
+          .select("riot_game_name, riot_tag_line, verifie_le")
+          .eq("profile_id", adversaireId)
+          .eq("game_id", tournoi.game_id)
+          .eq("est_principal", true)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
@@ -157,6 +185,9 @@ async function chargerTournoi(slug: string) {
     litigeParMatch,
     utilisateur: userData.user,
     monCompteRiot,
+    monMatch,
+    riotIdAdversaire:
+      compteAdversaire?.verifie_le ? `${compteAdversaire.riot_game_name}#${compteAdversaire.riot_tag_line}` : null,
     paliers,
     ratingParProfile,
   };
@@ -215,8 +246,20 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     );
   }
 
-  const { tournoi, organisateur, inscriptions, matchs, verdictParMatch, litigeParMatch, utilisateur, monCompteRiot, paliers, ratingParProfile } =
-    donnees;
+  const {
+    tournoi,
+    organisateur,
+    inscriptions,
+    matchs,
+    verdictParMatch,
+    litigeParMatch,
+    utilisateur,
+    monCompteRiot,
+    monMatch,
+    riotIdAdversaire,
+    paliers,
+    ratingParProfile,
+  } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
   const estOrganisateur = utilisateur?.id === tournoi.organisateur_id;
@@ -250,6 +293,35 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     if (reste === 4) return "Huitièmes";
     return `Tour ${toursOrdonnes[index]}`;
   };
+
+  const infosSalle: InfosSalleDeMatch | null =
+    monMatch && utilisateur && statut === "en_cours"
+      ? (() => {
+          const moiDansMatch = monMatch.match_participants.find((p) => p.profile_id === utilisateur.id);
+          const adversaire = monMatch.match_participants.find((p) => p.profile_id !== utilisateur.id);
+          const perdant = monMatch.defaite_reconnue_par
+            ? (monMatch.match_participants.find((p) => p.profile_id === monMatch.defaite_reconnue_par)?.profile
+                ?.pseudo ?? "un joueur")
+            : null;
+          return {
+            tour: libelleTour(toursOrdonnes.indexOf(monMatch.tour)),
+            etat: !adversaire
+              ? "attente_adversaire"
+              : perdant
+                ? "defaite_reconnue"
+                : monMatch.statut === "litige"
+                  ? "litige"
+                  : "a_jouer",
+            adversaire: adversaire?.profile
+              ? { pseudo: adversaire.profile.pseudo, slug: adversaire.profile.slug, riotId: riotIdAdversaire }
+              : null,
+            jeCreeLaPartie: moiDansMatch?.slot === 1,
+            demarreLe: monMatch.demarre_le,
+            bestOf: tournoi.best_of,
+            perdantDeclare: perdant,
+          };
+        })()
+      : null;
 
   const etapes: { titre: string; quand: string; etat: EtatEtape }[] =
     statut === "annule"
@@ -338,6 +410,18 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         details={
           <>
             <span className="tabular-nums">{formaterDate(tournoi.debute_le)}</span> · {tournoi.region}
+            {(statut === "ouvert" || statut === "checkin") && (
+              <>
+                {" "}
+                ·{" "}
+                <a
+                  href={`/lol/tournois/${tournoi.slug}/agenda`}
+                  className="text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  Ajouter à mon agenda
+                </a>
+              </>
+            )}
             {organisateur && (
               <>
                 {" "}
@@ -456,6 +540,36 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
       <OngletsTournoi />
 
+      {infosSalle && (
+        <section id="ton-match" className="scroll-mt-28 px-gouttiere pt-12">
+          <div className="mx-auto max-w-contenu">
+            <SalleDeMatch
+              infos={infosSalle}
+              actions={
+                (infosSalle.etat === "a_jouer" || infosSalle.etat === "litige") && monMatch ? (
+                  <details>
+                    <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-mini font-semibold text-muted uppercase hover:text-text [&::-webkit-details-marker]:hidden">
+                      J&apos;ai perdu ce match
+                    </summary>
+                    <form action={reconnaitreDefaite} className="flex flex-col gap-2">
+                      <input type="hidden" name="match_id" value={monMatch.id} />
+                      <input type="hidden" name="slug" value={tournoi.slug} />
+                      <p className="text-xs leading-normal text-muted">
+                        Ton adversaire avance sans attendre l&apos;organisateur. Si la partie est retrouvée chez Riot, le
+                        résultat compte au classement ; sinon, il est enregistré sur ta parole, hors classement.
+                      </p>
+                      <BoutonEnvoi variante="contour" libelleEnCours="Envoi…" className="self-start">
+                        Confirmer ma défaite
+                      </BoutonEnvoi>
+                    </form>
+                  </details>
+                ) : undefined
+              }
+            />
+          </div>
+        </section>
+      )}
+
       {/* ================= BRACKET ================= */}
       <section id="bracket" className="scroll-mt-28 px-gouttiere pt-12">
         <div className="mx-auto flex max-w-contenu flex-col gap-6">
@@ -533,28 +647,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                           </p>
                         )}
                         {enJeu && !perdantDeclare && estParticipantDuMatch && (
-                          <details>
-                            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-mini font-semibold text-muted uppercase hover:text-text [&::-webkit-details-marker]:hidden">
-                              J&apos;ai perdu ce match
-                            </summary>
-                            <form action={reconnaitreDefaite} className="flex flex-col gap-2">
-                              <input type="hidden" name="match_id" value={m.id} />
-                              <input type="hidden" name="slug" value={tournoi.slug} />
-                              <p className="text-xs leading-normal text-muted">
-                                Ton adversaire avance sans attendre l&apos;organisateur. Si la partie est retrouvée
-                                chez Riot, le résultat compte au classement ; sinon, il est enregistré sur ta parole,
-                                hors classement.
-                              </p>
-                              <BoutonEnvoi
-                                variante="contour"
-                                libelleEnCours="Envoi…"
-                                aria-label={`Confirmer ma défaite — ${libelleMatch}`}
-                                className="self-start"
-                              >
-                                Confirmer ma défaite
-                              </BoutonEnvoi>
-                            </form>
-                          </details>
+                          <a
+                            href="#ton-match"
+                            className="inline-flex min-h-11 items-center text-mini font-semibold text-accent uppercase underline underline-offset-3"
+                          >
+                            Ton match : adversaire et règles
+                          </a>
                         )}
                         {litige && (
                           <p className={`text-xs ${litige.resolution ? "text-muted" : "text-danger"}`}>

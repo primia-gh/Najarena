@@ -49,6 +49,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     { data: affiliationsData },
     { data: equipesCapitaineData },
     infoOffre,
+    { data: matchsEnCoursData },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -83,7 +84,16 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       .eq("capitaine_id", utilisateur.id)
       .order("cree_le", { ascending: false }),
     chargerOffre(supabase, utilisateur.id),
+    // Match à jouer (ou en attente d'adversaire) dans un tournoi en cours :
+    // le premier écran utile un soir de tournoi (28/09/2026, audit N2).
+    supabase
+      .from("match_participants")
+      .select("match:matches!inner(id, statut, tournament:tournaments!inner(nom, slug, statut))")
+      .eq("profile_id", utilisateur.id)
+      .in("match.statut", ["en_attente", "en_cours", "litige"])
+      .eq("match.tournament.statut", "en_cours"),
   ]);
+  const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
   const inscriptions = inscriptionsData ?? [];
   const tournoisOrganises = tournoisOrganisesData ?? [];
@@ -108,6 +118,22 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       {message && (
         <p className={"mb-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
       )}
+
+      {matchsEnCours.map(({ match }) => (
+        <Link
+          key={match!.id}
+          href={`/lol/tournois/${match!.tournament!.slug}#ton-match`}
+          className={"mb-6 flex flex-wrap items-center justify-between gap-3 " + classeCarte("atteste", true)}
+        >
+          <span className="flex min-w-0 flex-col">
+            <span className="text-mini text-accent uppercase">
+              {match!.statut === "en_attente" ? "Prochain match" : "Ton match est ouvert"}
+            </span>
+            <span className="font-titre text-lg font-extrabold uppercase text-text">{match!.tournament!.nom}</span>
+          </span>
+          <span className="text-sm text-text-2 underline underline-offset-3">Adversaire, Riot ID et règles →</span>
+        </Link>
+      ))}
 
       <Apparition>
       <div className="flex flex-wrap items-start justify-between gap-4">
