@@ -14,6 +14,7 @@
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { construireBracket, melanger } from "@/lib/bracket-construction";
 import { envoyerRappel, notifierDiscord, URL_SITE } from "@/lib/notifications";
+import { cloturerTournoi } from "@/lib/classement-actions";
 import {
   capaciteEffective,
   CRENEAUX,
@@ -72,7 +73,34 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     }
   }
 
+  try {
+    resultats.push(...(await reprendreCloturesEnAttente(admin)));
+  } catch (erreur) {
+    resultats.push(`reprise des clôtures : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
   return { simulation, actions, resultats };
+}
+
+// Tournois (automatiques ou d'organisateur) dont la finale est jouée mais
+// qui ne sont pas « terminés » : leur clôture — le calcul Glicko-2 — a
+// échoué ou a été interrompue (docs/schema.sql, ETAT_DE_DEPART_PERIME).
+// Jusqu'au 28/09/2026, rien ne la relançait : les joueurs restaient sans
+// leurs points. Relancer est sans danger, la base refuse tout double crédit.
+async function reprendreCloturesEnAttente(admin: ClientAdmin): Promise<string[]> {
+  const { data: finales } = await admin
+    .from("matches")
+    .select("tournament_id, tournament:tournaments!inner(slug, statut)")
+    .is("match_suivant_id", null)
+    .eq("statut", "termine")
+    .eq("tournament.statut", "en_cours");
+
+  const resultats: string[] = [];
+  for (const finale of finales ?? []) {
+    await cloturerTournoi(finale.tournament_id);
+    resultats.push(`clôture reprise ${finale.tournament?.slug ?? finale.tournament_id}`);
+  }
+  return resultats;
 }
 
 async function chargerTournoisSuivis(admin: ClientAdmin, maintenant: Date): Promise<TournoiSuivi[] | null> {

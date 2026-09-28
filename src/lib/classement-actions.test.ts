@@ -92,6 +92,8 @@ interface Options {
   saisons?: unknown[];
   /** Rotation : ratings de la saison courante. */
   ratings?: unknown[];
+  /** Clôture reprise : lignes du journal déjà écrites pour ce tournoi. */
+  dejaCredites?: unknown[];
 }
 
 const TOUS = ["u1", "u2", "u3", "u4"];
@@ -124,6 +126,7 @@ function installer(o: Options = {}, avecAdmin = true) {
       );
     }
     if (a.table === "ratings") return ok(o.ratings ?? []);
+    if (a.table === "rating_events") return ok(o.dejaCredites ?? []);
     return ok(null);
   };
 
@@ -230,6 +233,24 @@ describe("cloturerTournoi", () => {
     expect(Number(rpcDe("u1").p_rating_apres)).toBeGreaterThan(1500);
     expect(Number(rpcDe("u2").p_rating_apres)).toBeLessThan(1500);
     expect(Number(rpcDe("u1").p_rating_apres)).toBeGreaterThan(Number(rpcDe("u3").p_rating_apres));
+  });
+
+  it("clôture reprise : un joueur déjà crédité sert d'adversaire avec son état d'avant tournoi (journal), pas son rating actuel", async () => {
+    installer();
+    await cloturerTournoi("T1");
+    const u2Normal = rpcDe("u2").p_rating_apres;
+
+    rpcs = [];
+    installer({
+      // u1 a déjà reçu ses points lors de la première tentative : son rating
+      // actuel inclut ce tournoi, son état de départ est dans le journal.
+      ratings: [{ profile_id: "u1", rating: 1720.4, rd: 290.1, volatilite: 0.06, matchs_joues: 2 }],
+      dejaCredites: [{ profile_id: "u1", rating_avant: 1500, rd_avant: 350 }],
+    });
+    await cloturerTournoi("T1");
+
+    expect(rpcDe("u2").p_rating_apres).toBe(u2Normal);
+    expect(rpcDe("u1")).toMatchObject({ p_rating_avant: 1500, p_rd_avant: 350 });
   });
 
   it("un verdict manuel (niveau 1) et un forfait ne rapportent aucun point", async () => {

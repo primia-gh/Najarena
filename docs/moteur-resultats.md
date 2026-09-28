@@ -79,7 +79,10 @@ Les parties retenues sont rejouées dans l'ordre chronologique : en Bo1 la premi
 5. Écrire en une transaction : mise à jour de `ratings` + insertion dans `rating_events`.
 
 ### Garde d'idempotence
-Avant l'étape 5, vérifier qu'aucune ligne `rating_events` n'existe déjà pour ce couple (tournoi, joueur). Si oui, abandonner sans erreur.
+Avant l'étape 5, vérifier qu'aucune ligne `rating_events` n'existe déjà pour ce couple (tournoi, joueur). Si oui, abandonner sans erreur. Depuis le 28/09/2026, une contrainte d'unicité sur (tournoi, joueur) rend le double crédit impossible même en cas d'exécutions simultanées.
+
+### État de départ périmé et reprise
+`cloturer_rating_joueur` verrouille la ligne `ratings` du joueur et refuse d'écrire si son rating ou son RD ne correspondent plus à l'état de départ utilisé pour le calcul (un autre tournoi du même joueur clôturé entre-temps) : `ETAT_DE_DEPART_PERIME`. Le tournoi reste alors « en cours » et la tâche des tournois automatiques (toutes les 5 minutes) reprend la clôture de tout tournoi dont la finale est jouée. À la reprise, un joueur déjà crédité sert d'adversaire avec son état d'avant tournoi, lu dans le journal.
 
 ### Joueur inactif
 Tâche mensuelle : pour tout joueur sans match depuis 30 jours, augmenter le RD selon la formule Glicko-2, **sans toucher au rating**. Un joueur absent devient incertain, il ne devient pas mauvais.

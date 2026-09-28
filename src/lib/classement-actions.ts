@@ -162,23 +162,38 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
   );
   const candidatsRetenus = candidats.filter((_, i) => compteursPrealables[i] < 3);
 
-  // État de départ figé de chaque joueur du bracket — jamais l'état
-  // courant, qui pourrait déjà refléter un autre match traité juste avant.
-  const { data: ratingsData } = await supabase
-    .from("ratings")
-    .select("profile_id, rating, rd, volatilite, matchs_joues")
-    .eq("game_id", tournoi.game_id)
-    .eq("season_id", seasonId)
-    .in("profile_id", Array.from(joueursDuBracket));
+  // État de départ de chaque joueur du bracket : son rating actuel, sauf
+  // pour un joueur déjà crédité lors d'une tentative précédente de cette
+  // même clôture (reprise après un échec) — son rating actuel inclut déjà
+  // ce tournoi, son état d'avant tournoi est dans le journal. C'est lui qui
+  // sert d'adversaire aux joueurs restants (Glicko-2 ne lit que le rating et
+  // le RD de l'adversaire).
+  const [{ data: ratingsData }, { data: dejaCreditesData }] = await Promise.all([
+    supabase
+      .from("ratings")
+      .select("profile_id, rating, rd, volatilite, matchs_joues")
+      .eq("game_id", tournoi.game_id)
+      .eq("season_id", seasonId)
+      .in("profile_id", Array.from(joueursDuBracket)),
+    supabase
+      .from("rating_events")
+      .select("profile_id, rating_avant, rd_avant")
+      .eq("tournament_id", tournamentId)
+      .eq("motif", "tournoi"),
+  ]);
+  const dejaCredites = new Map((dejaCreditesData ?? []).map((e) => [e.profile_id, e]));
 
   const etatDepart = new Map<string, EtatGlicko>();
   for (const id of joueursDuBracket) {
     const existant = (ratingsData ?? []).find((r) => r.profile_id === id);
+    const credite = dejaCredites.get(id);
     etatDepart.set(
       id,
-      existant
-        ? { rating: existant.rating, rd: existant.rd, volatilite: existant.volatilite }
-        : { rating: GLICKO_BASE, rd: RD_MAX, volatilite: VOLATILITE_INITIALE },
+      credite
+        ? { rating: credite.rating_avant, rd: credite.rd_avant, volatilite: existant?.volatilite ?? VOLATILITE_INITIALE }
+        : existant
+          ? { rating: existant.rating, rd: existant.rd, volatilite: existant.volatilite }
+          : { rating: GLICKO_BASE, rd: RD_MAX, volatilite: VOLATILITE_INITIALE },
     );
   }
 
@@ -236,8 +251,11 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
   if (joueursEnEchec.length > 0) {
     // Tournoi laissé « en cours » : mieux vaut un tournoi visiblement non
     // clôturé qu'un tournoi clos où des joueurs n'ont jamais reçu leurs
-    // points. Une relance complète les joueurs manquants sans recréditer
-    // les autres (garde SQL).
+    // points. La tâche des tournois automatiques reprend la clôture toutes
+    // les 5 minutes (reprendreCloturesEnAttente) : elle complète les joueurs
+    // manquants sans recréditer les autres (garde SQL). Cas typique : un
+    // autre tournoi du même joueur clôturé au même moment
+    // (ETAT_DE_DEPART_PERIME, docs/schema.sql).
     console.error(
       `cloturerTournoi : écriture du rating échouée pour ${joueursEnEchec.length} joueur(s) du tournoi ${tournamentId} — tournoi laissé ouvert pour reprise.`,
     );

@@ -2270,3 +2270,90 @@ $$;
 
 revoke execute on function public.reconnaitre_defaite(uuid) from public, anon;
 grant execute on function public.reconnaitre_defaite(uuid) to authenticated;
+
+-- ---------- Clôture de tournoi à l'abri des exécutions simultanées (2026-09-28, audit M16) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (src/lib/classement-actions.ts reconnaît ETAT_DE_DEPART_PERIME).
+-- 1. La garde « déjà crédité » vérifiait puis écrivait sans verrou : deux
+--    clôtures simultanées du même tournoi pouvaient journaliser deux fois
+--    le même joueur. Une contrainte d'unicité rend le double crédit
+--    impossible, quelle que soit la chronologie. (Si sa création échoue,
+--    c'est qu'un doublon existe déjà dans le journal : le signaler au
+--    porteur du projet, ne jamais supprimer de ligne — le journal est
+--    immuable, CLAUDE.md §4.)
+-- 2. Chaque clôture écrit un rating absolu calculé à partir de l'état lu
+--    avant le calcul. Si un autre tournoi du même joueur a été clôturé
+--    entre-temps, cet état est périmé : écrire effacerait l'autre résultat
+--    et le journal public ne se suivrait plus (« rating avant » ≠ « rating
+--    après » précédent). La fonction verrouille la ligne du joueur et
+--    refuse un état de départ périmé (ETAT_DE_DEPART_PERIME) ; la clôture
+--    est alors reprise au passage suivant de la tâche, à partir de l'état
+--    à jour.
+create unique index if not exists rating_events_un_credit_par_tournoi
+  on public.rating_events (tournament_id, profile_id)
+  where motif = 'tournoi';
+
+create or replace function public.cloturer_rating_joueur(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_season_id uuid,
+  p_tournament_id uuid,
+  p_rating_avant numeric,
+  p_rd_avant numeric,
+  p_volatilite_avant numeric,
+  p_rating_apres numeric,
+  p_rd_apres numeric,
+  p_volatilite_apres numeric,
+  p_matchs_comptes int,
+  p_motif text
+)
+returns boolean -- true si écrit, false si déjà traité (idempotence)
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_actuel record;
+begin
+  if exists (
+    select 1 from rating_events
+    where profile_id = p_profile_id and tournament_id = p_tournament_id
+  ) then
+    return false;
+  end if;
+
+  -- Ligne du joueur créée si besoin (valeurs de départ Glicko-2), puis
+  -- verrouillée jusqu'à la fin de l'écriture.
+  insert into ratings (profile_id, game_id, season_id)
+  values (p_profile_id, p_game_id, p_season_id)
+  on conflict (profile_id, game_id, season_id) do nothing;
+
+  select rating, rd into v_actuel
+  from ratings
+  where profile_id = p_profile_id and game_id = p_game_id and season_id = p_season_id
+  for update;
+
+  if v_actuel.rating <> p_rating_avant or v_actuel.rd <> p_rd_avant then
+    raise exception 'ETAT_DE_DEPART_PERIME';
+  end if;
+
+  insert into rating_events (
+    profile_id, game_id, season_id, tournament_id, match_id, motif,
+    rating_avant, rd_avant, rating_apres, rd_apres, adversaire_id
+  ) values (
+    p_profile_id, p_game_id, p_season_id, p_tournament_id, null, p_motif,
+    p_rating_avant, p_rd_avant, p_rating_apres, p_rd_apres, null
+  );
+
+  update ratings set
+    rating = p_rating_apres,
+    rd = p_rd_apres,
+    volatilite = p_volatilite_apres,
+    matchs_joues = matchs_joues + p_matchs_comptes,
+    maj_le = now()
+  where profile_id = p_profile_id and game_id = p_game_id and season_id = p_season_id;
+
+  return true;
+end;
+$$;
+
+revoke execute on function public.cloturer_rating_joueur from public, anon, authenticated;
