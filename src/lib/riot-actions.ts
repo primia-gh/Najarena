@@ -188,3 +188,25 @@ export async function mettreAJourRolePrefere(formData: FormData) {
 
   redirect("/moi?message=" + encodeURIComponent("Rôle mis à jour."));
 }
+
+// Délier son compte Riot (28/09/2026, audit M9) : erreur de saisie,
+// vérification jamais terminée, changement de compte. La base refuse tant
+// que le joueur est inscrit à un tournoi pas encore terminé
+// (delier_compte_riot, docs/schema.sql).
+export async function delierCompteRiot() {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { error } = await supabase.rpc("delier_compte_riot", { p_game_id: 1 });
+  if (error) {
+    const message = error.message.includes("INSCRIT_A_UN_TOURNOI")
+      ? "Tu es inscrit à un tournoi pas encore terminé : ton compte Riot sert à lire tes résultats. Désinscris-toi ou attends la fin du tournoi."
+      : "Impossible de délier ton compte pour l'instant. Réessaie dans un instant.";
+    redirect(`/lier-riot?erreur=${encodeURIComponent(message)}`);
+  }
+
+  redirect(`/lier-riot?message=${encodeURIComponent("Compte Riot délié : tu peux en lier un autre.")}`);
+}

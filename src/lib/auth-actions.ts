@@ -7,7 +7,7 @@ import { slugifier } from "@/lib/slug";
 import { URL_SITE } from "@/lib/notifications";
 import { estPseudoAutomatique, MESSAGE_PSEUDO_INVALIDE, PSEUDO_REGEX } from "@/lib/pseudo";
 import { COOKIE_CONSENTEMENT, VERSION_CGU } from "@/lib/cgu";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 // 8 caractères au moins (audit du 27/09/2026, F1 : Supabase en accepte 6
 // par défaut). À aligner dans le tableau de bord Supabase (Authentication >
@@ -18,15 +18,26 @@ const MOT_DE_PASSE_MIN = 8;
 // Repli gracieux identique aux autres usages du service_role : sans
 // SUPABASE_SERVICE_ROLE_KEY, on ne bloque jamais personne plutôt que de
 // bloquer tout le monde par erreur.
+//
+// Compté par adresse e-mail ET par adresse IP (audit du 27/09/2026, F1) :
+// compté par e-mail seul, n'importe qui pouvait bloquer la connexion d'un
+// joueur en échouant 5 fois avec son adresse. La protection de Supabase
+// Auth (limites par IP, CAPTCHA) couvre les appels directs.
 const FENETRE_LIMITE_MINUTES = 15;
 const SEUIL_TENTATIVES = 5;
 const RETENTION_HEURES = 24;
+
+async function adresseIp(): Promise<string> {
+  const entetes = await headers();
+  return entetes.get("x-forwarded-for")?.split(",")[0]?.trim() || entetes.get("x-real-ip") || "inconnue";
+}
 
 async function tropDeTentatives(email: string): Promise<boolean> {
   const admin = creerClientAdmin();
   if (!admin) return false;
 
   const emailNormalise = email.toLowerCase();
+  const ip = await adresseIp();
 
   await admin
     .from("login_attempts")
@@ -37,6 +48,7 @@ async function tropDeTentatives(email: string): Promise<boolean> {
     .from("login_attempts")
     .select("*", { count: "exact", head: true })
     .eq("email", emailNormalise)
+    .eq("ip", ip)
     .gte("cree_le", new Date(Date.now() - FENETRE_LIMITE_MINUTES * 60 * 1000).toISOString());
 
   return (count ?? 0) >= SEUIL_TENTATIVES;
@@ -45,7 +57,7 @@ async function tropDeTentatives(email: string): Promise<boolean> {
 async function enregistrerTentativeEchouee(email: string): Promise<void> {
   const admin = creerClientAdmin();
   if (!admin) return;
-  await admin.from("login_attempts").insert({ email: email.toLowerCase() });
+  await admin.from("login_attempts").insert({ email: email.toLowerCase(), ip: await adresseIp() });
 }
 
 function traduireErreurAuth(message: string): string {
@@ -164,7 +176,7 @@ export async function seConnecter(formData: FormData) {
   if (email && (await tropDeTentatives(email))) {
     redirect(
       `/connexion?erreur=${encodeURIComponent(
-        "Trop de tentatives échouées pour cette adresse. Réessaie dans quelques minutes.",
+        "Trop de tentatives échouées. Réessaie dans quelques minutes, ou utilise « Mot de passe oublié ? ».",
       )}`,
     );
   }

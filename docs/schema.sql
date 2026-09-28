@@ -3120,3 +3120,56 @@ end;
 $$;
 revoke execute on function public.supprimer_mon_compte() from public, anon;
 grant execute on function public.supprimer_mon_compte() to authenticated;
+
+-- ---------- Comptes Riot : délier, Riot ID non vérifiés privés (2026-09-28, audit M9) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- - Un Riot ID simplement saisi (pas encore vérifié) peut appartenir à
+--   quelqu'un d'autre : il n'est plus lisible que par son propriétaire, y
+--   compris par l'accès direct à la base (le CV ne l'affichait déjà plus).
+-- - Délier son compte Riot (erreur de saisie, changement de compte) :
+--   refusé tant qu'on est inscrit à un tournoi pas encore terminé, dont le
+--   moteur a besoin de ce compte pour lire les résultats.
+drop policy if exists "comptes de jeu lisibles par tous" on public.game_accounts;
+create policy "comptes verifies lisibles par tous, le sien toujours"
+  on public.game_accounts for select
+  using (verifie_le is not null or profile_id = (select auth.uid()));
+
+create or replace function public.delier_compte_riot(p_game_id smallint)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  if exists (
+    select 1
+    from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = v_joueur
+      and r.statut in ('inscrit', 'confirme')
+      and t.game_id = p_game_id
+      and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) then
+    raise exception 'INSCRIT_A_UN_TOURNOI';
+  end if;
+
+  delete from public.game_accounts where profile_id = v_joueur and game_id = p_game_id;
+  return found;
+end;
+$$;
+revoke execute on function public.delier_compte_riot(smallint) from public, anon;
+grant execute on function public.delier_compte_riot(smallint) to authenticated;
+
+-- ---------- Tentatives de connexion par adresse IP (2026-09-28, audit F1) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- La limite « 5 échecs en 15 minutes » comptait par adresse e-mail seule :
+-- n'importe qui pouvait bloquer la connexion d'un joueur en échouant
+-- 5 fois avec son adresse. Elle compte désormais par e-mail ET adresse IP
+-- (gardée 24 heures, comme le reste de la table).
+alter table public.login_attempts add column if not exists ip text;
+create index if not exists login_attempts_email_ip_cree_le_idx on public.login_attempts (email, ip, cree_le);

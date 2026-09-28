@@ -343,16 +343,19 @@ export type Database = {
           cree_le: string
           email: string
           id: number
+          ip: string | null
         }
         Insert: {
           cree_le?: string
           email: string
           id?: never
+          ip?: string | null
         }
         Update: {
           cree_le?: string
           email?: string
           id?: never
+          ip?: string | null
         }
         Relationships: []
       }
@@ -1380,6 +1383,7 @@ export type Database = {
         Args: { p_gagnant_id: string; p_match_id: string }
         Returns: undefined
       }
+      delier_compte_riot: { Args: { p_game_id: number }; Returns: boolean }
       enregistrer_consentement: { Args: { p_version: string }; Returns: boolean }
       enregistrer_defaite_reconnue: { Args: { p_match_id: string }; Returns: boolean }
       enregistrer_verdict_historique: {

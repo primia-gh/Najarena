@@ -3,7 +3,8 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { lierRiotId, verifierRiotId } from "@/lib/riot-actions";
+import { delierCompteRiot, lierRiotId, verifierRiotId } from "@/lib/riot-actions";
+import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import { REGIONS, obtenirVersionDDragon, urlIconeProfil } from "@/lib/riot";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
@@ -16,11 +17,11 @@ export const metadata: Metadata = {
 };
 
 interface LierRiotPageProps {
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
 export default async function LierRiotPage({ searchParams }: LierRiotPageProps) {
-  const { erreur } = await searchParams;
+  const { erreur, message } = await searchParams;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -58,6 +59,11 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
       {erreur && (
         <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
       )}
+      {message && (
+        <p role="status" className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>
+          {message}
+        </p>
+      )}
 
       {compte?.verifie_le ? (
         <div className={"mt-6 " + classeCarte("atteste")}>
@@ -69,6 +75,18 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
         <EtapeVerification puuid={compte.puuid} defiIconeId={compte.defi_icone_id} />
       ) : (
         <EtapeSaisie />
+      )}
+
+      {compte && (
+        <form action={delierCompteRiot} className="mt-6">
+          <BoutonConfirmation
+            type="submit"
+            confirmation={`Délier ${compte.riot_game_name}#${compte.riot_tag_line} ? Il faudra refaire la vérification pour lier un compte.`}
+            className="inline-flex min-h-11 items-center font-texte text-mini font-semibold text-muted uppercase underline underline-offset-3 hover:text-text"
+          >
+            {compte.verifie_le ? "Délier ce compte" : "Changer de Riot ID"}
+          </BoutonConfirmation>
+        </form>
       )}
       </Apparition>
       </div>
