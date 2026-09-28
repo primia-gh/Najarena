@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { progressionPalier, type Palier } from "@/lib/classement";
 import { LABEL_ROLE, type Role } from "@/lib/roles";
@@ -23,7 +24,8 @@ export interface EquipeJoueur {
   role: string | null;
 }
 
-export async function chargerComplementsProfil(profilId: string) {
+// cache : partagé par generateMetadata et la page, le temps d'une requête.
+export const chargerComplementsProfil = cache(async (profilId: string) => {
   const supabase = await createClient();
 
   const [
@@ -142,4 +144,4 @@ export async function chargerComplementsProfil(profilId: string) {
     roleLibelle: role ? LABEL_ROLE[role] : null,
     avatarUrl: profil?.avatar_url ?? null,
   };
-}
+});

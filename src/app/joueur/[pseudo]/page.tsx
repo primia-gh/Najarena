@@ -266,11 +266,22 @@ export async function generateMetadata({ params }: JoueurPageProps): Promise<Met
     return { title: "Profil introuvable — Najarena" };
   }
 
+  // Description propre à chaque joueur (audit M11) : rating, palier et
+  // matchs vérifiés, plutôt qu'une phrase identique pour tous.
+  const { profil, compteRiot, rating, historique } = donnees;
+  const complements = await chargerComplementsProfil(profil.id);
+  const matchsVerifies = historique.filter((h) => h.niveau !== "manuel").length;
+  const chiffres = rating
+    ? `rating ${arrondir(rating.rating)}${complements.palier ? ` (${complements.palier.nom})` : ""}, ${
+        rating.est_classe ? "classé" : `provisoire, confiance ${calibrationPct(rating.rd)} %`
+      }, ${matchsVerifies} match${matchsVerifies > 1 ? "s" : ""} vérifié${matchsVerifies > 1 ? "s" : ""}`
+    : "pas encore de match vérifié";
+
   return {
-    title: `${donnees.profil.pseudo} — Najarena`,
-    description: donnees.compteRiot?.verifie_le
-      ? `Profil vérifié de ${donnees.profil.pseudo} sur Najarena. Résultats League of Legends lus dans la donnée officielle Riot.`
-      : `Profil de ${donnees.profil.pseudo} sur Najarena. Résultats League of Legends lus dans la donnée officielle Riot.`,
+    title: `${profil.pseudo} — Najarena`,
+    description: `${compteRiot?.verifie_le ? "CV e-sport vérifié" : "CV e-sport"} de ${profil.pseudo} sur Najarena : ${chiffres}. Résultats League of Legends lus dans la donnée officielle Riot.`,
+    alternates: { canonical: `/joueur/${profil.slug}` },
+    openGraph: { title: `${profil.pseudo} — CV e-sport Najarena`, url: `/joueur/${profil.slug}`, type: "profile" },
   };
 }
 

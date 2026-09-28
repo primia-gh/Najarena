@@ -1,3 +1,4 @@
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -60,7 +61,9 @@ interface TournoiPageProps {
   searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
-async function chargerTournoi(slug: string) {
+// cache : generateMetadata et la page partagent un seul chargement par
+// requête (audit M12).
+const chargerTournoi = cache(async (slug: string) => {
   const supabase = await createClient();
 
   const { data: tournoi, error: erreurTournoi } = await supabase
@@ -191,7 +194,7 @@ async function chargerTournoi(slug: string) {
     paliers,
     ratingParProfile,
   };
-}
+});
 
 function crestJoueur(
   profileId: string,
@@ -221,9 +224,12 @@ export async function generateMetadata({
     return { title: "Tournoi introuvable — Najarena" };
   }
 
+  const { tournoi } = donnees;
   return {
-    title: `${donnees.tournoi.nom} — Najarena`,
-    description: `Tournoi League of Legends ${donnees.tournoi.format}, ${donnees.tournoi.capacite} joueurs, région ${donnees.tournoi.region}. Résultats lus dans la donnée officielle Riot.`,
+    title: `${tournoi.nom} — Najarena`,
+    description: `Tournoi League of Legends ${tournoi.format}${tournoi.best_of > 1 ? ` en Bo${tournoi.best_of}` : ""}, le ${formaterDate(tournoi.debute_le)} (heure de Paris), ${tournoi.capacite} joueurs, région ${tournoi.region}. Résultats lus dans la donnée officielle Riot.`,
+    alternates: { canonical: `/lol/tournois/${tournoi.slug}` },
+    openGraph: { title: `${tournoi.nom} — Najarena`, url: `/lol/tournois/${tournoi.slug}` },
   };
 }
 
