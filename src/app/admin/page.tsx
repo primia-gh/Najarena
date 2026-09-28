@@ -6,6 +6,7 @@ import { leverSuspension, resoudreLitigeAdmin, suspendreCompte } from "@/lib/adm
 import { attribuerOffreAdmin } from "@/lib/offres-actions";
 import { LABEL_OFFRE, chargerOffres, type Offre } from "@/lib/offres";
 import { formaterDate } from "@/lib/tournois";
+import { detecterSignaux } from "@/lib/signaux";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
@@ -22,6 +23,52 @@ export const metadata: Metadata = {
 
 interface AdminPageProps {
   searchParams: Promise<{ erreur?: string; message?: string }>;
+}
+
+// Signaux à examiner sur 30 jours (audit N11) : lecture des données
+// publiques, calcul dans src/lib/signaux.ts. Jamais d'action automatique.
+async function chargerSignaux(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const depuis = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const [{ data: tournoisRecents }, { data: variationsRecentes }] = await Promise.all([
+    supabase.from("tournaments").select("id, nom, slug, organisateur_id, statut").gte("debute_le", depuis),
+    supabase
+      .from("rating_events")
+      .select("profile_id, tournament_id, rating_avant, rating_apres")
+      .eq("motif", "tournoi")
+      .gte("cree_le", depuis),
+  ]);
+  const idsTournois = (tournoisRecents ?? []).map((t) => t.id);
+  const { data: matchsRecents } =
+    idsTournois.length > 0
+      ? await supabase
+          .from("matches")
+          .select("tournament_id, match_participants(profile_id, est_gagnant), match_verdicts(niveau, est_definitif)")
+          .in("tournament_id", idsTournois)
+      : { data: [] };
+  const signaux = detecterSignaux(
+    (matchsRecents ?? []).map((m) => ({
+      tournoiId: m.tournament_id,
+      joueurs: m.match_participants.map((p) => ({ id: p.profile_id, gagnant: p.est_gagnant })),
+      verifie: m.match_verdicts.some((v) => v.est_definitif && v.niveau !== "manuel"),
+    })),
+    (tournoisRecents ?? []).map((t) => ({ id: t.id, organisateurId: t.organisateur_id, statut: t.statut })),
+    (variationsRecentes ?? []).map((v) => ({
+      profileId: v.profile_id,
+      tournoiId: v.tournament_id,
+      avant: v.rating_avant,
+      apres: v.rating_apres,
+    })),
+  );
+  const idsSignales = new Set<string>([
+    ...signaux.paires.flatMap((p) => [p.a, p.b]),
+    ...signaux.organisateursJoueurs.map((o) => o.organisateurId),
+    ...signaux.hausses.map((h) => h.profileId),
+  ]);
+  const { data: profilsSignales } =
+    idsSignales.size > 0
+      ? await supabase.from("profiles").select("id, pseudo, slug").in("id", [...idsSignales])
+      : { data: [] };
+  return { signaux, profilsSignales: profilsSignales ?? [], tournoisRecents: tournoisRecents ?? [] };
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
@@ -99,6 +146,36 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .is("levee_le", null)
       .order("suspendu_le", { ascending: false }),
   ]);
+
+  const { signaux, profilsSignales, tournoisRecents } = await chargerSignaux(supabase);
+  const joueurSignale = new Map(profilsSignales.map((p) => [p.id, p]));
+  const tournoiSignale = new Map(tournoisRecents.map((t) => [t.id, t]));
+  const lienJoueur = (id: string) => {
+    const p = joueurSignale.get(id);
+    return p ? (
+      <Link href={`/joueur/${p.slug}`} className="font-semibold text-text hover:underline">
+        {p.pseudo}
+      </Link>
+    ) : (
+      "Joueur inconnu"
+    );
+  };
+  const lienTournoi = (id: string | null) => {
+    const t = id ? tournoiSignale.get(id) : undefined;
+    return t ? (
+      <Link href={`/lol/tournois/${t.slug}`} className="text-text hover:underline">
+        {t.nom}
+      </Link>
+    ) : (
+      "un tournoi"
+    );
+  };
+  const aucunSignal =
+    signaux.paires.length +
+      signaux.organisateursJoueurs.length +
+      signaux.hausses.length +
+      signaux.petitsTournois.length ===
+    0;
 
   const litiges = litigesData ?? [];
   const litigesOuverts = litiges.filter((l) => !l.resolution);
@@ -280,6 +357,57 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     Lever
                   </BoutonConfirmation>
                 </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      </Apparition>
+
+      <Apparition delai={0.14}>
+      <section className="mt-10" aria-labelledby="titre-signaux">
+        <SectionTitre>
+          <span id="titre-signaux">Signaux à examiner (30 jours)</span>
+        </SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Des schémas qui peuvent trahir une entente pour gonfler un classement. Ce sont des signaux, pas des preuves :
+          à regarder avant toute décision. Rien n&apos;est fait automatiquement.
+        </p>
+        {aucunSignal ? (
+          <p className="mt-3 text-sm text-muted">Rien à signaler.</p>
+        ) : (
+          <ul className="mt-3 flex max-w-3xl flex-col gap-2 text-sm text-text-2">
+            {signaux.paires.map((p) => (
+              <li key={`paire-${p.a}-${p.b}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Face-à-face répétés</span> — {lienJoueur(p.a)}{" "}
+                et {lienJoueur(p.b)} : <span className="tabular-nums">{p.matchs}</span> matchs (
+                <span className="tabular-nums">
+                  {p.victoiresA}–{p.victoiresB}
+                </span>
+                ).
+              </li>
+            ))}
+            {signaux.organisateursJoueurs.map((o) => (
+              <li key={`orga-${o.tournoiId}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Organisateur joueur</span> —{" "}
+                {lienJoueur(o.organisateurId)} joue dans son propre tournoi {lienTournoi(o.tournoiId)}.
+              </li>
+            ))}
+            {signaux.hausses.map((h) => (
+              <li key={`hausse-${h.profileId}-${h.tournoiId}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Hausse forte</span> —{" "}
+                {lienJoueur(h.profileId)} :{" "}
+                <span className="tabular-nums">
+                  +{Math.round(h.apres - h.avant)} ({Math.round(h.avant)} → {Math.round(h.apres)})
+                </span>{" "}
+                sur {lienTournoi(h.tournoiId)}.
+              </li>
+            ))}
+            {signaux.petitsTournois.map((t) => (
+              <li key={`petit-${t.tournoiId}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Très petit tournoi classé</span> —{" "}
+                {lienTournoi(t.tournoiId)} : <span className="tabular-nums">{t.joueurs}</span> joueurs, compte au
+                classement.
               </li>
             ))}
           </ul>
