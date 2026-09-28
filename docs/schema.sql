@@ -2357,3 +2357,13 @@ end;
 $$;
 
 revoke execute on function public.cloturer_rating_joueur from public, anon, authenticated;
+
+-- ---------- Alerte « clé Riot expirée » (2026-09-28, audit E13) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- La tâche des tournois automatiques contrôle la clé API Riot dans les
+-- 6 heures qui précèdent chaque tournoi et prévient l'organisateur une fois
+-- par tournoi : même mécanisme de réservation que les rappels (une ligne
+-- par tournoi et par type).
+alter table public.rappels_tournoi drop constraint if exists rappels_tournoi_type_check;
+alter table public.rappels_tournoi add constraint rappels_tournoi_type_check
+  check (type in ('annonce', 'checkin_ouvert', 'dernier_appel', 'cle_riot_invalide'));

@@ -13,8 +13,9 @@
 
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
-import { envoyerRappel, notifierDiscord, URL_SITE } from "@/lib/notifications";
+import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { cloturerTournoi } from "@/lib/classement-actions";
+import { verifierCleRiot } from "@/lib/riot";
 import {
   capaciteEffective,
   CRENEAUX,
@@ -79,7 +80,66 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     resultats.push(`reprise des clôtures : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
   }
 
+  try {
+    resultats.push(...(await surveillerCleRiot(admin, tournois, maintenant)));
+  } catch (erreur) {
+    resultats.push(`contrôle de la clé Riot : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
   return { simulation, actions, resultats };
+}
+
+// Contrôle de la clé Riot dans les heures qui précèdent chaque tournoi
+// automatique (28/09/2026, audit E13). La clé de développement expire
+// toutes les 24 h : un soir où elle a expiré, aucun résultat n'est lu et
+// tout part en litige. L'organisateur est prévenu une fois par tournoi
+// (ligne « cle_riot_invalide » de rappels_tournoi). Le tournoi a lieu
+// quand même : la recherche des résultats continue 24 h, une clé
+// renouvelée dans la soirée les retrouve encore.
+const FENETRE_CONTROLE_CLE_HEURES = 6;
+
+async function surveillerCleRiot(
+  admin: ClientAdmin,
+  tournois: TournoiSuivi[],
+  maintenant: Date,
+): Promise<string[]> {
+  const proches = tournois.filter((t) => {
+    if (t.creneau_auto === null || (t.statut !== "ouvert" && t.statut !== "checkin")) return false;
+    const avantDebut = new Date(t.debute_le).getTime() - maintenant.getTime();
+    return avantDebut > 0 && avantDebut <= FENETRE_CONTROLE_CLE_HEURES * 3_600_000;
+  });
+  if (proches.length === 0) return [];
+
+  const etat = await verifierCleRiot();
+  // « injoignable » : panne réseau passagère, on ne donne pas l'alerte.
+  if (etat === "valide" || etat === "injoignable") return [];
+
+  const resultats: string[] = [];
+  for (const tournoi of proches) {
+    const { error: dejaPrevenu } = await admin
+      .from("rappels_tournoi")
+      .insert({ tournament_id: tournoi.id, type: "cle_riot_invalide" });
+    if (dejaPrevenu) continue;
+
+    const { data: t } = await admin
+      .from("tournaments")
+      .select("nom, slug, debute_le, organisateur_id")
+      .eq("id", tournoi.id)
+      .maybeSingle();
+    if (!t) continue;
+
+    await notifierJoueur(
+      t.organisateur_id,
+      `Clé Riot ${etat === "absente" ? "absente" : "expirée"} — ${t.nom}`,
+      "La clé de l'API Riot doit être renouvelée",
+      `<p>La clé de l'API Riot est ${etat === "absente" ? "absente de la configuration du serveur" : "expirée ou refusée"} : aucun compte ne peut être lié et aucun résultat ne peut être lu automatiquement.</p>
+       <p>Renouvelle-la sur developer.riotgames.com, puis remplace RIOT_API_KEY dans les variables d'environnement de Vercel avant ${heureParis(t.debute_le)}.</p>
+       <p>Sans nouvelle clé, le tournoi a lieu quand même : ses résultats seront retrouvés dès que la clé sera remplacée (la recherche continue 24 h), ou tranchés à la main.</p>
+       <p><a href="${URL_SITE}/lol/tournois/${t.slug}">Voir le tournoi</a></p>`,
+    );
+    resultats.push(`alerte clé Riot (${etat}) ${t.slug} : envoyée`);
+  }
+  return resultats;
 }
 
 // Tournois (automatiques ou d'organisateur) dont la finale est jouée mais
@@ -231,7 +291,7 @@ async function reserverRappel(admin: ClientAdmin, tournoiId: string, type: TypeR
 async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel): Promise<string> {
   const { data: t } = await admin
     .from("tournaments")
-    .select("nom, slug, debute_le, checkin_ouvre_le, capacite")
+    .select("nom, slug, debute_le, checkin_ouvre_le, capacite, creneau_auto")
     .eq("id", tournoiId)
     .maybeSingle();
   if (!t) return `rappel ${type} (${tournoiId}) : tournoi introuvable`;
@@ -249,8 +309,14 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
       .select("id", { count: "exact", head: true })
       .eq("tournament_id", tournoiId)
       .neq("statut", "retire");
+    // Le nombre d'inscrits n'est annoncé publiquement qu'une fois le
+    // minimum atteint : « 0/16 inscrits » chaque jour sur le salon affiche
+    // le vide plutôt qu'une invitation (audit du 27/09/2026, M13).
+    const minimum = trouverCreneau(t.creneau_auto)?.minimumJoueurs ?? MINIMUM_PAR_DEFAUT;
+    const inscrits = count ?? 0;
+    const affluence = inscrits >= minimum ? `, ${inscrits}/${t.capacite} inscrits` : "";
     await notifierDiscord(
-      `📣 Aujourd'hui à ${heure} : **${t.nom}** — tournoi 1v1 ouvert à tous, ${count ?? 0}/${t.capacite} inscrits. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
+      `📣 Aujourd'hui à ${heure} : **${t.nom}** — tournoi 1v1 ouvert à tous${affluence}. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
     );
     return `annonce ${t.slug} : envoyée`;
   }
@@ -342,9 +408,10 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
           ),
         ),
     );
-    await notifierDiscord(
-      `❌ **${t.nom}** annulé — ${confirmes.length} joueur(s) confirmé(s), ${minimum} minimum.${prochain}`,
-    );
+    // Pas d'annonce publique d'une annulation faute de joueurs (audit du
+    // 27/09/2026, M13) : un message quotidien « annulé — 0 joueur » sur le
+    // salon est le signal le plus décourageant possible pour un nouveau
+    // venu. Seuls les inscrits sont prévenus, en privé (ci-dessus).
     return `démarrage ${t.slug} : annulé (${confirmes.length}/${minimum} confirmés)`;
   }
 

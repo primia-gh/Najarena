@@ -76,6 +76,30 @@ async function appelRiot<T>(url: string): Promise<T> {
   return reponse.json() as Promise<T>;
 }
 
+export type EtatCleRiot = "valide" | "absente" | "invalide" | "injoignable";
+
+/**
+ * Vérifie la clé API Riot par l'appel le plus léger qui l'exige (état de la
+ * plateforme EUW). La clé de développement expire toutes les 24 h
+ * (CLAUDE.md §2) : sans elle, plus aucun compte ne se lie et aucun résultat
+ * n'est lu. Surveillée avant chaque tournoi automatique
+ * (src/lib/tournois-auto/execution.ts).
+ */
+export async function verifierCleRiot(): Promise<EtatCleRiot> {
+  try {
+    await appelRiot<unknown>("https://euw1.api.riotgames.com/lol/status/v4/platform-data");
+    return "valide";
+  } catch (e) {
+    if (e instanceof ErreurRiot) {
+      if (e.code === "cle_absente") return "absente";
+      if (e.code === "cle_invalide") return "invalide";
+      // Quota atteint : la clé est refusée pour l'instant, mais valide.
+      if (e.code === "limite") return "valide";
+    }
+    return "injoignable";
+  }
+}
+
 export interface CompteRiot {
   puuid: string;
   gameName: string;
