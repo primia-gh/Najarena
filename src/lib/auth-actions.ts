@@ -8,6 +8,11 @@ import { URL_SITE } from "@/lib/notifications";
 
 const PSEUDO_REGEX = /^[a-zA-Z0-9 _-]{3,20}$/;
 
+// 8 caractères au moins (audit du 27/09/2026, F1 : Supabase en accepte 6
+// par défaut). À aligner dans le tableau de bord Supabase (Authentication >
+// Policies), qui s'applique aussi aux appels directs.
+const MOT_DE_PASSE_MIN = 8;
+
 // Anti-brute-force sur la connexion (audit du 2026-09-11 §10 Sécurité).
 // Repli gracieux identique aux autres usages du service_role : sans
 // SUPABASE_SERVICE_ROLE_KEY, on ne bloque jamais personne plutôt que de
@@ -53,7 +58,10 @@ function traduireErreurAuth(message: string): string {
   if (m.includes("rate limit")) return "Trop de tentatives récentes, réessaie dans quelques minutes.";
   if (m.includes("email not confirmed")) return "Confirme ton adresse e-mail avant de te connecter (vérifie tes emails).";
   if (m.includes("password") && (m.includes("least") || m.includes("6"))) {
-    return "Le mot de passe doit faire au moins 6 caractères.";
+    return `Le mot de passe doit faire au moins ${MOT_DE_PASSE_MIN} caractères.`;
+  }
+  if (m.includes("same") && m.includes("password")) {
+    return "Choisis un mot de passe différent de l'ancien.";
   }
   if (
     m.includes("unable to validate email") ||
@@ -77,6 +85,12 @@ export async function sInscrire(formData: FormData) {
       `/inscription?erreur=${encodeURIComponent(
         "Tu dois confirmer avoir au moins 15 ans, ou l'autorisation de ton représentant légal.",
       )}`,
+    );
+  }
+
+  if (motDePasse.length < MOT_DE_PASSE_MIN) {
+    redirect(
+      `/inscription?erreur=${encodeURIComponent(`Le mot de passe doit faire au moins ${MOT_DE_PASSE_MIN} caractères.`)}`,
     );
   }
 
@@ -185,4 +199,60 @@ export async function seDeconnecter() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
+}
+
+// Mot de passe oublié (28/09/2026, audit E6) : jusqu'ici, un oubli était un
+// compte perdu. Supabase envoie un lien à usage unique ; il ramène sur
+// /auth/callback, qui ouvre la session puis mène à /nouveau-mot-de-passe.
+// Réponse identique que le compte existe ou non : la page ne doit pas
+// permettre de deviner quelles adresses sont inscrites.
+export async function demanderReinitialisation(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) {
+    redirect(`/mot-de-passe-oublie?erreur=${encodeURIComponent("Indique ton adresse e-mail.")}`);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${URL_SITE}/auth/callback?next=/nouveau-mot-de-passe`,
+  });
+
+  if (error && error.message.toLowerCase().includes("rate limit")) {
+    redirect(`/mot-de-passe-oublie?erreur=${encodeURIComponent("Trop de demandes récentes, réessaie dans quelques minutes.")}`);
+  }
+
+  redirect(
+    `/mot-de-passe-oublie?message=${encodeURIComponent(
+      "Si un compte existe avec cette adresse, un e-mail vient de partir avec un lien pour choisir un nouveau mot de passe (valable 1 heure). Pense aux courriers indésirables.",
+    )}`,
+  );
+}
+
+export async function changerMotDePasse(formData: FormData) {
+  const motDePasse = String(formData.get("mot_de_passe") ?? "");
+  const confirmation = String(formData.get("confirmation") ?? "");
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect(
+      `/mot-de-passe-oublie?erreur=${encodeURIComponent("Lien expiré ou déjà utilisé : demande un nouvel e-mail.")}`,
+    );
+  }
+
+  if (motDePasse.length < MOT_DE_PASSE_MIN) {
+    redirect(
+      `/nouveau-mot-de-passe?erreur=${encodeURIComponent(`Le mot de passe doit faire au moins ${MOT_DE_PASSE_MIN} caractères.`)}`,
+    );
+  }
+  if (motDePasse !== confirmation) {
+    redirect(`/nouveau-mot-de-passe?erreur=${encodeURIComponent("Les deux mots de passe ne sont pas identiques.")}`);
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: motDePasse });
+  if (error) {
+    redirect(`/nouveau-mot-de-passe?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`);
+  }
+
+  redirect(`/moi?message=${encodeURIComponent("Mot de passe modifié.")}`);
 }

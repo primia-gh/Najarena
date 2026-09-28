@@ -66,6 +66,9 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
         <Bouton libelleEnCours="Connexion…" className="mt-2">
           Se connecter
         </Bouton>
+        <Link href="/mot-de-passe-oublie" className="self-start text-sm text-muted underline underline-offset-3 hover:text-text">
+          Mot de passe oublié ?
+        </Link>
       </form>
 
       <div className="mt-6 flex items-center gap-3">

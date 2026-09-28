@@ -7,7 +7,16 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/moi", "/moi/", "/admin", "/connexion", "/inscription", "/lier-riot"],
+      disallow: [
+        "/moi",
+        "/moi/",
+        "/admin",
+        "/connexion",
+        "/inscription",
+        "/lier-riot",
+        "/mot-de-passe-oublie",
+        "/nouveau-mot-de-passe",
+      ],
     },
     sitemap: `${BASE_URL}/sitemap.xml`,
   };

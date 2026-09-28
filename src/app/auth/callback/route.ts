@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { destinationInterne } from "@/lib/redirection";
 
 // Point de retour pour tout provider OAuth (Discord aujourd'hui, RSO plus
 // tard — CLAUDE.md §2 : la couche d'identité doit être interchangeable).
@@ -8,7 +9,8 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/moi";
+  // Destination interne uniquement (src/lib/redirection.ts).
+  const next = destinationInterne(searchParams.get("next"));
 
   if (code) {
     const supabase = await createClient();

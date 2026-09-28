@@ -73,7 +73,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             name="mot_de_passe"
             type="password"
             required
-            minLength={6}
+            minLength={8}
             autoComplete="new-password"
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
