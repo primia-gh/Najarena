@@ -11,6 +11,8 @@ import { reconnaitreDefaite } from "@/lib/match-actions";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { progressionPalier } from "@/lib/classement";
 import { chancesSiExploit, ETAT_DE_DEPART, pourcentages, type EtatRating } from "@/lib/estimations";
+import { probabiliteVictoire } from "@/lib/glicko2";
+import { recitTournoi } from "@/lib/recit-tournoi";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import {
   estVisiblePubliquement,
@@ -296,6 +298,30 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
+
+  // Récit factuel du tournoi terminé (vainqueur, parcours, exploit, part de
+  // matchs vérifiés) — src/lib/recit-tournoi.ts.
+  const recit =
+    statut === "termine"
+      ? recitTournoi({
+          nom: tournoi.nom,
+          nbJoueurs: new Set(matchs.flatMap((m) => m.match_participants.map((p) => p.profile_id))).size,
+          bestOf: tournoi.best_of,
+          matchs: matchs.map((m) => {
+            const verdict = verdictParMatch.get(m.id);
+            return {
+              tour: m.tour,
+              participants: m.match_participants.map((p) => ({
+                id: p.profile_id,
+                pseudo: p.profile?.pseudo ?? "un joueur",
+                score: p.score,
+              })),
+              verdict: verdict ? { niveau: verdict.niveau, gagnantId: verdict.gagnant_id } : null,
+            };
+          }),
+          chances: (g, p) => probabiliteVictoire(etatDepart(g), etatDepart(p)),
+        })
+      : null;
   const estOrganisateur = utilisateur?.id === tournoi.organisateur_id;
   // Une inscription retirée ne compte plus : le joueur retrouve le bouton
   // d'inscription (la base réactive alors la même ligne).
@@ -607,6 +633,22 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               }
             />
           </div>
+        </section>
+      )}
+
+      {/* ================= RÉCIT (tournoi terminé, audit N26) ================= */}
+      {recit && (
+        <section aria-labelledby="titre-recit" className="px-gouttiere pt-12">
+          <Panneau className="mx-auto flex max-w-contenu flex-col gap-3 px-6 py-6 sm:px-8">
+            <LibelleSection as="h2" id="titre-recit">
+              Le tournoi en bref
+            </LibelleSection>
+            <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-text-2">
+              {recit.map((phrase) => (
+                <p key={phrase}>{phrase}</p>
+              ))}
+            </div>
+          </Panneau>
         </section>
       )}
 

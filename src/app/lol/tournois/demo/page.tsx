@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import type { NiveauVerdict } from "@/lib/tournois";
+import { recitTournoi } from "@/lib/recit-tournoi";
 import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
+import Panneau from "@/components/design/Panneau";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import { CaseMatch, ColonnesBracket } from "@/components/tournoi/Bracket";
 import {
@@ -104,6 +106,19 @@ const MATCHS_DEMO: MatchDemo[] = [
 
 const NOM_TOUR: Record<number, string> = { 1: "Quarts", 2: "Demi-finales", 3: "Finale" };
 
+// Même récit qu'un vrai tournoi terminé (src/lib/recit-tournoi.ts) ; pas
+// de ratings ici, donc pas d'exploit estimé.
+const recit = recitTournoi({
+  nom: "la Najarena Cup",
+  nbJoueurs: INSCRITS_DEMO.length,
+  bestOf: 1,
+  matchs: MATCHS_DEMO.map((m) => ({
+    tour: m.tour,
+    participants: m.joueurs.map((j) => ({ id: j.pseudo, pseudo: j.pseudo, score: j.score })),
+    verdict: { niveau: m.niveau, gagnantId: m.joueurs.find((j) => j.gagnant)?.pseudo ?? null },
+  })),
+});
+
 export default function TournoiDemoPage() {
   const rounds = new Map<number, MatchDemo[]>();
   for (const m of MATCHS_DEMO) {
@@ -144,6 +159,22 @@ export default function TournoiDemoPage() {
       />
 
       <OngletsTournoi />
+
+      {/* Récit généré par le même code que pour un vrai tournoi terminé. */}
+      {recit && (
+        <section aria-labelledby="titre-recit" className="px-gouttiere pt-12">
+          <Panneau className="mx-auto flex max-w-contenu flex-col gap-3 px-6 py-6 sm:px-8">
+            <LibelleSection as="h2" id="titre-recit">
+              Le tournoi en bref
+            </LibelleSection>
+            <div className="flex max-w-3xl flex-col gap-2 text-sm leading-relaxed text-text-2">
+              {recit.map((phrase) => (
+                <p key={phrase}>{phrase}</p>
+              ))}
+            </div>
+          </Panneau>
+        </section>
+      )}
 
       <section id="bracket" className="scroll-mt-28 px-gouttiere pt-12">
         <div className="mx-auto flex max-w-contenu flex-col gap-6">

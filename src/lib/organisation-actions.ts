@@ -8,6 +8,7 @@ import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { echapperDiscord, echapperHtml } from "@/lib/echappement";
 import { prevenirMatchOuvert } from "@/lib/apres-verdict";
+import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -215,14 +216,8 @@ export async function enregistrerResultat(formData: FormData) {
 
   if (matchDecide && matchDecide.match_suivant_id === null) {
     await cloturerTournoi(tournamentId);
-    if (matchDecide.tournament) {
-      const nomGagnant =
-        matchDecide.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ??
-        "le vainqueur";
-      await notifierDiscord(
-        `🏆 **${echapperDiscord(nomGagnant)}** remporte **${echapperDiscord(matchDecide.tournament.nom)}** (verdict manuel — ${echapperDiscord(motif)}).\n${URL_SITE}/lol/tournois/${matchDecide.tournament.slug}`,
-      );
-    }
+    // Le récit dit que la finale a été tranchée à la main (hors classement).
+    await annoncerVainqueur(tournamentId, gagnantId);
   }
 
   redirect(`/moi/organisation/${tournamentId}`);
