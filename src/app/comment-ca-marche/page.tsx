@@ -4,7 +4,7 @@ import Badge from "@/components/ui/Badge";
 import SectionTitre from "@/components/ui/SectionTitre";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
-import { LABEL_NIVEAU, COULEUR_NIVEAU } from "@/lib/tournois";
+import { COULEUR_NIVEAU } from "@/lib/tournois";
 import { RATING_INITIAL, RD_INITIAL, RD_SEUIL_CLASSEMENT } from "@/lib/classement";
 
 export const metadata: Metadata = {
@@ -24,7 +24,7 @@ const ETAPES = [
     n: "02",
     titre: "Rejoins un tournoi",
     texte:
-      "Inscription en un clic, check-in avant le début, bracket généré automatiquement une fois les joueurs confirmés.",
+      "Inscription en un clic une fois ton compte Riot vérifié, check-in avant le début, bracket généré automatiquement une fois les joueurs confirmés.",
   },
   {
     n: "03",
@@ -58,7 +58,8 @@ const NIVEAUX = [
 export default function CommentCaMarchePage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
-      <FondEcailles />      <div className="relative px-grille *:max-w-5xl">
+      <FondEcailles />
+      <div className="relative px-grille *:max-w-5xl">
         <Apparition>
           <span className="block font-texte text-libelle font-medium text-muted uppercase">
             Guide

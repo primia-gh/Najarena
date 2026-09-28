@@ -14,6 +14,14 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-00000000000f', 'frank@test', '{"pseudo":"Frank","slug":"frank"}'),
   ('00000000-0000-0000-0000-000000000010', 'gina@test',  '{"pseudo":"Gina","slug":"gina"}');
 
+-- Comptes Riot : Gina et Eve vérifiées sur EUW, Carol vérifiée sur NA,
+-- Frank lié mais pas encore vérifié.
+insert into game_accounts (profile_id, game_id, puuid, riot_game_name, riot_tag_line, region, est_principal, verifie_le, methode_verification) values
+  ('00000000-0000-0000-0000-000000000010', 1, 'P-GINA',  'Gina',  'EUW', 'EUW', true, now(), 'icone_profil'),
+  ('00000000-0000-0000-0000-00000000000e', 1, 'P-EVE',   'Eve',   'EUW', 'EUW', true, now(), 'icone_profil'),
+  ('00000000-0000-0000-0000-00000000000c', 1, 'P-CAROL', 'Carol', 'NA1', 'NA',  true, now(), 'icone_profil'),
+  ('00000000-0000-0000-0000-00000000000f', 1, 'P-FRANK', 'Frank', 'EUW', 'EUW', true, null,  'icone_profil');
+
 -- Dave a l'offre Organisateur.
 insert into comptes_offres (profile_id, offre) values ('00000000-0000-0000-0000-00000000000d', 'organisateur');
 

@@ -110,7 +110,7 @@ async function chargerTournoi(slug: string) {
 
   // Étage 2 : dépendent des résultats de l'étage 1 (profileIds, matchIds,
   // userData) mais pas les unes des autres — parallélisées de même.
-  const [{ data: ratingsData }, { data: verdictsData }, { data: litigesData }] = await Promise.all([
+  const [{ data: ratingsData }, { data: verdictsData }, { data: litigesData }, { data: monCompteRiot }] = await Promise.all([
     profileIds.length > 0
       ? supabase
           .from("ratings")
@@ -128,6 +128,17 @@ async function chargerTournoi(slug: string) {
     matchIds.length > 0 && userData.user
       ? supabase.from("disputes").select("match_id, ouvert_par, resolution").in("match_id", matchIds)
       : Promise.resolve({ data: [] }),
+    // Compte Riot du visiteur : l'inscription l'exige vérifié, dans la
+    // région du tournoi (s_inscrire_tournoi, docs/schema.sql).
+    userData.user
+      ? supabase
+          .from("game_accounts")
+          .select("region, verifie_le")
+          .eq("profile_id", userData.user.id)
+          .eq("game_id", tournoi.game_id)
+          .eq("est_principal", true)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
@@ -143,6 +154,7 @@ async function chargerTournoi(slug: string) {
     verdictParMatch,
     litigeParMatch,
     utilisateur: userData.user,
+    monCompteRiot,
     paliers,
     ratingParProfile,
   };
@@ -201,8 +213,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     );
   }
 
-  const { tournoi, organisateur, inscriptions, matchs, verdictParMatch, litigeParMatch, utilisateur, paliers, ratingParProfile } =
+  const { tournoi, organisateur, inscriptions, matchs, verdictParMatch, litigeParMatch, utilisateur, monCompteRiot, paliers, ratingParProfile } =
     donnees;
+  const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
   const estOrganisateur = utilisateur?.id === tournoi.organisateur_id;
   const inscriptionActuelle = utilisateur
@@ -391,7 +404,20 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 <span className="font-bold text-muted uppercase">Complet</span>
               </p>
             ) : statut === "ouvert" ? (
-              utilisateur ? (
+              utilisateur && !compteRiotValide ? (
+                <div className="flex flex-col gap-3">
+                  <p className="text-[13px] leading-normal text-muted">
+                    {monCompteRiot?.verifie_le
+                      ? `Ce tournoi se joue sur ${tournoi.region} : ton compte Riot vérifié est sur ${monCompteRiot.region}.`
+                      : `Pour t'inscrire, lie et vérifie ton compte Riot (région ${tournoi.region}) : c'est lui qui permet de retrouver tes résultats automatiquement.`}
+                  </p>
+                  {!monCompteRiot?.verifie_le && (
+                    <BoutonLien href="/lier-riot" className="w-full">
+                      Lier mon compte Riot
+                    </BoutonLien>
+                  )}
+                </div>
+              ) : utilisateur ? (
                 <form action={sInscrireATournoi}>
                   <input type="hidden" name="tournament_id" value={tournoi.id} />
                   <input type="hidden" name="slug" value={tournoi.slug} />

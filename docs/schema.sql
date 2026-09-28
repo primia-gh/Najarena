@@ -2010,3 +2010,92 @@ grant select (id, pseudo, slug, avatar_url, pays, created_at) on public.profiles
 -- réécrire le motif rédigé par le joueur.
 revoke update, delete on public.disputes from anon, authenticated;
 grant update (resolution, resolu_par, resolu_le) on public.disputes to authenticated;
+
+-- ---------- Compte Riot vérifié exigé pour s'inscrire (2026-09-28, audit E2) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (messages d'erreur COMPTE_RIOT_REQUIS / REGION_DIFFERENTE).
+-- La lecture automatique d'un résultat (niveau 2) a besoin du compte Riot
+-- vérifié des deux joueurs, dans la même région. Un joueur inscrit sans ce
+-- compte envoyait chacun de ses matchs en litige, puis en verdict manuel,
+-- donc hors classement — alors que la page du tournoi annonce « résultats
+-- vérifiés automatiquement ». Même fonction qu'au-dessus, une vérification
+-- de plus.
+create or replace function public.s_inscrire_tournoi(p_tournament_id uuid)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_tournoi record;
+  v_compte record;
+  v_inscrits int;
+  v_rating int;
+  v_id uuid;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select id, statut, capacite, game_id, season_id, region
+  into v_tournoi
+  from public.tournaments
+  where id = p_tournament_id
+  for update;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if v_tournoi.statut <> 'ouvert' then
+    raise exception 'INSCRIPTIONS_FERMEES';
+  end if;
+
+  if exists (
+    select 1 from public.registrations
+    where tournament_id = p_tournament_id and profile_id = v_joueur
+  ) then
+    raise exception 'DEJA_INSCRIT';
+  end if;
+
+  select count(*) into v_inscrits
+  from public.registrations
+  where tournament_id = p_tournament_id and statut <> 'retire';
+
+  if v_inscrits >= v_tournoi.capacite then
+    raise exception 'TOURNOI_COMPLET';
+  end if;
+
+  select region, verifie_le
+  into v_compte
+  from public.game_accounts
+  where profile_id = v_joueur and game_id = v_tournoi.game_id and est_principal;
+
+  if not found or v_compte.verifie_le is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+
+  if v_compte.region <> v_tournoi.region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+
+  select round(r.rating)::int
+  into v_rating
+  from public.ratings r
+  where r.profile_id = v_joueur
+    and r.game_id = v_tournoi.game_id
+    and r.season_id = coalesce(
+      v_tournoi.season_id,
+      (select s.id from public.seasons s where s.game_id = v_tournoi.game_id and s.est_courante limit 1)
+    );
+
+  insert into public.registrations (tournament_id, profile_id, rating_a_inscription)
+  values (p_tournament_id, v_joueur, v_rating)
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+revoke execute on function public.s_inscrire_tournoi(uuid) from public, anon;
+grant execute on function public.s_inscrire_tournoi(uuid) to authenticated;

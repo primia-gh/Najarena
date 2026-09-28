@@ -14,6 +14,10 @@ const MESSAGES_REFUS: Record<string, string> = {
   TOURNOI_COMPLET: "Ce tournoi est complet.",
   DEJA_INSCRIT: "Tu es déjà inscrit à ce tournoi.",
   TOURNOI_INTROUVABLE: "Ce tournoi n'existe pas.",
+  // Compte Riot vérifié de la région du tournoi exigé (28/09/2026, audit
+  // E2) : sans lui, aucun résultat ne peut être retrouvé automatiquement.
+  COMPTE_RIOT_REQUIS: "Lie et vérifie ton compte Riot avant de t'inscrire : c'est lui qui permet de retrouver tes résultats.",
+  REGION_DIFFERENTE: "Ce tournoi se joue sur une autre région que ton compte Riot vérifié.",
 };
 
 export async function sInscrireATournoi(formData: FormData) {

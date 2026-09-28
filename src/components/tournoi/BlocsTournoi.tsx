@@ -171,12 +171,13 @@ export function Deroulement({ etapes }: { etapes: { titre: string; quand: string
 
 /**
  * Règles réellement appliquées par le site (CGU §4 à §6, CLAUDE.md §3-§4),
- * pas celles de la maquette : ni « retard de 15 minutes = forfait », ni
- * « compte lié obligatoire à l'inscription » n'existent.
+ * pas celles de la maquette : « retard de 15 minutes = forfait » n'existe
+ * pas. Le compte Riot vérifié à l'inscription, lui, est exigé par la base
+ * depuis le 28/09/2026 (s_inscrire_tournoi).
  */
 export function EssentielReglement({ organisateur }: { organisateur?: string | null }) {
   const regles = [
-    "Lie ton Riot ID avant de jouer : sans compte lié, ton résultat ne peut pas être retrouvé automatiquement.",
+    "Compte Riot vérifié obligatoire pour s'inscrire, dans la région du tournoi : c'est lui qui permet de retrouver ton résultat automatiquement.",
     `Le vainqueur est lu dans l'historique de partie Riot. Sans résultat retrouvé, ${organisateur ?? "l'organisateur"} tranche et affiche son motif — jamais un résultat supposé.`,
     "Check-in obligatoire : sans confirmation de présence, l'organisateur peut t'exclure du bracket.",
     "Un forfait ne rapporte aucun point, à aucun des deux joueurs. Au-delà de 3 victoires contre le même adversaire en 24 h, les suivantes ne comptent pas.",

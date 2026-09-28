@@ -72,7 +72,8 @@ export default function CguPage() {
           </h2>
           <p className="mt-2 text-muted">
             Un tournoi affiche un statut public (ouvert, check-in, en cours,
-            terminé, annulé). Dès la première inscription, les règles du
+            terminé, annulé). S&apos;inscrire demande un compte Riot vérifié
+            dans la région du tournoi. Dès la première inscription, les règles du
             tournoi (capacité, format, dates) sont figées. Un joueur qui ne
             confirme pas sa présence lors du check-in peut être exclu du
             bracket par l&apos;organisateur. Un forfait ne rapporte aucun
