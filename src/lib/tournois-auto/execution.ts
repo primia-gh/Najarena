@@ -488,8 +488,13 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
 }
 
 async function annulerRetard(admin: ClientAdmin, tournoiId: string): Promise<string> {
-  const { data: t } = await admin.from("tournaments").select("nom, slug, debute_le").eq("id", tournoiId).maybeSingle();
+  const { data: t } = await admin
+    .from("tournaments")
+    .select("nom, slug, debute_le, creneau_auto, organisateur_id")
+    .eq("id", tournoiId)
+    .maybeSingle();
   if (!t) return `annulation (${tournoiId}) : tournoi introuvable`;
+  const automatique = t.creneau_auto !== null;
 
   const { data: annule } = await admin
     .from("tournaments")
@@ -505,12 +510,23 @@ async function annulerRetard(admin: ClientAdmin, tournoiId: string): Promise<str
     .eq("tournament_id", tournoiId)
     .in("statut", ["inscrit", "confirme"]);
 
-  const texte = `Le tournoi du ${jourLisibleParis(t.debute_le)} n'a pas pu démarrer à l'heure (incident technique) : il est annulé.`;
+  const texte = automatique
+    ? `Le tournoi du ${jourLisibleParis(t.debute_le)} n'a pas pu démarrer à l'heure (incident technique) : il est annulé.`
+    : `Le tournoi du ${jourLisibleParis(t.debute_le)} n'a pas été lancé par son organisateur dans les 2 heures suivant l'heure prévue : il est annulé.`;
   await Promise.all(
     (inscriptions ?? []).map((i) =>
       envoyerRappel(i.profile_id, `Tournoi annulé — ${t.nom}`, texte, `${URL_SITE}/lol/tournois/${t.slug}`),
     ),
   );
-  await notifierDiscord(`❌ **${t.nom}** annulé — incident technique au démarrage.`);
-  return `annulation ${t.slug} : faite (démarrage manqué)`;
+  if (automatique) {
+    await notifierDiscord(`❌ **${t.nom}** annulé — incident technique au démarrage.`);
+  } else {
+    await envoyerRappel(
+      t.organisateur_id,
+      `Tournoi annulé automatiquement — ${t.nom}`,
+      "Ton tournoi n'a pas été lancé dans les 2 heures suivant l'heure prévue : il a été annulé et les inscrits ont été prévenus.",
+      `${URL_SITE}/moi/organisation/${tournoiId}`,
+    );
+  }
+  return `annulation ${t.slug} : faite (${automatique ? "démarrage manqué" : "jamais lancé par l'organisateur"})`;
 }

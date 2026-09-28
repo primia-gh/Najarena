@@ -40,3 +40,28 @@ export async function sInscrireATournoi(formData: FormData) {
 
   redirect(`/lol/tournois/${slug}`);
 }
+
+// Désinscription (28/09/2026, audit M7) : possible tant que le tournoi n'a
+// pas commencé. La base libère la place et autorise une réinscription.
+export async function seDesinscrire(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const page = `/lol/tournois/${slug}`;
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { data: retiree, error } = await supabase.rpc("se_desinscrire", { p_tournament_id: tournamentId });
+
+  if (error || !retiree) {
+    const message = error?.message.includes("DESINSCRIPTION_FERMEE")
+      ? "Le tournoi a commencé : la désinscription n'est plus possible."
+      : "Aucune inscription active à retirer.";
+    redirect(`${page}?erreur=${encodeURIComponent(message)}`);
+  }
+
+  redirect(`${page}?message=${encodeURIComponent("Tu es désinscrit : ta place est libérée.")}`);
+}

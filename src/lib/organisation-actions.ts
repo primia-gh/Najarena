@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
+import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
@@ -37,6 +38,8 @@ export async function confirmerInscription(formData: FormData) {
     .update({ statut: "confirme", confirme_le: new Date().toISOString() })
     .eq("id", registrationId)
     .eq("tournament_id", tournamentId)
+    // Un joueur désinscrit ne se réinscrit que lui-même.
+    .neq("statut", "retire")
     .select("profile_id")
     .maybeSingle();
 
@@ -67,7 +70,8 @@ export async function marquerAbsent(formData: FormData) {
     .from("registrations")
     .update({ statut: "absent" })
     .eq("id", registrationId)
-    .eq("tournament_id", tournamentId);
+    .eq("tournament_id", tournamentId)
+    .neq("statut", "retire");
 
   redirect(`/moi/organisation/${tournamentId}`);
 }
@@ -247,4 +251,89 @@ export async function resoudreLitige(formData: FormData) {
   }
 
   redirect(`/moi/organisation/${tournamentId}`);
+}
+
+// Publication d'un brouillon (28/09/2026, audit M7) : jusqu'ici, un tournoi
+// créé en brouillon ne pouvait jamais être publié. Ses réglages restent
+// ceux de la création (figés par la base) : une date déjà passée impose
+// d'en créer un nouveau.
+export async function publierTournoi(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+
+  const supabase = await createClient();
+  await verifierOrganisateur(supabase, tournamentId);
+
+  const { data: t } = await supabase
+    .from("tournaments")
+    .select("nom, slug, statut, capacite, region, debute_le")
+    .eq("id", tournamentId)
+    .maybeSingle();
+
+  if (!t || t.statut !== "brouillon") {
+    redirect(`/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce tournoi n'est pas un brouillon.")}`);
+  }
+
+  if (new Date(t.debute_le).getTime() <= Date.now()) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+        "La date de début est passée : crée un nouveau tournoi avec une date future.",
+      )}`,
+    );
+  }
+
+  const { error } = await supabase.from("tournaments").update({ statut: "ouvert" }).eq("id", tournamentId);
+  if (error) {
+    redirect(`/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Publication impossible pour l'instant.")}`);
+  }
+
+  await notifierDiscord(
+    `📣 Nouveau tournoi ouvert — **${t.nom}** (${t.capacite} joueurs, ${t.region}), débute le ${formaterDate(t.debute_le)}.\n${URL_SITE}/lol/tournois/${t.slug}`,
+  );
+
+  redirect(`/moi/organisation/${tournamentId}?message=${encodeURIComponent("Tournoi publié : les inscriptions sont ouvertes.")}`);
+}
+
+// Annulation par l'organisateur (28/09/2026, audit M7), tant que le bracket
+// n'est pas lancé. Les inscrits sont prévenus.
+export async function annulerTournoi(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+
+  const supabase = await createClient();
+  const { tournoi } = await verifierOrganisateur(supabase, tournamentId);
+
+  if (!["brouillon", "ouvert", "checkin"].includes(tournoi.statut)) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Un tournoi commencé ou terminé ne peut plus être annulé.")}`,
+    );
+  }
+
+  const { error } = await supabase.from("tournaments").update({ statut: "annule" }).eq("id", tournamentId);
+  if (error) {
+    redirect(`/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Annulation impossible pour l'instant.")}`);
+  }
+
+  const [{ data: t }, { data: inscrits }] = await Promise.all([
+    supabase.from("tournaments").select("nom, slug").eq("id", tournamentId).maybeSingle(),
+    supabase
+      .from("registrations")
+      .select("profile_id")
+      .eq("tournament_id", tournamentId)
+      .in("statut", ["inscrit", "confirme"]),
+  ]);
+
+  if (t) {
+    await Promise.all(
+      (inscrits ?? []).map((i) =>
+        notifierJoueur(
+          i.profile_id,
+          `Tournoi annulé — ${t.nom}`,
+          "Ce tournoi est annulé",
+          `<p>L'organisateur a annulé le tournoi <strong>${t.nom}</strong>.</p>
+           <p><a href="${URL_SITE}/lol/tournois">Voir les autres tournois</a></p>`,
+        ),
+      ),
+    );
+  }
+
+  redirect(`/moi/organisation/${tournamentId}?message=${encodeURIComponent("Tournoi annulé : les inscrits ont été prévenus.")}`);
 }

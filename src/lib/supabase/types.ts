@@ -1256,6 +1256,7 @@ export type Database = {
       }
       reconnaitre_defaite: { Args: { p_match_id: string }; Returns: string }
       s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
+      se_desinscrire: { Args: { p_tournament_id: string }; Returns: boolean }
     }
     Enums: {
       match_status: "en_attente" | "en_cours" | "termine" | "litige" | "forfait"

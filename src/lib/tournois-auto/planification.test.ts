@@ -151,6 +151,12 @@ describe("check-in et rappels", () => {
     expect(actions).toEqual([{ type: "ouvrir_checkin", tournoiId: "t1" }]);
   });
 
+  it("tournoi d'organisateur jamais lancé 2 h après l'heure : annulé", () => {
+    const organisateur = tournoi({ creneau_auto: null, statut: "checkin", rappels: ["checkin_ouvert", "dernier_appel"] });
+    const actions = planifier(new Date("2026-09-24T21:05:00Z"), [organisateur, existant25], [CRENEAU]);
+    expect(actions).toEqual([{ type: "annuler_retard", tournoiId: "t1" }]);
+  });
+
   it("brouillon, en cours, terminé ou annulé : jamais touché", () => {
     const actions = planifier(
       new Date("2026-09-24T18:55:00Z"),

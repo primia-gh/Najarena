@@ -94,6 +94,14 @@ export function planifier(
       continue;
     }
 
+    // Tournoi d'organisateur jamais lancé : annulé 2 h après son heure de
+    // début (28/09/2026, audit M7) — il restait affiché « check-in »
+    // indéfiniment.
+    if (!estAutomatique && t > debut + RETARD_MAX_DEMARRAGE_MINUTES * MINUTE) {
+      actions.push({ type: "annuler_retard", tournoiId: tournoi.id });
+      continue;
+    }
+
     if (t < ouvertureCheckin) {
       const annonce = debut - ANNONCE_HEURES_AVANT * 60 * MINUTE;
       if (estAutomatique && t >= annonce && !tournoi.rappels.includes("annonce")) {

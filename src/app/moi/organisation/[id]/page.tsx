@@ -8,12 +8,15 @@ import {
   genererBracket,
   enregistrerResultat,
   resoudreLitige,
+  publierTournoi,
+  annulerTournoi,
 } from "@/lib/organisation-actions";
 import { LABEL_STATUT, COULEUR_STATUT, LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { classeCarte, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import Bouton from "@/components/ui/Bouton";
+import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import SectionTitre from "@/components/ui/SectionTitre";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
@@ -27,12 +30,12 @@ export const metadata: Metadata = {
 
 interface CockpitPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
 export default async function CockpitPage({ params, searchParams }: CockpitPageProps) {
   const { id } = await params;
-  const { erreur } = await searchParams;
+  const { erreur, message } = await searchParams;
 
   const supabase = await createClient();
 
@@ -147,15 +150,42 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
         {tournoi.capacite} joueurs · {tournoi.region} · {formaterDate(tournoi.debute_le)}
       </div>
 
-      <Link
-        href={`/lol/tournois/${tournoi.slug}`}
-        className="mt-1 inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
-      >
-        Voir la page publique
-      </Link>
+      {tournoi.statut !== "brouillon" && (
+        <Link
+          href={`/lol/tournois/${tournoi.slug}`}
+          className="mt-1 inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
+        >
+          Voir la page publique
+        </Link>
+      )}
+
+      {/* Publier un brouillon, annuler avant le lancement (28/09/2026, audit M7). */}
+      {["brouillon", "ouvert", "checkin"].includes(tournoi.statut) && (
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          {tournoi.statut === "brouillon" && (
+            <form action={publierTournoi}>
+              <input type="hidden" name="tournament_id" value={tournoi.id} />
+              <Bouton libelleEnCours="Publication…">Publier le tournoi</Bouton>
+            </form>
+          )}
+          <form action={annulerTournoi}>
+            <input type="hidden" name="tournament_id" value={tournoi.id} />
+            <BoutonConfirmation
+              type="submit"
+              confirmation="Annuler ce tournoi ? Les inscrits seront prévenus. C'est définitif."
+              className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
+            >
+              Annuler le tournoi
+            </BoutonConfirmation>
+          </form>
+        </div>
+      )}
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
+        <p role="alert" className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
+      )}
+      {message && (
+        <p role="status" className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
       )}
       </Apparition>
 
@@ -179,7 +209,8 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                   <span className="font-texte tabular-nums text-mini text-muted uppercase">
                     {i.statut}
                   </span>
-                  {i.statut !== "confirme" && (
+                  {/* Un joueur qui s'est désinscrit ne se réinscrit que lui-même. */}
+                  {i.statut !== "confirme" && i.statut !== "retire" && (
                     <form action={confirmerInscription}>
                       <input type="hidden" name="registration_id" value={i.id} />
                       <input type="hidden" name="tournament_id" value={tournoi.id} />
@@ -192,7 +223,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       </button>
                     </form>
                   )}
-                  {i.statut !== "absent" && (
+                  {i.statut !== "absent" && i.statut !== "retire" && (
                     <form action={marquerAbsent}>
                       <input type="hidden" name="registration_id" value={i.id} />
                       <input type="hidden" name="tournament_id" value={tournoi.id} />

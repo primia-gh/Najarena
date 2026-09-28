@@ -2367,3 +2367,152 @@ revoke execute on function public.cloturer_rating_joueur from public, anon, auth
 alter table public.rappels_tournoi drop constraint if exists rappels_tournoi_type_check;
 alter table public.rappels_tournoi add constraint rappels_tournoi_type_check
   check (type in ('annonce', 'checkin_ouvert', 'dernier_appel', 'cle_riot_invalide'));
+
+-- ---------- Désinscription, brouillons privés (2026-09-28, audit M7 et F2) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- 1. Un joueur ne pouvait pas se désinscrire (le statut « retiré » n'était
+--    jamais utilisé). se_desinscrire le permet tant que le tournoi n'a pas
+--    commencé ; sa place est libérée (les inscriptions « retirées » ne
+--    comptent pas dans la capacité) et il peut se réinscrire ensuite.
+-- 2. Les brouillons de tournoi, annoncés « non visibles publiquement »,
+--    restaient lisibles de tous par appel direct à la base : seul leur
+--    organisateur les voit désormais.
+create or replace function public.se_desinscrire(p_tournament_id uuid)
+returns boolean -- faux : aucune inscription active à retirer
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_statut public.tournament_status;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  -- Verrou partagé : une désinscription ne se glisse pas pendant la
+  -- génération du bracket (même principe que confirmer_presence).
+  select statut into v_statut
+  from public.tournaments
+  where id = p_tournament_id
+  for share;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if v_statut not in ('ouvert', 'checkin') then
+    raise exception 'DESINSCRIPTION_FERMEE';
+  end if;
+
+  update public.registrations
+  set statut = 'retire', confirme_le = null
+  where tournament_id = p_tournament_id
+    and profile_id = v_joueur
+    and statut in ('inscrit', 'confirme');
+
+  return found;
+end;
+$$;
+
+revoke execute on function public.se_desinscrire(uuid) from public, anon;
+grant execute on function public.se_desinscrire(uuid) to authenticated;
+
+-- Réinscription après un retrait : même fonction qu'au-dessus, qui réactive
+-- l'inscription retirée au lieu de la refuser comme un doublon.
+create or replace function public.s_inscrire_tournoi(p_tournament_id uuid)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_tournoi record;
+  v_compte record;
+  v_existante_id uuid;
+  v_existante_statut public.registration_status;
+  v_inscrits int;
+  v_rating int;
+  v_id uuid;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select id, statut, capacite, game_id, season_id, region
+  into v_tournoi
+  from public.tournaments
+  where id = p_tournament_id
+  for update;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if v_tournoi.statut <> 'ouvert' then
+    raise exception 'INSCRIPTIONS_FERMEES';
+  end if;
+
+  select id, statut
+  into v_existante_id, v_existante_statut
+  from public.registrations
+  where tournament_id = p_tournament_id and profile_id = v_joueur;
+
+  if v_existante_id is not null and v_existante_statut <> 'retire' then
+    raise exception 'DEJA_INSCRIT';
+  end if;
+
+  select count(*) into v_inscrits
+  from public.registrations
+  where tournament_id = p_tournament_id and statut <> 'retire';
+
+  if v_inscrits >= v_tournoi.capacite then
+    raise exception 'TOURNOI_COMPLET';
+  end if;
+
+  select region, verifie_le
+  into v_compte
+  from public.game_accounts
+  where profile_id = v_joueur and game_id = v_tournoi.game_id and est_principal;
+
+  if not found or v_compte.verifie_le is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+
+  if v_compte.region <> v_tournoi.region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+
+  select round(r.rating)::int
+  into v_rating
+  from public.ratings r
+  where r.profile_id = v_joueur
+    and r.game_id = v_tournoi.game_id
+    and r.season_id = coalesce(
+      v_tournoi.season_id,
+      (select s.id from public.seasons s where s.game_id = v_tournoi.game_id and s.est_courante limit 1)
+    );
+
+  if v_existante_id is not null then
+    update public.registrations
+    set statut = 'inscrit', inscrit_le = now(), confirme_le = null, seed = null, rating_a_inscription = v_rating
+    where id = v_existante_id;
+    return v_existante_id;
+  end if;
+
+  insert into public.registrations (tournament_id, profile_id, rating_a_inscription)
+  values (p_tournament_id, v_joueur, v_rating)
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+revoke execute on function public.s_inscrire_tournoi(uuid) from public, anon;
+grant execute on function public.s_inscrire_tournoi(uuid) to authenticated;
+
+drop policy "tournois lisibles par tous" on public.tournaments;
+create policy "tournois publies lisibles par tous"
+  on public.tournaments for select using (
+    statut <> 'brouillon' or organisateur_id = (select auth.uid())
+  );

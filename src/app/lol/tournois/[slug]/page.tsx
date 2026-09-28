@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { sInscrireATournoi } from "@/lib/inscription-actions";
+import { sInscrireATournoi, seDesinscrire } from "@/lib/inscription-actions";
 import { confirmerMaPresence } from "@/lib/checkin-actions";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { ouvrirLitige } from "@/lib/litige-actions";
@@ -18,6 +18,7 @@ import {
 import { chargerComplementsTournoi } from "@/lib/tournoi-vitrine";
 import BoutonLien from "@/components/design/BoutonLien";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
@@ -219,13 +220,16 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
   const estOrganisateur = utilisateur?.id === tournoi.organisateur_id;
+  // Une inscription retirée ne compte plus : le joueur retrouve le bouton
+  // d'inscription (la base réactive alors la même ligne).
   const inscriptionActuelle = utilisateur
-    ? inscriptions.find((i) => i.profile_id === utilisateur.id)
+    ? inscriptions.find((i) => i.profile_id === utilisateur.id && i.statut !== "retire")
     : undefined;
 
   // Check-in fait par le joueur lui-même (24/09/2026, lib/checkin-actions.ts).
   const checkinOuvert = checkinEstOuvert(statut, tournoi.checkin_ouvre_le);
-  const estComplet = inscriptions.filter((i) => i.statut !== "retire").length >= tournoi.capacite;
+  const inscriptionsActives = inscriptions.filter((i) => i.statut !== "retire");
+  const estComplet = inscriptionsActives.length >= tournoi.capacite;
 
   const rounds = new Map<number, typeof matchs>();
   for (const m of matchs) {
@@ -301,7 +305,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       grand: true,
       accent: complements.comptePourClassement,
     },
-    { libelle: "Inscrits", valeur: `${inscriptions.length}/${tournoi.capacite}`, grand: true, accent: false },
+    { libelle: "Inscrits", valeur: `${inscriptionsActives.length}/${tournoi.capacite}`, grand: true, accent: false },
     { libelle: "Format", valeur: `${tournoi.format} · BO${tournoi.best_of}`, grand: false, accent: false },
     { libelle: "Niveau", valeur: complements.niveau, grand: false, accent: false },
   ];
@@ -398,6 +402,20 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                     {LABEL_INSCRIPTION[inscriptionActuelle.statut] ?? inscriptionActuelle.statut}
                   </span>
                 </p>
+                {(statut === "ouvert" || statut === "checkin") &&
+                  (inscriptionActuelle.statut === "inscrit" || inscriptionActuelle.statut === "confirme") && (
+                    <form action={seDesinscrire}>
+                      <input type="hidden" name="tournament_id" value={tournoi.id} />
+                      <input type="hidden" name="slug" value={tournoi.slug} />
+                      <BoutonConfirmation
+                        type="submit"
+                        confirmation="Te désinscrire de ce tournoi ? Ta place sera libérée."
+                        className="inline-flex min-h-11 items-center text-[13px] text-muted underline underline-offset-3 hover:text-text"
+                      >
+                        Me désinscrire
+                      </BoutonConfirmation>
+                    </form>
+                  )}
               </>
             ) : statut === "ouvert" && estComplet ? (
               <p className="flex items-center justify-between gap-3 border-t border-line pt-[18px] text-[13px]">
@@ -590,16 +608,16 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           <div className="flex flex-wrap items-end justify-between gap-4">
             <LibelleSection as="h2">Inscrits</LibelleSection>
             <span className="text-xs text-muted tabular-nums">
-              {inscriptions.length} / {tournoi.capacite} places
+              {inscriptionsActives.length} / {tournoi.capacite} places
             </span>
           </div>
-          {inscriptions.length === 0 ? (
+          {inscriptionsActives.length === 0 ? (
             <Panneau reperes className="px-8 py-10">
               <p className="text-muted">Aucune inscription pour l&apos;instant.</p>
             </Panneau>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {inscriptions.map((i) => {
+              {inscriptionsActives.map((i) => {
                 const crest = crestJoueur(i.profile_id, ratingParProfile, paliers);
                 const moi = utilisateur?.id === i.profile_id;
                 return (
