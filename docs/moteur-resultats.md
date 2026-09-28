@@ -52,6 +52,10 @@ Logique pure (séries, calendrier) : `src/lib/serie.ts` ; orchestration : `src/l
 
 Un joueur peut reconnaître sa défaite depuis le bracket (`reconnaitre_defaite`). Match en cours : la recherche Riot a encore 20 minutes ; si la partie est retrouvée, le verdict est de niveau 2 et compte ; sinon la tâche tranche au niveau 1 (manuel, hors classement) avec le motif public « Défaite reconnue par … ». Match déjà en litige : tranché tout de suite, au niveau 1. La parole du perdant ne compte jamais au classement ; elle évite seulement qu'un tournoi reste bloqué en attendant un organisateur.
 
+### Ouverture du match suivant
+
+Un match passe `en_cours` dès que ses deux joueurs sont connus (`avancer_vainqueur`). Le verdict qui qualifie le second joueur — partie retrouvée, défaite reconnue ou verdict de l'organisateur — envoie aux deux un rappel push et un message privé Discord avec le lien de la salle de match (`prevenirMatchOuvert`, `src/lib/apres-verdict.ts`). Le délai avant litige court à partir de cette ouverture (`demarre_le`).
+
 ### Critères de rapprochement (niveau 2)
 
 Une partie de l'historique est retenue si **toutes** ces conditions sont vraies :

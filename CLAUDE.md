@@ -90,6 +90,8 @@ Schéma de base de données : `docs/schema.sql`.
 4. **Toute opération d'attribution de points est idempotente.** Une relance ne doit jamais créditer deux fois.
 5. RLS activé sur toutes les tables contenant des données utilisateur.
 
+*Mise à jour du 28/09/2026 (audit du 27/09) : les règles métier — inscription et check-in, réglages de tournoi figés, équipes, messagerie, profils, pseudos, suspension, stockage des logos, limites d'usage — sont appliquées **par la base** (triggers de contrôle, fonctions `security definer`, droits par colonne), pas seulement par les pages : une action serveur peut être appelée sans la page, et l'API Supabase sans le site. Toute nouvelle règle s'écrit aussi en base, avec un scénario dans `tests/sql/` (`npm run test:base`, rejoué par la CI à chaque envoi). Tout texte saisi par un utilisateur est échappé avant d'entrer dans un e-mail (`echapperHtml`) ou un message Discord (`echapperDiscord`), `src/lib/echappement.ts`.*
+
 ---
 
 ## 7. Direction artistique
@@ -130,7 +132,7 @@ Schéma de base de données : `docs/schema.sql`.
 /                          accueil (animation d'ouverture du logo, boucles « comment ça marche »)
 /lol                       hub du jeu
 /lol/tournois              liste + filtres
-/lol/tournois/[slug]       page tournoi
+/lol/tournois/[slug]       page tournoi (salle de match `#ton-match`, fichier agenda `/agenda`)
 /lol/tournois/demo         tournoi d'exemple (données statiques, jamais en base)
 /lol/classement            leaderboard
 /lol/coequipiers           recherche de coéquipiers (5v5)
@@ -138,9 +140,10 @@ Schéma de base de données : `docs/schema.sql`.
 /equipe/[slug]             page publique d'équipe
 /equipe/nouvelle           création d'équipe
 /organiser/nouveau         création de tournoi
-/moi                       tableau de bord joueur
+/moi                       tableau de bord joueur (bandeau « ton match », gérer mon abonnement)
+/moi/profil                pseudo, pays, visites anonymes, suppression du compte
 /moi/organisation/[id]     cockpit de tournoi
-/connexion /inscription /lier-riot
+/connexion /inscription /lier-riot /mot-de-passe-oublie /nouveau-mot-de-passe
 /admin                     modération, litiges
 /comment-ca-marche         guide éditorial (verdict, Glicko-2, indice de confiance)
 /faq                       questions de confiance, dépliées par défaut (gratuité, affiliation Riot, délais, IA)
@@ -186,6 +189,8 @@ La précision du classement dépend du **nombre de matchs par joueur**, pas du n
 - Les montants de rating sont des `numeric`, jamais des flottants côté application.
 - Toute écriture liée au classement passe par une transaction unique.
 - Un commit par unité fonctionnelle, message en français.
+- Évolution de la base : ajoutée à la fin de `docs/schema.sql`, en section datée « À appliquer sur la base AVANT la mise en ligne du code du même commit ». La base se met à jour avant le code (exemple : `docs/mise-en-ligne-2026-09-28.md`).
+- Règlement du 1v1 (carte, mode, étapes d'un match) : `src/lib/reglement.ts`, lu par tous les écrans. Règles de pseudo : `src/lib/pseudo.ts` (mêmes règles en base). CGU modifiées : changer `VERSION_CGU` (`src/lib/cgu.ts`), enregistrée avec le consentement de chaque compte.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
