@@ -21,12 +21,14 @@ import {
   CRENEAUX,
   heureParis,
   jourLisibleParis,
+  jourParis,
   nomTournoi,
   slugTournoi,
   trouverCreneau,
 } from "./creneaux";
 import { planifier, type Action, type TournoiSuivi, type TypeRappel } from "./planification";
 import { echapperDiscord } from "@/lib/echappement";
+import { doitPublierEmpreinte } from "@/lib/registre";
 
 type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
 
@@ -87,7 +89,48 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     resultats.push(`contrôle de la clé Riot : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
   }
 
+  try {
+    resultats.push(...(await publierEmpreinteRegistre(admin, maintenant)));
+  } catch (erreur) {
+    resultats.push(`empreinte du registre : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
   return { simulation, actions, resultats };
+}
+
+// Empreinte du soir (28/09/2026, audit N8) : la dernière empreinte du
+// registre des points est publiée sur Discord, une fois par jour après
+// 23 h 45 (heure de Paris) et seulement si le registre a changé. Publiée
+// hors de Najarena et datée par Discord, elle permet à n'importe qui de
+// prouver plus tard que le registre n'a pas été retouché (page /registre).
+async function publierEmpreinteRegistre(admin: ClientAdmin, maintenant: Date): Promise<string[]> {
+  const jour = jourParis(maintenant);
+  const [{ data: dejaPubliee }, { data: derniere }, { data: precedente }] = await Promise.all([
+    admin.from("empreintes_publiees").select("jour").eq("jour", jour).maybeSingle(),
+    admin.from("rating_events").select("numero, empreinte").order("numero", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("empreintes_publiees").select("numero").order("jour", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
+  if (
+    !derniere ||
+    !doitPublierEmpreinte(heureParis(maintenant.toISOString()), Boolean(dejaPubliee), derniere.numero, precedente?.numero ?? null)
+  ) {
+    return [];
+  }
+
+  // Une seule publication par jour, même si deux passages se chevauchent :
+  // la ligne du jour est la clé.
+  const { data: inseree } = await admin
+    .from("empreintes_publiees")
+    .insert({ jour, numero: derniere.numero, empreinte: derniere.empreinte })
+    .select("jour")
+    .maybeSingle();
+  if (!inseree) return [];
+
+  await notifierDiscord(
+    `🔏 Registre des points au ${jour.split("-").reverse().join("/")} : ${derniere.numero} ligne${derniere.numero > 1 ? "s" : ""}, dernière empreinte \`${derniere.empreinte}\`. Retoucher une seule ligne passée changerait cette empreinte. Vérifier : ${URL_SITE}/registre`,
+  );
+  return [`empreinte du registre publiée (${derniere.numero} lignes)`];
 }
 
 // Contrôle de la clé Riot dans les heures qui précèdent chaque tournoi

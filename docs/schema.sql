@@ -3173,3 +3173,216 @@ grant execute on function public.delier_compte_riot(smallint) to authenticated;
 -- (gardée 24 heures, comme le reste de la table).
 alter table public.login_attempts add column if not exists ip text;
 create index if not exists login_attempts_email_ip_cree_le_idx on public.login_attempts (email, ip, cree_le);
+
+-- ---------- Registre des points scellé (2026-09-28, audit N8) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- « Ce journal est public et ne se modifie jamais » (CLAUDE.md §4) devient
+-- démontrable : chaque ligne de rating_events porte l'empreinte (SHA-256)
+-- de son contenu ET de la ligne précédente, comme les maillons d'une
+-- chaîne. Modifier une ligne passée, même par l'équipe Najarena, changerait
+-- son empreinte et toutes celles qui suivent ; l'empreinte du jour est
+-- publiée sur Discord, n'importe qui peut donc refaire le calcul
+-- (scripts/verifier-registre.mjs, page /registre).
+-- Contenu scellé, dans cet ordre, séparé par « | » : numéro de ligne,
+-- empreinte précédente (64 zéros pour la première), joueur, jeu, saison,
+-- match, tournoi, motif, rating avant, RD avant, rating après, RD après
+-- (2 décimales), adversaire, date en microsecondes depuis le 1er janvier
+-- 1970 UTC. Champ vide : chaîne vide.
+alter table public.rating_events add column if not exists numero bigint;
+alter table public.rating_events add column if not exists empreinte_precedente text;
+alter table public.rating_events add column if not exists empreinte text;
+
+create or replace function public.contenu_scelle_rating_event(
+  p_numero bigint,
+  p_precedente text,
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_season_id uuid,
+  p_match_id uuid,
+  p_tournament_id uuid,
+  p_motif text,
+  p_rating_avant numeric,
+  p_rd_avant numeric,
+  p_rating_apres numeric,
+  p_rd_apres numeric,
+  p_adversaire_id uuid,
+  p_cree_le timestamptz
+)
+returns text
+language sql immutable
+set search_path = public
+as $$
+  select concat(
+    p_numero::text, '|',
+    p_precedente, '|',
+    p_profile_id::text, '|',
+    p_game_id::text, '|',
+    p_season_id::text, '|',
+    coalesce(p_match_id::text, ''), '|',
+    coalesce(p_tournament_id::text, ''), '|',
+    p_motif, '|',
+    round(p_rating_avant, 2)::text, '|',
+    round(p_rd_avant, 2)::text, '|',
+    round(p_rating_apres, 2)::text, '|',
+    round(p_rd_apres, 2)::text, '|',
+    coalesce(p_adversaire_id::text, ''), '|',
+    ((extract(epoch from p_cree_le) * 1000000)::bigint)::text
+  );
+$$;
+
+create or replace function public.empreinte_rating_event(p_contenu text)
+returns text
+language sql immutable
+set search_path = public
+as $$
+  select encode(sha256(convert_to(p_contenu, 'UTF8')), 'hex');
+$$;
+
+-- Lignes déjà écrites : scellées dans l'ordre où elles ont été écrites.
+do $$
+declare
+  r record;
+  v_precedente text := repeat('0', 64);
+  v_numero bigint := 0;
+begin
+  for r in select * from public.rating_events where numero is null order by id loop
+    v_numero := v_numero + 1;
+    update public.rating_events
+    set numero = v_numero,
+        empreinte_precedente = v_precedente,
+        empreinte = public.empreinte_rating_event(public.contenu_scelle_rating_event(
+          v_numero, v_precedente, r.profile_id, r.game_id, r.season_id, r.match_id, r.tournament_id,
+          r.motif, r.rating_avant, r.rd_avant, r.rating_apres, r.rd_apres, r.adversaire_id, r.cree_le))
+    where id = r.id
+    returning empreinte into v_precedente;
+  end loop;
+end;
+$$;
+
+alter table public.rating_events alter column numero set not null;
+alter table public.rating_events alter column empreinte_precedente set not null;
+alter table public.rating_events alter column empreinte set not null;
+create unique index if not exists rating_events_numero_idx on public.rating_events (numero);
+
+-- Chaque nouvelle ligne est scellée à la suite de la dernière. Le verrou
+-- met les écritures simultanées en file : deux lignes ne peuvent pas
+-- s'accrocher au même maillon.
+create or replace function public.sceller_rating_event()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_derniere record;
+begin
+  perform pg_advisory_xact_lock(hashtext('najarena.registre_des_points'));
+
+  select numero, empreinte into v_derniere
+  from public.rating_events
+  order by numero desc
+  limit 1;
+
+  new.numero := coalesce(v_derniere.numero, 0) + 1;
+  new.empreinte_precedente := coalesce(v_derniere.empreinte, repeat('0', 64));
+  new.empreinte := public.empreinte_rating_event(public.contenu_scelle_rating_event(
+    new.numero, new.empreinte_precedente, new.profile_id, new.game_id, new.season_id, new.match_id,
+    new.tournament_id, new.motif, new.rating_avant, new.rd_avant, new.rating_apres, new.rd_apres,
+    new.adversaire_id, new.cree_le));
+  return new;
+end;
+$$;
+revoke execute on function public.sceller_rating_event() from public, anon, authenticated;
+
+drop trigger if exists rating_events_sceller on public.rating_events;
+create trigger rating_events_sceller
+  before insert on public.rating_events
+  for each row execute function public.sceller_rating_event();
+
+-- Et plus aucune ligne ne peut être modifiée ni effacée, par personne.
+create or replace function public.refuser_modification_registre()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  raise exception 'REGISTRE_IMMUABLE';
+end;
+$$;
+revoke execute on function public.refuser_modification_registre() from public, anon, authenticated;
+
+drop trigger if exists rating_events_immuable on public.rating_events;
+create trigger rating_events_immuable
+  before update or delete on public.rating_events
+  for each row execute function public.refuser_modification_registre();
+drop trigger if exists rating_events_immuable_truncate on public.rating_events;
+create trigger rating_events_immuable_truncate
+  before truncate on public.rating_events
+  for each statement execute function public.refuser_modification_registre();
+
+-- Vérification de toute la chaîne (page /registre).
+create or replace function public.verifier_registre()
+returns table (lignes bigint, derniere_empreinte text, premiere_rupture bigint)
+language plpgsql stable
+set search_path = public
+as $$
+declare
+  r record;
+  v_precedente text := repeat('0', 64);
+  v_attendu bigint := 0;
+  v_rupture bigint;
+begin
+  for r in select * from public.rating_events order by numero loop
+    v_attendu := v_attendu + 1;
+    if v_rupture is null and (
+      r.numero <> v_attendu
+      or r.empreinte_precedente <> v_precedente
+      or r.empreinte <> public.empreinte_rating_event(public.contenu_scelle_rating_event(
+           r.numero, v_precedente, r.profile_id, r.game_id, r.season_id, r.match_id, r.tournament_id,
+           r.motif, r.rating_avant, r.rd_avant, r.rating_apres, r.rd_apres, r.adversaire_id, r.cree_le))
+    ) then
+      v_rupture := r.numero;
+    end if;
+    v_precedente := r.empreinte;
+  end loop;
+  return query select v_attendu, case when v_attendu > 0 then v_precedente end, v_rupture;
+end;
+$$;
+grant execute on function public.verifier_registre() to anon, authenticated;
+
+-- Le registre tel qu'il est scellé, pour le téléchargement public : nombres
+-- et date déjà dans leur forme scellée (texte), pour que n'importe quel
+-- outil refasse le calcul sans conversion.
+create or replace view public.registre_public
+with (security_invoker = true)
+as
+select
+  numero,
+  empreinte_precedente,
+  empreinte,
+  profile_id,
+  game_id,
+  season_id,
+  match_id,
+  tournament_id,
+  motif,
+  round(rating_avant, 2)::text as rating_avant,
+  round(rd_avant, 2)::text as rd_avant,
+  round(rating_apres, 2)::text as rating_apres,
+  round(rd_apres, 2)::text as rd_apres,
+  adversaire_id,
+  cree_le,
+  ((extract(epoch from cree_le) * 1000000)::bigint)::text as cree_le_us
+from public.rating_events;
+grant select on public.registre_public to anon, authenticated;
+
+-- Empreinte publiée chaque soir sur Discord (tâche des tournois
+-- automatiques) : une ligne par jour, écrite par le serveur seulement.
+create table if not exists public.empreintes_publiees (
+  jour        date primary key,
+  numero      bigint not null,
+  empreinte   text not null,
+  publiee_le  timestamptz not null default now()
+);
+alter table public.empreintes_publiees enable row level security;
+create policy "empreintes publiees lisibles par tous" on public.empreintes_publiees for select using (true);
+revoke insert, update, delete on public.empreintes_publiees from anon, authenticated;

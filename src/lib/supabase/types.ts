@@ -254,6 +254,27 @@ export type Database = {
           },
         ]
       }
+      empreintes_publiees: {
+        Row: {
+          empreinte: string
+          jour: string
+          numero: number
+          publiee_le: string
+        }
+        Insert: {
+          empreinte: string
+          jour: string
+          numero: number
+          publiee_le?: string
+        }
+        Update: {
+          empreinte?: string
+          jour?: string
+          numero?: number
+          publiee_le?: string
+        }
+        Relationships: []
+      }
       game_accounts: {
         Row: {
           defi_icone_id: number | null
@@ -721,10 +742,13 @@ export type Database = {
         Row: {
           adversaire_id: string | null
           cree_le: string
+          empreinte: string
+          empreinte_precedente: string
           game_id: number
           id: number
           match_id: string | null
           motif: string
+          numero: number
           profile_id: string
           rating_apres: number
           rating_avant: number
@@ -736,10 +760,13 @@ export type Database = {
         Insert: {
           adversaire_id?: string | null
           cree_le?: string
+          empreinte?: string
+          empreinte_precedente?: string
           game_id: number
           id?: number
           match_id?: string | null
           motif: string
+          numero?: number
           profile_id: string
           rating_apres: number
           rating_avant: number
@@ -751,10 +778,13 @@ export type Database = {
         Update: {
           adversaire_id?: string | null
           cree_le?: string
+          empreinte?: string
+          empreinte_precedente?: string
           game_id?: number
           id?: number
           match_id?: string | null
           motif?: string
+          numero?: number
           profile_id?: string
           rating_apres?: number
           rating_avant?: number
@@ -1325,7 +1355,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      registre_public: {
+        Row: {
+          adversaire_id: string | null
+          cree_le: string
+          cree_le_us: string
+          empreinte: string
+          empreinte_precedente: string
+          game_id: number
+          match_id: string | null
+          motif: string
+          numero: number
+          profile_id: string
+          rating_apres: string
+          rating_avant: string
+          rd_apres: string
+          rd_avant: string
+          season_id: string
+          tournament_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       activer_saison: {
@@ -1424,6 +1474,10 @@ export type Database = {
       s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
       se_desinscrire: { Args: { p_tournament_id: string }; Returns: boolean }
       supprimer_mon_compte: { Args: never; Returns: string }
+      verifier_registre: {
+        Args: never
+        Returns: { derniere_empreinte: string | null; lignes: number; premiere_rupture: number | null }[]
+      }
       visites_anonymes_actives: { Args: never; Returns: boolean }
     }
     Enums: {

@@ -834,7 +834,11 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                 <LibelleSection as="h2">Journal des points</LibelleSection>
                 <p className="text-sm text-muted">
                   Chaque variation de points est enregistrée avec le rating avant et après : publique, et jamais
-                  modifiée.
+                  modifiée — chaque ligne est scellée dans le{" "}
+                  <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
+                    registre des points
+                  </Link>
+                  , vérifiable par tous.
                 </p>
               </div>
               {evenementsPoints.length === 0 ? (

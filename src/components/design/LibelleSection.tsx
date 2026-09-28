@@ -9,13 +9,15 @@ import type { ReactNode } from "react";
 interface LibelleSectionProps {
   numero?: string;
   as?: "p" | "h2" | "h3";
+  /** Pour nommer une section (aria-labelledby). */
+  id?: string;
   className?: string;
   children: ReactNode;
 }
 
-export default function LibelleSection({ numero, as: Balise = "p", className = "", children }: LibelleSectionProps) {
+export default function LibelleSection({ numero, as: Balise = "p", id, className = "", children }: LibelleSectionProps) {
   return (
-    <Balise className={`font-texte text-libelle font-medium uppercase text-muted ${className}`}>
+    <Balise id={id} className={`font-texte text-libelle font-medium uppercase text-muted ${className}`}>
       {numero && <span className="text-accent">{numero}</span>}
       {numero && " — "}
       {children}

@@ -181,7 +181,7 @@ export default function CommentCaMarchePage() {
                 },
                 {
                   titre: "Chaque point est journalisé, pour toujours",
-                  texte: "Rating avant et après chaque variation, jamais modifié — visible dans le journal des points du profil de chaque joueur.",
+                  texte: "Rating avant et après chaque variation, jamais modifié — visible dans le journal des points du profil de chaque joueur. Chaque ligne est scellée par une empreinte qui dépend de la précédente : le registre des points (/registre) peut être vérifié par n'importe qui, et son empreinte est publiée chaque soir sur Discord.",
                 },
                 {
                   titre: "Chacun n'écrit que ce qui lui appartient",

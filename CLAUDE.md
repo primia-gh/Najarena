@@ -68,6 +68,8 @@ Anti-abus : 3 victoires max contre le même adversaire par 24 h, forfait = zéro
 
 **Chaque variation de points est journalisée** dans `rating_events`, avec le rating avant et après. Ce journal est public et ne se modifie jamais.
 
+*Mise à jour du 28/09/2026 (audit N8) : le journal est **scellé** — chaque ligne porte l'empreinte SHA-256 de son contenu et de la ligne précédente, la base refuse toute modification ou suppression, l'empreinte du jour part chaque soir sur Discord. Page publique `/registre`, vérification indépendante `scripts/verifier-registre.mjs`. Ne jamais changer la formule du contenu scellé (elle invaliderait toute la chaîne).*
+
 ---
 
 ## 5. Stack
@@ -135,6 +137,7 @@ Schéma de base de données : `docs/schema.sql`.
 /lol/tournois/[slug]       page tournoi (salle de match `#ton-match`, fichier agenda `/agenda`)
 /lol/tournois/demo         tournoi d'exemple (données statiques, jamais en base)
 /lol/classement            leaderboard
+/registre                  registre des points scellé (preuve publique, export, vérification)
 /lol/coequipiers           recherche de coéquipiers (5v5)
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
 /equipe/[slug]             page publique d'équipe

@@ -49,7 +49,7 @@ tâches pg_cron. Une divergence se traite avant d'appliquer la suite.
 Toute la migration est **la fin de `docs/schema.sql`, à partir de la ligne
 « Liaison Riot réservée au serveur (2026-09-28, audit C2) »** (ligne 1448
 aujourd'hui) jusqu'à la dernière ligne. Elle s'applique d'un seul bloc, dans
-une transaction, et contient 16 sections, dans cet ordre :
+une transaction, et contient 17 sections, dans cet ordre :
 
 1. Liaison Riot réservée au serveur (C2)
 2. Règles appliquées par la base (E1, M1 à M4)
@@ -67,12 +67,14 @@ une transaction, et contient 16 sections, dans cet ordre :
 14. Suppression de compte en libre-service (M17)
 15. Comptes Riot : délier, Riot ID non vérifiés privés (M9)
 16. Tentatives de connexion par adresse IP (F1)
+17. Registre des points scellé (N8) — scelle aussi les lignes déjà écrites,
+    puis interdit toute modification du journal des points
 
 La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).
 
 Le même bloc est rejoué à chaque envoi de code sur une base PostgreSQL de
-test par `npm run test:base` (161 vérifications, toutes au vert au
+test par `npm run test:base` (172 vérifications, toutes au vert au
 28/09/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
 
 Après application : lancer les conseillers de sécurité et de performance
@@ -118,3 +120,7 @@ variable d'environnement n'est nécessaire.
 - En-têtes de sécurité : `curl -I https://<domaine>/` doit montrer
   `Content-Security-Policy: frame-ancestors 'none'…`.
 - `/admin` : suspendre puis lever la suspension d'un compte de test.
+- `/registre` : chaîne « intacte » ; `node scripts/verifier-registre.mjs
+  https://<domaine>/registre/export` doit donner la même dernière
+  empreinte. Le premier soir avec un tournoi clôturé, l'empreinte doit
+  apparaître sur Discord après 23 h 45.
