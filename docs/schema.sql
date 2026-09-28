@@ -2629,61 +2629,8 @@ $$;
 revoke execute on function public.modifier_mon_profil(text, text, boolean) from public, anon;
 grant execute on function public.modifier_mon_profil(text, text, boolean) to authenticated;
 
--- Création du profil à l'inscription, durcie :
--- - pseudo soumis aux mêmes règles que partout ailleurs, et adresse (slug)
---   recalculée ici plutôt que reçue telle quelle : l'API d'inscription de
---   Supabase peut être appelée directement, sans passer par le formulaire,
---   avec n'importe quel « pseudo » (du HTML dans un e-mail) ou « slug »
---   (« ../admin ») — audit M5. Pseudo refusé → pseudo automatique, que le
---   joueur change ensuite depuis « Modifier mon profil » ;
--- - une ancienne adresse de CV n'est pas reprise par un nouveau compte
---   (l'inscription le vérifie aussi, pour afficher un message clair).
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer set search_path = public
-as $$
-declare
-  v_pseudo text;
-  v_slug text;
-  v_discord_id text;
-  v_automatique boolean := false;
-begin
-  v_pseudo := btrim(new.raw_user_meta_data->>'pseudo');
-
-  if v_pseudo is null
-     or v_pseudo !~ '^[a-zA-Z0-9 _-]{3,20}$'
-     or v_pseudo ~* '^joueur-[0-9a-f]{8}$'
-     or btrim(regexp_replace(lower(v_pseudo), '[^a-z0-9]+', '-', 'g'), '-') = '' then
-    v_pseudo := 'Joueur-' || substr(new.id::text, 1, 8);
-    v_automatique := true;
-  end if;
-  -- Même calcul que slugifier (src/lib/slug.ts) pour un pseudo ASCII.
-  v_slug := btrim(regexp_replace(lower(v_pseudo), '[^a-z0-9]+', '-', 'g'), '-');
-
-  if exists (select 1 from public.anciens_slugs where slug = v_slug) then
-    if not v_automatique then
-      raise exception 'PSEUDO_PRIS';
-    end if;
-    -- Pseudo automatique déjà porté puis quitté par un autre joueur
-    -- (identifiants qui commencent pareil) : on prend la fin de
-    -- l'identifiant plutôt que d'empêcher l'inscription.
-    v_pseudo := 'Joueur-' || substr(new.id::text, 25, 8);
-    v_slug := lower(v_pseudo);
-  end if;
-
-  if new.raw_app_meta_data->>'provider' = 'discord' then
-    v_discord_id := coalesce(
-      new.raw_user_meta_data->>'provider_id',
-      new.raw_user_meta_data->>'sub'
-    );
-  end if;
-
-  insert into public.profiles (id, pseudo, slug, discord_id)
-  values (new.id, v_pseudo, v_slug, v_discord_id);
-  return new;
-end;
-$$;
+-- handle_new_user est republiée plus bas (« Consentement enregistré »),
+-- avec les règles de pseudo et d'ancienne adresse décrites ici.
 
 -- Réglages privés du joueur connecté (page « Modifier mon profil ») :
 -- personne d'autre ne sait qui navigue en anonyme.
@@ -2780,3 +2727,100 @@ drop trigger if exists registrations_refuser_compte_suspendu on public.registrat
 create trigger registrations_refuser_compte_suspendu
   before insert or update of statut on public.registrations
   for each row execute function public.refuser_compte_suspendu();
+
+-- ---------- Consentement enregistré (2026-09-28, audit M10) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- La confirmation d'âge et l'acceptation des CGU étaient demandées mais
+-- jamais conservées : impossible de prouver quand, et sur quelle version,
+-- un joueur les avait acceptées. Colonnes privées (aucun grant de lecture).
+alter table public.profiles add column if not exists consentement_le timestamptz;
+alter table public.profiles add column if not exists consentement_version text;
+
+-- Création du profil à l'inscription, durcie :
+-- - pseudo soumis aux mêmes règles que partout ailleurs, et adresse (slug)
+--   recalculée ici plutôt que reçue telle quelle : l'API d'inscription de
+--   Supabase peut être appelée directement, sans passer par le formulaire,
+--   avec n'importe quel « pseudo » (du HTML dans un e-mail) ou « slug »
+--   (« ../admin ») — audit M5. Pseudo refusé → pseudo automatique, que le
+--   joueur change ensuite depuis « Modifier mon profil » ;
+-- - une ancienne adresse de CV n'est pas reprise par un nouveau compte
+--   (l'inscription le vérifie aussi, pour afficher un message clair) ;
+-- - date et version des CGU acceptées (case cochée à l'inscription),
+--   transmises par le formulaire.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_pseudo text;
+  v_slug text;
+  v_discord_id text;
+  v_automatique boolean := false;
+  v_version_cgu text;
+begin
+  v_pseudo := btrim(new.raw_user_meta_data->>'pseudo');
+
+  if v_pseudo is null
+     or v_pseudo !~ '^[a-zA-Z0-9 _-]{3,20}$'
+     or v_pseudo ~* '^joueur-[0-9a-f]{8}$'
+     or btrim(regexp_replace(lower(v_pseudo), '[^a-z0-9]+', '-', 'g'), '-') = '' then
+    v_pseudo := 'Joueur-' || substr(new.id::text, 1, 8);
+    v_automatique := true;
+  end if;
+  -- Même calcul que slugifier (src/lib/slug.ts) pour un pseudo ASCII.
+  v_slug := btrim(regexp_replace(lower(v_pseudo), '[^a-z0-9]+', '-', 'g'), '-');
+
+  if exists (select 1 from public.anciens_slugs where slug = v_slug) then
+    if not v_automatique then
+      raise exception 'PSEUDO_PRIS';
+    end if;
+    -- Pseudo automatique déjà porté puis quitté par un autre joueur
+    -- (identifiants qui commencent pareil) : on prend la fin de
+    -- l'identifiant plutôt que d'empêcher l'inscription.
+    v_pseudo := 'Joueur-' || substr(new.id::text, 25, 8);
+    v_slug := lower(v_pseudo);
+  end if;
+
+  if new.raw_app_meta_data->>'provider' = 'discord' then
+    v_discord_id := coalesce(
+      new.raw_user_meta_data->>'provider_id',
+      new.raw_user_meta_data->>'sub'
+    );
+  end if;
+
+  v_version_cgu := new.raw_user_meta_data->>'version_cgu';
+  if v_version_cgu !~ '^\d{4}-\d{2}-\d{2}$' then
+    v_version_cgu := null;
+  end if;
+
+  insert into public.profiles (id, pseudo, slug, discord_id, consentement_le, consentement_version)
+  values (
+    new.id, v_pseudo, v_slug, v_discord_id,
+    case when v_version_cgu is not null then now() end,
+    v_version_cgu
+  );
+  return new;
+end;
+$$;
+
+-- Connexion via Discord : le compte est créé au retour de Discord, sans le
+-- formulaire ; la page de retour enregistre alors le consentement donné
+-- avant de partir (une seule fois, jamais réécrit).
+create or replace function public.enregistrer_consentement(p_version text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if p_version is null or p_version !~ '^\d{4}-\d{2}-\d{2}$' then
+    raise exception 'VERSION_INVALIDE';
+  end if;
+  update public.profiles
+  set consentement_le = now(), consentement_version = p_version
+  where id = (select auth.uid()) and consentement_le is null;
+  return found;
+end;
+$$;
+revoke execute on function public.enregistrer_consentement(text) from public, anon;
+grant execute on function public.enregistrer_consentement(text) to authenticated;

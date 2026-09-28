@@ -68,3 +68,20 @@ select verifie('Inscription directe avec du HTML en pseudo : pseudo automatique,
   (select pseudo = 'Joueur-abcdef00' and slug = 'joueur-abcdef00' from profiles where id = '00000000-0000-0000-0000-abcdef000014'));
 select verifie('Inscription directe : adresse recalculée depuis le pseudo, pas reçue telle quelle',
   (select slug = 'zed-main' from profiles where id = '00000000-0000-0000-0000-000000000015'));
+
+-- Consentement (audit M10).
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-000000000016', 'cgu@test', '{"pseudo":"Lux Only","version_cgu":"2026-09-28"}');
+select verifie('Inscription par formulaire : date et version des CGU enregistrées',
+  (select consentement_le is not null and consentement_version = '2026-09-28' from profiles where id = '00000000-0000-0000-0000-000000000016'));
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-000000000011');
+select essai('Compte Discord : enregistre son consentement au retour',
+  $q$select 1 where public.enregistrer_consentement('2026-09-28')$q$, 'passe');
+select essai('Compte Discord : second enregistrement sans effet (jamais réécrit)',
+  $q$select 1 where public.enregistrer_consentement('2027-01-01')$q$, 'bloque');
+select essai('Lire le consentement d''un autre joueur',
+  $q$select consentement_le from profiles where id = '00000000-0000-0000-0000-000000000016'$q$, 'bloque');
+reset role;
+select verifie('Compte Discord : version d''origine conservée',
+  (select consentement_version = '2026-09-28' from profiles where id = '00000000-0000-0000-0000-000000000011'));

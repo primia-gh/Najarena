@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { DATE_CGU_LISIBLE } from "@/lib/cgu";
 
 export const metadata: Metadata = {
   title: "Conditions générales d'utilisation — Najarena",
@@ -19,6 +20,7 @@ export default function CguPage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Conditions générales d&apos;utilisation
       </h1>
+      <p className="mt-2 text-sm text-muted">Version du {DATE_CGU_LISIBLE}.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
         <section>

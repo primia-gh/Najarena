@@ -6,6 +6,8 @@ import { creerClientAdmin } from "@/lib/supabase/admin";
 import { slugifier } from "@/lib/slug";
 import { URL_SITE } from "@/lib/notifications";
 import { estPseudoAutomatique, MESSAGE_PSEUDO_INVALIDE, PSEUDO_REGEX } from "@/lib/pseudo";
+import { COOKIE_CONSENTEMENT, VERSION_CGU } from "@/lib/cgu";
+import { cookies } from "next/headers";
 
 // 8 caractères au moins (audit du 27/09/2026, F1 : Supabase en accepte 6
 // par défaut). À aligner dans le tableau de bord Supabase (Authentication >
@@ -87,7 +89,7 @@ export async function sInscrire(formData: FormData) {
   if (!ageConfirme) {
     redirect(
       `/inscription?erreur=${encodeURIComponent(
-        "Tu dois confirmer avoir au moins 15 ans, ou l'autorisation de ton représentant légal.",
+        "Coche la case : 15 ans au moins (ou l'autorisation de ton représentant légal) et acceptation des CGU.",
       )}`,
     );
   }
@@ -135,7 +137,9 @@ export async function sInscrire(formData: FormData) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password: motDePasse,
-    options: { data: { pseudo, slug } },
+    // version_cgu : date et version des CGU acceptées, conservées par la
+    // base à la création du profil (handle_new_user).
+    options: { data: { pseudo, slug, version_cgu: VERSION_CGU } },
   });
 
   if (error) {
@@ -193,10 +197,19 @@ export async function seConnecterAvecDiscord(formData: FormData) {
   if (!ageConfirme) {
     redirect(
       `/connexion?erreur=${encodeURIComponent(
-        "Tu dois confirmer avoir au moins 15 ans, ou l'autorisation de ton représentant légal.",
+        "Coche la case : 15 ans au moins (ou l'autorisation de ton représentant légal) et acceptation des CGU.",
       )}`,
     );
   }
+
+  // Enregistré au retour de Discord si le compte vient d'être créé.
+  (await cookies()).set(COOKIE_CONSENTEMENT, VERSION_CGU, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: URL_SITE.startsWith("https://"),
+    maxAge: 600,
+    path: "/",
+  });
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({

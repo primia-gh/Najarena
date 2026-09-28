@@ -501,6 +501,8 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          consentement_le: string | null
+          consentement_version: string | null
           created_at: string
           discord_id: string | null
           id: string
@@ -512,6 +514,8 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          consentement_le?: string | null
+          consentement_version?: string | null
           created_at?: string
           discord_id?: string | null
           id: string
@@ -523,6 +527,8 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          consentement_le?: string | null
+          consentement_version?: string | null
           created_at?: string
           discord_id?: string | null
           id?: string
@@ -1313,6 +1319,7 @@ export type Database = {
         Args: { p_gagnant_id: string; p_match_id: string }
         Returns: undefined
       }
+      enregistrer_consentement: { Args: { p_version: string }; Returns: boolean }
       enregistrer_defaite_reconnue: { Args: { p_match_id: string }; Returns: boolean }
       enregistrer_verdict_historique: {
         Args: {

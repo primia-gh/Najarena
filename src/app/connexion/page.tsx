@@ -81,12 +81,16 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
         <label className="flex items-start gap-2 text-sm text-muted">
           <input name="age_confirme" type="checkbox" required className="mt-0.5 accent-accent" />
           <span>
-            J&apos;ai au moins 15 ans, ou j&apos;ai l&apos;autorisation de mon
-            représentant légal (voir les{" "}
+            J&apos;ai au moins 15 ans (ou l&apos;autorisation de mon représentant légal) et
+            j&apos;accepte les{" "}
             <Link href="/cgu" className="text-text underline underline-offset-3">
               CGU
             </Link>
-            ).
+            . Mes données sont traitées selon la{" "}
+            <Link href="/confidentialite" className="text-text underline underline-offset-3">
+              politique de confidentialité
+            </Link>
+            .
           </span>
         </label>
         <Bouton variante="secondaire" libelleEnCours="Redirection…" className="w-full">
