@@ -418,6 +418,14 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
   const moisAnnee = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "Europe/Paris" });
 
   const parcours = [
+    // Saisons terminées : palier et rang finals (audit N14).
+    ...complements.saisonsPassees.map((sp) => ({
+      cle: `saison-${sp.numero}`,
+      quand: `Fin de ${sp.nom}`,
+      titre: sp.palier ? `${sp.palier.nom} — ${arrondir(sp.rating)}` : `Non classé — ${arrondir(sp.rating)}`,
+      lien: "/lol/saisons",
+      detail: sp.rang ? `#${sp.rang} sur ${sp.classes} joueur${sp.classes > 1 ? "s" : ""} classé${sp.classes > 1 ? "s" : ""}` : "",
+    })),
     ...complements.equipes.map((e) => ({
       cle: `equipe-${e.slug}`,
       quand: e.depuis ? `Depuis ${moisAnnee.format(new Date(e.depuis))}` : "Équipe",

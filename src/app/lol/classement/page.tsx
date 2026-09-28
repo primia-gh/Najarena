@@ -70,7 +70,12 @@ export default async function ClassementPage() {
           Classement
         </h1>
         {saison?.nom && (
-          <p className="mt-1 font-texte tabular-nums text-[0.72rem] text-muted">{saison.nom}</p>
+          <p className="mt-1 font-texte tabular-nums text-[0.72rem] text-muted">
+            {saison.nom} ·{" "}
+            <Link href="/lol/saisons" className="underline underline-offset-3 hover:text-text">
+              saisons et classements archivés
+            </Link>
+          </p>
         )}
         <p className="mt-3 max-w-lg text-sm text-muted">
           Calculé en Glicko-2, recalculé à la clôture de chaque tournoi. Un joueur entre au

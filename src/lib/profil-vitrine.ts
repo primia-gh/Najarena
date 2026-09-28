@@ -16,6 +16,17 @@ export interface PointCourbe {
   le: string;
 }
 
+export interface SaisonPassee {
+  numero: number;
+  nom: string;
+  finLe: string;
+  rating: number;
+  /** Palier final, seulement si le joueur était classé (RD ≤ 150). */
+  palier: Palier | null;
+  rang: number | null;
+  classes: number;
+}
+
 export interface EquipeJoueur {
   nom: string;
   slug: string;
@@ -132,6 +143,53 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
 
   const role = (compte?.role_prefere ?? null) as Role | null;
 
+  // Saisons terminées (audit N14) : palier et rang finals, inscrits au
+  // parcours du CV. Une ligne de rating par saison ; les rangs se comptent
+  // parmi les classés de la même saison.
+  const { data: lignesSaisons } = await supabase
+    .from("ratings")
+    .select("rating, est_classe, season_id, saison:seasons(numero, nom, debut_le, fin_le, est_courante)")
+    .eq("profile_id", profilId)
+    .eq("game_id", 1);
+  const maintenant = Date.now();
+  const saisonsPassees: SaisonPassee[] = await Promise.all(
+    (lignesSaisons ?? [])
+      .filter((l) => l.saison && !l.saison.est_courante && new Date(l.saison.debut_le).getTime() <= maintenant)
+      .map(async (l) => {
+        let rang: number | null = null;
+        let classes = 0;
+        if (l.est_classe) {
+          const [{ count: devant }, { count: total }] = await Promise.all([
+            supabase
+              .from("ratings")
+              .select("*", { count: "exact", head: true })
+              .eq("game_id", 1)
+              .eq("season_id", l.season_id)
+              .eq("est_classe", true)
+              .gt("rating", l.rating),
+            supabase
+              .from("ratings")
+              .select("*", { count: "exact", head: true })
+              .eq("game_id", 1)
+              .eq("season_id", l.season_id)
+              .eq("est_classe", true),
+          ]);
+          rang = (devant ?? 0) + 1;
+          classes = total ?? 0;
+        }
+        return {
+          numero: l.saison!.numero,
+          nom: l.saison!.nom ?? `Saison ${l.saison!.numero}`,
+          finLe: l.saison!.fin_le,
+          rating: l.rating,
+          palier: l.est_classe ? progressionPalier(l.rating, paliers).palier : null,
+          rang,
+          classes,
+        };
+      }),
+  );
+  saisonsPassees.sort((a, b) => b.numero - a.numero);
+
   return {
     saison,
     rangNational,
@@ -143,5 +201,6 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     equipes,
     roleLibelle: role ? LABEL_ROLE[role] : null,
     avatarUrl: profil?.avatar_url ?? null,
+    saisonsPassees,
   };
 });

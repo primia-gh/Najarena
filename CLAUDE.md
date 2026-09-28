@@ -137,6 +137,7 @@ Schéma de base de données : `docs/schema.sql`.
 /lol/tournois/[slug]       page tournoi (salle de match `#ton-match`, fichier agenda `/agenda`)
 /lol/tournois/demo         tournoi d'exemple (données statiques, jamais en base)
 /lol/classement            leaderboard
+/lol/saisons               saisons : dates, jours restants, classements finaux archivés
 /registre                  registre des points scellé (preuve publique, export, vérification)
 /lol/coequipiers           recherche de coéquipiers (5v5)
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
