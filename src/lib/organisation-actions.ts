@@ -6,6 +6,7 @@ import { cloturerTournoi } from "@/lib/classement-actions";
 import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
+import { echapperDiscord, echapperHtml } from "@/lib/echappement";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -56,7 +57,7 @@ export async function confirmerInscription(formData: FormData) {
         inscription.profile_id,
         `Inscription confirmée — ${t.nom}`,
         "Ta présence est confirmée",
-        `<p>L'organisateur a confirmé ton inscription au tournoi <strong>${t.nom}</strong>.</p>
+        `<p>L'organisateur a confirmé ton inscription au tournoi <strong>${echapperHtml(t.nom)}</strong>.</p>
          <p><a href="${URL_SITE}/lol/tournois/${t.slug}">Voir le tournoi</a></p>`,
       );
     }
@@ -199,8 +200,8 @@ export async function enregistrerResultat(formData: FormData) {
           p.profile_id,
           `Résultat enregistré — ${matchDecide.tournament!.nom}`,
           aGagne ? "Tu as gagné ce match" : "Résultat de ton match",
-          `<p>${aGagne ? "Tu remportes" : `${nomGagnant} remporte`} ce match du tournoi <strong>${matchDecide.tournament!.nom}</strong>.</p>
-           <p>Motif : ${motif}</p>
+          `<p>${aGagne ? "Tu remportes" : `${echapperHtml(nomGagnant)} remporte`} ce match du tournoi <strong>${echapperHtml(matchDecide.tournament!.nom)}</strong>.</p>
+           <p>Motif : ${echapperHtml(motif)}</p>
            <p><a href="${URL_SITE}/lol/tournois/${matchDecide.tournament!.slug}">Voir le bracket</a></p>`,
         );
       }),
@@ -214,7 +215,7 @@ export async function enregistrerResultat(formData: FormData) {
         matchDecide.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ??
         "le vainqueur";
       await notifierDiscord(
-        `🏆 **${nomGagnant}** remporte **${matchDecide.tournament.nom}** (verdict manuel — ${motif}).\n${URL_SITE}/lol/tournois/${matchDecide.tournament.slug}`,
+        `🏆 **${echapperDiscord(nomGagnant)}** remporte **${echapperDiscord(matchDecide.tournament.nom)}** (verdict manuel — ${echapperDiscord(motif)}).\n${URL_SITE}/lol/tournois/${matchDecide.tournament.slug}`,
       );
     }
   }
@@ -250,7 +251,7 @@ export async function resoudreLitige(formData: FormData) {
         litige.ouvert_par,
         `Litige résolu — ${t.nom}`,
         "L'organisateur a répondu à ton litige",
-        `<p>Résolution : ${resolution}</p>
+        `<p>Résolution : ${echapperHtml(resolution)}</p>
          <p><a href="${URL_SITE}/lol/tournois/${t.slug}">Voir le tournoi</a></p>`,
       );
     }
@@ -293,7 +294,7 @@ export async function publierTournoi(formData: FormData) {
   }
 
   await notifierDiscord(
-    `📣 Nouveau tournoi ouvert — **${t.nom}** (${t.capacite} joueurs, ${t.region}), débute le ${formaterDate(t.debute_le)}.\n${URL_SITE}/lol/tournois/${t.slug}`,
+    `📣 Nouveau tournoi ouvert — **${echapperDiscord(t.nom)}** (${t.capacite} joueurs, ${t.region}), débute le ${formaterDate(t.debute_le)}.\n${URL_SITE}/lol/tournois/${t.slug}`,
   );
 
   redirect(`/moi/organisation/${tournamentId}?message=${encodeURIComponent("Tournoi publié : les inscriptions sont ouvertes.")}`);
@@ -334,7 +335,7 @@ export async function annulerTournoi(formData: FormData) {
           i.profile_id,
           `Tournoi annulé — ${t.nom}`,
           "Ce tournoi est annulé",
-          `<p>L'organisateur a annulé le tournoi <strong>${t.nom}</strong>.</p>
+          `<p>L'organisateur a annulé le tournoi <strong>${echapperHtml(t.nom)}</strong>.</p>
            <p><a href="${URL_SITE}/lol/tournois">Voir les autres tournois</a></p>`,
         ),
       ),

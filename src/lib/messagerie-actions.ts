@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { echapperHtml } from "@/lib/echappement";
 
 // Démarrer une conversation est réservé à l'offre organisateur — la policy
 // RLS "un organisateur demarre une conversation" le revérifie elle-même
@@ -66,7 +67,7 @@ export async function demarrerConversation(formData: FormData) {
     destinataireId,
     `Nouveau message — ${expediteur?.pseudo ?? "un organisateur"}`,
     "Tu as reçu un nouveau message sur Najarena",
-    `<p>${expediteur?.pseudo ?? "Un organisateur"} t'a envoyé un message.</p>
+    `<p>${echapperHtml(expediteur?.pseudo ?? "Un organisateur")} t'a envoyé un message.</p>
      <p><a href="${URL_SITE}/moi/messages/${conversationId}">Voir la conversation</a></p>`,
   );
 
@@ -113,7 +114,7 @@ export async function envoyerMessage(formData: FormData) {
       destinataireId,
       `Nouveau message — ${expediteur?.pseudo ?? "Najarena"}`,
       "Tu as reçu un nouveau message sur Najarena",
-      `<p>${expediteur?.pseudo ?? "Un joueur"} t'a répondu.</p>
+      `<p>${echapperHtml(expediteur?.pseudo ?? "Un joueur")} t'a répondu.</p>
        <p><a href="${URL_SITE}/moi/messages/${conversationId}">Voir la conversation</a></p>`,
     );
   }

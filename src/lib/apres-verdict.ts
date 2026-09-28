@@ -8,6 +8,7 @@
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { cloturerTournoi } from "@/lib/classement-actions";
+import { echapperDiscord, echapperHtml } from "@/lib/echappement";
 
 export async function apresVerdict(matchId: string, gagnantId: string, explication: string): Promise<void> {
   const admin = creerClientAdmin();
@@ -30,7 +31,7 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
         p.profile_id,
         `Résultat enregistré — ${tournoi.nom}`,
         p.profile_id === gagnantId ? "Victoire enregistrée" : "Résultat de ton match",
-        `<p>${explication}</p>
+        `<p>${echapperHtml(explication)}</p>
          <p><a href="${URL_SITE}/lol/tournois/${tournoi.slug}">Voir le bracket</a></p>`,
       ),
     ),
@@ -40,6 +41,6 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
   if (m.match_suivant_id === null) {
     await cloturerTournoi(m.tournament_id);
     const nomGagnant = m.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ?? "le vainqueur";
-    await notifierDiscord(`🏆 **${nomGagnant}** remporte **${tournoi.nom}**.\n${URL_SITE}/lol/tournois/${tournoi.slug}`);
+    await notifierDiscord(`🏆 **${echapperDiscord(nomGagnant)}** remporte **${echapperDiscord(tournoi.nom)}**.\n${URL_SITE}/lol/tournois/${tournoi.slug}`);
   }
 }

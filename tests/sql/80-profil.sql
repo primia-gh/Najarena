@@ -57,3 +57,14 @@ select verifie('Eve : nouvelle adresse eve-pro, l''ancienne « eve » redirige v
      where p.id = '00000000-0000-0000-0000-00000000000e'));
 select refus('Inscription d''un nouveau compte sur l''ancienne adresse d''Eve',
   $q$insert into auth.users (id, email, raw_user_meta_data) values ('00000000-0000-0000-0000-000000000012', 'faux@test', '{"pseudo":"eve","slug":"eve"}')$q$, 'PSEUDO_PRIS');
+
+-- « joueur-00000000 » est l'ancienne adresse du compte Discord ci-dessus :
+-- le pseudo automatique prend alors la fin de l'identifiant.
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-abcdef000014', 'html@test', '{"pseudo":"<b>Pirate</b>","slug":"../admin"}');
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-000000000015', 'ok@test', '{"pseudo":"Zed Main","slug":"n-importe-quoi"}');
+select verifie('Inscription directe avec du HTML en pseudo : pseudo automatique, adresse propre',
+  (select pseudo = 'Joueur-abcdef00' and slug = 'joueur-abcdef00' from profiles where id = '00000000-0000-0000-0000-abcdef000014'));
+select verifie('Inscription directe : adresse recalculée depuis le pseudo, pas reçue telle quelle',
+  (select slug = 'zed-main' from profiles where id = '00000000-0000-0000-0000-000000000015'));

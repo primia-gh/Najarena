@@ -49,7 +49,7 @@ export async function resoudreLitigeAdmin(formData: FormData) {
       litige.ouvert_par,
       `Litige résolu — ${litige.match.tournament.nom}`,
       "Un administrateur a répondu à ton litige",
-      `<p>Résolution : ${resolution}</p>
+      `<p>Résolution : ${echapperHtml(resolution)}</p>
        <p><a href="${URL_SITE}/lol/tournois/${litige.match.tournament.slug}">Voir le tournoi</a></p>`,
     );
   }

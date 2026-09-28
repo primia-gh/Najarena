@@ -26,6 +26,7 @@ import {
   trouverCreneau,
 } from "./creneaux";
 import { planifier, type Action, type TournoiSuivi, type TypeRappel } from "./planification";
+import { echapperDiscord } from "@/lib/echappement";
 
 type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
 
@@ -316,7 +317,7 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
     const inscrits = count ?? 0;
     const affluence = inscrits >= minimum ? `, ${inscrits}/${t.capacite} inscrits` : "";
     await notifierDiscord(
-      `📣 Aujourd'hui à ${heure} : **${t.nom}** — tournoi 1v1 ouvert à tous${affluence}. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
+      `📣 Aujourd'hui à ${heure} : **${echapperDiscord(t.nom)}** — tournoi 1v1 ouvert à tous${affluence}. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
     );
     return `annonce ${t.slug} : envoyée`;
   }
@@ -341,7 +342,7 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
         ),
       ),
     );
-    await notifierDiscord(`✅ Check-in ouvert : **${t.nom}** commence à ${heure}. Inscrits, confirmez votre présence.\n${lien}`);
+    await notifierDiscord(`✅ Check-in ouvert : **${echapperDiscord(t.nom)}** commence à ${heure}. Inscrits, confirmez votre présence.\n${lien}`);
   } else {
     await Promise.all(
       joueurs.map((id) =>
@@ -480,7 +481,7 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
       ),
     ),
   ]);
-  await notifierDiscord(`⚔️ **${t.nom}** commence — ${retenus.length} joueurs.\n${lien}`);
+  await notifierDiscord(`⚔️ **${echapperDiscord(t.nom)}** commence — ${retenus.length} joueurs.\n${lien}`);
 
   return `démarrage ${t.slug} : ${retenus.length} joueurs, bracket de ${capacite}${
     ok && byesEchoues === 0 ? "" : " (INCOMPLET — organisateur prévenu)"
@@ -519,7 +520,7 @@ async function annulerRetard(admin: ClientAdmin, tournoiId: string): Promise<str
     ),
   );
   if (automatique) {
-    await notifierDiscord(`❌ **${t.nom}** annulé — incident technique au démarrage.`);
+    await notifierDiscord(`❌ **${echapperDiscord(t.nom)}** annulé — incident technique au démarrage.`);
   } else {
     await envoyerRappel(
       t.organisateur_id,

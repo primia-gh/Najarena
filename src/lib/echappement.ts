@@ -26,3 +26,15 @@ export function decoderEntites(texte: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, "&");
 }
+
+/**
+ * Même idée pour Discord : un nom de tournoi « [Réclame ton gain](https://…) »
+ * s'afficherait sinon comme un lien masqué sur le salon officiel. Neutralise
+ * la mise en forme Markdown de Discord (gras, liens masqués, citations,
+ * titres…). Les mentions (@everyone) sont déjà coupées par allowed_mentions.
+ */
+export function echapperDiscord(texte: string): string {
+  return texte
+    .replace(/[\\*_~`|[\]]/g, (c) => `\\${c}`)
+    .replace(/^(\s*)([>#-])/gm, "$1\\$2");
+}

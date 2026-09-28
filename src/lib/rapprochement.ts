@@ -22,6 +22,7 @@ import {
 } from "@/lib/riot";
 import { envoyerRappel, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { apresVerdict } from "@/lib/apres-verdict";
+import { echapperHtml } from "@/lib/echappement";
 import {
   deciderSerie,
   defaiteReconnueATrancher,
@@ -224,7 +225,7 @@ async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat): Promise<voi
       tournoi.organisateur_id,
       `Match en litige — ${tournoi.nom}`,
       "Un match attend ta décision",
-      `<p>Aucune partie officielle n'a été retrouvée pour le match ${libelle}. La recherche continue pendant 24 h ; si les joueurs n'ont pas joué ou ne peuvent pas jouer, tranche depuis ton cockpit (verdict manuel, motif public).</p>
+      `<p>Aucune partie officielle n'a été retrouvée pour le match ${echapperHtml(libelle)}. La recherche continue pendant 24 h ; si les joueurs n'ont pas joué ou ne peuvent pas jouer, tranche depuis ton cockpit (verdict manuel, motif public).</p>
        <p><a href="${URL_SITE}/moi/organisation/${m.tournament_id}">Ouvrir le cockpit</a></p>`,
     ),
     ...m.match_participants.map((p) =>

@@ -54,6 +54,8 @@ function traduireErreurAuth(message: string): string {
       : "Un compte existe déjà avec cet e-mail.";
   }
   if (m.includes("invalid login credentials")) return "E-mail ou mot de passe incorrect.";
+  // Refus de la base à la création du profil (pseudo pris entre-temps).
+  if (m.includes("database error saving new user")) return "Ce pseudo est déjà pris : essaies-en un autre.";
   if (m.includes("banned")) {
     return "Ce compte est suspendu. Le motif t'a été envoyé par e-mail ; pour contester, écris à l'adresse des mentions légales.";
   }
@@ -119,10 +121,14 @@ export async function sInscrire(formData: FormData) {
 
   const supabase = await createClient();
 
-  // Ancienne adresse d'un joueur qui a changé de pseudo : elle redirige vers
-  // son CV et ne se reprend pas (la base le refuse aussi, sans ce message).
-  const { data: ancienneAdresse } = await supabase.from("anciens_slugs").select("slug").eq("slug", slug).maybeSingle();
-  if (ancienneAdresse) {
+  // Pseudo déjà pris (majuscules près), ou ancienne adresse d'un joueur qui
+  // a changé de pseudo (elle redirige vers son CV et ne se reprend pas).
+  // La base refuse aussi ces cas, mais sans message lisible.
+  const [{ data: pris }, { data: ancienneAdresse }] = await Promise.all([
+    supabase.from("profiles").select("id").eq("slug", slug).maybeSingle(),
+    supabase.from("anciens_slugs").select("slug").eq("slug", slug).maybeSingle(),
+  ]);
+  if (pris || ancienneAdresse) {
     redirect(`/inscription?erreur=${encodeURIComponent("Ce pseudo est déjà pris.")}`);
   }
 

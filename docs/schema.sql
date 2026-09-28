@@ -2629,8 +2629,15 @@ $$;
 revoke execute on function public.modifier_mon_profil(text, text, boolean) from public, anon;
 grant execute on function public.modifier_mon_profil(text, text, boolean) to authenticated;
 
--- Une ancienne adresse de CV n'est pas reprise par un nouveau compte
--- (l'inscription le vérifie aussi, pour afficher un message clair).
+-- Création du profil à l'inscription, durcie :
+-- - pseudo soumis aux mêmes règles que partout ailleurs, et adresse (slug)
+--   recalculée ici plutôt que reçue telle quelle : l'API d'inscription de
+--   Supabase peut être appelée directement, sans passer par le formulaire,
+--   avec n'importe quel « pseudo » (du HTML dans un e-mail) ou « slug »
+--   (« ../admin ») — audit M5. Pseudo refusé → pseudo automatique, que le
+--   joueur change ensuite depuis « Modifier mon profil » ;
+-- - une ancienne adresse de CV n'est pas reprise par un nouveau compte
+--   (l'inscription le vérifie aussi, pour afficher un message clair).
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -2640,15 +2647,29 @@ declare
   v_pseudo text;
   v_slug text;
   v_discord_id text;
+  v_automatique boolean := false;
 begin
-  v_pseudo := new.raw_user_meta_data->>'pseudo';
-  v_slug := new.raw_user_meta_data->>'slug';
+  v_pseudo := btrim(new.raw_user_meta_data->>'pseudo');
 
-  if v_pseudo is null or v_slug is null then
+  if v_pseudo is null
+     or v_pseudo !~ '^[a-zA-Z0-9 _-]{3,20}$'
+     or v_pseudo ~* '^joueur-[0-9a-f]{8}$'
+     or btrim(regexp_replace(lower(v_pseudo), '[^a-z0-9]+', '-', 'g'), '-') = '' then
     v_pseudo := 'Joueur-' || substr(new.id::text, 1, 8);
+    v_automatique := true;
+  end if;
+  -- Même calcul que slugifier (src/lib/slug.ts) pour un pseudo ASCII.
+  v_slug := btrim(regexp_replace(lower(v_pseudo), '[^a-z0-9]+', '-', 'g'), '-');
+
+  if exists (select 1 from public.anciens_slugs where slug = v_slug) then
+    if not v_automatique then
+      raise exception 'PSEUDO_PRIS';
+    end if;
+    -- Pseudo automatique déjà porté puis quitté par un autre joueur
+    -- (identifiants qui commencent pareil) : on prend la fin de
+    -- l'identifiant plutôt que d'empêcher l'inscription.
+    v_pseudo := 'Joueur-' || substr(new.id::text, 25, 8);
     v_slug := lower(v_pseudo);
-  elsif exists (select 1 from public.anciens_slugs where slug = v_slug) then
-    raise exception 'PSEUDO_PRIS';
   end if;
 
   if new.raw_app_meta_data->>'provider' = 'discord' then
@@ -2687,6 +2708,19 @@ as $$
 $$;
 revoke execute on function public.visites_anonymes_actives() from public, anon;
 grant execute on function public.visites_anonymes_actives() to authenticated;
+
+-- Mêmes règles vérifiées par la table elle-même pour toute nouvelle écriture
+-- (not valid : les comptes existants ne sont pas contrôlés rétroactivement,
+-- mais une ligne non conforme ne pourrait plus être modifiée). Avant
+-- d'appliquer, lister les exceptions et les corriger à la main :
+--   select id, pseudo, slug from public.profiles
+--   where pseudo !~ '^[a-zA-Z0-9 _-]{3,20}$' or slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$';
+alter table public.profiles drop constraint if exists profiles_pseudo_format;
+alter table public.profiles add constraint profiles_pseudo_format
+  check (pseudo ~ '^[a-zA-Z0-9 _-]{3,20}$') not valid;
+alter table public.profiles drop constraint if exists profiles_slug_format;
+alter table public.profiles add constraint profiles_slug_format
+  check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$') not valid;
 
 -- Un joueur qui a choisi l'anonymat n'enregistre plus ses visites.
 alter policy "un joueur enregistre sa propre visite" on public.vues_profil

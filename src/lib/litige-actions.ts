@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { echapperHtml } from "@/lib/echappement";
 
 export async function ouvrirLitige(formData: FormData) {
   const matchId = String(formData.get("match_id") ?? "");
@@ -46,7 +47,7 @@ export async function ouvrirLitige(formData: FormData) {
       t.organisateur_id,
       `Nouveau litige — ${t.nom}`,
       "Un joueur a signalé un litige",
-      `<p>Motif : ${motif}</p>
+      `<p>Motif : ${echapperHtml(motif)}</p>
        <p><a href="${URL_SITE}/moi">Voir mon tableau de bord</a></p>`,
     );
   }
