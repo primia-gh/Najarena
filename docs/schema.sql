@@ -2965,3 +2965,30 @@ end;
 $$;
 revoke execute on function public.reserver_appel_assistant_ia() from public, anon;
 grant execute on function public.reserver_appel_assistant_ia() to authenticated;
+
+-- ---------- Abonnement Stripe : portail client (2026-09-28) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Rien ne gardait l'identifiant client Stripe d'un abonné : impossible de
+-- lui ouvrir le portail Stripe (changer de carte, télécharger ses
+-- factures, résilier), obligatoire pour un abonnement résiliable en
+-- ligne. Écrit par le webhook Stripe (client service_role) seulement.
+create table if not exists public.abonnements_stripe (
+  profile_id            uuid primary key references public.profiles(id) on delete cascade,
+  client_stripe_id      text not null,
+  abonnement_stripe_id  text,
+  statut                text,
+  maj_le                timestamptz not null default now()
+);
+alter table public.abonnements_stripe enable row level security;
+-- Aucune policy : lecture par mon_abonnement_stripe, écriture par le serveur.
+revoke all on public.abonnements_stripe from anon, authenticated;
+
+create or replace function public.mon_abonnement_stripe()
+returns table (statut text)
+language sql stable
+security definer set search_path = public
+as $$
+  select a.statut from public.abonnements_stripe a where a.profile_id = (select auth.uid());
+$$;
+revoke execute on function public.mon_abonnement_stripe() from public, anon;
+grant execute on function public.mon_abonnement_stripe() to authenticated;

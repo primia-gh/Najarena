@@ -17,6 +17,7 @@ import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
 import { estPseudoAutomatique } from "@/lib/pseudo";
+import { ouvrirPortailAbonnement } from "@/lib/stripe-actions";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
@@ -51,6 +52,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     { data: equipesCapitaineData },
     infoOffre,
     { data: matchsEnCoursData },
+    { data: abonnement },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -93,6 +95,9 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       .eq("profile_id", utilisateur.id)
       .in("match.statut", ["en_attente", "en_cours", "litige"])
       .eq("match.tournament.statut", "en_cours"),
+    // Abonnement Stripe : ouvre le portail (moyen de paiement, factures,
+    // résiliation).
+    supabase.rpc("mon_abonnement_stripe").maybeSingle(),
   ]);
   const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
@@ -190,6 +195,16 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
         >
           Modifier mon profil
         </Link>
+        {abonnement && (
+          <form action={ouvrirPortailAbonnement} className="inline">
+            <button
+              type="submit"
+              className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
+            >
+              Gérer mon abonnement
+            </button>
+          </form>
+        )}
         <Link
           href="/moi/messages"
           className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"

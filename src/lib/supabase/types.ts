@@ -63,6 +63,38 @@ export type Database = {
           },
         ]
       }
+      abonnements_stripe: {
+        Row: {
+          abonnement_stripe_id: string | null
+          client_stripe_id: string
+          maj_le: string
+          profile_id: string
+          statut: string | null
+        }
+        Insert: {
+          abonnement_stripe_id?: string | null
+          client_stripe_id: string
+          maj_le?: string
+          profile_id: string
+          statut?: string | null
+        }
+        Update: {
+          abonnement_stripe_id?: string | null
+          client_stripe_id?: string
+          maj_le?: string
+          profile_id?: string
+          statut?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abonnements_stripe_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appels_assistant_ia: {
         Row: {
           cree_le: string
@@ -1375,6 +1407,7 @@ export type Database = {
         Args: never
         Returns: { pseudo_modifie_le: string | null; visites_anonymes: boolean }[]
       }
+      mon_abonnement_stripe: { Args: never; Returns: { statut: string | null }[] }
       modifier_mon_profil: {
         Args: { p_pays: string | null; p_pseudo: string; p_visites_anonymes: boolean }
         Returns: string
