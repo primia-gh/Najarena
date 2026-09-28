@@ -73,7 +73,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         "id, motif, resolution, resolu_le, cree_le, match_id, ouvert_par:profiles!disputes_ouvert_par_fkey(pseudo, slug), resolu_par:profiles!disputes_resolu_par_fkey(pseudo, slug), match:matches(tour, tournament:tournaments(nom, slug))",
       )
       .order("cree_le", { ascending: false }),
-    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    // « id » et pas « * » : l'identifiant Discord n'est plus lisible par
+    // le public (droits par colonne, docs/schema.sql).
+    supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase
       .from("tournaments")
       .select("*", { count: "exact", head: true })

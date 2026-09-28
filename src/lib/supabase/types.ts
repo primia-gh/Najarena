@@ -1211,6 +1211,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      confirmer_presence: { Args: { p_tournament_id: string }; Returns: boolean }
       enregistrer_bye_automatique: {
         Args: { p_gagnant_id: string; p_match_id: string }
         Returns: undefined
@@ -1239,6 +1240,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
     }
     Enums: {
       match_status: "en_attente" | "en_cours" | "termine" | "litige" | "forfait"

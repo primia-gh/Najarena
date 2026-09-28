@@ -23,11 +23,11 @@ export const metadata: Metadata = {
 };
 
 interface MoiPageProps {
-  searchParams: Promise<{ message?: string }>;
+  searchParams: Promise<{ message?: string; erreur?: string }>;
 }
 
 export default async function MoiPage({ searchParams }: MoiPageProps) {
-  const { message } = await searchParams;
+  const { message, erreur } = await searchParams;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -100,6 +100,11 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille">
+      {erreur && (
+        <p role="alert" className="mb-6 rounded-bouton border border-danger/40 bg-danger/10 px-3 py-2.5 text-sm text-danger">
+          {erreur}
+        </p>
+      )}
       {message && (
         <p className={"mb-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
       )}

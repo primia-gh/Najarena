@@ -35,16 +35,20 @@ export async function confirmerMaPresence(formData: FormData) {
     redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
   }
 
-  // RLS : un joueur ne peut modifier que sa propre inscription.
-  const { data: confirmee } = await supabase
-    .from("registrations")
-    .update({ statut: "confirme", confirme_le: new Date().toISOString() })
-    .eq("tournament_id", tournamentId)
-    .eq("profile_id", userData.user.id)
-    .eq("statut", "inscrit")
-    .select("id");
+  // Le joueur ne peut plus modifier son inscription directement (28/09/2026,
+  // audit E1 : il pouvait se confirmer à tout moment, changer sa tête de
+  // série ou de tournoi). La fonction confirmer_presence revérifie la
+  // fenêtre de check-in dans la base, sous verrou du tournoi : un check-in
+  // ne peut plus se glisser pendant la génération du bracket.
+  const { data: confirmee, error } = await supabase.rpc("confirmer_presence", {
+    p_tournament_id: tournamentId,
+  });
 
-  if (!confirmee?.length) {
+  if (error?.message.includes("CHECKIN_FERME")) {
+    redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
+  }
+
+  if (!confirmee) {
     redirect(`${page}?erreur=${encodeURIComponent("Aucune inscription en attente de check-in.")}`);
   }
 

@@ -3,6 +3,19 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+// Messages affichés pour chaque refus de la fonction s_inscrire_tournoi
+// (docs/schema.sql). Les vérifications elles-mêmes (tournoi ouvert, places
+// restantes, doublon) se font dans la base, en une seule opération sous
+// verrou : un appel direct à la base, sans passer par cette action, est
+// refusé de la même façon, et deux inscriptions simultanées ne peuvent
+// plus dépasser la capacité (audit du 27/09/2026, E1).
+const MESSAGES_REFUS: Record<string, string> = {
+  INSCRIPTIONS_FERMEES: "Les inscriptions sont fermées pour ce tournoi.",
+  TOURNOI_COMPLET: "Ce tournoi est complet.",
+  DEJA_INSCRIT: "Tu es déjà inscrit à ce tournoi.",
+  TOURNOI_INTROUVABLE: "Ce tournoi n'existe pas.",
+};
+
 export async function sInscrireATournoi(formData: FormData) {
   const tournamentId = String(formData.get("tournament_id") ?? "");
   const slug = String(formData.get("slug") ?? "");
@@ -13,38 +26,11 @@ export async function sInscrireATournoi(formData: FormData) {
     redirect("/connexion");
   }
 
-  // Vérifié ici et pas seulement caché sur la page (24/09/2026) : un appel
-  // direct ne doit pas pouvoir inscrire un joueur à un tournoi fermé ou
-  // plein — au-delà de la capacité, le bracket ne peut pas le placer.
-  const { data: tournoi } = await supabase
-    .from("tournaments")
-    .select("statut, capacite")
-    .eq("id", tournamentId)
-    .maybeSingle();
-
-  if (!tournoi || tournoi.statut !== "ouvert") {
-    redirect(`/lol/tournois/${slug}?erreur=${encodeURIComponent("Les inscriptions sont fermées pour ce tournoi.")}`);
-  }
-
-  const { count: nbInscrits } = await supabase
-    .from("registrations")
-    .select("id", { count: "exact", head: true })
-    .eq("tournament_id", tournamentId)
-    .neq("statut", "retire");
-
-  if ((nbInscrits ?? 0) >= tournoi.capacite) {
-    redirect(`/lol/tournois/${slug}?erreur=${encodeURIComponent("Ce tournoi est complet.")}`);
-  }
-
-  const { error } = await supabase.from("registrations").insert({
-    tournament_id: tournamentId,
-    profile_id: userData.user.id,
-  });
+  const { error } = await supabase.rpc("s_inscrire_tournoi", { p_tournament_id: tournamentId });
 
   if (error) {
-    const message = error.message.includes("duplicate key")
-      ? "Tu es déjà inscrit à ce tournoi."
-      : "Impossible de s'inscrire pour l'instant.";
+    const code = Object.keys(MESSAGES_REFUS).find((c) => error.message.includes(c));
+    const message = code ? MESSAGES_REFUS[code] : "Impossible de s'inscrire pour l'instant.";
     redirect(`/lol/tournois/${slug}?erreur=${encodeURIComponent(message)}`);
   }
 

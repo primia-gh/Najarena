@@ -1536,3 +1536,474 @@ $$;
 
 revoke execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint) from public, anon, authenticated;
 grant execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint) to service_role;
+
+-- ---------- Règles appliquées par la base, plus seulement par les pages (2026-09-28, audit E1, M1 à M4) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit :
+-- inscription et check-in appellent s_inscrire_tournoi et confirmer_presence.
+-- Le navigateur de chaque visiteur connaît l'adresse de la base et sa clé
+-- publique : toute règle vérifiée seulement dans une action du site
+-- (src/lib/*-actions.ts) peut être contournée par un appel direct. Les
+-- règles ci-dessous passent donc dans la base elle-même.
+--
+-- Principe des déclencheurs de contrôle : ils ne s'appliquent qu'aux
+-- écritures directes d'un compte connecté (current_user = 'authenticated').
+-- Le serveur (service_role) et les fonctions security definer (qui
+-- s'exécutent sous leur propriétaire) n'y sont pas soumis — ce sont déjà
+-- des chemins contrôlés. Ces fonctions de déclencheur ne doivent donc
+-- JAMAIS être déclarées security definer : current_user y deviendrait le
+-- propriétaire et le contrôle ne s'appliquerait plus à personne.
+
+-- ===== 1. Inscriptions et check-in (E1) =====
+-- Avant : un joueur pouvait créer son inscription à n'importe quel tournoi
+-- (fermé, plein, commencé), se confirmer hors check-in, et modifier toutes
+-- les colonnes de son inscription (tête de série, rating à l'inscription,
+-- tournoi). Deux inscriptions simultanées pouvaient dépasser la capacité.
+drop policy "joueur s inscrit lui meme" on public.registrations;
+drop policy "joueur ou organisateur modifie l inscription" on public.registrations;
+
+-- L'organisateur garde la main sur le statut (confirmer, marquer absent)
+-- depuis son cockpit — et sur rien d'autre (droits par colonne ci-dessous).
+create policy "organisateur modifie l inscription"
+  on public.registrations for update using (
+    exists (
+      select 1 from public.tournaments t
+      where t.id = registrations.tournament_id
+        and t.organisateur_id = (select auth.uid())
+    )
+  );
+
+revoke insert, update, delete on public.registrations from anon, authenticated;
+grant update (statut, confirme_le) on public.registrations to authenticated;
+
+-- Seule porte d'entrée pour s'inscrire : tout est vérifié en une opération,
+-- sous verrou de la ligne du tournoi (deux inscriptions simultanées ne
+-- peuvent plus dépasser la capacité).
+create or replace function public.s_inscrire_tournoi(p_tournament_id uuid)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_tournoi record;
+  v_inscrits int;
+  v_rating int;
+  v_id uuid;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select id, statut, capacite, game_id, season_id
+  into v_tournoi
+  from public.tournaments
+  where id = p_tournament_id
+  for update;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if v_tournoi.statut <> 'ouvert' then
+    raise exception 'INSCRIPTIONS_FERMEES';
+  end if;
+
+  if exists (
+    select 1 from public.registrations
+    where tournament_id = p_tournament_id and profile_id = v_joueur
+  ) then
+    raise exception 'DEJA_INSCRIT';
+  end if;
+
+  select count(*) into v_inscrits
+  from public.registrations
+  where tournament_id = p_tournament_id and statut <> 'retire';
+
+  if v_inscrits >= v_tournoi.capacite then
+    raise exception 'TOURNOI_COMPLET';
+  end if;
+
+  -- « Rating à l'inscription » : preuve du niveau au moment T, prévue dès
+  -- le schéma V1 mais jamais remplie jusqu'ici. Nul pour un joueur sans
+  -- rating cette saison.
+  select round(r.rating)::int
+  into v_rating
+  from public.ratings r
+  where r.profile_id = v_joueur
+    and r.game_id = v_tournoi.game_id
+    and r.season_id = coalesce(
+      v_tournoi.season_id,
+      (select s.id from public.seasons s where s.game_id = v_tournoi.game_id and s.est_courante limit 1)
+    );
+
+  insert into public.registrations (tournament_id, profile_id, rating_a_inscription)
+  values (p_tournament_id, v_joueur, v_rating)
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+revoke execute on function public.s_inscrire_tournoi(uuid) from public, anon;
+grant execute on function public.s_inscrire_tournoi(uuid) to authenticated;
+
+-- Check-in par le joueur, seulement dans la fenêtre prévue (même règle que
+-- src/lib/checkin.ts). Le verrou partagé sur le tournoi empêche un check-in
+-- de se glisser pendant le démarrage du bracket : soit il est enregistré
+-- avant que la liste des confirmés soit lue, soit il est refusé.
+create or replace function public.confirmer_presence(p_tournament_id uuid)
+returns boolean -- faux : aucune inscription en attente de check-in
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_statut public.tournament_status;
+  v_checkin timestamptz;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select statut, checkin_ouvre_le
+  into v_statut, v_checkin
+  from public.tournaments
+  where id = p_tournament_id
+  for share;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if not (v_statut = 'checkin' or (v_statut = 'ouvert' and v_checkin <= now())) then
+    raise exception 'CHECKIN_FERME';
+  end if;
+
+  update public.registrations
+  set statut = 'confirme', confirme_le = now()
+  where tournament_id = p_tournament_id
+    and profile_id = v_joueur
+    and statut = 'inscrit';
+
+  return found;
+end;
+$$;
+
+revoke execute on function public.confirmer_presence(uuid) from public, anon;
+grant execute on function public.confirmer_presence(uuid) to authenticated;
+
+-- ===== 2. Tournois (M3) =====
+-- Avant : l'organisateur pouvait modifier toutes les colonnes de son
+-- tournoi par appel direct — 128 places, Best-of 3/5, logo et couleur sans
+-- l'offre Organisateur ; format, capacité et dates après la première
+-- inscription ; statut « terminé » avant la fin (plus aucun point écrit).
+create or replace function public.controler_ecriture_tournoi()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_organisateur_premium boolean;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  select exists (
+    select 1 from public.comptes_offres
+    where profile_id = auth.uid() and offre = 'organisateur'
+  ) into v_organisateur_premium;
+
+  if tg_op = 'INSERT' then
+    if new.statut not in ('brouillon', 'ouvert') then
+      raise exception 'STATUT_INITIAL_INVALIDE';
+    end if;
+    if new.creneau_auto is not null or new.verrouille_le is not null then
+      raise exception 'CHAMP_RESERVE';
+    end if;
+    if (new.capacite = 128 or new.best_of > 1 or new.logo_url is not null or new.couleur_accent is not null)
+       and not v_organisateur_premium then
+      raise exception 'OFFRE_ORGANISATEUR_REQUISE';
+    end if;
+    return new;
+  end if;
+
+  -- Réglages figés après la création (aucun écran ne les modifie ; le
+  -- serveur, lui, n'est pas concerné — ex. capacité ajustée au démarrage
+  -- d'un tournoi automatique).
+  if (new.game_id, new.season_id, new.organisateur_id, new.slug, new.nom, new.format,
+      new.type_bracket, new.best_of, new.capacite, new.region, new.rating_min,
+      new.rating_max, new.compte_pour_classement, new.debute_le, new.checkin_ouvre_le,
+      new.verrouille_le, new.cree_le, new.creneau_auto)
+     is distinct from
+     (old.game_id, old.season_id, old.organisateur_id, old.slug, old.nom, old.format,
+      old.type_bracket, old.best_of, old.capacite, old.region, old.rating_min,
+      old.rating_max, old.compte_pour_classement, old.debute_le, old.checkin_ouvre_le,
+      old.verrouille_le, old.cree_le, old.creneau_auto) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+
+  -- « Terminé » n'est écrit que par la clôture (serveur), une fois les
+  -- points de chaque joueur enregistrés.
+  if new.statut is distinct from old.statut and not (
+       (old.statut = 'brouillon' and new.statut = 'ouvert')
+    or (old.statut = 'ouvert' and new.statut = 'checkin')
+    or (old.statut in ('ouvert', 'checkin') and new.statut = 'en_cours')
+    or (old.statut in ('brouillon', 'ouvert', 'checkin') and new.statut = 'annule')
+  ) then
+    raise exception 'CHANGEMENT_DE_STATUT_INTERDIT';
+  end if;
+
+  if ((new.logo_url is not null and new.logo_url is distinct from old.logo_url)
+      or (new.couleur_accent is not null and new.couleur_accent is distinct from old.couleur_accent))
+     and not v_organisateur_premium then
+    raise exception 'OFFRE_ORGANISATEUR_REQUISE';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.controler_ecriture_tournoi() from public, anon, authenticated;
+
+create trigger controle_ecriture_tournoi
+  before insert or update on public.tournaments
+  for each row execute function public.controler_ecriture_tournoi();
+
+-- ===== 3. Matchs et participants (M3) =====
+-- Avant : l'organisateur pouvait avancer l'heure de début d'un match (et
+-- faire retenir une ancienne partie entre les deux joueurs comme résultat
+-- officiel), déclarer lui-même un gagnant sans verdict, ou placer dans le
+-- bracket un joueur jamais inscrit. Il garde ce dont la génération du
+-- bracket a besoin (src/lib/bracket-construction.ts) : créer les matchs
+-- vides, placer au tour 1 les joueurs confirmés, lancer un match à l'heure
+-- présente.
+create or replace function public.controler_ecriture_match()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.statut <> 'en_attente' or new.demarre_le is not null or new.code_tournoi is not null then
+      raise exception 'CHAMP_RESERVE';
+    end if;
+    return new;
+  end if;
+
+  if (new.tournament_id, new.tour, new.position, new.match_suivant_id, new.code_tournoi)
+     is distinct from
+     (old.tournament_id, old.tour, old.position, old.match_suivant_id, old.code_tournoi) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+
+  if new.statut is distinct from old.statut
+     and not (old.statut = 'en_attente' and new.statut = 'en_cours') then
+    raise exception 'CHANGEMENT_DE_STATUT_INTERDIT';
+  end if;
+
+  -- L'heure de début ouvre la fenêtre de recherche de la partie Riot : elle
+  -- ne peut être que « maintenant », et une seule fois.
+  if new.demarre_le is distinct from old.demarre_le and not (
+       old.demarre_le is null
+       and new.demarre_le between now() - interval '2 minutes' and now() + interval '2 minutes'
+  ) then
+    raise exception 'HEURE_DE_DEBUT_RESERVEE';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.controler_ecriture_match() from public, anon, authenticated;
+
+create trigger controle_ecriture_match
+  before insert or update on public.matches
+  for each row execute function public.controler_ecriture_match();
+
+-- Vainqueur et score ne s'écrivent que par un verdict (fonctions security
+-- definer) : plus aucune modification directe.
+drop policy "organisateur modifie les participants" on public.match_participants;
+revoke update, delete on public.match_participants from anon, authenticated;
+
+create or replace function public.controler_placement_joueur()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_tournoi uuid;
+  v_tour smallint;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  select tournament_id, tour into v_tournoi, v_tour
+  from public.matches
+  where id = new.match_id;
+
+  if v_tour <> 1 or new.est_gagnant is not null or new.score <> 0 then
+    raise exception 'CHAMP_RESERVE';
+  end if;
+
+  if not exists (
+    select 1 from public.registrations
+    where tournament_id = v_tournoi and profile_id = new.profile_id and statut = 'confirme'
+  ) then
+    raise exception 'JOUEUR_NON_CONFIRME';
+  end if;
+
+  if (select count(*) from public.match_participants where match_id = new.match_id) >= 2 then
+    raise exception 'MATCH_COMPLET';
+  end if;
+
+  if exists (
+    select 1
+    from public.match_participants mp
+    join public.matches m on m.id = mp.match_id
+    where m.tournament_id = v_tournoi and mp.profile_id = new.profile_id
+  ) then
+    raise exception 'JOUEUR_DEJA_PLACE';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.controler_placement_joueur() from public, anon, authenticated;
+
+create trigger controle_placement_joueur
+  before insert on public.match_participants
+  for each row execute function public.controler_placement_joueur();
+
+-- ===== 4. Équipes (M1, M3) =====
+-- Avant : un capitaine pouvait inscrire quelqu'un comme membre « accepté »
+-- sans son accord ; un invité pouvait déplacer sa ligne vers une autre
+-- équipe et s'y déclarer accepté ; aucune limite d'effectif dans la base ;
+-- logo et couleur d'équipe modifiables sans l'offre Vérifié.
+create or replace function public.controler_membre_equipe()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_capitaine uuid;
+  v_effectif int;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' and (new.team_id, new.profile_id) is distinct from (old.team_id, old.profile_id) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+
+  select capitaine_id into v_capitaine from public.teams where id = new.team_id;
+
+  if tg_op = 'UPDATE' and new.role is distinct from old.role and v_capitaine <> auth.uid() then
+    raise exception 'ROLE_FIXE_PAR_LE_CAPITAINE';
+  end if;
+
+  -- Une acceptation n'est faite que par le joueur concerné (le capitaine
+  -- s'ajoute lui-même, déjà accepté, à la création de l'équipe).
+  if new.accepte_le is not null and (tg_op = 'INSERT' or old.accepte_le is null) then
+    if new.profile_id <> auth.uid() then
+      raise exception 'ACCEPTATION_PAR_LE_JOUEUR';
+    end if;
+
+    -- 5 joueurs maximum : même limite que TAILLE_MAX_EQUIPE (src/lib/equipe.ts).
+    select count(*) into v_effectif
+    from public.team_members
+    where team_id = new.team_id and accepte_le is not null;
+
+    if v_effectif >= 5 then
+      raise exception 'EQUIPE_COMPLETE';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.controler_membre_equipe() from public, anon, authenticated;
+
+create trigger controle_membre_equipe
+  before insert or update on public.team_members
+  for each row execute function public.controler_membre_equipe();
+
+create or replace function public.controler_ecriture_equipe()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' and (new.game_id, new.slug, new.nom, new.tag, new.capitaine_id, new.cree_le)
+     is distinct from (old.game_id, old.slug, old.nom, old.tag, old.capitaine_id, old.cree_le) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+
+  if ((new.logo_url is not null and (tg_op = 'INSERT' or new.logo_url is distinct from old.logo_url))
+      or (new.couleur_accent is not null and (tg_op = 'INSERT' or new.couleur_accent is distinct from old.couleur_accent)))
+     and not exists (
+       select 1 from public.comptes_offres
+       where profile_id = auth.uid() and offre in ('verifie', 'elite', 'organisateur')
+     ) then
+    raise exception 'OFFRE_VERIFIE_REQUISE';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.controler_ecriture_equipe() from public, anon, authenticated;
+
+create trigger controle_ecriture_equipe
+  before insert or update on public.teams
+  for each row execute function public.controler_ecriture_equipe();
+
+-- ===== 5. Messagerie (M2) =====
+-- Avant : la règle prévue pour « marquer comme lu » permettait de réécrire
+-- toute la ligne, contenu et expéditeur compris, y compris les messages de
+-- l'autre personne.
+drop policy "participants marquent un message lu" on public.messages;
+
+create policy "le destinataire marque un message lu"
+  on public.messages for update using (
+    expediteur_id <> (select auth.uid())
+    and exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id
+        and (select auth.uid()) in (c.profile_a, c.profile_b)
+    )
+  );
+
+revoke update, delete on public.messages from anon, authenticated;
+grant update (lu_le) on public.messages to authenticated;
+
+-- ===== 6. Profils (M4) =====
+-- Avant : discord_id (identifiant Discord, lisible par tous) et slug
+-- (adresse publique du CV) étaient modifiables par leur propriétaire. Aucun
+-- écran ne modifie un profil aujourd'hui ; une future page « Mon profil »
+-- passera par une action serveur qui ne touchera que le pseudo, le pays et
+-- l'avatar.
+revoke update, delete on public.profiles from anon, authenticated;
+
+-- L'identifiant Discord ne sert qu'au serveur (messages privés du bot) :
+-- il n'est plus lisible par le public.
+revoke select on public.profiles from anon, authenticated;
+grant select (id, pseudo, slug, avatar_url, pays, created_at) on public.profiles to anon, authenticated;
+
+-- ===== 7. Litiges =====
+-- L'organisateur (ou un admin) écrit la résolution — il ne peut plus
+-- réécrire le motif rédigé par le joueur.
+revoke update, delete on public.disputes from anon, authenticated;
+grant update (resolution, resolu_par, resolu_le) on public.disputes to authenticated;

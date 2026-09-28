@@ -151,11 +151,21 @@ export async function accepterInvitation(formData: FormData) {
 
   const teamId = String(formData.get("team_id") ?? "");
 
-  await supabase
+  // La base refuse l'acceptation si l'équipe a déjà 5 joueurs (déclencheur
+  // controle_membre_equipe, docs/schema.sql) — jusqu'ici, rien ne limitait
+  // l'effectif une fois les invitations envoyées.
+  const { error } = await supabase
     .from("team_members")
     .update({ accepte_le: new Date().toISOString() })
     .eq("team_id", teamId)
     .eq("profile_id", userData.user.id);
+
+  if (error) {
+    const message = error.message.includes("EQUIPE_COMPLETE")
+      ? `Cette équipe est déjà complète (${TAILLE_MAX_EQUIPE} joueurs).`
+      : "Impossible d'accepter cette invitation pour l'instant.";
+    redirect(`/moi?erreur=${encodeURIComponent(message)}`);
+  }
 
   redirect("/moi");
 }
