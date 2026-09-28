@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { slugifier } from "@/lib/slug";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
-import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
+import { estLogoEquipeValide, TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { chargerOffre, ORDRE_OFFRE } from "@/lib/offres";
 import type { TablesUpdate } from "@/lib/supabase/types";
 
@@ -219,6 +219,14 @@ export async function mettreAJourEquipe(formData: FormData) {
   if (peutBranding) {
     const logoUrl = String(formData.get("logo_url") ?? "").trim();
     const couleurAccent = String(formData.get("couleur_accent") ?? "").trim();
+    // Uniquement une image déposée dans l'espace de l'équipe (audit M6) ;
+    // la base applique la même règle.
+    if (logoUrl && !estLogoEquipeValide(logoUrl, teamId)) {
+      redirect(`/equipe/${slug}?erreur=${encodeURIComponent("Logo refusé : dépose-le avec le bouton d'envoi, sans adresse extérieure.")}`);
+    }
+    if (couleurAccent && !/^#[0-9a-fA-F]{6}$/.test(couleurAccent)) {
+      redirect(`/equipe/${slug}?erreur=${encodeURIComponent("Couleur d'accent invalide (format #RRGGBB).")}`);
+    }
     misesAJour.logo_url = logoUrl || null;
     misesAJour.couleur_accent = couleurAccent || null;
   }

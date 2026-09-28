@@ -4,8 +4,14 @@ import { useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
+// Mêmes limites que l'espace de stockage lui-même (docs/schema.sql,
+// « Logos : stockage verrouillé ») : ici, seulement pour un message clair.
 const TAILLE_MAX = 2 * 1024 * 1024; // 2 Mo
-const TYPES_ACCEPTES = ["image/png", "image/jpeg", "image/webp"];
+const EXTENSION_PAR_TYPE: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
 
 interface UploadLogoProps {
   // Chemin d'objet dans le bucket "logos" : logos/{type}/{id}.{ext} — la
@@ -27,7 +33,8 @@ export default function UploadLogo({ type, id, logoActuel, nomChamp }: UploadLog
 
   async function gererFichier(fichier: File) {
     setErreur(null);
-    if (!TYPES_ACCEPTES.includes(fichier.type)) {
+    const extension = EXTENSION_PAR_TYPE[fichier.type];
+    if (!extension) {
       setErreur("Formats acceptés : PNG, JPEG, WebP.");
       return;
     }
@@ -38,7 +45,7 @@ export default function UploadLogo({ type, id, logoActuel, nomChamp }: UploadLog
 
     setEnCours(true);
     const supabase = createClient();
-    const extension = fichier.name.split(".").pop() ?? "png";
+    // Extension tirée du format réel, pas du nom du fichier (« Logo.PNG »).
     const chemin = `${type}/${id}.${extension}`;
 
     const { error } = await supabase.storage.from("logos").upload(chemin, fichier, { upsert: true });

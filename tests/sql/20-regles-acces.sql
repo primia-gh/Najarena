@@ -70,7 +70,7 @@ select essai('Alice passe son tournoi à 128 places sans l''offre',
 select essai('Alice passe son tournoi en Best-of 5 sans l''offre',
   $q$update tournaments set best_of = 5 where id = '10000000-0000-0000-0000-000000000001'$q$, 'bloque');
 select essai('Alice ajoute un logo sans l''offre',
-  $q$update tournaments set logo_url = 'https://exemple.test/logo.png' where id = '10000000-0000-0000-0000-000000000001'$q$, 'bloque');
+  $q$update tournaments set logo_url = 'https://abcd1234.supabase.co/storage/v1/object/public/logos/tournoi/10000000-0000-0000-0000-000000000001.png' where id = '10000000-0000-0000-0000-000000000001'$q$, 'bloque');
 select essai('Alice décale la date d''un tournoi qui a des inscrits',
   $q$update tournaments set debute_le = now() + interval '3 days' where id = '10000000-0000-0000-0000-000000000001'$q$, 'bloque');
 select essai('Alice déclare terminé un tournoi en cours (plus aucun point écrit)',
@@ -115,7 +115,7 @@ select essai('Alice ajoute Carol comme membre déjà acceptée, sans son accord'
 select essai('Alice invite Carol normalement',
   $q$insert into team_members (team_id, profile_id) values ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000c')$q$, 'passe');
 select essai('Alice ajoute un logo d''équipe sans l''offre',
-  $q$update teams set logo_url = 'https://exemple.test/l.png' where id = '20000000-0000-0000-0000-000000000001'$q$, 'bloque');
+  $q$update teams set logo_url = 'https://abcd1234.supabase.co/storage/v1/object/public/logos/equipe/20000000-0000-0000-0000-000000000001.png' where id = '20000000-0000-0000-0000-000000000001'$q$, 'bloque');
 select essai('Alice modifie la description de son équipe',
   $q$update teams set description = 'On recrute' where id = '20000000-0000-0000-0000-000000000001'$q$, 'passe');
 select en_tant_que(:bob);
@@ -127,7 +127,7 @@ select essai('Bob accepte son invitation',
   $q$update team_members set accepte_le = now() where team_id = '20000000-0000-0000-0000-000000000001' and profile_id = '00000000-0000-0000-0000-00000000000b'$q$, 'passe');
 select en_tant_que(:dave);
 select essai('Dave (offre payante) ajoute un logo d''équipe',
-  $q$update teams set logo_url = 'https://exemple.test/d.png' where id = '20000000-0000-0000-0000-000000000002'$q$, 'passe');
+  $q$update teams set logo_url = 'https://abcd1234.supabase.co/storage/v1/object/public/logos/equipe/20000000-0000-0000-0000-000000000002.png' where id = '20000000-0000-0000-0000-000000000002'$q$, 'passe');
 reset role;
 
 \echo '===== M2 — Messagerie ====='

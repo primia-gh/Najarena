@@ -2824,3 +2824,93 @@ end;
 $$;
 revoke execute on function public.enregistrer_consentement(text) from public, anon;
 grant execute on function public.enregistrer_consentement(text) to authenticated;
+
+-- ---------- Logos : stockage verrouillé (2026-09-28, audit M6) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Avant : format et taille contrôlés dans le navigateur seulement, et tout
+-- compte connecté pouvait déposer n'importe quel fichier dans l'espace
+-- public « logos », y compris à l'emplacement du logo d'une autre équipe ;
+-- le champ logo acceptait aussi n'importe quelle adresse extérieure.
+-- - Taille (2 Mo) et formats (PNG, JPEG, WebP) appliqués par Supabase
+--   Storage lui-même.
+-- - Emplacement lié au propriétaire : equipe/{id}.{ext} pour le capitaine
+--   de l'équipe, tournoi/{id}.{ext} pour l'organisateur du tournoi.
+-- - teams.logo_url : uniquement une image de cet espace, à l'emplacement
+--   de l'équipe ; couleur d'accent au format #RRGGBB. Les valeurs
+--   existantes qui ne respectent pas ces formats sont effacées.
+update storage.buckets
+set file_size_limit = 2097152,
+    allowed_mime_types = array['image/png', 'image/jpeg', 'image/webp']
+where id = 'logos';
+
+drop policy if exists "un proprietaire ajoute son propre logo" on storage.objects;
+drop policy if exists "un proprietaire remplace son propre logo" on storage.objects;
+
+create policy "un capitaine ou un organisateur depose son logo"
+  on storage.objects for insert with check (
+    bucket_id = 'logos'
+    and owner = (select auth.uid())
+    and array_length(storage.foldername(name), 1) = 1
+    and storage.filename(name) ~ '^[0-9a-f-]{36}\.(png|jpg|jpeg|webp)$'
+    and (
+      ((storage.foldername(name))[1] = 'equipe' and exists (
+        select 1 from public.teams t
+        where t.id::text = split_part(storage.filename(name), '.', 1)
+          and t.capitaine_id = (select auth.uid())))
+      or ((storage.foldername(name))[1] = 'tournoi' and exists (
+        select 1 from public.tournaments t
+        where t.id::text = split_part(storage.filename(name), '.', 1)
+          and t.organisateur_id = (select auth.uid())))
+    )
+  );
+
+create policy "un capitaine ou un organisateur remplace son logo"
+  on storage.objects for update
+  using (bucket_id = 'logos' and owner = (select auth.uid()))
+  with check (
+    bucket_id = 'logos'
+    and owner = (select auth.uid())
+    and array_length(storage.foldername(name), 1) = 1
+    and storage.filename(name) ~ '^[0-9a-f-]{36}\.(png|jpg|jpeg|webp)$'
+    and (
+      ((storage.foldername(name))[1] = 'equipe' and exists (
+        select 1 from public.teams t
+        where t.id::text = split_part(storage.filename(name), '.', 1)
+          and t.capitaine_id = (select auth.uid())))
+      or ((storage.foldername(name))[1] = 'tournoi' and exists (
+        select 1 from public.tournaments t
+        where t.id::text = split_part(storage.filename(name), '.', 1)
+          and t.organisateur_id = (select auth.uid())))
+    )
+  );
+
+update public.teams
+set logo_url = null
+where logo_url is not null
+  and logo_url !~ ('^https://[a-z0-9-]+\.supabase\.co/storage/v1/object/public/logos/equipe/'
+                   || id::text || '\.(png|jpg|jpeg|webp)(\?v=[0-9]+)?$');
+update public.teams set couleur_accent = null
+where couleur_accent is not null and couleur_accent !~ '^#[0-9a-fA-F]{6}$';
+
+alter table public.teams drop constraint if exists teams_logo_url_stockage;
+alter table public.teams add constraint teams_logo_url_stockage check (
+  logo_url is null
+  or logo_url ~ ('^https://[a-z0-9-]+\.supabase\.co/storage/v1/object/public/logos/equipe/'
+                 || id::text || '\.(png|jpg|jpeg|webp)(\?v=[0-9]+)?$')
+);
+-- Même règle pour le futur logo de tournoi (champ pas encore affiché).
+update public.tournaments
+set logo_url = null
+where logo_url is not null
+  and logo_url !~ ('^https://[a-z0-9-]+\.supabase\.co/storage/v1/object/public/logos/tournoi/'
+                   || id::text || '\.(png|jpg|jpeg|webp)(\?v=[0-9]+)?$');
+alter table public.tournaments drop constraint if exists tournaments_logo_url_stockage;
+alter table public.tournaments add constraint tournaments_logo_url_stockage check (
+  logo_url is null
+  or logo_url ~ ('^https://[a-z0-9-]+\.supabase\.co/storage/v1/object/public/logos/tournoi/'
+                 || id::text || '\.(png|jpg|jpeg|webp)(\?v=[0-9]+)?$')
+);
+alter table public.teams drop constraint if exists teams_couleur_accent_format;
+alter table public.teams add constraint teams_couleur_accent_format check (
+  couleur_accent is null or couleur_accent ~ '^#[0-9a-fA-F]{6}$'
+);
