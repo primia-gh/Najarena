@@ -15,7 +15,12 @@ export const revalidate = 3600;
 async function chargerCarte(slug: string): Promise<CarteProfil | null> {
   const supabase = creerClientPublic();
 
-  let { data: profil } = await supabase.from("profiles").select("id, pseudo, slug").eq("slug", slug).maybeSingle();
+  let { data: profil } = await supabase
+    .from("profiles")
+    .select("id, pseudo, slug")
+    .eq("slug", slug)
+    .is("supprime_le", null)
+    .maybeSingle();
   if (!profil) {
     // Ancienne adresse d'un joueur qui a changé de pseudo.
     const { data: ancien } = await supabase

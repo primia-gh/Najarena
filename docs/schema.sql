@@ -2992,3 +2992,131 @@ as $$
 $$;
 revoke execute on function public.mon_abonnement_stripe() from public, anon;
 grant execute on function public.mon_abonnement_stripe() to authenticated;
+
+-- ---------- Suppression de compte en libre-service (2026-09-28, audit M17) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- La suppression se faisait par e-mail au fondateur. Désormais depuis
+-- « Modifier mon profil ». Le compte n'est pas effacé mais anonymisé :
+-- effacer la ligne du profil emporterait les résultats des adversaires,
+-- les brackets et le journal public des points, qui ne se modifie jamais
+-- (CLAUDE.md §4). Ce qui disparaît : pseudo (remplacé par
+-- « Supprime-xxxxxxxxxxx »), pays, Discord, comptes Riot, rating (et donc
+-- la place au classement), statistiques de partie, équipes dont on est le
+-- seul membre, annonce, visites, liste de suivi, notifications, offre,
+-- anciennes adresses. Ce qui reste, sous le pseudo anonyme : matchs joués,
+-- journal des points, messages déjà envoyés, litiges.
+-- Refusée tant qu'un engagement est en cours (tournoi joué ou organisé,
+-- équipe avec d'autres membres, abonnement payant) : chaque refus dit quoi
+-- faire. L'identité de connexion (e-mail) est ensuite effacée par le
+-- serveur (suppression Supabase Auth « douce », qui garde la ligne).
+alter table public.profiles add column if not exists supprime_le timestamptz;
+grant select (supprime_le) on public.profiles to anon, authenticated;
+
+create or replace function public.supprimer_mon_compte()
+returns text -- pseudo anonyme du compte
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_profil record;
+  v_pseudo text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select pseudo, supprime_le into v_profil from public.profiles where id = v_joueur for update;
+  if v_profil.supprime_le is not null then
+    return v_profil.pseudo; -- déjà fait : une relance ne change rien
+  end if;
+
+  if exists (select 1 from public.admins where profile_id = v_joueur) then
+    raise exception 'COMPTE_ADMINISTRATEUR';
+  end if;
+  -- Tournoi en cours, même éliminé : ses points sont calculés à la
+  -- clôture, avec son rating comme adversaire.
+  if exists (
+    select 1
+    from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = v_joueur
+      and r.statut in ('inscrit', 'confirme')
+      and t.statut = 'en_cours'
+  ) or exists (
+    select 1
+    from public.match_participants mp
+    join public.matches m on m.id = mp.match_id
+    join public.tournaments t on t.id = m.tournament_id
+    where mp.profile_id = v_joueur and t.statut = 'en_cours'
+  ) then
+    raise exception 'TOURNOI_EN_COURS';
+  end if;
+  if exists (
+    select 1 from public.tournaments
+    where organisateur_id = v_joueur and statut in ('ouvert', 'checkin', 'en_cours')
+  ) then
+    raise exception 'TOURNOI_ORGANISE_ACTIF';
+  end if;
+  if exists (
+    select 1 from public.teams t
+    where t.capitaine_id = v_joueur
+      and exists (
+        select 1 from public.team_members m
+        where m.team_id = t.id and m.profile_id <> v_joueur and m.accepte_le is not null
+      )
+  ) then
+    raise exception 'EQUIPE_AVEC_MEMBRES';
+  end if;
+  if exists (
+    select 1 from public.abonnements_stripe
+    where profile_id = v_joueur and statut in ('active', 'trialing', 'past_due', 'unpaid', 'incomplete')
+  ) then
+    raise exception 'ABONNEMENT_ACTIF';
+  end if;
+
+  -- Tournois pas encore commencés : désinscription.
+  update public.registrations r
+  set statut = 'retire'
+  from public.tournaments t
+  where r.tournament_id = t.id
+    and r.profile_id = v_joueur
+    and r.statut in ('inscrit', 'confirme')
+    and t.statut in ('ouvert', 'checkin');
+
+  delete from public.tournaments where organisateur_id = v_joueur and statut = 'brouillon';
+  -- Équipes dont on est le seul membre (les autres cas sont refusés plus haut).
+  delete from public.teams where capitaine_id = v_joueur;
+  delete from public.team_members where profile_id = v_joueur;
+  delete from public.game_accounts where profile_id = v_joueur;
+  delete from public.stats_match_joueur where profile_id = v_joueur;
+  delete from public.ratings where profile_id = v_joueur;
+  delete from public.comptes_offres where profile_id = v_joueur;
+  delete from public.abonnements_stripe where profile_id = v_joueur;
+  delete from public.vues_profil where profile_id = v_joueur or vu_par = v_joueur;
+  delete from public.watchlist where recruteur_id = v_joueur or joueur_suivi_id = v_joueur;
+  delete from public.push_subscriptions where profile_id = v_joueur;
+  delete from public.recherches_coequipiers where profile_id = v_joueur;
+  delete from public.appels_assistant_ia where profile_id = v_joueur;
+  delete from public.anciens_slugs where profile_id = v_joueur;
+  delete from public.login_attempts
+  where email = (select lower(u.email) from auth.users u where u.id = v_joueur);
+
+  -- 20 caractères : « Supprime- » + 11 caractères de l'identifiant.
+  v_pseudo := 'Supprime-' || substr(replace(v_joueur::text, '-', ''), 1, 11);
+  update public.profiles
+  set pseudo = v_pseudo,
+      slug = lower(v_pseudo),
+      avatar_url = null,
+      pays = null,
+      discord_id = null,
+      visites_anonymes = true,
+      pseudo_modifie_le = null,
+      supprime_le = now()
+  where id = v_joueur;
+
+  return v_pseudo;
+end;
+$$;
+revoke execute on function public.supprimer_mon_compte() from public, anon;
+grant execute on function public.supprimer_mon_compte() to authenticated;

@@ -63,12 +63,17 @@ const chargerJoueur = cache(async (slug: string) => {
   // l'URL, comme pour les tournois et les équipes.
   const { data: profil, error: erreurProfil } = await supabase
     .from("profiles")
-    .select("id, pseudo, slug, pays, created_at")
+    .select("id, pseudo, slug, pays, created_at, supprime_le")
     .eq("slug", slug)
     .maybeSingle();
 
   if (erreurProfil) {
     return { statut: "erreur" as const };
+  }
+  // Compte supprimé (anonymisé) : ses matchs restent dans les brackets et
+  // le journal, mais il n'a plus de CV.
+  if (profil?.supprime_le) {
+    return { statut: "supprime" as const };
   }
   if (!profil) {
     // Ancienne adresse d'un joueur qui a changé de pseudo.
@@ -262,6 +267,9 @@ export async function generateMetadata({ params }: JoueurPageProps): Promise<Met
   if (donnees.statut === "deplace") {
     permanentRedirect(`/joueur/${donnees.slug}`);
   }
+  if (donnees.statut === "supprime") {
+    return { title: "Compte supprimé — Najarena", robots: { index: false, follow: true } };
+  }
   if (donnees.statut !== "ok") {
     return { title: "Profil introuvable — Najarena" };
   }
@@ -294,6 +302,23 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
   }
   if (donnees.statut === "introuvable") {
     notFound();
+  }
+
+  if (donnees.statut === "supprime") {
+    return (
+      <main className="flex-1 bg-bg px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
+        <Panneau className="flex flex-col gap-3 px-8 py-10">
+          <h1 className="font-titre text-3xl font-black uppercase">Compte supprimé</h1>
+          <p className="text-sm leading-relaxed text-text-2">
+            Ce joueur a supprimé son compte. Ses matchs restent dans les brackets et le journal public des
+            points, sous un pseudo anonyme : ils font partie de l&apos;historique de ses adversaires.
+          </p>
+          <Link href="/lol/classement" className="self-start text-sm text-muted underline underline-offset-3 hover:text-text">
+            Voir le classement
+          </Link>
+        </Panneau>
+      </main>
+    );
   }
 
   if (donnees.statut === "erreur") {

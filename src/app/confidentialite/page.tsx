@@ -221,11 +221,16 @@ export default function ConfidentialitePage() {
           </h2>
           <p className="mt-2 text-muted">
             Tes données de compte sont conservées tant que ton compte est
-            actif. En cas de suppression de compte, tes données
-            d&apos;identification sont effacées ; le journal public des
+            actif. Tu peux le supprimer toi-même depuis{" "}
+            <Link href="/moi/profil" className="text-text underline underline-offset-3">
+              Modifier mon profil
+            </Link>
+            : tes données d&apos;identification (pseudo, e-mail, pays,
+            Discord, compte Riot) sont alors effacées ; le journal public des
             points et les résultats de matchs auxquels tu as participé
-            restent conservés, conformément au principe de classement
-            incontestable et permanent décrit dans les CGU.
+            restent conservés sous un pseudo anonyme, conformément au principe
+            de classement incontestable et permanent décrit dans les CGU, de
+            même que les messages déjà envoyés à d&apos;autres membres.
           </p>
           <ul className="mt-2 flex flex-col gap-1.5 text-muted">
             <li>Visites de profil : jusqu&apos;à ce que tu passes en visites anonymes, ou jusqu&apos;à la suppression de ton compte.</li>

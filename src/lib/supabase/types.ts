@@ -568,6 +568,7 @@ export type Database = {
           pseudo: string
           pseudo_modifie_le: string | null
           slug: string
+          supprime_le: string | null
           visites_anonymes: boolean
         }
         Insert: {
@@ -581,6 +582,7 @@ export type Database = {
           pseudo: string
           pseudo_modifie_le?: string | null
           slug: string
+          supprime_le?: string | null
           visites_anonymes?: boolean
         }
         Update: {
@@ -594,6 +596,7 @@ export type Database = {
           pseudo?: string
           pseudo_modifie_le?: string | null
           slug?: string
+          supprime_le?: string | null
           visites_anonymes?: boolean
         }
         Relationships: []
@@ -1416,6 +1419,7 @@ export type Database = {
       reserver_appel_assistant_ia: { Args: never; Returns: boolean }
       s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
       se_desinscrire: { Args: { p_tournament_id: string }; Returns: boolean }
+      supprimer_mon_compte: { Args: never; Returns: string }
       visites_anonymes_actives: { Args: never; Returns: boolean }
     }
     Enums: {

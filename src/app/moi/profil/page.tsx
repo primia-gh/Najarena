@@ -2,12 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { modifierMonProfil } from "@/lib/profil-actions";
+import { modifierMonProfil, supprimerMonCompte } from "@/lib/profil-actions";
 import { estPseudoAutomatique, prochainChangementPseudo } from "@/lib/pseudo";
 import { formaterDate } from "@/lib/tournois";
 import { URL_SITE } from "@/lib/notifications";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
+import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
 
@@ -177,6 +178,34 @@ export default async function ModifierProfilPage({ searchParams }: ModifierProfi
             </Link>{" "}
             (offre Vérifié).
           </p>
+
+          <section aria-labelledby="titre-suppression" className="mt-14 border-t border-line pt-8">
+            <h2 id="titre-suppression" className="font-titre text-2xl font-extrabold uppercase text-text">
+              Supprimer mon compte
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              Sont effacés : ton pseudo, ton pays, ton compte Riot, ton rating et ta place au classement, tes
+              équipes dont tu es le seul membre, ton annonce, tes visites, ta liste de suivi et ton adresse de
+              connexion. Restent affichés sous un pseudo anonyme (« Supprime-… ») : tes matchs déjà joués et le
+              journal public de tes points, qui font partie de l&apos;historique des autres joueurs, ainsi que
+              les messages que tu as envoyés. C&apos;est définitif.
+            </p>
+            <form action={supprimerMonCompte} className="mt-4 flex flex-col gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="font-texte text-mini font-medium text-muted uppercase">
+                  Écris SUPPRIMER pour confirmer
+                </span>
+                <input name="confirmation" type="text" required autoComplete="off" className={CHAMP} />
+              </label>
+              <BoutonConfirmation
+                type="submit"
+                confirmation="Supprimer définitivement ton compte ? Tu seras déconnecté et ne pourras plus t'y reconnecter."
+                className="inline-flex min-h-11 items-center self-start font-texte text-mini font-semibold text-danger uppercase underline underline-offset-3"
+              >
+                Supprimer mon compte
+              </BoutonConfirmation>
+            </form>
+          </section>
         </Apparition>
       </div>
     </main>

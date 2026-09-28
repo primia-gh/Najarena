@@ -30,6 +30,7 @@ async function chargerCV(slug: string) {
     .from("profiles")
     .select("id, pseudo, slug, pays, created_at")
     .eq("slug", slug)
+    .is("supprime_le", null)
     .maybeSingle();
 
   if (!profil) {
