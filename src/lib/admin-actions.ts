@@ -188,3 +188,53 @@ export async function leverSuspension(formData: FormData) {
   }
   retourSuspensions("message", `Suspension levée pour ${pseudo}.`);
 }
+
+// ---------- Modération (02/10/2026, audit N27) ----------
+// Un texte retenu par la modération automatique (message, motif de litige)
+// est relu ici. Un message validé est remis à son destinataire, prévenu
+// comme pour tout nouveau message ; rejeté, il ne l'est jamais.
+export async function traiterSignalement(formData: FormData) {
+  const signalementId = String(formData.get("signalement_id") ?? "");
+  const valide = formData.get("decision") === "valider";
+
+  const supabase = await createClient();
+  await verifierAdmin(supabase);
+
+  const { data: contexte, error } = await supabase.rpc("traiter_signalement", {
+    p_signalement_id: signalementId,
+    p_valide: valide,
+  });
+  if (error) {
+    redirect(`/admin?erreur=${encodeURIComponent("Ce texte a déjà été traité.")}#moderation`);
+  }
+
+  const admin = creerClientAdmin();
+  if (valide && contexte === "message" && admin) {
+    const { data: signalement } = await admin
+      .from("moderation_signalements")
+      .select("cible_id")
+      .eq("id", signalementId)
+      .maybeSingle();
+    const { data: message } = signalement
+      ? await admin
+          .from("messages")
+          .select("conversation_id, expediteur_id, conversation:conversations(profile_a, profile_b)")
+          .eq("id", signalement.cible_id)
+          .maybeSingle()
+      : { data: null };
+    if (message?.conversation) {
+      const destinataire =
+        message.conversation.profile_a === message.expediteur_id
+          ? message.conversation.profile_b
+          : message.conversation.profile_a;
+      await notifierJoueur(
+        destinataire,
+        "Nouveau message — Najarena",
+        "Tu as reçu un nouveau message sur Najarena",
+        `<p><a href="${URL_SITE}/moi/messages/${message.conversation_id}">Voir la conversation</a></p>`,
+      );
+    }
+  }
+
+  redirect(`/admin?message=${encodeURIComponent(valide ? "Texte validé." : "Texte rejeté.")}#moderation`);
+}

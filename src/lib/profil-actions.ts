@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { estPseudoAutomatique, MESSAGE_PSEUDO_INVALIDE, PSEUDO_REGEX } from "@/lib/pseudo";
+import { messageModeration } from "@/lib/moderation";
 
 // Modification du profil (28/09/2026, audit E7) : pseudo, pays et visites
 // anonymes. Toutes les règles (unicité, un changement de pseudo par mois,
@@ -18,6 +19,8 @@ const MESSAGES_REFUS: Record<string, string> = {
   PSEUDO_RECEMMENT_MODIFIE:
     "Tu as déjà changé de pseudo il y a moins de 30 jours : un CV garde la même identité le temps que ton classement se construise.",
   PAYS_INVALIDE: "Pays invalide : lettres, espaces, apostrophes et tirets uniquement, 40 caractères au plus.",
+  // Modération automatique (audit N27).
+  PSEUDO_INTERDIT: messageModeration("PSEUDO_INTERDIT") ?? "Ce pseudo n'est pas accepté.",
 };
 
 function retour(parametre: "erreur" | "message", texte: string): never {

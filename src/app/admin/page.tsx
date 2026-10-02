@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { leverSuspension, resoudreLitigeAdmin, suspendreCompte } from "@/lib/admin-actions";
+import { leverSuspension, resoudreLitigeAdmin, suspendreCompte, traiterSignalement } from "@/lib/admin-actions";
+import { LIBELLE_RAISON } from "@/lib/moderation";
 import { attribuerOffreAdmin } from "@/lib/offres-actions";
 import { LABEL_OFFRE, chargerOffres, type Offre } from "@/lib/offres";
 import { formaterDate } from "@/lib/tournois";
@@ -119,6 +120,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { count: matchsEnregistres },
     { data: derniersInscrits },
     { data: suspensionsData },
+    { data: signalementsData },
   ] = await Promise.all([
     supabase
       .from("disputes")
@@ -150,6 +152,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       )
       .is("levee_le", null)
       .order("suspendu_le", { ascending: false }),
+    // File de modération (audit N27).
+    supabase
+      .from("moderation_signalements")
+      .select("id, contexte, extrait, raison, cree_le, auteur:profiles!moderation_signalements_auteur_id_fkey(pseudo, slug)")
+      .eq("statut", "a_examiner")
+      .order("cree_le", { ascending: true })
+      .limit(50),
   ]);
 
   const { signaux, profilsSignales, tournoisRecents } = await chargerSignaux(supabase);
@@ -187,6 +196,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const litigesResolus = litiges.filter((l) => l.resolution);
   const comptes = derniersInscrits ?? [];
   const suspensions = suspensionsData ?? [];
+  const signalements = signalementsData ?? [];
   const offresParCompte = await chargerOffres(supabase, comptes.map((c) => c.id));
 
   return (
@@ -362,6 +372,50 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     Lever
                   </BoutonConfirmation>
                 </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      </Apparition>
+
+      <Apparition delai={0.13}>
+      <section id="moderation" className="mt-10 scroll-mt-28" aria-labelledby="titre-moderation">
+        <SectionTitre>
+          <span id="titre-moderation">Textes à relire ({signalements.length})</span>
+        </SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Retenus par la modération automatique : insulte, menace ou lien dans un message privé (pas encore remis
+          à son destinataire) ou un motif de litige. Les propos haineux et les arnaques sont refusés d&apos;office.
+        </p>
+        {signalements.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">Rien à relire.</p>
+        ) : (
+          <ul className="mt-3 flex max-w-3xl flex-col gap-2">
+            {signalements.map((s) => (
+              <li key={s.id} className={"flex flex-col gap-2 " + classeCarte("sceau")}>
+                <span className="text-mini text-muted uppercase">
+                  {s.contexte === "message" ? "Message privé" : "Motif de litige"} ·{" "}
+                  {LIBELLE_RAISON[s.raison] ?? s.raison} · {s.auteur ? s.auteur.pseudo : "Compte supprimé"} ·{" "}
+                  <span className="tabular-nums">{formaterDate(s.cree_le)}</span>
+                </span>
+                <p className="text-sm text-text [overflow-wrap:anywhere]">« {s.extrait} »</p>
+                <div className="flex flex-wrap gap-4">
+                  <form action={traiterSignalement}>
+                    <input type="hidden" name="signalement_id" value={s.id} />
+                    <input type="hidden" name="decision" value="valider" />
+                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-accent underline underline-offset-3">
+                      {s.contexte === "message" ? "Valider et remettre" : "Valider"}
+                    </button>
+                  </form>
+                  <form action={traiterSignalement}>
+                    <input type="hidden" name="signalement_id" value={s.id} />
+                    <input type="hidden" name="decision" value="rejeter" />
+                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-danger underline underline-offset-3">
+                      Rejeter
+                    </button>
+                  </form>
+                </div>
               </li>
             ))}
           </ul>

@@ -40,6 +40,19 @@ where est_principal group by profile_id having count(*) > 1;
 select count(*) from public.game_accounts where verifie_le is not null;
 ```
 
+Après la migration (section 24), les textes déjà en base que la modération
+refuserait aujourd'hui (à renommer à la main si besoin) :
+
+```sql
+select 'pseudo' as champ, pseudo as texte from public.profiles
+where public.analyser_texte(pseudo, 'nom') like 'refus:%'
+union all
+select 'equipe', nom from public.teams where public.analyser_texte(nom, 'nom') like 'refus:%'
+union all
+select 'tournoi', nom from public.tournaments
+where creneau_auto is null and nature = 'tournoi' and public.analyser_texte(nom, 'nom') like 'refus:%';
+```
+
 Vérifier aussi que la production correspond bien à `docs/schema.sql` tel
 qu'il était avant ces changements (commit `139eacc`) : fonctions, policies,
 tâches pg_cron. Une divergence se traite avant d'appliquer la suite.
@@ -49,7 +62,7 @@ tâches pg_cron. Une divergence se traite avant d'appliquer la suite.
 Toute la migration est **la fin de `docs/schema.sql`, à partir de la ligne
 « Liaison Riot réservée au serveur (2026-09-28, audit C2) »** (ligne 1448
 aujourd'hui) jusqu'à la dernière ligne. Elle s'applique d'un seul bloc, dans
-une transaction, et contient 23 sections, dans cet ordre :
+une transaction, et contient 24 sections, dans cet ordre :
 
 1. Liaison Riot réservée au serveur (C2)
 2. Règles appliquées par la base (E1, M1 à M4)
@@ -78,6 +91,10 @@ une transaction, et contient 23 sections, dans cet ordre :
 22. Conditions de victoire du 1v1 (N5)
 23. Défis entre joueurs et « Invite ton rival » (N16, N18) — un défi a
     besoin d'un arbitre : au moins un compte dans la table `admins`
+24. Modération automatique (N27) — avant de l'appliquer, chercher les
+    pseudos, noms d'équipe et de tournoi déjà en base qui seraient refusés
+    (requête ci-dessous) : ils restent tels quels, mais ne pourront plus
+    être réenregistrés sans changement
 
 La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).

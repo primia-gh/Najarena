@@ -497,6 +497,53 @@ export type Database = {
         }
         Relationships: []
       }
+      moderation_signalements: {
+        Row: {
+          auteur_id: string | null
+          cible_id: string
+          contexte: string
+          cree_le: string
+          extrait: string
+          id: string
+          raison: string
+          statut: string
+          traite_le: string | null
+          traite_par: string | null
+        }
+        Insert: {
+          auteur_id?: string | null
+          cible_id: string
+          contexte: string
+          cree_le?: string
+          extrait: string
+          id?: string
+          raison: string
+          statut?: string
+          traite_le?: string | null
+          traite_par?: string | null
+        }
+        Update: {
+          auteur_id?: string | null
+          cible_id?: string
+          contexte?: string
+          cree_le?: string
+          extrait?: string
+          id?: string
+          raison?: string
+          statut?: string
+          traite_le?: string | null
+          traite_par?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_signalements_auteur_id_fkey"
+            columns: ["auteur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_participants: {
         Row: {
           est_gagnant: boolean | null
@@ -662,6 +709,7 @@ export type Database = {
         Row: {
           contenu: string
           conversation_id: string
+          en_revue: boolean
           envoye_le: string
           expediteur_id: string
           id: string
@@ -670,6 +718,7 @@ export type Database = {
         Insert: {
           contenu: string
           conversation_id: string
+          en_revue?: boolean
           envoye_le?: string
           expediteur_id: string
           id?: string
@@ -678,6 +727,7 @@ export type Database = {
         Update: {
           contenu?: string
           conversation_id?: string
+          en_revue?: boolean
           envoye_le?: string
           expediteur_id?: string
           id?: string
@@ -1611,6 +1661,8 @@ export type Database = {
       repondre_defi: { Args: { p_accepte: boolean; p_defi_id: string }; Returns: string | null }
       accepter_invitation_defi: { Args: { p_code: string }; Returns: string }
       annuler_defi: { Args: { p_defi_id: string }; Returns: boolean }
+      texte_acceptable: { Args: { p_contexte?: string; p_texte: string }; Returns: boolean }
+      traiter_signalement: { Args: { p_signalement_id: string; p_valide: boolean }; Returns: string }
       enregistrer_bye_automatique: {
         Args: { p_gagnant_id: string; p_match_id: string }
         Returns: undefined

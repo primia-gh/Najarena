@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { echapperHtml } from "@/lib/echappement";
+import { MESSAGE_EN_REVUE, messageModeration } from "@/lib/moderation";
 
 // Démarrer une conversation est réservé à l'offre organisateur — la policy
 // RLS "un organisateur demarre une conversation" le revérifie elle-même
@@ -49,12 +50,19 @@ export async function demarrerConversation(formData: FormData) {
     conversationId = nouvelle.id;
   }
 
-  const { error: erreurMessage } = await supabase
+  const { data: envoye, error: erreurMessage } = await supabase
     .from("messages")
-    .insert({ conversation_id: conversationId, expediteur_id: userData.user.id, contenu });
+    .insert({ conversation_id: conversationId, expediteur_id: userData.user.id, contenu })
+    .select("en_revue")
+    .single();
 
   if (erreurMessage) {
-    redirect(`${retour}?erreur=${encodeURIComponent("Message non envoyé.")}`);
+    redirect(`${retour}?erreur=${encodeURIComponent(messageModeration(erreurMessage.message) ?? "Message non envoyé.")}`);
+  }
+
+  // Modération (audit N27) : message retenu pour relecture, pas encore remis.
+  if (envoye?.en_revue) {
+    redirect(`/moi/messages/${conversationId}?message=${encodeURIComponent(MESSAGE_EN_REVUE)}`);
   }
 
   const { data: expediteur } = await supabase
@@ -94,12 +102,21 @@ export async function envoyerMessage(formData: FormData) {
     .eq("id", conversationId)
     .maybeSingle();
 
-  const { error } = await supabase
+  const { data: envoye, error } = await supabase
     .from("messages")
-    .insert({ conversation_id: conversationId, expediteur_id: userData.user.id, contenu });
+    .insert({ conversation_id: conversationId, expediteur_id: userData.user.id, contenu })
+    .select("en_revue")
+    .single();
 
   if (error) {
-    redirect(`/moi/messages/${conversationId}?erreur=${encodeURIComponent("Message non envoyé.")}`);
+    redirect(
+      `/moi/messages/${conversationId}?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Message non envoyé.")}`,
+    );
+  }
+
+  // Modération (audit N27) : message retenu pour relecture, pas encore remis.
+  if (envoye?.en_revue) {
+    redirect(`/moi/messages/${conversationId}?message=${encodeURIComponent(MESSAGE_EN_REVUE)}`);
   }
 
   if (conversation) {

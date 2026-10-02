@@ -16,12 +16,12 @@ export const metadata: Metadata = {
 
 interface ConversationPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
 export default async function ConversationPage({ params, searchParams }: ConversationPageProps) {
   const { id } = await params;
-  const { erreur } = await searchParams;
+  const { erreur, message } = await searchParams;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -48,7 +48,7 @@ export default async function ConversationPage({ params, searchParams }: Convers
 
   const { data: messagesData } = await supabase
     .from("messages")
-    .select("id, expediteur_id, contenu, envoye_le, lu_le")
+    .select("id, expediteur_id, contenu, envoye_le, lu_le, en_revue")
     .eq("conversation_id", id)
     .order("envoye_le", { ascending: true });
 
@@ -80,6 +80,11 @@ export default async function ConversationPage({ params, searchParams }: Convers
         {erreur && (
           <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
         )}
+        {message && (
+          <p role="status" className={"mt-4 " + classeCarte("atteste") + " text-sm text-accent"}>
+            {message}
+          </p>
+        )}
 
         <Apparition delai={0.1}>
           <div className="mt-6 flex flex-col gap-3">
@@ -95,6 +100,8 @@ export default async function ConversationPage({ params, searchParams }: Convers
                   <p>{m.contenu}</p>
                   <span className="mt-1 block font-texte tabular-nums text-mini text-muted">
                     {formaterDate(m.envoye_le)}
+                    {/* Modération (audit N27) : remis après relecture. */}
+                    {m.en_revue && " · en attente de relecture, pas encore remis"}
                   </span>
                 </div>
               );

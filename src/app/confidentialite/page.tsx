@@ -55,6 +55,11 @@ export default function ConfidentialitePage() {
               Défis : qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement ; un défi
               relevé devient un duel public, comme un match de tournoi.
             </li>
+            <li>
+              Modération : les textes que tu saisis (pseudo, noms, annonces, messages, motifs de litige) sont
+              analysés automatiquement avant publication. Un message privé ou un motif retenu (insulte, menace, lien)
+              est lu par un administrateur avant d&apos;être remis ; l&apos;extrait et la décision sont conservés.
+            </li>
             <li>Journal des variations de classement (public par nature, cf. CGU).</li>
             <li>
               Date et version des CGU acceptées, et de la confirmation d&apos;âge (case cochée à

@@ -7,6 +7,7 @@ import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { estLogoEquipeValide, TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { chargerOffre, ORDRE_OFFRE } from "@/lib/offres";
 import type { TablesUpdate } from "@/lib/supabase/types";
+import { messageModeration } from "@/lib/moderation";
 
 // 2 à 5 lettres/chiffres, convention standard des tags d'équipe esport.
 const TAG_REGEX = /^[A-Za-z0-9]{2,5}$/;
@@ -46,7 +47,7 @@ export async function creerEquipe(formData: FormData) {
 
   if (error || !equipe) {
     redirect(
-      `/equipe/nouvelle?erreur=${encodeURIComponent("Impossible de créer l'équipe pour l'instant.")}`,
+      `/equipe/nouvelle?erreur=${encodeURIComponent(messageModeration(error?.message) ?? "Impossible de créer l'équipe pour l'instant.")}`,
     );
   }
 
@@ -238,7 +239,9 @@ export async function mettreAJourEquipe(formData: FormData) {
     .eq("capitaine_id", userData.user.id);
 
   if (error) {
-    redirect(`/equipe/${slug}?erreur=${encodeURIComponent("Impossible de mettre à jour l'équipe pour l'instant.")}`);
+    redirect(
+      `/equipe/${slug}?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Impossible de mettre à jour l'équipe pour l'instant.")}`,
+    );
   }
 
   redirect(`/equipe/${slug}?message=${encodeURIComponent("Équipe mise à jour.")}`);

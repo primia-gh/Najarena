@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { messageModeration } from "@/lib/moderation";
 import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
@@ -101,10 +102,13 @@ export async function mettreAJourBioProfile(formData: FormData) {
     redirect(`/moi?erreur=${encodeURIComponent("Mise à jour indisponible pour l'instant.")}`);
   }
 
-  await admin
+  const { error } = await admin
     .from("comptes_offres")
     .update({ bio: bio || null, lien_externe: lienExterne || null })
     .eq("profile_id", userData.user.id);
+  if (error) {
+    redirect(`/moi?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Mise à jour indisponible pour l'instant.")}`);
+  }
 
   redirect("/moi?message=" + encodeURIComponent("Profil mis à jour."));
 }

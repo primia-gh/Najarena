@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { messageModeration } from "@/lib/moderation";
 
 const MESSAGE_MAX = 200;
 
@@ -23,7 +24,7 @@ export async function publierRechercheCoequipier(formData: FormData) {
 
   if (error) {
     redirect(
-      `/lol/coequipiers?erreur=${encodeURIComponent("Impossible de publier ton annonce pour l'instant.")}`,
+      `/lol/coequipiers?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Impossible de publier ton annonce pour l'instant.")}`,
     );
   }
 

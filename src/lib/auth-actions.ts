@@ -9,6 +9,7 @@ import { estPseudoAutomatique, MESSAGE_PSEUDO_INVALIDE, PSEUDO_REGEX } from "@/l
 import { COOKIE_CONSENTEMENT, VERSION_CGU } from "@/lib/cgu";
 import { cookies, headers } from "next/headers";
 import { destinationInterne } from "@/lib/redirection";
+import { messageModeration } from "@/lib/moderation";
 
 // 8 caractères au moins (audit du 27/09/2026, F1 : Supabase en accepte 6
 // par défaut). À aligner dans le tableau de bord Supabase (Authentication >
@@ -154,6 +155,13 @@ export async function sInscrire(formData: FormData) {
   }
 
   const supabase = await createClient();
+
+  // Modération (audit N27) : un pseudo refusé serait remplacé en silence par
+  // un pseudo automatique à la création du compte — on le dit avant.
+  const { data: acceptable } = await supabase.rpc("texte_acceptable", { p_texte: pseudo });
+  if (acceptable === false) {
+    redirect(avecSuite(`/inscription?erreur=${encodeURIComponent(messageModeration("PSEUDO_INTERDIT") ?? "")}`, suite));
+  }
 
   // Pseudo déjà pris (majuscules près), ou ancienne adresse d'un joueur qui
   // a changé de pseudo (elle redirige vers son CV et ne se reprend pas).

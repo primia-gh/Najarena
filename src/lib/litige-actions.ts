@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { echapperHtml } from "@/lib/echappement";
+import { messageModeration } from "@/lib/moderation";
 
 export async function ouvrirLitige(formData: FormData) {
   const matchId = String(formData.get("match_id") ?? "");
@@ -32,7 +33,7 @@ export async function ouvrirLitige(formData: FormData) {
 
   if (error) {
     redirect(
-      `/lol/tournois/${slug}?erreur=${encodeURIComponent("Impossible d'enregistrer ce litige pour l'instant.")}`,
+      `/lol/tournois/${slug}?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Impossible d'enregistrer ce litige pour l'instant.")}`,
     );
   }
 

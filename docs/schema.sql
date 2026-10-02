@@ -4340,3 +4340,407 @@ end;
 $$;
 revoke execute on function public.annuler_defi(uuid) from public, anon;
 grant execute on function public.annuler_defi(uuid) to authenticated;
+
+-- ---------- Modération automatique (2026-10-02, audit N27) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (messages d'erreur PSEUDO_INTERDIT, NOM_INTERDIT, TEXTE_INTERDIT,
+-- MESSAGE_INTERDIT, MOTIF_INTERDIT ; file de modération de /admin).
+-- Tout texte saisi par un joueur passe par analyser_texte avant d'être
+-- enregistré : insultes, propos haineux, menaces, arnaques, liens, et
+-- usurpation (« Najarena_Admin », « Modo »…). Le texte est d'abord
+-- « déguisé à l'envers » : accents retirés, chiffres lus comme des lettres
+-- (« s4lope »), lettres séparées (« c.o.n.n.a.r.d ») ou répétées
+-- (« connnard »), mots collés séparés aux majuscules (« NajarenaAdmin »).
+-- Trois contextes :
+-- - nom (pseudo, équipe, tag, nom de tournoi) : tout terme refusé ;
+-- - texte_public (description d'équipe, rôle, annonce, bio) : tout sauf
+--   l'usurpation ;
+-- - prive (message, motif de litige) : haine et arnaques refusées ;
+--   insultes, menaces et liens relus par un administrateur (un message
+--   relu n'est remis qu'après validation) ; le reste passe.
+-- La liste des termes n'est lisible par personne (la publier aiderait à la
+-- contourner) ; elle se complète par l'éditeur SQL de Supabase.
+create table if not exists public.moderation_termes (
+  terme     text primary key,
+  categorie text not null check (categorie in ('haine', 'menace', 'arnaque', 'insulte', 'grossier', 'usurpation')),
+  -- fragment : n'importe où dans le texte compacté ; mot : mot entier
+  -- (pour les termes courts, qui feraient sinon des faux positifs).
+  mode      text not null default 'fragment' check (mode in ('fragment', 'mot'))
+);
+alter table public.moderation_termes enable row level security;
+revoke all on public.moderation_termes from anon, authenticated;
+
+insert into public.moderation_termes (terme, categorie, mode) values
+  ('nigger', 'haine', 'fragment'), ('nigga', 'haine', 'fragment'), ('negre', 'haine', 'mot'),
+  ('negro', 'haine', 'mot'), ('bougnoul', 'haine', 'fragment'), ('youpin', 'haine', 'fragment'),
+  ('chinetoque', 'haine', 'fragment'), ('bicot', 'haine', 'mot'), ('tarlouze', 'haine', 'fragment'),
+  ('tapette', 'haine', 'mot'), ('pede', 'haine', 'mot'), ('pd', 'haine', 'mot'),
+  ('faggot', 'haine', 'fragment'), ('fag', 'haine', 'mot'), ('gouine', 'haine', 'mot'),
+  ('nazi', 'haine', 'mot'), ('hitler', 'haine', 'fragment'), ('heil', 'haine', 'mot'), ('kkk', 'haine', 'mot'),
+  ('killyourself', 'haine', 'fragment'), ('kys', 'haine', 'mot'), ('suicidetoi', 'haine', 'fragment'),
+  ('tuetoi', 'haine', 'fragment'),
+  ('jevaistetuer', 'menace', 'fragment'), ('jesaisoutuhabites', 'menace', 'fragment'),
+  ('jevaistetrouver', 'menace', 'fragment'),
+  ('nitrogratuit', 'arnaque', 'fragment'), ('freenitro', 'arnaque', 'fragment'),
+  ('rpgratuit', 'arnaque', 'fragment'), ('freerp', 'arnaque', 'fragment'),
+  ('riotpointsgratuit', 'arnaque', 'fragment'),
+  ('connard', 'insulte', 'fragment'), ('connasse', 'insulte', 'fragment'), ('salope', 'insulte', 'fragment'),
+  ('salaud', 'insulte', 'fragment'), ('encule', 'insulte', 'fragment'), ('enfoire', 'insulte', 'fragment'),
+  ('batard', 'insulte', 'fragment'), ('abruti', 'insulte', 'fragment'), ('fdp', 'insulte', 'mot'),
+  ('ntm', 'insulte', 'mot'), ('nique', 'insulte', 'mot'), ('niquer', 'insulte', 'mot'),
+  ('pute', 'insulte', 'mot'), ('putes', 'insulte', 'mot'), ('catin', 'insulte', 'mot'),
+  ('trisomique', 'insulte', 'fragment'), ('retard', 'insulte', 'mot'), ('fuck', 'insulte', 'fragment'),
+  ('bitch', 'insulte', 'fragment'), ('cunt', 'insulte', 'mot'), ('whore', 'insulte', 'fragment'),
+  ('slut', 'insulte', 'mot'), ('asshole', 'insulte', 'fragment'), ('dickhead', 'insulte', 'fragment'),
+  ('merde', 'grossier', 'fragment'), ('putain', 'grossier', 'fragment'), ('bordel', 'grossier', 'mot'),
+  ('chier', 'grossier', 'mot'), ('shit', 'grossier', 'mot'), ('couille', 'grossier', 'fragment'),
+  ('cul', 'grossier', 'mot'), ('teube', 'grossier', 'mot'), ('pussy', 'grossier', 'fragment'),
+  ('cock', 'grossier', 'mot'), ('porno', 'grossier', 'mot'), ('sexe', 'grossier', 'mot'),
+  ('cretin', 'grossier', 'mot'), ('debile', 'grossier', 'mot'),
+  ('najarena', 'usurpation', 'fragment'), ('admin', 'usurpation', 'mot'), ('admins', 'usurpation', 'mot'),
+  ('administrateur', 'usurpation', 'fragment'), ('administration', 'usurpation', 'fragment'),
+  ('modo', 'usurpation', 'mot'), ('modos', 'usurpation', 'mot'), ('moderateur', 'usurpation', 'fragment'),
+  ('moderatrice', 'usurpation', 'fragment'), ('moderation', 'usurpation', 'fragment'),
+  ('moderator', 'usurpation', 'fragment'), ('staff', 'usurpation', 'mot'), ('officiel', 'usurpation', 'mot'),
+  ('officielle', 'usurpation', 'mot'), ('official', 'usurpation', 'mot'), ('riot', 'usurpation', 'mot'),
+  ('riotgames', 'usurpation', 'fragment')
+on conflict (terme) do nothing;
+
+-- Texte « déguisé à l'envers » : minuscules, sans accents, chiffres et
+-- symboles lus comme des lettres, mots collés séparés aux majuscules.
+create or replace function public.normaliser_moderation(p_texte text)
+returns text
+language sql
+immutable
+set search_path = public
+as $$
+  select translate(
+    lower(regexp_replace(p_texte, '([a-z])([A-Z])', '\1 \2', 'g')),
+    'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ0134578@$!|',
+    'aaaaaaceeeeiiiinooooouuuuyyoieastbasii'
+  );
+$$;
+
+-- Verdict sur un texte : nul s'il passe, « revue:<catégorie> » s'il doit
+-- être relu, « refus:<catégorie> » s'il est refusé.
+create or replace function public.analyser_texte(p_texte text, p_contexte text)
+returns text
+language plpgsql
+stable
+security definer set search_path = public
+as $$
+declare
+  v_normal text;
+  v_compact text;
+  v_mots text[];
+  v_rang int := 0; -- 0 : passe ; 1 : à relire ; 2 : refusé
+  v_categorie text;
+  v_niveau int;
+  r record;
+begin
+  if p_texte is null or btrim(p_texte) = '' then
+    return null;
+  end if;
+  if p_contexte not in ('nom', 'texte_public', 'prive') then
+    raise exception 'CONTEXTE_INVALIDE';
+  end if;
+
+  v_normal := public.normaliser_moderation(p_texte);
+  v_compact := regexp_replace(regexp_replace(v_normal, '[^a-z]', '', 'g'), '(.)\1+', '\1', 'g');
+  select coalesce(array_agg(regexp_replace(m, '(.)\1+', '\1', 'g')), '{}')
+  into v_mots
+  from regexp_split_to_table(v_normal, '[^a-z]+') as m
+  where m <> '';
+
+  for r in
+    select categorie, mode, regexp_replace(terme, '(.)\1+', '\1', 'g') as forme
+    from public.moderation_termes
+  loop
+    if (r.mode = 'fragment' and position(r.forme in v_compact) > 0)
+       or (r.mode = 'mot' and r.forme = any(v_mots)) then
+      v_niveau := case
+        when r.categorie in ('haine', 'arnaque') then 2
+        when p_contexte = 'nom' then 2
+        when p_contexte = 'texte_public' then case when r.categorie = 'usurpation' then 0 else 2 end
+        when r.categorie in ('insulte', 'menace') then 1
+        else 0
+      end;
+      if v_niveau > v_rang then
+        v_rang := v_niveau;
+        v_categorie := r.categorie;
+      end if;
+    end if;
+  end loop;
+
+  -- Liens : refusés dans un nom ou un texte public, relus dans un message.
+  if v_rang < 2 and p_texte ~* '(https?://|www\.|discord\.gg/|[a-z0-9-]+\.(com|fr|net|org|gg|io|xyz|ru|ly|me|tk|co|be|ch|info|biz|link|app|site|online)(/|\s|$))' then
+    v_niveau := case when p_contexte = 'prive' then 1 else 2 end;
+    if v_niveau > v_rang then
+      v_rang := v_niveau;
+      v_categorie := 'lien';
+    end if;
+  end if;
+
+  return case v_rang when 2 then 'refus:' || v_categorie when 1 then 'revue:' || v_categorie end;
+end;
+$$;
+revoke all on function public.analyser_texte(text, text) from public, anon, authenticated;
+revoke all on function public.normaliser_moderation(text) from public, anon, authenticated;
+
+-- Contrôle avant envoi d'un formulaire (inscription : un pseudo refusé
+-- serait sinon remplacé en silence par un pseudo automatique).
+create or replace function public.texte_acceptable(p_texte text, p_contexte text default 'nom')
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select coalesce(public.analyser_texte(p_texte, p_contexte), '') not like 'refus:%';
+$$;
+grant execute on function public.texte_acceptable(text, text) to anon, authenticated;
+
+-- File de modération : textes à relire, visibles des administrateurs.
+create table if not exists public.moderation_signalements (
+  id          uuid primary key default gen_random_uuid(),
+  contexte    text not null check (contexte in ('message', 'litige')),
+  cible_id    uuid not null,
+  auteur_id   uuid references public.profiles(id) on delete set null,
+  extrait     text not null,
+  raison      text not null,
+  statut      text not null default 'a_examiner' check (statut in ('a_examiner', 'valide', 'rejete')),
+  cree_le     timestamptz not null default now(),
+  traite_par  uuid references public.profiles(id) on delete set null,
+  traite_le   timestamptz
+);
+create index if not exists moderation_signalements_statut_idx on public.moderation_signalements (statut, cree_le);
+create index if not exists moderation_signalements_auteur_idx on public.moderation_signalements (auteur_id);
+create index if not exists moderation_signalements_traite_par_idx on public.moderation_signalements (traite_par);
+alter table public.moderation_signalements enable row level security;
+create policy "admins voient la file de moderation" on public.moderation_signalements
+  for select using (exists (select 1 from public.admins where profile_id = (select auth.uid())));
+revoke insert, update, delete on public.moderation_signalements from anon, authenticated;
+
+-- Message relu avant d'être remis : son destinataire ne le voit qu'après
+-- validation (son auteur, si).
+alter table public.messages add column if not exists en_revue boolean not null default false;
+alter policy "participants lisent les messages" on public.messages
+  using (
+    (expediteur_id = (select auth.uid()) or not en_revue)
+    and exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id and (select auth.uid()) in (c.profile_a, c.profile_b)
+    )
+  );
+
+-- Pseudo : refusé à la modification ; à l'inscription, remplacé par un
+-- pseudo automatique (le compte se crée quand même, le joueur choisira).
+create or replace function public.moderer_pseudo()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if tg_op = 'UPDATE' and new.pseudo is not distinct from old.pseudo then
+    return new;
+  end if;
+  if coalesce(public.analyser_texte(new.pseudo, 'nom'), '') like 'refus:%' then
+    if tg_op = 'UPDATE' then
+      raise exception 'PSEUDO_INTERDIT';
+    end if;
+    new.pseudo := 'Joueur-' || substr(new.id::text, 1, 8);
+    new.slug := lower(new.pseudo);
+    if exists (select 1 from public.anciens_slugs where slug = new.slug) then
+      new.pseudo := 'Joueur-' || substr(new.id::text, 25, 8);
+      new.slug := lower(new.pseudo);
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_pseudo() from public, anon, authenticated;
+drop trigger if exists moderation_pseudo on public.profiles;
+create trigger moderation_pseudo
+  before insert or update of pseudo on public.profiles
+  for each row execute function public.moderer_pseudo();
+
+-- Équipes : nom et tag (noms), description (texte public).
+create or replace function public.moderer_equipe()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.analyser_texte(new.nom, 'nom'), '') like 'refus:%'
+     or coalesce(public.analyser_texte(new.tag, 'nom'), '') like 'refus:%' then
+    raise exception 'NOM_INTERDIT';
+  end if;
+  if coalesce(public.analyser_texte(new.description, 'texte_public'), '') like 'refus:%'
+     or coalesce(public.analyser_texte(new.contact_recrutement, 'prive'), '') like 'refus:%' then
+    raise exception 'TEXTE_INTERDIT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_equipe() from public, anon, authenticated;
+drop trigger if exists moderation_equipe on public.teams;
+create trigger moderation_equipe
+  before insert or update of nom, tag, description, contact_recrutement on public.teams
+  for each row execute function public.moderer_equipe();
+
+-- Rôle affiché sur la page d'équipe (texte public).
+create or replace function public.moderer_role_equipe()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.analyser_texte(new.role, 'texte_public'), '') like 'refus:%' then
+    raise exception 'TEXTE_INTERDIT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_role_equipe() from public, anon, authenticated;
+drop trigger if exists moderation_role_equipe on public.team_members;
+create trigger moderation_role_equipe
+  before insert or update of role on public.team_members
+  for each row execute function public.moderer_role_equipe();
+
+-- Nom de tournoi d'organisateur (les tournois officiels et les défis
+-- portent un nom écrit par la base ou le serveur).
+create or replace function public.moderer_tournoi()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.creneau_auto is null and new.nature = 'tournoi'
+     and coalesce(public.analyser_texte(new.nom, 'nom'), '') like 'refus:%' then
+    raise exception 'NOM_INTERDIT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_tournoi() from public, anon, authenticated;
+drop trigger if exists moderation_tournoi on public.tournaments;
+create trigger moderation_tournoi
+  before insert or update of nom on public.tournaments
+  for each row execute function public.moderer_tournoi();
+
+-- Annonce « cherche une équipe » et bio du profil (textes publics).
+create or replace function public.moderer_annonce()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.analyser_texte(new.message, 'texte_public'), '') like 'refus:%' then
+    raise exception 'TEXTE_INTERDIT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_annonce() from public, anon, authenticated;
+drop trigger if exists moderation_annonce on public.recherches_coequipiers;
+create trigger moderation_annonce
+  before insert or update of message on public.recherches_coequipiers
+  for each row execute function public.moderer_annonce();
+
+create or replace function public.moderer_bio()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.analyser_texte(new.bio, 'texte_public'), '') like 'refus:%' then
+    raise exception 'TEXTE_INTERDIT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_bio() from public, anon, authenticated;
+drop trigger if exists moderation_bio on public.comptes_offres;
+create trigger moderation_bio
+  before insert or update of bio on public.comptes_offres
+  for each row execute function public.moderer_bio();
+
+-- Messages privés : refusés, ou mis en revue (remis après validation).
+create or replace function public.moderer_message()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_verdict text := public.analyser_texte(new.contenu, 'prive');
+begin
+  if v_verdict like 'refus:%' then
+    raise exception 'MESSAGE_INTERDIT';
+  end if;
+  new.en_revue := v_verdict is not null;
+  if new.en_revue then
+    insert into public.moderation_signalements (contexte, cible_id, auteur_id, extrait, raison)
+    values ('message', new.id, new.expediteur_id, left(new.contenu, 300), substr(v_verdict, 7));
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_message() from public, anon, authenticated;
+drop trigger if exists moderation_message on public.messages;
+create trigger moderation_message
+  before insert on public.messages
+  for each row execute function public.moderer_message();
+
+-- Motif de litige : refusé, ou signalé à l'administrateur (il reste lisible
+-- de l'organisateur, qui doit pouvoir trancher).
+create or replace function public.moderer_litige()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_verdict text := public.analyser_texte(new.motif, 'prive');
+begin
+  if v_verdict like 'refus:%' then
+    raise exception 'MOTIF_INTERDIT';
+  end if;
+  if v_verdict is not null then
+    insert into public.moderation_signalements (contexte, cible_id, auteur_id, extrait, raison)
+    values ('litige', new.id, new.ouvert_par, left(new.motif, 300), substr(v_verdict, 7));
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_litige() from public, anon, authenticated;
+drop trigger if exists moderation_litige on public.disputes;
+create trigger moderation_litige
+  before insert on public.disputes
+  for each row execute function public.moderer_litige();
+
+-- Décision d'un administrateur sur un texte relu. Un message validé est
+-- remis à son destinataire ; rejeté, il ne l'est jamais.
+create or replace function public.traiter_signalement(p_signalement_id uuid, p_valide boolean)
+returns text -- contexte du texte traité
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_signalement record;
+begin
+  if not exists (select 1 from public.admins where profile_id = auth.uid()) then
+    raise exception 'NON_AUTORISE';
+  end if;
+  update public.moderation_signalements
+  set statut = case when p_valide then 'valide' else 'rejete' end, traite_par = auth.uid(), traite_le = now()
+  where id = p_signalement_id and statut = 'a_examiner'
+  returning * into v_signalement;
+  if not found then
+    raise exception 'SIGNALEMENT_DEJA_TRAITE';
+  end if;
+  if p_valide and v_signalement.contexte = 'message' then
+    update public.messages set en_revue = false where id = v_signalement.cible_id;
+  end if;
+  return v_signalement.contexte;
+end;
+$$;
+revoke execute on function public.traiter_signalement(uuid, boolean) from public, anon;
+grant execute on function public.traiter_signalement(uuid, boolean) to authenticated;

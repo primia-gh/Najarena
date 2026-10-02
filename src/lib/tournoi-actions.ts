@@ -8,6 +8,7 @@ import { formaterDate } from "@/lib/tournois";
 import { chargerOffre } from "@/lib/offres";
 import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 import { echapperDiscord } from "@/lib/echappement";
+import { messageModeration } from "@/lib/moderation";
 
 const CAPACITES = [4, 8, 16, 32, 64] as const;
 const CAPACITE_ETENDUE = 128;
@@ -119,7 +120,7 @@ export async function creerTournoi(formData: FormData) {
 
   if (error) {
     redirect(
-      `/organiser/nouveau?erreur=${encodeURIComponent("Impossible de créer le tournoi pour l'instant.")}`,
+      `/organiser/nouveau?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant.")}`,
     );
   }
 

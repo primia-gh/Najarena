@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "2 octobre",
+    titre: "Modération automatique",
+    texte:
+      "Pseudos, noms d'équipe et de tournoi, annonces, messages et motifs de litige passent désormais par un filtre avant d'être publiés : insultes, propos haineux, arnaques, liens douteux et faux comptes officiels (« Najarena_Admin »). Les cas douteux d'un message privé sont relus par un humain avant d'être remis.",
+    tags: ["Fiabilité"],
+  },
+  {
+    date: "2 octobre",
     titre: "Défie qui tu veux",
     texte:
       "Un bouton « Défier » sur chaque CV : un duel en une partie, résultat lu chez Riot, arbitré par Najarena. Il compte au classement (un défi classé par jour entre deux mêmes joueurs, pour éviter les arrangements). Ton rival n'est pas encore inscrit ? Envoie-lui un lien de défi : il crée son compte, lie son Riot ID, et le duel est prêt.",

@@ -98,6 +98,8 @@ Schéma de base de données : `docs/schema.sql`.
 
 *Mise à jour du 28/09/2026 (audit du 27/09) : les règles métier — inscription et check-in, réglages de tournoi figés, équipes, messagerie, profils, pseudos, suspension, stockage des logos, limites d'usage — sont appliquées **par la base** (triggers de contrôle, fonctions `security definer`, droits par colonne), pas seulement par les pages : une action serveur peut être appelée sans la page, et l'API Supabase sans le site. Toute nouvelle règle s'écrit aussi en base, avec un scénario dans `tests/sql/` (`npm run test:base`, rejoué par la CI à chaque envoi). Tout texte saisi par un utilisateur est échappé avant d'entrer dans un e-mail (`echapperHtml`) ou un message Discord (`echapperDiscord`), `src/lib/echappement.ts`.*
 
+*Mise à jour du 02/10/2026 (audit N27) : **modération automatique en base** — tout texte saisi (pseudo, équipe, tag, rôle, nom de tournoi, annonce, bio, message privé, motif de litige) passe par `analyser_texte` (insultes, haine, menaces, arnaques, liens, usurpation « Najarena/admin/modo/Riot »), avec déguisements défaits (accents, chiffres, lettres séparées ou répétées). Noms : refus ; textes publics : refus sauf usurpation ; messages et motifs : haine et arnaques refusées, insultes/menaces/liens relus par un administrateur (`/admin#moderation`, un message relu n'est remis qu'après validation). Liste des termes : table `moderation_termes`, lisible par personne, complétée par SQL. Messages d'erreur : `src/lib/moderation.ts`. Un nouveau champ de texte libre = un nouveau déclencheur de modération.*
+
 ---
 
 ## 7. Direction artistique
