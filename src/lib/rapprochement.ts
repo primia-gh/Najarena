@@ -167,6 +167,7 @@ interface MatchCandidat {
     format: string;
     organisateur_id: string;
     condition_victoire: string;
+    nature: string;
   } | null;
   match_participants: { profile_id: string; pret_le: string | null; profile: { pseudo: string } | null }[];
 }
@@ -282,6 +283,22 @@ async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat): Promise<voi
   const libelle = m.match_participants.map((p) => p.profile?.pseudo ?? "Joueur inconnu").join(" vs ");
   const lienTournoi = `${URL_SITE}/lol/tournois/${tournoi.slug}`;
 
+  // Duel entre deux joueurs (audit N16) : pas d'organisateur à déranger ;
+  // sans partie retrouvée dans les 24 h, le défi est annulé.
+  if (tournoi.nature === "defi") {
+    await Promise.all(
+      m.match_participants.map((p) =>
+        envoyerRappel(
+          p.profile_id,
+          `Duel sans résultat — ${tournoi.nom}`,
+          "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant, sinon le défi sera annulé.",
+          `${lienTournoi}#ton-match`,
+        ),
+      ),
+    );
+    return;
+  }
+
   // L'organisateur tranche (CLAUDE.md §3 : en cas de doute, on escalade) —
   // jusqu'ici, rien ne le prévenait qu'un match l'attendait.
   await Promise.all([
@@ -327,7 +344,7 @@ export async function traiterRechercheResultats(): Promise<{
   const { data: candidatsData } = await supabase
     .from("matches")
     .select(
-      "id, tournament_id, match_suivant_id, statut, demarre_le, defaite_reconnue_par, defaite_reconnue_le, tournament:tournaments(game_id, nom, slug, best_of, format, organisateur_id, condition_victoire), match_participants(profile_id, pret_le, profile:profiles(pseudo))",
+      "id, tournament_id, match_suivant_id, statut, demarre_le, defaite_reconnue_par, defaite_reconnue_le, tournament:tournaments(game_id, nom, slug, best_of, format, organisateur_id, condition_victoire, nature), match_participants(profile_id, pret_le, profile:profiles(pseudo))",
     )
     .in("statut", ["en_cours", "litige"])
     .not("demarre_le", "is", null)
@@ -435,5 +452,26 @@ export async function traiterRechercheResultats(): Promise<{
     }
   }
 
+  await annulerDuelsSansResultat(admin);
+
   return { trouves, litiges, ignores };
+}
+
+// Duels (défis entre joueurs, audit N16) sans résultat 24 h après leur
+// ouverture, recherche Riot terminée : annulés, sans verdict ni point —
+// personne n'a à trancher un duel que les deux joueurs n'ont pas joué.
+async function annulerDuelsSansResultat(admin: ClientAdmin): Promise<void> {
+  const limite = new Date(Date.now() - (RECHERCHE_APRES_LITIGE_HEURES + 1) * 3_600_000).toISOString();
+  const { data: duels } = await admin
+    .from("matches")
+    .select("id, tournament_id, tournament:tournaments!inner(nature, statut), match_verdicts(est_definitif)")
+    .eq("tournament.nature", "defi")
+    .eq("tournament.statut", "en_cours")
+    .in("statut", ["en_cours", "litige"])
+    .lt("demarre_le", limite);
+
+  for (const duel of duels ?? []) {
+    if (duel.match_verdicts.some((v) => v.est_definitif)) continue;
+    await admin.from("tournaments").update({ statut: "annule" }).eq("id", duel.tournament_id).eq("statut", "en_cours");
+  }
 }

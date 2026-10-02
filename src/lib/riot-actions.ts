@@ -12,6 +12,10 @@ import {
   type InvocateurRiot,
 } from "@/lib/riot";
 import { ROLES, type Role } from "@/lib/roles";
+import { cookies } from "next/headers";
+import { destinationInterne } from "@/lib/redirection";
+import { COOKIE_SUITE, DUREE_COOKIE_SUITE_SECONDES } from "@/lib/suite";
+import { URL_SITE } from "@/lib/notifications";
 
 const ICONE_MIN = 1;
 const ICONE_MAX = 28; // icônes de niveau classiques, stables sur tout patch/région
@@ -90,6 +94,18 @@ export async function lierRiotId(formData: FormData) {
     redirect(`/lier-riot?erreur=${encodeURIComponent(message)}`);
   }
 
+  // Page où revenir une fois le compte vérifié (lien de défi, audit N18).
+  const suite = destinationInterne(String(formData.get("suite") ?? "") || null, "");
+  if (suite) {
+    (await cookies()).set(COOKIE_SUITE, suite, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: URL_SITE.startsWith("https://"),
+      maxAge: DUREE_COOKIE_SUITE_SECONDES,
+      path: "/",
+    });
+  }
+
   redirect("/lier-riot");
 }
 
@@ -155,6 +171,12 @@ export async function verifierRiotId(formData: FormData) {
     .eq("puuid", puuid)
     .eq("profile_id", userData.user.id);
 
+  const magasin = await cookies();
+  const suite = destinationInterne(magasin.get(COOKIE_SUITE)?.value ?? null, "");
+  if (suite) {
+    magasin.delete(COOKIE_SUITE);
+    redirect(suite);
+  }
   redirect("/moi");
 }
 

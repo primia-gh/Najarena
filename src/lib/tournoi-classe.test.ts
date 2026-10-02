@@ -67,4 +67,12 @@ describe("tournoi classé", () => {
     expect(evaluerClassement({ ...base, joueursAuDepart: 4, decision: true }).statut).toBe("classe");
     expect(evaluerClassement({ ...base, decision: false }).statut).toBe("non_classe");
   });
+
+  it("un défi est classé, sauf le deuxième de la même paire en 24 h (amical)", () => {
+    const defi = { ...base, defi: true, joueursAuDepart: 2, publieLe: base.debuteLe };
+    expect(evaluerClassement(defi).statut).toBe("classe");
+    const amical = evaluerClassement({ ...defi, amical: true });
+    expect(amical.statut).toBe("non_classe");
+    expect(amical.titre).toBe("Défi amical");
+  });
 });

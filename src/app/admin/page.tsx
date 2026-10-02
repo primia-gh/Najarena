@@ -30,7 +30,11 @@ interface AdminPageProps {
 async function chargerSignaux(supabase: Awaited<ReturnType<typeof createClient>>) {
   const depuis = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const [{ data: tournoisRecents }, { data: variationsRecentes }] = await Promise.all([
-    supabase.from("tournaments").select("id, nom, slug, organisateur_id, statut").gte("debute_le", depuis),
+    supabase
+      .from("tournaments")
+      .select("id, nom, slug, organisateur_id, statut")
+      .eq("nature", "tournoi")
+      .gte("debute_le", depuis),
     supabase
       .from("rating_events")
       .select("profile_id, tournament_id, rating_avant, rating_apres")
@@ -128,8 +132,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     supabase
       .from("tournaments")
       .select("*", { count: "exact", head: true })
+      .eq("nature", "tournoi")
       .in("statut", ["ouvert", "checkin", "en_cours"]),
-    supabase.from("tournaments").select("*", { count: "exact", head: true }),
+    supabase.from("tournaments").select("*", { count: "exact", head: true }).eq("nature", "tournoi"),
     supabase.from("match_verdicts").select("*", { count: "exact", head: true }).eq("est_definitif", true),
     supabase
       .from("profiles")

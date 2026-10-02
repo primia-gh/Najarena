@@ -19,6 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     supabase
       .from("tournaments")
       .select("slug, cree_le")
+      .eq("nature", "tournoi")
       .in(
         "statut",
         STATUTS_PUBLICS.filter((s) => s !== "annule"),

@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { destinationInterne } from "@/lib/redirection";
 import { createClient } from "@/lib/supabase/server";
 import { delierCompteRiot, lierRiotId, verifierRiotId } from "@/lib/riot-actions";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
@@ -17,11 +18,13 @@ export const metadata: Metadata = {
 };
 
 interface LierRiotPageProps {
-  searchParams: Promise<{ erreur?: string; message?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; suite?: string }>;
 }
 
 export default async function LierRiotPage({ searchParams }: LierRiotPageProps) {
-  const { erreur, message } = await searchParams;
+  const { erreur, message, suite: suiteDemandee } = await searchParams;
+  // Page où revenir une fois le compte vérifié (lien de défi d'un ami, audit N18).
+  const suite = suiteDemandee ? destinationInterne(suiteDemandee, "") || null : null;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -70,11 +73,16 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
           <p className="font-texte tabular-nums text-sm text-accent">
             Vérifié : {compte.riot_game_name}#{compte.riot_tag_line} · {compte.region}
           </p>
+          {suite && (
+            <Link href={suite} className="mt-2 inline-block text-sm text-text underline underline-offset-3">
+              Continuer
+            </Link>
+          )}
         </div>
       ) : compte?.defi_icone_id != null ? (
         <EtapeVerification puuid={compte.puuid} defiIconeId={compte.defi_icone_id} />
       ) : (
-        <EtapeSaisie />
+        <EtapeSaisie suite={suite} />
       )}
 
       {compte && (
@@ -94,7 +102,7 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
   );
 }
 
-function EtapeSaisie() {
+function EtapeSaisie({ suite }: { suite: string | null }) {
   return (
     <>
       <p className="mt-2 text-sm text-muted">
@@ -102,6 +110,7 @@ function EtapeSaisie() {
         of Legends.
       </p>
       <form action={lierRiotId} className="mt-6 flex flex-col gap-4">
+        {suite && <input type="hidden" name="suite" value={suite} />}
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
             Riot ID

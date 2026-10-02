@@ -8,6 +8,7 @@ import { URL_SITE } from "@/lib/notifications";
 import { estPseudoAutomatique, MESSAGE_PSEUDO_INVALIDE, PSEUDO_REGEX } from "@/lib/pseudo";
 import { COOKIE_CONSENTEMENT, VERSION_CGU } from "@/lib/cgu";
 import { cookies, headers } from "next/headers";
+import { destinationInterne } from "@/lib/redirection";
 
 // 8 caractères au moins (audit du 27/09/2026, F1 : Supabase en accepte 6
 // par défaut). À aligner dans le tableau de bord Supabase (Authentication >
@@ -60,6 +61,17 @@ async function enregistrerTentativeEchouee(email: string): Promise<void> {
   await admin.from("login_attempts").insert({ email: email.toLowerCase(), ip: await adresseIp() });
 }
 
+// Page où revenir après l'inscription ou la connexion (lien de défi d'un
+// ami, audit N18) : un chemin du site seulement (src/lib/redirection.ts).
+function lireSuite(formData: FormData): string | null {
+  const demande = String(formData.get("suite") ?? "");
+  return demande ? destinationInterne(demande, "") || null : null;
+}
+
+function avecSuite(chemin: string, suite: string | null): string {
+  return suite ? `${chemin}${chemin.includes("?") ? "&" : "?"}suite=${encodeURIComponent(suite)}` : chemin;
+}
+
 function traduireErreurAuth(message: string): string {
   const m = message.toLowerCase();
   if (m.includes("duplicate key") || m.includes("already registered") || m.includes("already exists")) {
@@ -93,6 +105,7 @@ function traduireErreurAuth(message: string): string {
 }
 
 export async function sInscrire(formData: FormData) {
+  const suite = lireSuite(formData);
   const pseudo = String(formData.get("pseudo") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const motDePasse = String(formData.get("mot_de_passe") ?? "");
@@ -100,36 +113,43 @@ export async function sInscrire(formData: FormData) {
 
   if (!ageConfirme) {
     redirect(
-      `/inscription?erreur=${encodeURIComponent(
-        "Coche la case : 15 ans au moins (ou l'autorisation de ton représentant légal) et acceptation des CGU.",
-      )}`,
+      avecSuite(
+        `/inscription?erreur=${encodeURIComponent(
+          "Coche la case : 15 ans au moins (ou l'autorisation de ton représentant légal) et acceptation des CGU.",
+        )}`,
+        suite,
+      ),
     );
   }
 
   if (motDePasse.length < MOT_DE_PASSE_MIN) {
-    redirect(
-      `/inscription?erreur=${encodeURIComponent(`Le mot de passe doit faire au moins ${MOT_DE_PASSE_MIN} caractères.`)}`,
-    );
+    redirect(avecSuite(`/inscription?erreur=${encodeURIComponent(`Le mot de passe doit faire au moins ${MOT_DE_PASSE_MIN} caractères.`)}`, suite));
   }
 
   if (!PSEUDO_REGEX.test(pseudo)) {
-    redirect(`/inscription?erreur=${encodeURIComponent(MESSAGE_PSEUDO_INVALIDE)}`);
+    redirect(avecSuite(`/inscription?erreur=${encodeURIComponent(MESSAGE_PSEUDO_INVALIDE)}`, suite));
   }
 
   if (estPseudoAutomatique(pseudo)) {
     redirect(
-      `/inscription?erreur=${encodeURIComponent(
-        "Les pseudos « Joueur-… » sont réservés aux comptes qui n'ont pas encore choisi le leur.",
-      )}`,
+      avecSuite(
+        `/inscription?erreur=${encodeURIComponent(
+          "Les pseudos « Joueur-… » sont réservés aux comptes qui n'ont pas encore choisi le leur.",
+        )}`,
+        suite,
+      ),
     );
   }
 
   const slug = slugifier(pseudo);
   if (!slug) {
     redirect(
-      `/inscription?erreur=${encodeURIComponent(
-        "Ce pseudo ne peut pas servir d'identifiant, essaie avec des lettres ou des chiffres.",
-      )}`,
+      avecSuite(
+        `/inscription?erreur=${encodeURIComponent(
+          "Ce pseudo ne peut pas servir d'identifiant, essaie avec des lettres ou des chiffres.",
+        )}`,
+        suite,
+      ),
     );
   }
 
@@ -143,7 +163,7 @@ export async function sInscrire(formData: FormData) {
     supabase.from("anciens_slugs").select("slug").eq("slug", slug).maybeSingle(),
   ]);
   if (pris || ancienneAdresse) {
-    redirect(`/inscription?erreur=${encodeURIComponent("Ce pseudo est déjà pris.")}`);
+    redirect(avecSuite(`/inscription?erreur=${encodeURIComponent("Ce pseudo est déjà pris.")}`, suite));
   }
 
   const { data, error } = await supabase.auth.signUp({
@@ -151,33 +171,45 @@ export async function sInscrire(formData: FormData) {
     password: motDePasse,
     // version_cgu : date et version des CGU acceptées, conservées par la
     // base à la création du profil (handle_new_user).
-    options: { data: { pseudo, slug, version_cgu: VERSION_CGU } },
+    options: {
+      data: { pseudo, slug, version_cgu: VERSION_CGU },
+      // Le lien de confirmation ramène sur la page d'où vient le joueur
+      // (lien de défi d'un ami, audit N18).
+      ...(suite ? { emailRedirectTo: `${URL_SITE}/auth/callback?next=${encodeURIComponent(suite)}` } : {}),
+    },
   });
 
   if (error) {
-    redirect(`/inscription?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`);
+    redirect(avecSuite(`/inscription?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`, suite));
   }
 
   if (!data.session) {
     redirect(
-      `/connexion?message=${encodeURIComponent(
-        "Compte créé. Vérifie tes emails pour confirmer ton adresse avant de te connecter.",
-      )}`,
+      avecSuite(
+        `/connexion?message=${encodeURIComponent(
+          "Compte créé. Vérifie tes emails pour confirmer ton adresse avant de te connecter.",
+        )}`,
+        suite,
+      ),
     );
   }
 
-  redirect("/moi");
+  redirect(suite ?? "/moi");
 }
 
 export async function seConnecter(formData: FormData) {
+  const suite = lireSuite(formData);
   const email = String(formData.get("email") ?? "").trim();
   const motDePasse = String(formData.get("mot_de_passe") ?? "");
 
   if (email && (await tropDeTentatives(email))) {
     redirect(
-      `/connexion?erreur=${encodeURIComponent(
-        "Trop de tentatives échouées. Réessaie dans quelques minutes, ou utilise « Mot de passe oublié ? ».",
-      )}`,
+      avecSuite(
+        `/connexion?erreur=${encodeURIComponent(
+          "Trop de tentatives échouées. Réessaie dans quelques minutes, ou utilise « Mot de passe oublié ? ».",
+        )}`,
+        suite,
+      ),
     );
   }
 
@@ -189,10 +221,10 @@ export async function seConnecter(formData: FormData) {
 
   if (error) {
     await enregistrerTentativeEchouee(email);
-    redirect(`/connexion?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`);
+    redirect(avecSuite(`/connexion?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`, suite));
   }
 
-  redirect("/moi");
+  redirect(suite ?? "/moi");
 }
 
 // Ne fonctionne que si le provider "Discord" est activé dans Authentication
@@ -202,15 +234,19 @@ export async function seConnecter(formData: FormData) {
 // compromis. Tant que ce n'est pas fait, Supabase renvoie une erreur
 // explicite plutôt qu'un blocage silencieux.
 export async function seConnecterAvecDiscord(formData: FormData) {
+  const suite = lireSuite(formData);
   // Même case à cocher que sInscrire — un compte créé via Discord au
   // premier clic ne passe jamais par /inscription, donc sans ça le
   // consentement d'âge (CGU) ne serait jamais capturé pour ce chemin.
   const ageConfirme = formData.get("age_confirme") === "on";
   if (!ageConfirme) {
     redirect(
-      `/connexion?erreur=${encodeURIComponent(
-        "Coche la case : 15 ans au moins (ou l'autorisation de ton représentant légal) et acceptation des CGU.",
-      )}`,
+      avecSuite(
+        `/connexion?erreur=${encodeURIComponent(
+          "Coche la case : 15 ans au moins (ou l'autorisation de ton représentant légal) et acceptation des CGU.",
+        )}`,
+        suite,
+      ),
     );
   }
 
@@ -226,7 +262,7 @@ export async function seConnecterAvecDiscord(formData: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "discord",
-    options: { redirectTo: `${URL_SITE}/auth/callback` },
+    options: { redirectTo: `${URL_SITE}/auth/callback${suite ? `?next=${encodeURIComponent(suite)}` : ""}` },
   });
 
   if (error || !data.url) {

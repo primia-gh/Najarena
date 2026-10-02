@@ -51,6 +51,10 @@ export default function ConfidentialitePage() {
             <li>Pseudo, identifiant public (slug), pays si renseigné.</li>
             <li>Riot ID (nom de jeu, tag, région) et identifiant Riot stable (puuid), une fois lié.</li>
             <li>Historique de tournois, de matchs et de résultats.</li>
+            <li>
+              Défis : qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement ; un défi
+              relevé devient un duel public, comme un match de tournoi.
+            </li>
             <li>Journal des variations de classement (public par nature, cf. CGU).</li>
             <li>
               Date et version des CGU acceptées, et de la confirmation d&apos;âge (case cochée à

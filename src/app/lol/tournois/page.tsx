@@ -43,6 +43,8 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
     .from("tournaments")
     .select("id, slug, nom, format, capacite, region, statut, debute_le")
     .eq("game_id", 1)
+    // Défis entre joueurs (audit N16) : pas des tournois à rejoindre.
+    .eq("nature", "tournoi")
     .in("statut", STATUTS_PUBLICS)
     .order("debute_le", { ascending: true })
     .limit(50);
@@ -52,7 +54,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
 
   const [{ data, error }, { data: regionsData }] = await Promise.all([
     requete,
-    supabase.from("tournaments").select("region").eq("game_id", 1).in("statut", STATUTS_PUBLICS),
+    supabase.from("tournaments").select("region").eq("game_id", 1).eq("nature", "tournoi").in("statut", STATUTS_PUBLICS),
   ]);
 
   const tournois: Array<{

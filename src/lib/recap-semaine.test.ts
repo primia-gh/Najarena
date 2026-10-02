@@ -67,4 +67,13 @@ describe("récap de la semaine", () => {
     expect(message).toContain("Plus fortes progressions : A (+170).");
     expect(message).toContain("Nouveaux paliers : A → Platine.");
   });
+
+  it("compte les défis entre joueurs à part des tournois", () => {
+    // Les variations de l'exemple viennent de deux compétitions : t1, et t2 qui est un duel.
+    const ids = [...new Set(variations.map((v) => v.tournoiId))];
+    const recap = construireRecap(variations, matchs, paliers, new Set([ids[1]]))!;
+    expect(recap.tournois).toBe(1);
+    expect(recap.defis).toBe(1);
+    expect(messageRecap(recap, (id) => id, "https://x")).toContain("1 tournoi et 1 défi clôturés");
+  });
 });

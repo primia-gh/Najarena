@@ -219,6 +219,67 @@ export type Database = {
           },
         ]
       }
+      defis: {
+        Row: {
+          adversaire_id: string | null
+          code_invitation: string | null
+          condition_victoire: string
+          cree_le: string
+          expire_le: string
+          id: string
+          lanceur_id: string
+          repondu_le: string | null
+          statut: string
+          tournament_id: string | null
+        }
+        Insert: {
+          adversaire_id?: string | null
+          code_invitation?: string | null
+          condition_victoire?: string
+          cree_le?: string
+          expire_le: string
+          id?: string
+          lanceur_id: string
+          repondu_le?: string | null
+          statut?: string
+          tournament_id?: string | null
+        }
+        Update: {
+          adversaire_id?: string | null
+          code_invitation?: string | null
+          condition_victoire?: string
+          cree_le?: string
+          expire_le?: string
+          id?: string
+          lanceur_id?: string
+          repondu_le?: string | null
+          statut?: string
+          tournament_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "defis_lanceur_id_fkey"
+            columns: ["lanceur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "defis_adversaire_id_fkey"
+            columns: ["adversaire_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "defis_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           cree_le: string
@@ -1283,6 +1344,7 @@ export type Database = {
           game_id: number
           id: string
           logo_url: string | null
+          nature: string
           nom: string
           organisateur_id: string
           publie_le: string | null
@@ -1310,6 +1372,7 @@ export type Database = {
           game_id: number
           id?: string
           logo_url?: string | null
+          nature?: string
           nom: string
           organisateur_id: string
           publie_le?: string | null
@@ -1337,6 +1400,7 @@ export type Database = {
           game_id?: number
           id?: string
           logo_url?: string | null
+          nature?: string
           nom?: string
           organisateur_id?: string
           publie_le?: string | null
@@ -1521,6 +1585,7 @@ export type Database = {
         Returns: {
           amical: boolean
           classe: boolean
+          defi: boolean
           joueurs_au_depart: number
           officiel: boolean
           organisateur_joue: boolean
@@ -1529,6 +1594,23 @@ export type Database = {
       }
       figer_classement_tournoi: { Args: { p_tournament_id: string }; Returns: boolean }
       declarer_pret: { Args: { p_match_id: string }; Returns: boolean }
+      lancer_defi: { Args: { p_adversaire_id: string; p_condition?: string }; Returns: string }
+      creer_invitation_defi: { Args: { p_condition?: string }; Returns: string }
+      lire_invitation_defi: {
+        Args: { p_code: string }
+        Returns: {
+          condition_victoire: string
+          expire_le: string
+          lanceur_pseudo: string
+          lanceur_slug: string
+          region: string | null
+          statut: string
+          tournoi_slug: string | null
+        }[]
+      }
+      repondre_defi: { Args: { p_accepte: boolean; p_defi_id: string }; Returns: string | null }
+      accepter_invitation_defi: { Args: { p_code: string }; Returns: string }
+      annuler_defi: { Args: { p_defi_id: string }; Returns: boolean }
       enregistrer_bye_automatique: {
         Args: { p_gagnant_id: string; p_match_id: string }
         Returns: undefined

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { creerClientPublic } from "@/lib/supabase/public";
 import { ajouterJours } from "@/lib/tournois-auto/creneaux";
-import { estUnLundi, lundiDeLaSemaine } from "@/lib/recap-semaine";
+import { estUnLundi, lundiDeLaSemaine, resumeCompetitions } from "@/lib/recap-semaine";
 import { chargerRecapSemaine } from "@/lib/recap-semaine-serveur";
 import { dateLongue } from "@/lib/saisons";
 import FondEcailles from "@/components/design/FondEcailles";
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: SemainePageProps): Promise<Me
   if (!recap) return { title: titre, robots: { index: false, follow: true } };
   return {
     title: titre,
-    description: `${recap.tournois} tournoi${recap.tournois > 1 ? "s" : ""} League of Legends clôturé${recap.tournois > 1 ? "s" : ""}, ${recap.matchsVerifies} matchs vérifiés : progressions, exploit et nouveaux paliers de la semaine sur Najarena.`,
+    description: `${resumeCompetitions(recap)} sur League of Legends, ${recap.matchsVerifies} matchs vérifiés : progressions, exploit et nouveaux paliers de la semaine sur Najarena.`,
     alternates: { canonical: `/lol/semaine/${lundi}` },
   };
 }
@@ -87,8 +87,8 @@ export default async function RecapSemainePage({ params }: SemainePageProps) {
           ) : (
             <div className="mt-8 flex flex-col gap-4">
               <p className="text-sm text-text-2">
-                <span className="tabular-nums">{recap.tournois}</span> tournoi{recap.tournois > 1 ? "s" : ""} clôturé
-                {recap.tournois > 1 ? "s" : ""}, <span className="tabular-nums">{recap.matchsVerifies}</span> match
+                <span className="tabular-nums">{resumeCompetitions(recap)}</span>,{" "}
+                <span className="tabular-nums">{recap.matchsVerifies}</span> match
                 {recap.matchsVerifies > 1 ? "s" : ""} vérifié{recap.matchsVerifies > 1 ? "s" : ""} dans la donnée
                 officielle Riot.
               </p>

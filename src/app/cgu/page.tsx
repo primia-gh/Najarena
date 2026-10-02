@@ -90,6 +90,13 @@ export default function CguPage() {
             perd le match par forfait. Aucun forfait n&apos;est prononcé
             contre un joueur déjà en partie à ce moment-là.
           </p>
+          <p className="mt-2 text-muted">
+            Un joueur peut en défier un autre, en une partie : le défi
+            accepté devient un duel arbitré par Najarena, dont le résultat
+            est lu de la même façon. Entre deux mêmes joueurs, un seul défi
+            par période de 24 heures compte au classement ; un défi sans
+            partie retrouvée dans les 24 heures est annulé.
+          </p>
         </section>
 
         <section>

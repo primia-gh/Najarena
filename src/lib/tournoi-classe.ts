@@ -23,6 +23,8 @@ export interface DonneesClassement {
   organisateurJoue: boolean;
   /** Décision figée à la clôture ; nulle avant. */
   decision: boolean | null;
+  /** Défi entre deux joueurs (audit N16) : classé sauf s'il se joue en amical. */
+  defi?: boolean;
 }
 
 export type EtatCritere = "ok" | "ko" | "attente";
@@ -50,6 +52,17 @@ export function publieATemps(publieLe: string | null, debuteLe: string): boolean
 }
 
 export function criteresClassement(d: DonneesClassement): CritereClassement[] {
+  if (d.defi) {
+    return [
+      { libelle: "Défi entre deux comptes Riot vérifiés, arbitré par Najarena", etat: "ok", detail: null },
+      {
+        libelle: "Premier défi classé de ces deux joueurs en 24 h",
+        etat: d.amical ? "ko" : "ok",
+        detail: d.amical ? "Les suivants se jouent en amical." : null,
+      },
+    ];
+  }
+
   if (d.officiel) {
     return [
       {
@@ -113,6 +126,22 @@ export function evaluerClassement(d: DonneesClassement): EvaluationClassement {
         : "Ce tournoi ne remplissait pas les critères publics : il n'a pas compté au classement.",
       criteres,
     };
+  }
+
+  if (d.defi) {
+    return d.amical
+      ? {
+          statut: "non_classe",
+          titre: "Défi amical",
+          explication: "Ces deux joueurs ont déjà joué un défi classé dans les dernières 24 h : celui-ci se joue sans points.",
+          criteres,
+        }
+      : {
+          statut: "classe",
+          titre: "Défi classé",
+          explication: "Il compte au classement si la partie est retrouvée dans la donnée Riot.",
+          criteres,
+        };
   }
 
   if (d.amical) {

@@ -47,6 +47,8 @@ export interface MatchRecapSemaine {
 
 export interface RecapSemaine {
   tournois: number;
+  /** Duels issus de défis entre joueurs (audit N16), comptés à part. */
+  defis: number;
   matchsVerifies: number;
   progressions: { profileId: string; gain: number }[];
   exploit: { gagnantId: string; perdantId: string; chances: number; tournoiId: string } | null;
@@ -66,9 +68,11 @@ export function construireRecap(
   variations: VariationRecap[],
   matchs: MatchRecapSemaine[],
   paliers: Palier[],
+  defis: ReadonlySet<string> = new Set(),
 ): RecapSemaine | null {
-  const tournois = new Set(variations.map((v) => v.tournoiId));
-  if (tournois.size === 0) return null;
+  const competitions = new Set(variations.map((v) => v.tournoiId));
+  if (competitions.size === 0) return null;
+  const nbDefis = [...competitions].filter((id) => defis.has(id)).length;
 
   // Progressions : somme des variations de la semaine, par joueur.
   const gains = new Map<string, number>();
@@ -118,7 +122,8 @@ export function construireRecap(
     .slice(0, 3);
 
   return {
-    tournois: tournois.size,
+    tournois: competitions.size - nbDefis,
+    defis: nbDefis,
     matchsVerifies: matchs.length,
     progressions,
     exploit: exploit ? { ...exploit, chances: Math.round(exploit.chances * 100) } : null,
@@ -127,10 +132,20 @@ export function construireRecap(
   };
 }
 
+/** « 3 tournois et 2 défis clôturés » — tournois et duels comptés à part. */
+export function resumeCompetitions(recap: Pick<RecapSemaine, "tournois" | "defis">): string {
+  const morceaux = [
+    recap.tournois > 0 ? `${recap.tournois} tournoi${recap.tournois > 1 ? "s" : ""}` : null,
+    recap.defis > 0 ? `${recap.defis} défi${recap.defis > 1 ? "s" : ""}` : null,
+  ].filter((m): m is string => m !== null);
+  const total = recap.tournois + recap.defis;
+  return `${morceaux.join(" et ")} clôturé${total > 1 ? "s" : ""}`;
+}
+
 /** Message Discord du lundi (noms déjà échappés par l'appelant). */
 export function messageRecap(recap: RecapSemaine, nom: (id: string) => string, lien: string): string {
   const lignes = [
-    `📊 **Récap de la semaine** — ${recap.tournois} tournoi${recap.tournois > 1 ? "s" : ""} clôturé${recap.tournois > 1 ? "s" : ""}, ${recap.matchsVerifies} match${recap.matchsVerifies > 1 ? "s" : ""} vérifié${recap.matchsVerifies > 1 ? "s" : ""}.`,
+    `📊 **Récap de la semaine** — ${resumeCompetitions(recap)}, ${recap.matchsVerifies} match${recap.matchsVerifies > 1 ? "s" : ""} vérifié${recap.matchsVerifies > 1 ? "s" : ""}.`,
   ];
   if (recap.progressions.length > 0) {
     lignes.push(`Plus fortes progressions : ${recap.progressions.map((p) => `${nom(p.profileId)} (+${p.gain})`).join(", ")}.`);

@@ -10,6 +10,13 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "2 octobre",
+    titre: "Défie qui tu veux",
+    texte:
+      "Un bouton « Défier » sur chaque CV : un duel en une partie, résultat lu chez Riot, arbitré par Najarena. Il compte au classement (un défi classé par jour entre deux mêmes joueurs, pour éviter les arrangements). Ton rival n'est pas encore inscrit ? Envoie-lui un lien de défi : il crée son compte, lie son Riot ID, et le duel est prêt.",
+    tags: ["Fonctionnalité"],
+  },
+  {
     date: "28 septembre",
     titre: "Le 1v1 classique, lu dans la partie",
     texte:

@@ -3919,3 +3919,424 @@ drop trigger if exists controle_condition_victoire on public.tournaments;
 create trigger controle_condition_victoire
   before update on public.tournaments
   for each row execute function public.controler_condition_victoire();
+
+-- ---------- Défis entre joueurs et « Invite ton rival » (2026-09-28, audit N16 et N18) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (bouton « Défier » du profil, défis de /moi, page /defi/[code]).
+-- Un joueur défie un autre joueur en 1v1, en une partie (Bo1). Accepté, le
+-- défi devient un mini-tournoi à deux (tournaments.nature = 'defi') : même
+-- salle de match, même lecture du résultat chez Riot, même clôture. Il
+-- compte au classement si la partie est retrouvée chez Riot, avec deux
+-- plafonds : un seul défi classé par paire de joueurs et par 24 h (les
+-- suivants se jouent en amical), et les plafonds habituels (3 victoires
+-- contre le même adversaire en 24 h). Arbitre : le premier administrateur,
+-- jamais l'un des deux joueurs (le verdict manuel reste hors de leur main).
+-- « Invite ton rival » : un lien de défi pour un ami pas encore inscrit ; il
+-- crée son compte, lie son Riot ID et accepte depuis le lien.
+alter table public.tournaments add column if not exists nature text not null default 'tournoi';
+alter table public.tournaments drop constraint if exists tournaments_nature_check;
+alter table public.tournaments add constraint tournaments_nature_check check (nature in ('tournoi', 'defi'));
+alter table public.tournaments drop constraint if exists tournaments_capacite_check;
+alter table public.tournaments add constraint tournaments_capacite_check
+  check (capacite in (4, 8, 16, 32, 64, 128) or (nature = 'defi' and capacite = 2));
+create index if not exists tournaments_nature_idx on public.tournaments (nature, statut);
+
+-- Un défi ne se crée que par les fonctions ci-dessous : un compte connecté
+-- ne peut ni créer un tournoi « défi » ni changer la nature d'un tournoi.
+create or replace function public.controler_nature_tournoi()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user = 'authenticated' and (
+       (tg_op = 'INSERT' and new.nature <> 'tournoi')
+    or (tg_op = 'UPDATE' and new.nature is distinct from old.nature)) then
+    raise exception 'CHAMP_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_nature_tournoi() from public, anon, authenticated;
+
+drop trigger if exists controle_nature_tournoi on public.tournaments;
+create trigger controle_nature_tournoi
+  before insert or update on public.tournaments
+  for each row execute function public.controler_nature_tournoi();
+
+-- Critères « tournoi classé » (section du même nom), une colonne de plus :
+-- un défi est classé sauf s'il se joue en amical.
+drop function if exists public.criteres_tournoi_classe(uuid);
+create or replace function public.criteres_tournoi_classe(p_tournament_id uuid)
+returns table (
+  officiel boolean,
+  amical boolean,
+  publie_a_temps boolean,
+  joueurs_au_depart integer,
+  organisateur_joue boolean,
+  classe boolean,
+  defi boolean
+)
+language sql
+stable
+set search_path = public
+as $$
+  select
+    c.officiel,
+    c.amical,
+    c.publie_a_temps,
+    c.joueurs,
+    c.orga,
+    not c.amical and (c.officiel or c.defi or (c.publie_a_temps and c.joueurs >= 8 and not c.orga)),
+    c.defi
+  from (
+    select
+      t.creneau_auto is not null as officiel,
+      not t.compte_pour_classement as amical,
+      coalesce(t.publie_le <= t.debute_le - interval '24 hours', false) as publie_a_temps,
+      (select count(distinct mp.profile_id)::integer
+         from public.matches m
+         join public.match_participants mp on mp.match_id = m.id
+        where m.tournament_id = t.id) as joueurs,
+      exists (
+        select 1 from public.matches m
+        join public.match_participants mp on mp.match_id = m.id
+        where m.tournament_id = t.id and mp.profile_id = t.organisateur_id
+      ) or exists (
+        select 1 from public.registrations r
+        where r.tournament_id = t.id and r.profile_id = t.organisateur_id
+          and r.statut in ('inscrit', 'confirme')
+      ) as orga,
+      t.nature = 'defi' as defi
+    from public.tournaments t
+    where t.id = p_tournament_id
+  ) c;
+$$;
+revoke execute on function public.criteres_tournoi_classe(uuid) from public;
+grant execute on function public.criteres_tournoi_classe(uuid) to anon, authenticated, service_role;
+
+create table if not exists public.defis (
+  id                 uuid primary key default gen_random_uuid(),
+  lanceur_id         uuid not null references public.profiles(id) on delete cascade,
+  adversaire_id      uuid references public.profiles(id) on delete cascade,
+  -- Lien « Invite ton rival » : l'adversaire n'est connu qu'à l'acceptation.
+  code_invitation    text unique,
+  condition_victoire text not null default 'nexus' check (condition_victoire in ('nexus', 'classique')),
+  statut             text not null default 'propose' check (statut in ('propose', 'accepte', 'refuse', 'annule')),
+  tournament_id      uuid references public.tournaments(id) on delete set null,
+  cree_le            timestamptz not null default now(),
+  expire_le          timestamptz not null,
+  repondu_le         timestamptz,
+  check (adversaire_id is null or adversaire_id <> lanceur_id),
+  check (adversaire_id is not null or code_invitation is not null)
+);
+create index if not exists defis_lanceur_idx on public.defis (lanceur_id, statut);
+create index if not exists defis_adversaire_idx on public.defis (adversaire_id, statut);
+create index if not exists defis_tournament_idx on public.defis (tournament_id);
+alter table public.defis enable row level security;
+create policy "un joueur voit ses defis" on public.defis
+  for select using ((select auth.uid()) in (lanceur_id, adversaire_id));
+revoke insert, update, delete on public.defis from anon, authenticated;
+
+-- Région du compte Riot vérifié d'un joueur (compte principal LoL), ou nul.
+create or replace function public.region_compte_verifie(p_profile_id uuid)
+returns text
+language sql
+stable
+security definer set search_path = public
+as $$
+  select region from public.game_accounts
+  where profile_id = p_profile_id and game_id = 1 and est_principal and verifie_le is not null;
+$$;
+revoke all on function public.region_compte_verifie(uuid) from public, anon, authenticated;
+
+-- Contrôles communs au lanceur d'un défi ou d'une invitation.
+create or replace function public.controler_lanceur_defi(p_joueur uuid, p_condition text)
+returns text -- région du lanceur
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_region text;
+begin
+  if p_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if p_condition not in ('nexus', 'classique') then
+    raise exception 'CONDITION_INVALIDE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = p_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(p_joueur);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  -- Un défi à la fois par joueur (verrou), 5 propositions ouvertes au plus.
+  perform 1 from public.profiles where id = p_joueur for update;
+  if (select count(*) from public.defis
+      where lanceur_id = p_joueur and statut = 'propose' and expire_le > now()) >= 5 then
+    raise exception 'LIMITE_DEFIS';
+  end if;
+  return v_region;
+end;
+$$;
+revoke all on function public.controler_lanceur_defi(uuid, text) from public, anon, authenticated;
+
+create or replace function public.lancer_defi(p_adversaire_id uuid, p_condition text default 'nexus')
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_region text;
+  v_region_adversaire text;
+  v_id uuid;
+begin
+  if p_adversaire_id = v_joueur then
+    raise exception 'DEFI_SOI_MEME';
+  end if;
+  v_region := public.controler_lanceur_defi(v_joueur, p_condition);
+
+  if not exists (select 1 from public.profiles where id = p_adversaire_id and supprime_le is null) then
+    raise exception 'JOUEUR_INTROUVABLE';
+  end if;
+  v_region_adversaire := public.region_compte_verifie(p_adversaire_id);
+  if v_region_adversaire is null then
+    raise exception 'ADVERSAIRE_SANS_COMPTE_RIOT';
+  end if;
+  if v_region_adversaire <> v_region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+
+  if exists (
+    select 1 from public.defis
+    where statut = 'propose' and expire_le > now()
+      and ((lanceur_id = v_joueur and adversaire_id = p_adversaire_id)
+        or (lanceur_id = p_adversaire_id and adversaire_id = v_joueur))
+  ) then
+    raise exception 'DEFI_DEJA_PROPOSE';
+  end if;
+
+  insert into public.defis (lanceur_id, adversaire_id, condition_victoire, expire_le)
+  values (v_joueur, p_adversaire_id, p_condition, now() + interval '24 hours')
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke execute on function public.lancer_defi(uuid, text) from public, anon;
+grant execute on function public.lancer_defi(uuid, text) to authenticated;
+
+create or replace function public.creer_invitation_defi(p_condition text default 'nexus')
+returns text -- code du lien
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_code text;
+begin
+  perform public.controler_lanceur_defi(v_joueur, p_condition);
+  v_code := substr(replace(gen_random_uuid()::text, '-', ''), 1, 12);
+  insert into public.defis (lanceur_id, code_invitation, condition_victoire, expire_le)
+  values (v_joueur, v_code, p_condition, now() + interval '7 days');
+  return v_code;
+end;
+$$;
+revoke execute on function public.creer_invitation_defi(text) from public, anon;
+grant execute on function public.creer_invitation_defi(text) to authenticated;
+
+-- Page /defi/[code] : qui défie, dans quelle région, jusqu'à quand.
+create or replace function public.lire_invitation_defi(p_code text)
+returns table (
+  lanceur_pseudo text, lanceur_slug text, region text, condition_victoire text,
+  statut text, expire_le timestamptz, tournoi_slug text
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select p.pseudo, p.slug, public.region_compte_verifie(d.lanceur_id), d.condition_victoire,
+         d.statut, d.expire_le, t.slug
+  from public.defis d
+  join public.profiles p on p.id = d.lanceur_id
+  left join public.tournaments t on t.id = d.tournament_id
+  where d.code_invitation = p_code;
+$$;
+grant execute on function public.lire_invitation_defi(text) to anon, authenticated;
+
+-- Le mini-tournoi d'un défi accepté. Interne : appelée par repondre_defi et
+-- accepter_invitation_defi, jamais directement.
+create or replace function public.creer_duel(p_defi_id uuid)
+returns text -- adresse (slug) du duel
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_defi record;
+  v_region text;
+  v_arbitre uuid;
+  v_saison uuid;
+  v_classe boolean;
+  v_tournoi uuid;
+  v_match uuid;
+  v_slug text;
+  v_pseudo_a text;
+  v_pseudo_b text;
+begin
+  select * into v_defi from public.defis where id = p_defi_id for update;
+
+  v_region := public.region_compte_verifie(v_defi.lanceur_id);
+  if v_region is null or public.region_compte_verifie(v_defi.adversaire_id) is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if public.region_compte_verifie(v_defi.adversaire_id) <> v_region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+
+  -- Trois défis en cours au plus par joueur.
+  if exists (
+    select 1 from (values (v_defi.lanceur_id), (v_defi.adversaire_id)) as j(id)
+    where (select count(*) from public.registrations r
+           join public.tournaments t on t.id = r.tournament_id
+           where r.profile_id = j.id and t.nature = 'defi' and t.statut = 'en_cours') >= 3
+  ) then
+    raise exception 'TROP_DE_DEFIS_EN_COURS';
+  end if;
+
+  select profile_id into v_arbitre from public.admins order by ajoute_le, profile_id limit 1;
+  if v_arbitre is null then
+    raise exception 'AUCUN_ARBITRE';
+  end if;
+
+  select id into v_saison from public.seasons where game_id = 1 and est_courante;
+
+  -- Un seul défi classé par paire et par 24 h : les suivants en amical.
+  v_classe := not exists (
+    select 1 from public.tournaments t
+    where t.nature = 'defi' and t.compte_pour_classement and t.cree_le > now() - interval '24 hours'
+      and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = v_defi.lanceur_id)
+      and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = v_defi.adversaire_id)
+  );
+
+  select pseudo into v_pseudo_a from public.profiles where id = v_defi.lanceur_id;
+  select pseudo into v_pseudo_b from public.profiles where id = v_defi.adversaire_id;
+  v_slug := 'defi-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
+
+  insert into public.tournaments (
+    game_id, season_id, organisateur_id, slug, nom, format, type_bracket, best_of, capacite,
+    region, compte_pour_classement, debute_le, checkin_ouvre_le, statut, condition_victoire, nature
+  ) values (
+    1, v_saison, v_arbitre, v_slug, 'Défi ' || v_pseudo_a || ' contre ' || v_pseudo_b, '1v1', 'elim_simple', 1, 2,
+    v_region, v_classe, now(), now(), 'en_cours', v_defi.condition_victoire, 'defi'
+  ) returning id into v_tournoi;
+
+  insert into public.registrations (tournament_id, profile_id, statut, confirme_le, seed) values
+    (v_tournoi, v_defi.lanceur_id, 'confirme', now(), 1),
+    (v_tournoi, v_defi.adversaire_id, 'confirme', now(), 2);
+
+  insert into public.matches (tournament_id, tour, position, statut, demarre_le)
+  values (v_tournoi, 1, 1, 'en_cours', now())
+  returning id into v_match;
+
+  insert into public.match_participants (match_id, profile_id, slot) values
+    (v_match, v_defi.lanceur_id, 1),
+    (v_match, v_defi.adversaire_id, 2);
+
+  update public.defis
+  set statut = 'accepte', repondu_le = now(), tournament_id = v_tournoi
+  where id = p_defi_id;
+
+  return v_slug;
+end;
+$$;
+revoke all on function public.creer_duel(uuid) from public, anon, authenticated;
+
+-- Réponse du joueur défié. Renvoie l'adresse du duel s'il accepte.
+create or replace function public.repondre_defi(p_defi_id uuid, p_accepte boolean)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_defi record;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select * into v_defi from public.defis where id = p_defi_id for update;
+  if not found then
+    raise exception 'DEFI_INTROUVABLE';
+  end if;
+  if v_defi.adversaire_id is distinct from v_joueur then
+    raise exception 'NON_DESTINATAIRE';
+  end if;
+  if v_defi.statut <> 'propose' then
+    raise exception 'DEFI_DEJA_TRAITE';
+  end if;
+  if v_defi.expire_le <= now() then
+    raise exception 'DEFI_EXPIRE';
+  end if;
+
+  if not p_accepte then
+    update public.defis set statut = 'refuse', repondu_le = now() where id = p_defi_id;
+    return null;
+  end if;
+  return public.creer_duel(p_defi_id);
+end;
+$$;
+revoke execute on function public.repondre_defi(uuid, boolean) from public, anon;
+grant execute on function public.repondre_defi(uuid, boolean) to authenticated;
+
+-- Acceptation d'un lien « Invite ton rival ».
+create or replace function public.accepter_invitation_defi(p_code text)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_defi record;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select * into v_defi from public.defis where code_invitation = p_code for update;
+  if not found then
+    raise exception 'DEFI_INTROUVABLE';
+  end if;
+  if v_defi.lanceur_id = v_joueur then
+    raise exception 'DEFI_SOI_MEME';
+  end if;
+  if v_defi.statut <> 'propose' or v_defi.adversaire_id is not null then
+    raise exception 'DEFI_DEJA_TRAITE';
+  end if;
+  if v_defi.expire_le <= now() then
+    raise exception 'DEFI_EXPIRE';
+  end if;
+
+  update public.defis set adversaire_id = v_joueur where id = v_defi.id;
+  return public.creer_duel(v_defi.id);
+end;
+$$;
+revoke execute on function public.accepter_invitation_defi(text) from public, anon;
+grant execute on function public.accepter_invitation_defi(text) to authenticated;
+
+-- Le lanceur retire un défi (ou une invitation) pas encore accepté.
+create or replace function public.annuler_defi(p_defi_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.defis set statut = 'annule', repondu_le = now()
+  where id = p_defi_id and lanceur_id = auth.uid() and statut = 'propose';
+  return found;
+end;
+$$;
+revoke execute on function public.annuler_defi(uuid) from public, anon;
+grant execute on function public.annuler_defi(uuid) to authenticated;

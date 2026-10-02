@@ -35,7 +35,7 @@ export async function chargerRecapSemaine(client: Client, lundi: string): Promis
             .from("matches")
             .select("tournament_id, match_participants(profile_id), match_verdicts(niveau, gagnant_id, est_definitif)")
             .in("tournament_id", idsTournois),
-          client.from("tournaments").select("id, nom, slug").in("id", idsTournois),
+          client.from("tournaments").select("id, nom, slug, nature").in("id", idsTournois),
         ])
       : [{ data: [] }, { data: [] }];
 
@@ -58,6 +58,7 @@ export async function chargerRecapSemaine(client: Client, lundi: string): Promis
     })),
     matchsVerifies,
     (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min })),
+    new Set((tournoisData ?? []).filter((t) => t.nature === "defi").map((t) => t.id)),
   );
 
   const ids = recap

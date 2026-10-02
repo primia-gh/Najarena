@@ -66,6 +66,8 @@ Règles calibrées par simulation (`docs/sim.py`) :
 
 Anti-abus : 3 victoires max contre le même adversaire par 24 h, forfait = zéro point des deux côtés, verdict manuel ignoré dans le calcul.
 
+*Mise à jour du 02/10/2026 (audit N16 / N18) : **défis entre joueurs** — bouton « Défier » du CV, défis dans `/moi`, lien d'invitation `/defi/[code]`. Un défi accepté devient un duel en une partie (`tournaments.nature = 'defi'`, capacité 2), arbitré par le premier administrateur, avec la même salle de match et la même lecture Riot ; classé sauf le deuxième défi d'une même paire en 24 h (joué en amical), annulé sans partie retrouvée en 24 h. Toutes les règles en base (`lancer_defi`, `creer_duel`…). Les listes publiques de tournois, le plan du site et les statistiques excluent les défis (filtre `nature = 'tournoi'`).*
+
 *Mise à jour du 28/09/2026 (audit E12 / N12) : seul un **tournoi classé** écrit des points — tournoi officiel (quotidien automatique), ou tournoi d'organisateur avec au moins 8 joueurs au départ, publié au moins 24 h avant son début, sans son organisateur dans le bracket et pas déclaré amical. La base fige la décision à la clôture (`figer_classement_tournoi`, colonne `tournaments.classe`) et `cloturer_rating_joueur` refuse tout tournoi non classé. Seuils : `src/lib/tournoi-classe.ts` et `criteres_tournoi_classe` (les deux à changer ensemble). Règle proposée par l'audit, à valider par le porteur du projet.*
 
 **Chaque variation de points est journalisée** dans `rating_events`, avec le rating avant et après. Ce journal est public et ne se modifie jamais.
@@ -145,6 +147,7 @@ Schéma de base de données : `docs/schema.sql`.
 /lol/coequipiers           recherche de coéquipiers (5v5)
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
 /certificat/[code]         certificat de niveau daté et figé, émis depuis le CV (non indexé)
+/defi/[code]               lien « Invite ton rival » : un ami s'inscrit, lie son Riot ID et relève le défi (non indexé)
 /equipe/[slug]             page publique d'équipe
 /equipe/nouvelle           création d'équipe
 /organiser/nouveau         création de tournoi

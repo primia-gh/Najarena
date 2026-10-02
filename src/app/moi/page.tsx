@@ -18,6 +18,8 @@ import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
 import { estPseudoAutomatique } from "@/lib/pseudo";
 import { ouvrirPortailAbonnement } from "@/lib/stripe-actions";
+import { chargerMesDefis } from "@/lib/defis-serveur";
+import SectionDefis from "@/components/defis/SectionDefis";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
@@ -53,6 +55,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     infoOffre,
     { data: matchsEnCoursData },
     { data: abonnement },
+    mesDefis,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -68,7 +71,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     supabase
       .from("registrations")
       .select(
-        "id, statut, inscrit_le, tournament:tournaments(slug, nom, statut, debute_le, region, format)",
+        "id, statut, inscrit_le, tournament:tournaments(slug, nom, statut, debute_le, region, format, nature)",
       )
       .eq("profile_id", utilisateur.id)
       .order("inscrit_le", { ascending: false }),
@@ -76,6 +79,8 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       .from("tournaments")
       .select("id, slug, nom, statut, debute_le, region, format")
       .eq("organisateur_id", utilisateur.id)
+      // Défis arbitrés (administrateurs) : pas des tournois organisés.
+      .eq("nature", "tournoi")
       .order("cree_le", { ascending: false }),
     supabase
       .from("team_members")
@@ -98,10 +103,13 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     // Abonnement Stripe : ouvre le portail (moyen de paiement, factures,
     // résiliation).
     supabase.rpc("mon_abonnement_stripe").maybeSingle(),
+    // Défis reçus, envoyés, liens d'invitation et duels (audit N16, N18).
+    chargerMesDefis(supabase, utilisateur.id),
   ]);
   const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
-  const inscriptions = inscriptionsData ?? [];
+  // Les duels (défis) ont leur propre section.
+  const inscriptions = (inscriptionsData ?? []).filter((i) => i.tournament?.nature !== "defi");
   const tournoisOrganises = tournoisOrganisesData ?? [];
 
   const affiliations = affiliationsData ?? [];
@@ -290,6 +298,10 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           <PushOptIn />
         </div>
       </section>
+      </Apparition>
+
+      <Apparition delai={0.14}>
+        <SectionDefis defis={mesDefis} />
       </Apparition>
 
       <Apparition delai={0.16}>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { destinationInterne } from "@/lib/redirection";
 import { seConnecter, seConnecterAvecDiscord } from "@/lib/auth-actions";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
@@ -13,11 +14,13 @@ export const metadata: Metadata = {
 };
 
 interface ConnexionPageProps {
-  searchParams: Promise<{ erreur?: string; message?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; suite?: string }>;
 }
 
 export default async function ConnexionPage({ searchParams }: ConnexionPageProps) {
-  const { erreur, message } = await searchParams;
+  const { erreur, message, suite: suiteDemandee } = await searchParams;
+  // Page où revenir ensuite (lien de défi d'un ami, audit N18) : chemin du site seulement.
+  const suite = suiteDemandee ? destinationInterne(suiteDemandee, "") || null : null;
 
   return (
     <main className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -37,6 +40,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
       )}
 
       <form action={seConnecter} className="mt-6 flex flex-col gap-4">
+        {suite && <input type="hidden" name="suite" value={suite} />}
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
             E-mail
@@ -78,6 +82,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
       </div>
 
       <form action={seConnecterAvecDiscord} className="mt-6 flex flex-col gap-3">
+        {suite && <input type="hidden" name="suite" value={suite} />}
         <label className="flex items-start gap-2 text-sm text-muted">
           <input name="age_confirme" type="checkbox" required className="mt-0.5 accent-accent" />
           <span>
@@ -100,7 +105,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
 
       <p className="mt-6 text-sm text-muted">
         Pas encore de compte ?{" "}
-        <Link href="/inscription" className="text-text underline underline-offset-3">
+        <Link href={suite ? `/inscription?suite=${encodeURIComponent(suite)}` : "/inscription"} className="text-text underline underline-offset-3">
           S&apos;inscrire
         </Link>
       </p>

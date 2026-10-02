@@ -75,7 +75,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -257,6 +257,11 @@ export async function generateMetadata({
   }
 
   const { tournoi } = donnees;
+  // Duel entre deux joueurs (audit N16) : page utile aux deux joueurs, pas
+  // une page à faire indexer.
+  if (tournoi.nature === "defi") {
+    return { title: `${tournoi.nom} — Najarena`, robots: { index: false, follow: true } };
+  }
   return {
     title: `${tournoi.nom} — Najarena`,
     description: `Tournoi League of Legends ${tournoi.format}${tournoi.best_of > 1 ? ` en Bo${tournoi.best_of}` : ""}, le ${formaterDate(tournoi.debute_le)} (heure de Paris), ${tournoi.capacite} joueurs, région ${tournoi.region}. Résultats lus dans la donnée officielle Riot.`,
@@ -301,6 +306,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
+  // Duel issu d'un défi entre deux joueurs (audit N16).
+  const estDefi = tournoi.nature === "defi";
   // Condition de victoire du tournoi (audit N5).
   const condition: ConditionVictoire = tournoi.condition_victoire === "classique" ? "classique" : "nexus";
 
@@ -355,6 +362,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const joueursDuBracket = new Set(matchs.flatMap((m) => m.match_participants.map((p) => p.profile_id)));
   const classement = evaluerClassement({
     officiel: complements.estQuotidien,
+    defi: estDefi,
     amical: !complements.comptePourClassement,
     publieLe: complements.publieLe,
     debuteLe: tournoi.debute_le,
@@ -372,7 +380,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   // bracket (lib/organisation-actions.ts), le dernier est donc la finale.
   const libelleTour = (index: number) => {
     const reste = toursOrdonnes.length - index;
-    if (reste === 1) return "Finale";
+    if (reste === 1) return estDefi ? "Duel" : "Finale";
     if (reste === 2) return "Demi-finales";
     if (reste === 3) return "Quarts";
     if (reste === 4) return "Huitièmes";
@@ -419,7 +427,16 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
   const etapes: { titre: string; quand: string; etat: EtatEtape }[] =
     statut === "annule"
-      ? [{ titre: "Tournoi annulé", quand: formaterDate(tournoi.debute_le), etat: "fait" }]
+      ? [{ titre: estDefi ? "Défi annulé" : "Tournoi annulé", quand: formaterDate(tournoi.debute_le), etat: "fait" }]
+      : estDefi
+        ? [
+            { titre: "Défi relevé", quand: formaterDate(tournoi.debute_le), etat: "fait" },
+            {
+              titre: "Duel",
+              quand: statut === "termine" ? "Terminé" : "En cours",
+              etat: statut === "termine" ? "fait" : "maintenant",
+            },
+          ]
       : [
           {
             titre: "Inscriptions",
@@ -497,7 +514,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             {statut !== "annule" && <BadgeClassement statut={classement.statut} />}
             <span className="text-text-2">
               LoL · {tournoi.format}
-              {complements.typeBracket ? ` · ${complements.typeBracket}` : ""}
+              {estDefi ? " · Défi en une partie" : complements.typeBracket ? ` · ${complements.typeBracket}` : ""}
               {complements.estQuotidien ? " · Tournoi quotidien" : ""}
               {condition === "classique" ? " · 1v1 classique" : ""}
             </span>
@@ -518,7 +535,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 </a>
               </>
             )}
-            {organisateur && (
+            {estDefi && " · Arbitré par Najarena"}
+            {organisateur && !estDefi && (
               <>
                 {" "}
                 · Organisé par{" "}

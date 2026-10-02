@@ -16,6 +16,8 @@ import { JsonLd } from "@/lib/json-ld";
 import { chargerComplementsProfil } from "@/lib/profil-vitrine";
 import { adresseActuelleProfil, enregistrerVisite } from "@/lib/visites-profil";
 import { emettreCertificat } from "@/lib/profil-actions";
+import { lancerDefi } from "@/lib/defi-actions";
+import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { classeBoutonContour, classeBoutonPrincipal } from "@/lib/design";
 import BoutonLien from "@/components/design/BoutonLien";
@@ -605,6 +607,40 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                   libelle="Partager le CV"
                   className={classeBoutonContour()}
                 />
+                {/* Défi direct (audit N16) : duel en une partie, lu chez Riot. */}
+                {compteVerifie &&
+                  (visiteurId ? (
+                    <details className="group">
+                      <summary className={`${SOMMAIRE} ${classeBoutonPrincipal()}`}>Défier</summary>
+                      <form
+                        action={lancerDefi}
+                        className="panneau mt-3 flex w-[min(360px,calc(100vw-3rem))] flex-col gap-3 p-4"
+                      >
+                        <input type="hidden" name="adversaire_id" value={profil.id} />
+                        <p className="text-sm leading-normal text-text-2">
+                          Un duel en une partie, résultat lu chez Riot. Il compte au classement si la partie est
+                          retrouvée — un défi classé par jour entre vous deux, les suivants en amical.
+                        </p>
+                        <label className="flex flex-col gap-2">
+                          <span className="text-mini text-muted uppercase">Comment on gagne</span>
+                          <select name="condition_victoire" defaultValue="nexus" className={CHAMP}>
+                            {CONDITIONS_VICTOIRE.map((c) => (
+                              <option key={c.valeur} value={c.valeur}>
+                                {c.libelle}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <BoutonEnvoi libelleEnCours="Envoi…" className="self-start">
+                          Envoyer le défi
+                        </BoutonEnvoi>
+                      </form>
+                    </details>
+                  ) : (
+                    <BoutonLien href={`/connexion?suite=${encodeURIComponent(`/joueur/${profil.slug}`)}`}>
+                      Défier
+                    </BoutonLien>
+                  ))}
                 {visiteurEstOrganisateur &&
                   (dejaSuivi ? (
                     <span className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold tracking-[2px] text-accent uppercase">
