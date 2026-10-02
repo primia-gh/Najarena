@@ -1,13 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DetailsMatchRiot, ParticipantMatchRiot } from "@/lib/riot";
+import type { ChronologieRiot } from "@/lib/conditions-1v1";
 
 // L'API Riot est simulée : ces tests vérifient les critères de
 // rapprochement (docs/moteur-resultats.md §3) sans réseau.
 const parties = new Map<string, DetailsMatchRiot>();
 const idsParJoueur = new Map<string, string[]>();
+const chronologies = new Map<string, ChronologieRiot>();
 
 vi.mock("@/lib/riot", () => ({
   trouverRegion: () => ({ code: "EUW", continent: "europe" }),
+  estEnPartie: vi.fn(async () => false),
+  recupererChronologieMatch: vi.fn(async (id: string) => {
+    const chronologie = chronologies.get(id);
+    if (!chronologie) throw new Error(`chronologie inconnue ${id}`);
+    return chronologie;
+  }),
   recupererIdsMatchsRecents: vi.fn(async (puuid: string) => idsParJoueur.get(puuid) ?? []),
   recupererDetailsMatch: vi.fn(async (id: string) => {
     const partie = parties.get(id);
@@ -71,7 +79,48 @@ function ajouterPartie(
 beforeEach(() => {
   parties.clear();
   idsParJoueur.clear();
+  chronologies.clear();
   vi.mocked(riot.recupererDetailsMatch).mockClear();
+});
+
+// 1v1 classique (audit N5) : partie arrêtée après le premier sang, sans
+// vainqueur « officiel » (les deux quittent).
+function ajouterPartieClassique(id: string, debutMinutes: number, victime: 1 | 2) {
+  const a = { ...joueur("A", false), teamId: 100 };
+  const b = { ...joueur("B", false), teamId: 200 };
+  parties.set(id, {
+    info: { gameStartTimestamp: OUVERTURE.getTime() + debutMinutes * MINUTE, gameDuration: 190, queueId: 0, participants: [a, b] },
+  });
+  chronologies.set(id, {
+    info: {
+      participants: [
+        { participantId: 1, puuid: "A" },
+        { participantId: 2, puuid: "B" },
+      ],
+      frames: [
+        { timestamp: 0, participantFrames: { "1": { minionsKilled: 0 }, "2": { minionsKilled: 0 } }, events: [] },
+        {
+          timestamp: 180_000,
+          participantFrames: { "1": { minionsKilled: 20 }, "2": { minionsKilled: 18 } },
+          events: [{ type: "CHAMPION_KILL", timestamp: 170_000, killerId: victime === 1 ? 2 : 1, victimId: victime }],
+        },
+      ],
+    },
+  });
+  idsParJoueur.set("A", [id, ...(idsParJoueur.get("A") ?? [])]);
+}
+
+describe("trouverSerieCorrespondante — 1v1 classique", () => {
+  it("lit le vainqueur au premier sang, même sans Nexus détruit ni durée minimale", async () => {
+    ajouterPartieClassique("EUW1_c1", 4, 1);
+    const serie = await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true, new Map(), "classique");
+    expect(serie?.gagnantPuuid).toBe("B");
+  });
+
+  it("en mode Nexus, la même partie (sans vainqueur officiel) n'est pas retenue", async () => {
+    ajouterPartieClassique("EUW1_c2", 4, 1);
+    expect(await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true, new Map(), "nexus")).toBeNull();
+  });
 });
 
 describe("trouverSerieCorrespondante", () => {

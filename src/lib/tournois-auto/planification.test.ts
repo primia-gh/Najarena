@@ -11,6 +11,7 @@ const CRENEAU: Creneau = {
   bestOf: 1,
   region: "EUW",
   minimumJoueurs: 4,
+  conditionVictoire: "nexus",
 };
 
 // 24/09/2026 (heure d'été) : début 21:00 Paris = 19:00 UTC, check-in

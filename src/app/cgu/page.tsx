@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { DATE_CGU_LISIBLE } from "@/lib/cgu";
+import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
+import { DELAI_FORFAIT_MINUTES } from "@/lib/forfait";
 
 export const metadata: Metadata = {
   title: "Conditions générales d'utilisation — Najarena",
@@ -81,6 +83,13 @@ export default function CguPage() {
             bracket par l&apos;organisateur. Un forfait ne rapporte aucun
             point à aucun des deux joueurs.
           </p>
+          <p className="mt-2 text-muted">
+            Chaque joueur se déclare prêt dans la salle de match. Dès que
+            l&apos;un des deux l&apos;a fait, l&apos;autre dispose de{" "}
+            {DELAI_FORFAIT_MINUTES} minutes pour faire de même ; à défaut, il
+            perd le match par forfait. Aucun forfait n&apos;est prononcé
+            contre un joueur déjà en partie à ce moment-là.
+          </p>
         </section>
 
         <section>
@@ -99,6 +108,15 @@ export default function CguPage() {
             Le classement est calculé selon la méthode Glicko-2, à la
             clôture de chaque tournoi. Chaque variation de points est
             journalisée publiquement et de façon permanente.
+          </p>
+          <p className="mt-2 text-muted">
+            Seuls les tournois classés rapportent des points : les tournois
+            officiels de Najarena, et les tournois d&apos;organisateurs qui
+            réunissent au moins {JOUEURS_MIN_TOURNOI_CLASSE} joueurs au
+            départ, publiés au moins {PREAVIS_TOURNOI_CLASSE_HEURES} h avant
+            leur début, sans leur organisateur dans le bracket et non
+            déclarés amicaux. Ces critères sont affichés sur la page de
+            chaque tournoi.
           </p>
         </section>
 

@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
+import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
+import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { chargerOffre } from "@/lib/offres";
 import { AssistantOrganisateur } from "@/components/AssistantOrganisateur";
 import { classeCarte } from "@/lib/ui";
@@ -135,6 +137,28 @@ export default async function OrganiserNouveauPage({
           </label>
         )}
 
+        {/* Condition de victoire (audit N5), lue dans la donnée Riot de la partie. */}
+        <label className="flex flex-col gap-1">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
+            Comment on gagne une partie
+          </span>
+          <select
+            id="condition_victoire"
+            name="condition_victoire"
+            defaultValue="nexus"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            {CONDITIONS_VICTOIRE.map((c) => (
+              <option key={c.valeur} value={c.valeur}>
+                {c.libelle}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted">
+            Dans les deux cas, le vainqueur est lu automatiquement dans la donnée Riot de la partie.
+          </span>
+        </label>
+
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
             Région
@@ -200,6 +224,23 @@ export default async function OrganiserNouveauPage({
           <label className="flex items-center gap-2 text-sm text-text">
             <input type="radio" name="statut_initial" value="brouillon" className="accent-accent" />
             Garder en brouillon (non visible publiquement)
+          </label>
+        </fieldset>
+
+        {/* Tournoi classé (audit N12) : mêmes critères que la base, lib/tournoi-classe.ts. */}
+        <fieldset className="flex flex-col gap-2">
+          <legend className="font-texte text-mini font-medium text-muted uppercase">Classement</legend>
+          <p className="text-sm leading-normal text-muted">
+            Ton tournoi comptera au classement s&apos;il est publié au moins {PREAVIS_TOURNOI_CLASSE_HEURES} h avant
+            son début, si au moins {JOUEURS_MIN_TOURNOI_CLASSE} joueurs prennent le départ et si tu ne joues pas
+            dedans. Sinon, il se joue normalement, sans points.{" "}
+            <Link href="/comment-ca-marche#tournois-classes" className="text-text underline underline-offset-3">
+              Pourquoi
+            </Link>
+          </p>
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input type="checkbox" name="amical" value="oui" className="accent-accent" />
+            Tournoi amical : aucun point de classement en jeu
           </label>
         </fieldset>
 

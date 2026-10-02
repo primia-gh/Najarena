@@ -5,6 +5,8 @@ import LibelleSection from "@/components/design/LibelleSection";
 import BoutonCopier from "@/components/design/BoutonCopier";
 import { etapesMatch } from "@/lib/reglement";
 import { heureParis } from "@/lib/tournois-auto/creneaux";
+import { DELAI_FORFAIT_MINUTES, limiteForfait } from "@/lib/forfait";
+import type { ConditionVictoire } from "@/lib/conditions-1v1";
 
 // Salle de match (28/09/2026, audit E9 / N1 / N2) : ce dont un joueur a
 // besoin pour jouer son match sans chercher — son adversaire, son Riot ID à
@@ -24,10 +26,72 @@ export interface InfosSalleDeMatch {
   perdantDeclare: string | null;
   /** Chances estimées avant le match, en % (ratings Glicko-2). */
   chances?: { moi: number; adversaire: number } | null;
+  /** « Je suis prêt » de chacun (audit N4) : heure de la déclaration, ou nul. */
+  pret?: { moi: string | null; adversaire: string | null };
+  /** Comment on gagne une partie (audit N5). */
+  condition?: ConditionVictoire;
 }
 
-export default function SalleDeMatch({ infos, actions }: { infos: InfosSalleDeMatch; actions?: ReactNode }) {
-  const { tour, etat, adversaire, jeCreeLaPartie, demarreLe, bestOf, perdantDeclare, chances } = infos;
+interface SalleDeMatchProps {
+  infos: InfosSalleDeMatch;
+  /** Reconnaître sa défaite (formulaire de la page). */
+  actions?: ReactNode;
+  /** Bouton « Je suis prêt » (formulaire de la page), affiché tant que le joueur ne l'est pas. */
+  actionPret?: ReactNode;
+}
+
+/** Qui est prêt, et ce que ça implique (forfait automatique, audit N4). */
+function EtatPret({
+  pret,
+  adversaire,
+  actionPret,
+}: {
+  pret: { moi: string | null; adversaire: string | null };
+  adversaire: string;
+  actionPret?: ReactNode;
+}) {
+  const statut = (pretLe: string | null) =>
+    pretLe ? (
+      <span className="text-accent tabular-nums">prêt depuis {heureParis(pretLe)}</span>
+    ) : (
+      <span className="text-muted">pas encore prêt</span>
+    );
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-line pt-4">
+      <p className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        <span>Toi : {statut(pret.moi)}</span>
+        <span>
+          {adversaire} : {statut(pret.adversaire)}
+        </span>
+      </p>
+      {pret.moi && pret.adversaire ? (
+        <p className="text-sm text-text-2">Vous êtes prêts tous les deux : lancez la partie.</p>
+      ) : pret.adversaire ? (
+        <p role="alert" className="text-sm text-danger">
+          {adversaire} est prêt : déclare-toi prêt avant{" "}
+          <span className="tabular-nums">{heureParis(limiteForfait(pret.adversaire).toISOString())}</span>, sinon tu
+          perds ce match par forfait.
+        </p>
+      ) : pret.moi ? (
+        <p className="text-sm text-text-2">
+          Si {adversaire} ne se déclare pas prêt avant{" "}
+          <span className="tabular-nums">{heureParis(limiteForfait(pret.moi).toISOString())}</span>, il perd par forfait
+          — aucun point pour personne.
+        </p>
+      ) : (
+        <p className="text-sm text-text-2">
+          Déclare-toi prêt dès que tu es devant ton jeu. Dès que l&apos;un de vous l&apos;est, l&apos;autre a{" "}
+          {DELAI_FORFAIT_MINUTES} minutes pour le faire, sinon il perd par forfait.
+        </p>
+      )}
+      {!pret.moi && actionPret}
+    </div>
+  );
+}
+
+export default function SalleDeMatch({ infos, actions, actionPret }: SalleDeMatchProps) {
+  const { tour, etat, adversaire, jeCreeLaPartie, demarreLe, bestOf, perdantDeclare, chances, pret, condition } = infos;
 
   return (
     <Panneau as="section" className="flex flex-col gap-5 px-6 py-6 sm:px-8">
@@ -94,10 +158,14 @@ export default function SalleDeMatch({ infos, actions }: { infos: InfosSalleDeMa
 
           {etat !== "defaite_reconnue" && (
             <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm leading-relaxed text-text-2 marker:text-accent">
-              {etapesMatch(adversaire.riotId, jeCreeLaPartie, bestOf).map((etape) => (
+              {etapesMatch(adversaire.riotId, jeCreeLaPartie, bestOf, condition).map((etape) => (
                 <li key={etape}>{etape}</li>
               ))}
             </ol>
+          )}
+
+          {etat === "a_jouer" && pret && (
+            <EtatPret pret={pret} adversaire={adversaire.pseudo} actionPret={actionPret} />
           )}
 
           {actions}

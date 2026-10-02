@@ -3,6 +3,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { apresVerdict } from "@/lib/apres-verdict";
+import { envoyerRappel, URL_SITE } from "@/lib/notifications";
+import { DELAI_FORFAIT_MINUTES, limiteForfait } from "@/lib/forfait";
+import { heureParis } from "@/lib/tournois-auto/creneaux";
 
 // Refus de la fonction reconnaitre_defaite (docs/schema.sql).
 const MESSAGES_REFUS: Record<string, string> = {
@@ -59,5 +62,65 @@ export async function reconnaitreDefaite(formData: FormData) {
     `${page}?message=${encodeURIComponent(
       "Défaite enregistrée. Si la partie est retrouvée dans l'historique Riot d'ici 20 minutes, le résultat comptera au classement ; sinon, le match sera tranché sur ta parole.",
     )}`,
+  );
+}
+
+// Refus de la fonction declarer_pret (docs/schema.sql).
+const MESSAGES_REFUS_PRET: Record<string, string> = {
+  NON_PARTICIPANT: "Tu ne joues pas ce match.",
+  ADVERSAIRE_ABSENT: "Ton adversaire n'est pas encore connu.",
+  MATCH_NON_OUVERT: "Ce match n'est plus à jouer.",
+  MATCH_INTROUVABLE: "Ce match n'existe pas.",
+};
+
+// « Je suis prêt » (28/09/2026, audit N4) : l'adversaire est prévenu et a
+// 15 minutes pour se déclarer prêt à son tour, sinon il perd par forfait
+// (appliqué par la tâche de recherche, src/lib/rapprochement.ts).
+export async function declarerPret(formData: FormData) {
+  const matchId = String(formData.get("match_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const page = `/lol/tournois/${slug}`;
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { data: nouveau, error } = await supabase.rpc("declarer_pret", { p_match_id: matchId });
+
+  if (error) {
+    const code = Object.keys(MESSAGES_REFUS_PRET).find((c) => error.message.includes(c));
+    redirect(
+      `${page}?erreur=${encodeURIComponent(code ? MESSAGES_REFUS_PRET[code] : "Impossible de te déclarer prêt pour l'instant.")}#ton-match`,
+    );
+  }
+
+  const { data: match } = await supabase
+    .from("matches")
+    .select("tournament:tournaments(nom, slug), match_participants(profile_id, pret_le, profile:profiles(pseudo))")
+    .eq("id", matchId)
+    .maybeSingle();
+  const moi = match?.match_participants.find((p) => p.profile_id === userData.user.id);
+  const adversaire = match?.match_participants.find((p) => p.profile_id !== userData.user.id);
+
+  if (adversaire?.pret_le) {
+    redirect(`${page}?message=${encodeURIComponent("Vous êtes prêts tous les deux : lancez la partie.")}#ton-match`);
+  }
+
+  // Première déclaration : l'adversaire est prévenu (push et Discord), une fois.
+  if (nouveau && match?.tournament && moi?.pret_le && adversaire) {
+    await envoyerRappel(
+      adversaire.profile_id,
+      `${moi.profile?.pseudo ?? "Ton adversaire"} est prêt — ${match.tournament.nom}`,
+      `Déclare-toi prêt dans la salle de match avant ${heureParis(limiteForfait(moi.pret_le).toISOString())} (heure de Paris), sinon tu perds ce match par forfait.`,
+      `${URL_SITE}/lol/tournois/${match.tournament.slug}#ton-match`,
+    );
+  }
+
+  redirect(
+    `${page}?message=${encodeURIComponent(
+      `Tu es prêt. Si ton adversaire ne l'est pas dans les ${DELAI_FORFAIT_MINUTES} minutes, il perd par forfait (aucun point pour personne).`,
+    )}#ton-match`,
   );
 }

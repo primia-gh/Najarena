@@ -8,6 +8,8 @@
 // d'entasser tout le monde sur un seul tournoi : ajouter un créneau =
 // ajouter une ligne à CRENEAUX, rien d'autre.
 
+import type { ConditionVictoire } from "@/lib/conditions-1v1";
+
 export const FUSEAU_PARIS = "Europe/Paris";
 
 export interface Creneau {
@@ -26,6 +28,9 @@ export interface Creneau {
   // En dessous, le tournoi est annulé à l'heure du début : un bracket à
   // 2 ou 3 joueurs n'est pas un tournoi.
   minimumJoueurs: number;
+  // Comment on gagne une partie (src/lib/conditions-1v1.ts) : destruction
+  // du Nexus, ou 1v1 classique (premier sang, première tour, 100 sbires).
+  conditionVictoire: ConditionVictoire;
 }
 
 export const CRENEAUX: readonly Creneau[] = [
@@ -38,6 +43,7 @@ export const CRENEAUX: readonly Creneau[] = [
     bestOf: 1,
     region: "EUW",
     minimumJoueurs: 4,
+    conditionVictoire: "nexus",
   },
 ];
 

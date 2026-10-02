@@ -15,7 +15,7 @@ export async function chargerComplementsTournoi(tournoiId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("tournaments")
-    .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto")
+    .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, classe")
     .eq("id", tournoiId)
     .maybeSingle();
 
@@ -36,5 +36,9 @@ export async function chargerComplementsTournoi(tournoiId: string) {
     comptePourClassement: data?.compte_pour_classement ?? true,
     // Tournoi quotidien créé automatiquement (lib/tournois-auto/).
     estQuotidien: Boolean(data?.creneau_auto),
+    // Tournoi classé (audit N12) : date de publication et décision figée
+    // à la clôture (lib/tournoi-classe.ts).
+    publieLe: data?.publie_le ?? null,
+    classe: data?.classe ?? null,
   };
 }

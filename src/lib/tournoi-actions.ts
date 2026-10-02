@@ -27,6 +27,11 @@ export async function creerTournoi(formData: FormData) {
   const debuteLeBrut = String(formData.get("debute_le") ?? "");
   const checkinOuvreLeBrut = String(formData.get("checkin_ouvre_le") ?? "");
   const publier = formData.get("statut_initial") === "ouvert";
+  // Tournoi amical (audit N12) : aucun point de classement en jeu, choix
+  // figé à la création comme les autres réglages.
+  const amical = formData.get("amical") === "oui";
+  // Condition de victoire (audit N5) : Nexus par défaut, 1v1 classique au choix.
+  const condition = formData.get("condition_victoire") === "classique" ? "classique" : "nexus";
 
   if (nom.length < 3 || nom.length > 60) {
     redirect(
@@ -108,6 +113,8 @@ export async function creerTournoi(formData: FormData) {
     debute_le: debuteLe.toISOString(),
     checkin_ouvre_le: checkinOuvreLe.toISOString(),
     statut: publier ? "ouvert" : "brouillon",
+    compte_pour_classement: !amical,
+    condition_victoire: condition,
   });
 
   if (error) {

@@ -109,6 +109,28 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     return;
   }
 
+  // Tournoi classé (audit E12 / N12) : la base décide d'après les critères
+  // publics (tournoi officiel, ou 8 joueurs au départ, publié 24 h avant,
+  // organisateur hors bracket) et fige sa décision — seulement ici, quand
+  // des points peuvent réellement être écrits. En cas d'erreur, rien n'est
+  // tranché : le tournoi reste ouvert et la tâche des tournois automatiques
+  // reprend la clôture au passage suivant.
+  if (admin) {
+    const { data: classe, error: erreurClassement } = await admin.rpc("figer_classement_tournoi", {
+      p_tournament_id: tournamentId,
+    });
+    if (erreurClassement) {
+      console.error(
+        `cloturerTournoi : critères de classement illisibles pour le tournoi ${tournamentId} (${erreurClassement.message}) — clôture reportée.`,
+      );
+      return;
+    }
+    if (!classe) {
+      await terminer();
+      return;
+    }
+  }
+
   const { data: matchsData } = await supabase
     .from("matches")
     .select(

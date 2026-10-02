@@ -2,6 +2,11 @@
 \set ON_ERROR_STOP 0
 \set saison '(select id from seasons where est_courante)'
 
+-- Seul un tournoi déclaré classé à sa clôture reçoit des points (audit N12,
+-- essayé dans 91-tournoi-classe.sql) : décision posée ici directement.
+update tournaments set classe = true
+where id in ('10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000004');
+
 set role service_role;
 select essai('Clôture de Gina pour le tournoi en cours (état de départ 1500 ± 350)',
   $q$select public.cloturer_rating_joueur('00000000-0000-0000-0000-000000000010', 1::smallint, (select id from seasons where est_courante), '10000000-0000-0000-0000-000000000003', 1500, 350, 0.06, 1662.31, 290.5, 0.06, 1, 'tournoi')$q$, 'passe');

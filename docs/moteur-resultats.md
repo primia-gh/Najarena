@@ -52,6 +52,10 @@ Logique pure (séries, calendrier) : `src/lib/serie.ts` ; orchestration : `src/l
 
 Un joueur peut reconnaître sa défaite depuis le bracket (`reconnaitre_defaite`). Match en cours : la recherche Riot a encore 20 minutes ; si la partie est retrouvée, le verdict est de niveau 2 et compte ; sinon la tâche tranche au niveau 1 (manuel, hors classement) avec le motif public « Défaite reconnue par … ». Match déjà en litige : tranché tout de suite, au niveau 1. La parole du perdant ne compte jamais au classement ; elle évite seulement qu'un tournoi reste bloqué en attendant un organisateur.
 
+### Forfait automatique
+
+Chaque joueur se déclare prêt dans la salle de match (`declarer_pret`, colonne `match_participants.pret_le`) ; l'adversaire est prévenu (push et message privé Discord). Dès que l'un des deux l'est, l'autre a **15 minutes** pour faire de même, sinon la tâche de recherche le déclare forfait (`appliquer_forfait_absence`) : verdict de niveau 1 (manuel, hors classement), motif public, match au statut `forfait`, aucun point pour personne. Garde-fous : la partie Riot est cherchée d'abord (si elle est retrouvée, elle décide) ; jamais de forfait si l'un des deux joueurs est en partie chez Riot à cet instant (spectator-v5), ni si on ne peut pas le vérifier ; seulement pour un match en cours, sans défaite reconnue. Logique pure : `src/lib/forfait.ts`.
+
 ### Ouverture du match suivant
 
 Un match passe `en_cours` dès que ses deux joueurs sont connus (`avancer_vainqueur`). Le verdict qui qualifie le second joueur — partie retrouvée, défaite reconnue ou verdict de l'organisateur — envoie aux deux un rappel push et un message privé Discord avec le lien de la salle de match (`prevenirMatchOuvert`, `src/lib/apres-verdict.ts`). Le délai avant litige court à partir de cette ouverture (`demarre_le`).
@@ -64,6 +68,8 @@ Une partie de l'historique est retenue si **toutes** ces conditions sont vraies 
 2. son horodatage de début est postérieur à l'ouverture du match ;
 3. c'est une partie personnalisée (`queueId` 0), à deux joueurs exactement pour un tournoi 1v1 ;
 4. sa durée dépasse le seuil de remake (5 minutes).
+
+**1v1 classique** (`tournaments.condition_victoire = 'classique'`, audit N5, 28/09/2026) : les critères 1 à 3 s'appliquent, mais le vainqueur n'est pas celui de la partie — c'est le premier qui obtient le premier sang, détruit la première tour ou atteint 100 sbires, lu dans la chronologie de la partie (match-v5 timeline, `src/lib/conditions-1v1.ts`). La durée minimale ne s'applique pas (un premier sang à 2 minutes est une vraie victoire). Les sbires ne figurent dans la chronologie qu'une fois par minute : si deux conditions remplies par des joueurs différents tombent dans la même minute, l'ordre est impossible à établir et la partie n'est pas retenue — l'organisateur tranche. Aucune condition remplie : partie non retenue.
 
 Les parties retenues sont rejouées dans l'ordre chronologique : en Bo1 la première décide, en Bo3 / Bo5 la série s'arrête dès qu'un joueur atteint 2 / 3 victoires. Une série inachevée (1-1) n'est jamais tranchée par déduction. Le verdict garde les identifiants Riot de toutes les manches (`riot_match_id`, séparés par des virgules) ; les statistiques enregistrées sont celles de la manche décisive.
 
@@ -87,6 +93,10 @@ Avant l'étape 5, vérifier qu'aucune ligne `rating_events` n'existe déjà pour
 
 ### État de départ périmé et reprise
 `cloturer_rating_joueur` verrouille la ligne `ratings` du joueur et refuse d'écrire si son rating ou son RD ne correspondent plus à l'état de départ utilisé pour le calcul (un autre tournoi du même joueur clôturé entre-temps) : `ETAT_DE_DEPART_PERIME`. Le tournoi reste alors « en cours » et la tâche des tournois automatiques (toutes les 5 minutes) reprend la clôture de tout tournoi dont la finale est jouée. À la reprise, un joueur déjà crédité sert d'adversaire avec son état d'avant tournoi, lu dans le journal.
+
+### Tournoi classé
+
+Seul un tournoi **classé** écrit des points (audit E12 / N12, 28/09/2026) : un tournoi officiel (quotidien automatique), ou un tournoi d'organisateur qui remplit tous ces critères publics — au moins 8 joueurs au départ du bracket, publié au moins 24 h avant son début (`publie_le`, posée par la base à l'ouverture des inscriptions), sans son organisateur dans le bracket, pas déclaré amical. La clôture demande la décision à la base (`figer_classement_tournoi`) une fois la finale jouée ; elle est alors écrite dans `tournaments.classe` et ne change plus. Un tournoi non classé est clôturé sans aucune écriture dans `ratings` ni `rating_events`, et `cloturer_rating_joueur` refuse tout tournoi non classé (`TOURNOI_NON_CLASSE`). La page du tournoi affiche chaque critère (`src/lib/tournoi-classe.ts`, mêmes seuils).
 
 ### Chances estimées et exploits
 

@@ -5,7 +5,9 @@ import Panneau from "@/components/design/Panneau";
 import BoutonLien from "@/components/design/BoutonLien";
 import Icone from "@/components/design/Icone";
 import { LABEL_STATUT, type StatutPublic } from "@/lib/tournois";
-import { REGLE_PARTIE_1V1 } from "@/lib/reglement";
+import { REGLE_FORFAIT, reglePartie1v1 } from "@/lib/reglement";
+import type { ConditionVictoire } from "@/lib/conditions-1v1";
+import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 
 // Blocs communs à la page tournoi et au tournoi d'exemple (maquette
 // tournoi.dc.html) : en-tête d'affiche, légende du bracket,
@@ -190,18 +192,29 @@ export function Deroulement({ etapes }: { etapes: { titre: string; quand: string
 
 /**
  * Règles réellement appliquées par le site (CGU §4 à §6, CLAUDE.md §3-§4),
- * pas celles de la maquette : « retard de 15 minutes = forfait » n'existe
- * pas. Le compte Riot vérifié à l'inscription, lui, est exigé par la base
- * depuis le 28/09/2026 (s_inscrire_tournoi).
+ * pas celles de la maquette : son « retard de 15 minutes = forfait » est
+ * devenu, le 28/09/2026 (audit N4), « pas prêt 15 minutes après son
+ * adversaire = forfait », appliqué par la base (appliquer_forfait_absence).
+ * Le compte Riot vérifié à l'inscription est exigé par la base depuis le
+ * même jour (s_inscrire_tournoi).
  */
-export function EssentielReglement({ organisateur }: { organisateur?: string | null }) {
+export function EssentielReglement({
+  organisateur,
+  condition = "nexus",
+}: {
+  organisateur?: string | null;
+  /** Condition de victoire du tournoi (audit N5). */
+  condition?: ConditionVictoire;
+}) {
   const regles = [
     "Compte Riot vérifié obligatoire pour s'inscrire, dans la région du tournoi : c'est lui qui permet de retrouver ton résultat automatiquement.",
-    REGLE_PARTIE_1V1,
+    reglePartie1v1(condition),
+    REGLE_FORFAIT,
     `Le vainqueur est lu dans l'historique de partie Riot. Sans résultat retrouvé, ${organisateur ?? "l'organisateur"} tranche et affiche son motif — jamais un résultat supposé.`,
     "Check-in obligatoire : sans confirmation de présence, l'organisateur peut t'exclure du bracket.",
     "Tu as perdu ? Reconnais ta défaite depuis le bracket : ton adversaire avance tout de suite. Le résultat ne compte au classement que si la partie est retrouvée chez Riot.",
     "Un forfait ne rapporte aucun point, à aucun des deux joueurs. Au-delà de 3 victoires contre le même adversaire en 24 h, les suivantes ne comptent pas.",
+    `Seul un tournoi classé compte au classement : tournoi officiel, ou au moins ${JOUEURS_MIN_TOURNOI_CLASSE} joueurs au départ, publié ${PREAVIS_TOURNOI_CLASSE_HEURES} h avant son début, sans son organisateur dans le bracket.`,
     "Les règles (capacité, format, dates) sont figées dès la première inscription. Toute tentative de manipulation peut entraîner la suspension du compte.",
   ];
   return (

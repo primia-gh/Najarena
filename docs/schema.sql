@@ -3533,3 +3533,389 @@ create table if not exists public.recaps_semaine (
 alter table public.recaps_semaine enable row level security;
 create policy "recaps lisibles par tous" on public.recaps_semaine for select using (true);
 revoke insert, update, delete on public.recaps_semaine from anon, authenticated;
+
+-- ---------- Tournoi classé : critères publics (2026-09-28, audit E12 et N12) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (src/lib/classement-actions.ts appelle figer_classement_tournoi).
+-- Avant : tout tournoi comptait au classement, même à 4 amis dans un
+-- tournoi créé la veille — des parties réelles mais arrangées pouvaient
+-- gonfler un rating tout en portant le badge « vérifié ». Désormais un
+-- tournoi ne compte que s'il est officiel (tournoi quotidien automatique)
+-- ou s'il remplit tous ces critères publics :
+-- - au moins 8 joueurs au départ du bracket ;
+-- - publié (inscriptions ouvertes) au moins 24 h avant son début ;
+-- - son organisateur ne joue pas dedans ;
+-- - l'organisateur ne l'a pas déclaré « amical ».
+-- Mêmes seuils que src/lib/tournoi-classe.ts (affichage). La décision est
+-- figée à la clôture (colonne classe) et ne change plus ensuite.
+alter table public.tournaments add column if not exists publie_le timestamptz;
+alter table public.tournaments add column if not exists classe boolean;
+
+-- Tournois déjà publiés : leur date de publication n'a pas été gardée, la
+-- création fait foi. Tournois déjà clôturés : classés s'ils ont réellement
+-- crédité des points.
+update public.tournaments set publie_le = cree_le where statut <> 'brouillon' and publie_le is null;
+update public.tournaments t
+set classe = exists (
+  select 1 from public.rating_events e where e.tournament_id = t.id and e.motif = 'tournoi'
+)
+where t.statut = 'termine' and t.classe is null;
+
+-- Heure de publication posée par la base elle-même, jamais par l'appelant ;
+-- la décision « classé » n'est écrite que par figer_classement_tournoi, et
+-- jamais changée une fois écrite. Déclencheur sans security definer : il
+-- doit voir le vrai appelant (current_user).
+create or replace function public.controler_classement_tournoi()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.publie_le := case when new.statut = 'brouillon' then null else now() end;
+    if current_user = 'authenticated' and new.classe is not null then
+      raise exception 'CHAMP_RESERVE';
+    end if;
+    return new;
+  end if;
+
+  if old.statut = 'brouillon' and new.statut = 'ouvert' then
+    new.publie_le := now();
+  else
+    new.publie_le := old.publie_le;
+  end if;
+
+  if new.classe is distinct from old.classe then
+    if old.classe is not null then
+      raise exception 'CLASSEMENT_FIGE';
+    end if;
+    if current_user = 'authenticated' then
+      raise exception 'CHAMP_NON_MODIFIABLE';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_classement_tournoi() from public, anon, authenticated;
+
+drop trigger if exists controle_classement_tournoi on public.tournaments;
+create trigger controle_classement_tournoi
+  before insert or update on public.tournaments
+  for each row execute function public.controler_classement_tournoi();
+
+-- Les critères, lisibles par tous (page du tournoi). Sous l'identité de
+-- l'appelant : un brouillon reste invisible pour qui n'en est pas
+-- l'organisateur.
+create or replace function public.criteres_tournoi_classe(p_tournament_id uuid)
+returns table (
+  officiel boolean,
+  amical boolean,
+  publie_a_temps boolean,
+  joueurs_au_depart integer,
+  organisateur_joue boolean,
+  classe boolean
+)
+language sql
+stable
+set search_path = public
+as $$
+  select
+    c.officiel,
+    c.amical,
+    c.publie_a_temps,
+    c.joueurs,
+    c.orga,
+    not c.amical and (c.officiel or (c.publie_a_temps and c.joueurs >= 8 and not c.orga))
+  from (
+    select
+      t.creneau_auto is not null as officiel,
+      not t.compte_pour_classement as amical,
+      coalesce(t.publie_le <= t.debute_le - interval '24 hours', false) as publie_a_temps,
+      (select count(distinct mp.profile_id)::integer
+         from public.matches m
+         join public.match_participants mp on mp.match_id = m.id
+        where m.tournament_id = t.id) as joueurs,
+      exists (
+        select 1 from public.matches m
+        join public.match_participants mp on mp.match_id = m.id
+        where m.tournament_id = t.id and mp.profile_id = t.organisateur_id
+      ) or exists (
+        select 1 from public.registrations r
+        where r.tournament_id = t.id and r.profile_id = t.organisateur_id
+          and r.statut in ('inscrit', 'confirme')
+      ) as orga
+    from public.tournaments t
+    where t.id = p_tournament_id
+  ) c;
+$$;
+revoke execute on function public.criteres_tournoi_classe(uuid) from public;
+grant execute on function public.criteres_tournoi_classe(uuid) to anon, authenticated, service_role;
+
+-- Décision prise à la clôture, une fois la finale jouée : jamais avant (un
+-- bracket incomplet donnerait un faux « moins de 8 joueurs »). Idempotente.
+create or replace function public.figer_classement_tournoi(p_tournament_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_classe boolean;
+begin
+  select classe into v_classe
+  from public.tournaments
+  where id = p_tournament_id
+  for update;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if v_classe is not null then
+    return v_classe;
+  end if;
+
+  if not exists (
+    select 1 from public.matches
+    where tournament_id = p_tournament_id and match_suivant_id is null
+      and statut in ('termine', 'forfait')
+  ) then
+    raise exception 'FINALE_NON_JOUEE';
+  end if;
+
+  select c.classe into v_classe from public.criteres_tournoi_classe(p_tournament_id) c;
+  update public.tournaments set classe = v_classe where id = p_tournament_id;
+  return v_classe;
+end;
+$$;
+revoke all on function public.figer_classement_tournoi(uuid) from public, anon, authenticated;
+grant execute on function public.figer_classement_tournoi(uuid) to service_role;
+
+-- Écriture d'un rating : refusée pour un tournoi que la clôture n'a pas
+-- déclaré classé (même fonction que la section « Clôture de tournoi à
+-- l'abri des exécutions simultanées », une vérification de plus).
+create or replace function public.cloturer_rating_joueur(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_season_id uuid,
+  p_tournament_id uuid,
+  p_rating_avant numeric,
+  p_rd_avant numeric,
+  p_volatilite_avant numeric,
+  p_rating_apres numeric,
+  p_rd_apres numeric,
+  p_volatilite_apres numeric,
+  p_matchs_comptes int,
+  p_motif text
+)
+returns boolean -- true si écrit, false si déjà traité (idempotence)
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_actuel record;
+begin
+  if exists (
+    select 1 from rating_events
+    where profile_id = p_profile_id and tournament_id = p_tournament_id
+  ) then
+    return false;
+  end if;
+
+  if not coalesce((select classe from tournaments where id = p_tournament_id), false) then
+    raise exception 'TOURNOI_NON_CLASSE';
+  end if;
+
+  insert into ratings (profile_id, game_id, season_id)
+  values (p_profile_id, p_game_id, p_season_id)
+  on conflict (profile_id, game_id, season_id) do nothing;
+
+  select rating, rd into v_actuel
+  from ratings
+  where profile_id = p_profile_id and game_id = p_game_id and season_id = p_season_id
+  for update;
+
+  if v_actuel.rating <> p_rating_avant or v_actuel.rd <> p_rd_avant then
+    raise exception 'ETAT_DE_DEPART_PERIME';
+  end if;
+
+  insert into rating_events (
+    profile_id, game_id, season_id, tournament_id, match_id, motif,
+    rating_avant, rd_avant, rating_apres, rd_apres, adversaire_id
+  ) values (
+    p_profile_id, p_game_id, p_season_id, p_tournament_id, null, p_motif,
+    p_rating_avant, p_rd_avant, p_rating_apres, p_rd_apres, null
+  );
+
+  update ratings set
+    rating = p_rating_apres,
+    rd = p_rd_apres,
+    volatilite = p_volatilite_apres,
+    matchs_joues = matchs_joues + p_matchs_comptes,
+    maj_le = now()
+  where profile_id = p_profile_id and game_id = p_game_id and season_id = p_season_id;
+
+  return true;
+end;
+$$;
+revoke execute on function public.cloturer_rating_joueur from public, anon, authenticated;
+
+-- ---------- Forfait automatique (2026-09-28, audit N4) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (salle de match : bouton « Je suis prêt » ; tâche de recherche des
+-- résultats : appliquer_forfait_absence).
+-- Un joueur se déclare prêt dans la salle de match. Dès que l'un des deux
+-- l'est, l'autre a 15 minutes pour faire de même ; sinon il perd par
+-- forfait : verdict de niveau 1 (manuel, hors classement), match au statut
+-- « forfait », aucun point pour personne (CLAUDE.md §4). Même délai que
+-- src/lib/forfait.ts. Garde-fou côté serveur : jamais de forfait si l'un
+-- des deux joueurs est en partie chez Riot à cet instant.
+alter table public.match_participants add column if not exists pret_le timestamptz;
+
+create or replace function public.declarer_pret(p_match_id uuid)
+returns boolean -- true : déclaration enregistrée maintenant ; false : déjà prêt
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_statut public.match_status;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select statut into v_statut
+  from public.matches
+  where id = p_match_id
+  for update;
+
+  if not found then
+    raise exception 'MATCH_INTROUVABLE';
+  end if;
+
+  if not exists (
+    select 1 from public.match_participants
+    where match_id = p_match_id and profile_id = v_joueur
+  ) then
+    raise exception 'NON_PARTICIPANT';
+  end if;
+
+  if (select count(*) from public.match_participants where match_id = p_match_id) <> 2 then
+    raise exception 'ADVERSAIRE_ABSENT';
+  end if;
+
+  if v_statut <> 'en_cours'
+     or exists (select 1 from public.match_verdicts where match_id = p_match_id and est_definitif) then
+    raise exception 'MATCH_NON_OUVERT';
+  end if;
+
+  update public.match_participants
+  set pret_le = now()
+  where match_id = p_match_id and profile_id = v_joueur and pret_le is null;
+
+  return found;
+end;
+$$;
+revoke execute on function public.declarer_pret(uuid) from public, anon;
+grant execute on function public.declarer_pret(uuid) to authenticated;
+
+-- Forfait appliqué par la tâche de recherche (service_role uniquement).
+-- Revérifie tout elle-même : match en cours sans verdict ni défaite
+-- reconnue, exactement un joueur prêt, depuis 15 minutes au moins.
+-- Renvoie le vainqueur, ou nul si rien n'est à trancher (idempotente).
+create or replace function public.appliquer_forfait_absence(p_match_id uuid)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_statut public.match_status;
+  v_reconnue uuid;
+  v_present uuid;
+  v_pret timestamptz;
+  v_absent uuid;
+  v_pseudo text;
+begin
+  select statut, defaite_reconnue_par into v_statut, v_reconnue
+  from public.matches
+  where id = p_match_id
+  for update;
+
+  if not found then
+    raise exception 'MATCH_INTROUVABLE';
+  end if;
+
+  if v_statut <> 'en_cours' or v_reconnue is not null
+     or exists (select 1 from public.match_verdicts where match_id = p_match_id and est_definitif)
+     or (select count(*) from public.match_participants where match_id = p_match_id) <> 2
+     or (select count(*) from public.match_participants where match_id = p_match_id and pret_le is not null) <> 1 then
+    return null;
+  end if;
+
+  select profile_id, pret_le into v_present, v_pret
+  from public.match_participants
+  where match_id = p_match_id and pret_le is not null;
+
+  if v_pret > now() - interval '15 minutes' then
+    return null;
+  end if;
+
+  select profile_id into v_absent
+  from public.match_participants
+  where match_id = p_match_id and pret_le is null;
+
+  select pseudo into v_pseudo from public.profiles where id = v_absent;
+
+  insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+  values (
+    p_match_id,
+    'manuel',
+    v_present,
+    null,
+    'Forfait : ' || coalesce(v_pseudo, 'le joueur')
+      || ' ne s''est pas déclaré prêt dans les 15 minutes suivant son adversaire.',
+    true
+  );
+
+  perform public.avancer_vainqueur(p_match_id, v_present);
+  update public.matches set statut = 'forfait' where id = p_match_id;
+  return v_present;
+end;
+$$;
+revoke all on function public.appliquer_forfait_absence(uuid) from public, anon, authenticated;
+grant execute on function public.appliquer_forfait_absence(uuid) to service_role;
+
+-- ---------- Conditions de victoire du 1v1 (2026-09-28, audit N5) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (création de tournoi et tâche de recherche des résultats lisent
+-- condition_victoire).
+-- « nexus » : la partie se gagne en détruisant le Nexus (ou par abandon du
+-- perdant) — règle d'origine. « classique » : le premier qui obtient le
+-- premier sang, détruit la première tour ou atteint 100 sbires gagne, lu
+-- dans la chronologie Riot de la partie (src/lib/conditions-1v1.ts) ; en
+-- cas d'ordre impossible à établir, la partie n'est pas retenue et
+-- l'organisateur tranche. Réservé au 1v1, choisi à la création, figé
+-- ensuite comme le format ou le Best-of.
+alter table public.tournaments add column if not exists condition_victoire text not null default 'nexus';
+alter table public.tournaments drop constraint if exists tournaments_condition_victoire_check;
+alter table public.tournaments add constraint tournaments_condition_victoire_check
+  check (condition_victoire in ('nexus', 'classique') and (condition_victoire = 'nexus' or format = '1v1'));
+
+create or replace function public.controler_condition_victoire()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user = 'authenticated' and new.condition_victoire is distinct from old.condition_victoire then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_condition_victoire() from public, anon, authenticated;
+
+drop trigger if exists controle_condition_victoire on public.tournaments;
+create trigger controle_condition_victoire
+  before update on public.tournaments
+  for each row execute function public.controler_condition_victoire();

@@ -7,7 +7,7 @@ import { sInscrireATournoi, seDesinscrire } from "@/lib/inscription-actions";
 import { confirmerMaPresence } from "@/lib/checkin-actions";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { ouvrirLitige } from "@/lib/litige-actions";
-import { reconnaitreDefaite } from "@/lib/match-actions";
+import { declarerPret, reconnaitreDefaite } from "@/lib/match-actions";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { progressionPalier } from "@/lib/classement";
 import { chancesSiExploit, ETAT_DE_DEPART, pourcentages, type EtatRating } from "@/lib/estimations";
@@ -20,6 +20,9 @@ import {
   type StatutPublic,
 } from "@/lib/tournois";
 import { chargerComplementsTournoi } from "@/lib/tournoi-vitrine";
+import { evaluerClassement, libelleEnJeu } from "@/lib/tournoi-classe";
+import type { ConditionVictoire } from "@/lib/conditions-1v1";
+import { BadgeClassement, CriteresClassement } from "@/components/tournoi/TournoiClasse";
 import BoutonLien from "@/components/design/BoutonLien";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
@@ -72,7 +75,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -106,7 +109,7 @@ const chargerTournoi = cache(async (slug: string) => {
     supabase
       .from("matches")
       .select(
-        "id, tour, position, statut, demarre_le, defaite_reconnue_par, match_participants(profile_id, slot, score, est_gagnant, profile:profiles(pseudo, slug))",
+        "id, tour, position, statut, demarre_le, defaite_reconnue_par, match_participants(profile_id, slot, score, est_gagnant, pret_le, profile:profiles(pseudo, slug))",
       )
       .eq("tournament_id", tournoi.id)
       .order("tour", { ascending: true })
@@ -298,6 +301,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
+  // Condition de victoire du tournoi (audit N5).
+  const condition: ConditionVictoire = tournoi.condition_victoire === "classique" ? "classique" : "nexus";
 
   // Récit factuel du tournoi terminé (vainqueur, parcours, exploit, part de
   // matchs vérifiés) — src/lib/recit-tournoi.ts.
@@ -343,6 +348,26 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
 
   const complements = await chargerComplementsTournoi(tournoi.id);
+
+  // Tournoi classé (audit E12 / N12) : critères publics, décision figée par
+  // la base à la clôture. Un tournoi terminé sans décision (clos sans
+  // saison courante, ou amical) n'a rapporté aucun point.
+  const joueursDuBracket = new Set(matchs.flatMap((m) => m.match_participants.map((p) => p.profile_id)));
+  const classement = evaluerClassement({
+    officiel: complements.estQuotidien,
+    amical: !complements.comptePourClassement,
+    publieLe: complements.publieLe,
+    debuteLe: tournoi.debute_le,
+    joueursAuDepart: matchs.length > 0 ? joueursDuBracket.size : null,
+    inscrits: inscriptionsActives.length,
+    organisateurJoue:
+      joueursDuBracket.has(tournoi.organisateur_id) ||
+      inscriptions.some(
+        (i) => i.profile_id === tournoi.organisateur_id && (i.statut === "inscrit" || i.statut === "confirme"),
+      ),
+    decision: complements.classe ?? (statut === "termine" ? false : null),
+  });
+
   // Nom des colonnes : tous les tours sont créés dès la génération du
   // bracket (lib/organisation-actions.ts), le dernier est donc la finale.
   const libelleTour = (index: number) => {
@@ -385,6 +410,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                   return { moi, adversaire: lui };
                 })()
               : null,
+            // « Je suis prêt » de chacun (forfait automatique, audit N4).
+            pret: { moi: moiDansMatch?.pret_le ?? null, adversaire: adversaire?.pret_le ?? null },
+            condition,
           };
         })()
       : null;
@@ -439,9 +467,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const infos: InfoTournoi[] = [
     {
       libelle: "En jeu",
-      valeur: complements.comptePourClassement ? "Points de classement" : "Match amical",
+      valeur: libelleEnJeu(classement.statut, !complements.comptePourClassement),
       grand: true,
-      accent: complements.comptePourClassement,
+      accent: classement.statut === "classe",
     },
     { libelle: "Inscrits", valeur: `${inscriptionsActives.length}/${tournoi.capacite}`, grand: true, accent: false },
     { libelle: "Format", valeur: `${tournoi.format} · BO${tournoi.best_of}`, grand: false, accent: false },
@@ -466,10 +494,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         etiquettes={
           <>
             <StatutTournoi statut={statut} />
+            {statut !== "annule" && <BadgeClassement statut={classement.statut} />}
             <span className="text-text-2">
               LoL · {tournoi.format}
               {complements.typeBracket ? ` · ${complements.typeBracket}` : ""}
               {complements.estQuotidien ? " · Tournoi quotidien" : ""}
+              {condition === "classique" ? " · 1v1 classique" : ""}
             </span>
           </>
         }
@@ -611,6 +641,17 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           <div className="mx-auto max-w-contenu">
             <SalleDeMatch
               infos={infosSalle}
+              actionPret={
+                monMatch ? (
+                  <form action={declarerPret}>
+                    <input type="hidden" name="match_id" value={monMatch.id} />
+                    <input type="hidden" name="slug" value={tournoi.slug} />
+                    <BoutonEnvoi libelleEnCours="Envoi…" className="w-full sm:w-auto">
+                      Je suis prêt
+                    </BoutonEnvoi>
+                  </form>
+                ) : undefined
+              }
               actions={
                 (infosSalle.etat === "a_jouer" || infosSalle.etat === "litige") && monMatch ? (
                   <details>
@@ -855,8 +896,11 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       {/* ================= DÉROULEMENT + RÈGLEMENT ================= */}
       <section className="px-gouttiere pt-section-outil pb-24">
         <div className="mx-auto grid max-w-contenu gap-8 md:grid-cols-2">
-          <Deroulement etapes={etapes} />
-          <EssentielReglement organisateur={organisateur?.pseudo} />
+          <div className="flex flex-col gap-8">
+            <Deroulement etapes={etapes} />
+            {statut !== "annule" && <CriteresClassement evaluation={classement} />}
+          </div>
+          <EssentielReglement organisateur={organisateur?.pseudo} condition={condition} />
         </div>
       </section>
     </main>

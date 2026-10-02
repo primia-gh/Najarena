@@ -16,10 +16,14 @@ import {
   trouverRegion,
   recupererIdsMatchsRecents,
   recupererDetailsMatch,
+  recupererChronologieMatch,
+  estEnPartie,
   type Continent,
   type DetailsMatchRiot,
   type ParticipantMatchRiot,
 } from "@/lib/riot";
+import { DELAI_FORFAIT_MINUTES, forfaitAAppliquer } from "@/lib/forfait";
+import { vainqueurClassique, type ConditionVictoire } from "@/lib/conditions-1v1";
 import { envoyerRappel, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { apresVerdict } from "@/lib/apres-verdict";
 import { echapperHtml } from "@/lib/echappement";
@@ -77,6 +81,7 @@ export async function trouverSerieCorrespondante(
   bestOf: number,
   unContreUn: boolean,
   cache: CacheDetails = new Map(),
+  condition: ConditionVictoire = "nexus",
 ): Promise<SerieTrouvee | null> {
   const ids = await recupererIdsMatchsRecents(
     puuidA,
@@ -85,6 +90,10 @@ export async function trouverSerieCorrespondante(
     QUEUE_ID_PERSONNALISEE,
   );
 
+  // 1v1 classique (audit N5) : le vainqueur est lu dans la chronologie de
+  // la partie (premier sang, première tour, 100 sbires), pas dans son issue.
+  const classique = condition === "classique" && unContreUn;
+
   const parties: PartieTrouvee[] = [];
   for (const riotMatchId of ids) {
     const { info } = await detailsEnCache(cache, riotMatchId, continent);
@@ -92,17 +101,37 @@ export async function trouverSerieCorrespondante(
     const participantA = info.participants.find((p) => p.puuid === puuidA);
     const participantB = info.participants.find((p) => p.puuid === puuidB);
     if (!participantA || !participantB) continue; // les deux puuid y figurent
-    if (participantA.win === participantB.win) continue; // dans des camps opposés
     // En 1v1, une partie personnalisée à dix entre amis ne compte pas.
     if (unContreUn && info.participants.length !== 2) continue;
     if (info.gameStartTimestamp < ouvertureLe.getTime()) continue; // postérieure à l'ouverture
     if (info.queueId !== QUEUE_ID_PERSONNALISEE) continue; // partie personnalisée
-    if (info.gameDuration < DUREE_MIN_SECONDES) continue; // au-delà du seuil de remake
+
+    let gagnantEstA: boolean;
+    if (classique) {
+      if (participantA.teamId === undefined || participantB.teamId === undefined) continue;
+      const chronologie = await recupererChronologieMatch(riotMatchId, continent);
+      const idA = chronologie.info.participants?.find((p) => p.puuid === puuidA)?.participantId;
+      const idB = chronologie.info.participants?.find((p) => p.puuid === puuidB)?.participantId;
+      if (idA === undefined || idB === undefined) continue;
+      const issue = vainqueurClassique(
+        chronologie,
+        { participantId: idA, equipe: participantA.teamId },
+        { participantId: idB, equipe: participantB.teamId },
+      );
+      // Aucune condition remplie, ou ordre impossible à établir : partie
+      // non retenue — l'organisateur tranchera, jamais un vainqueur deviné.
+      if (issue === null || issue === "ambigu") continue;
+      gagnantEstA = issue.vainqueur === "A";
+    } else {
+      if (participantA.win === participantB.win) continue; // dans des camps opposés
+      if (info.gameDuration < DUREE_MIN_SECONDES) continue; // au-delà du seuil de remake
+      gagnantEstA = participantA.win;
+    }
 
     parties.push({
       riotMatchId,
       debut: info.gameStartTimestamp,
-      gagnantEstA: participantA.win,
+      gagnantEstA,
       participantA,
       participantB,
       dureeSecondes: info.gameDuration,
@@ -137,8 +166,9 @@ interface MatchCandidat {
     best_of: number;
     format: string;
     organisateur_id: string;
+    condition_victoire: string;
   } | null;
-  match_participants: { profile_id: string; profile: { pseudo: string } | null }[];
+  match_participants: { profile_id: string; pret_le: string | null; profile: { pseudo: string } | null }[];
 }
 
 type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
@@ -205,6 +235,40 @@ async function trancherDefaiteReconnue(admin: ClientAdmin, m: MatchCandidat): Pr
   return true;
 }
 
+// Forfait automatique (audit N4) : l'adversaire s'est dit prêt il y a plus
+// de 15 minutes, ce joueur jamais. Garde-fou : si l'un des deux est en
+// partie chez Riot à cet instant (il joue sans doute ce match), ou si on ne
+// peut pas le savoir, rien n'est tranché — on réessaie au passage suivant.
+async function appliquerForfait(
+  admin: ClientAdmin,
+  m: MatchCandidat,
+  forfait: { absentId: string; presentId: string },
+  comptes: Map<string, CompteRapprochement>,
+): Promise<boolean> {
+  if (!m.tournament) return false;
+  for (const profileId of [forfait.absentId, forfait.presentId]) {
+    const compte = comptes.get(`${profileId}:${m.tournament.game_id}`);
+    const region = compte ? trouverRegion(compte.region) : undefined;
+    if (!compte || !region) return false;
+    try {
+      if (await estEnPartie(compte.puuid, region.plateforme)) return false;
+    } catch {
+      return false;
+    }
+  }
+
+  const { data: gagnantId } = await admin.rpc("appliquer_forfait_absence", { p_match_id: m.id });
+  if (!gagnantId) return false;
+
+  const absent = m.match_participants.find((p) => p.profile_id === forfait.absentId)?.profile?.pseudo ?? "Ton adversaire";
+  await apresVerdict(
+    m.id,
+    gagnantId,
+    `Forfait : ${absent} ne s'est pas déclaré prêt dans les ${DELAI_FORFAIT_MINUTES} minutes suivant son adversaire. Verdict hors classement : aucun point pour personne.`,
+  );
+  return true;
+}
+
 async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat): Promise<void> {
   const { data: bascule } = await admin
     .from("matches")
@@ -263,7 +327,7 @@ export async function traiterRechercheResultats(): Promise<{
   const { data: candidatsData } = await supabase
     .from("matches")
     .select(
-      "id, tournament_id, match_suivant_id, statut, demarre_le, defaite_reconnue_par, defaite_reconnue_le, tournament:tournaments(game_id, nom, slug, best_of, format, organisateur_id), match_participants(profile_id, profile:profiles(pseudo))",
+      "id, tournament_id, match_suivant_id, statut, demarre_le, defaite_reconnue_par, defaite_reconnue_le, tournament:tournaments(game_id, nom, slug, best_of, format, organisateur_id, condition_victoire), match_participants(profile_id, pret_le, profile:profiles(pseudo))",
     )
     .in("statut", ["en_cours", "litige"])
     .not("demarre_le", "is", null)
@@ -325,6 +389,7 @@ export async function traiterRechercheResultats(): Promise<{
             bestOf,
             m.tournament.format === "1v1",
             cache,
+            m.tournament.condition_victoire === "classique" ? "classique" : "nexus",
           );
           if (serie && (await enregistrerSerie(admin, m, serie, compteA, compteB))) {
             trouves += 1;
@@ -347,6 +412,19 @@ export async function traiterRechercheResultats(): Promise<{
         ignores += 1;
       }
       continue;
+    }
+
+    // Forfait automatique (audit N4) : un joueur prêt depuis 15 minutes,
+    // son adversaire jamais — et aucune partie Riot retrouvée ci-dessus.
+    if (statut === "en_cours") {
+      const forfait = forfaitAAppliquer(
+        m.match_participants.map((p) => ({ profileId: p.profile_id, pretLe: p.pret_le })),
+        new Date(),
+      );
+      if (forfait && (await appliquerForfait(admin, m, forfait, compteParJoueurEtJeu))) {
+        trouves += 1;
+        continue;
+      }
     }
 
     if (statut === "en_cours" && doitPasserEnLitige(ageMinutes, bestOf)) {

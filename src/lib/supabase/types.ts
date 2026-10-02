@@ -440,6 +440,7 @@ export type Database = {
         Row: {
           est_gagnant: boolean | null
           match_id: string
+          pret_le: string | null
           profile_id: string
           score: number
           slot: number
@@ -447,6 +448,7 @@ export type Database = {
         Insert: {
           est_gagnant?: boolean | null
           match_id: string
+          pret_le?: string | null
           profile_id: string
           score?: number
           slot: number
@@ -454,6 +456,7 @@ export type Database = {
         Update: {
           est_gagnant?: boolean | null
           match_id?: string
+          pret_le?: string | null
           profile_id?: string
           score?: number
           slot?: number
@@ -1269,7 +1272,9 @@ export type Database = {
           best_of: number
           capacite: number
           checkin_ouvre_le: string
+          classe: boolean | null
           compte_pour_classement: boolean
+          condition_victoire: string
           couleur_accent: string | null
           cree_le: string
           creneau_auto: string | null
@@ -1280,6 +1285,7 @@ export type Database = {
           logo_url: string | null
           nom: string
           organisateur_id: string
+          publie_le: string | null
           rating_max: number | null
           rating_min: number | null
           region: string
@@ -1293,7 +1299,9 @@ export type Database = {
           best_of?: number
           capacite: number
           checkin_ouvre_le: string
+          classe?: boolean | null
           compte_pour_classement?: boolean
+          condition_victoire?: string
           couleur_accent?: string | null
           cree_le?: string
           creneau_auto?: string | null
@@ -1304,6 +1312,7 @@ export type Database = {
           logo_url?: string | null
           nom: string
           organisateur_id: string
+          publie_le?: string | null
           rating_max?: number | null
           rating_min?: number | null
           region: string
@@ -1317,7 +1326,9 @@ export type Database = {
           best_of?: number
           capacite?: number
           checkin_ouvre_le?: string
+          classe?: boolean | null
           compte_pour_classement?: boolean
+          condition_victoire?: string
           couleur_accent?: string | null
           cree_le?: string
           creneau_auto?: string | null
@@ -1328,6 +1339,7 @@ export type Database = {
           logo_url?: string | null
           nom?: string
           organisateur_id?: string
+          publie_le?: string | null
           rating_max?: number | null
           rating_min?: number | null
           region?: string
@@ -1456,6 +1468,7 @@ export type Database = {
         Args: { p_game_id: number; p_nouvelle_saison_id: string }
         Returns: undefined
       }
+      appliquer_forfait_absence: { Args: { p_match_id: string }; Returns: string | null }
       appliquer_decroissance_rd: {
         Args: {
           p_game_id: number
@@ -1503,6 +1516,19 @@ export type Database = {
         Returns: boolean
       }
       confirmer_presence: { Args: { p_tournament_id: string }; Returns: boolean }
+      criteres_tournoi_classe: {
+        Args: { p_tournament_id: string }
+        Returns: {
+          amical: boolean
+          classe: boolean
+          joueurs_au_depart: number
+          officiel: boolean
+          organisateur_joue: boolean
+          publie_a_temps: boolean
+        }[]
+      }
+      figer_classement_tournoi: { Args: { p_tournament_id: string }; Returns: boolean }
+      declarer_pret: { Args: { p_match_id: string }; Returns: boolean }
       enregistrer_bye_automatique: {
         Args: { p_gagnant_id: string; p_match_id: string }
         Returns: undefined

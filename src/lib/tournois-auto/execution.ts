@@ -227,12 +227,13 @@ async function surveillerCleRiot(
 // échoué ou a été interrompue (docs/schema.sql, ETAT_DE_DEPART_PERIME).
 // Jusqu'au 28/09/2026, rien ne la relançait : les joueurs restaient sans
 // leurs points. Relancer est sans danger, la base refuse tout double crédit.
+// Une finale gagnée par forfait automatique (audit N4) est jouée elle aussi.
 async function reprendreCloturesEnAttente(admin: ClientAdmin): Promise<string[]> {
   const { data: finales } = await admin
     .from("matches")
     .select("tournament_id, tournament:tournaments!inner(slug, statut)")
     .is("match_suivant_id", null)
-    .eq("statut", "termine")
+    .in("statut", ["termine", "forfait"])
     .eq("tournament.statut", "en_cours");
 
   const resultats: string[] = [];
@@ -353,6 +354,7 @@ async function creer(
         checkin_ouvre_le: checkinOuvreLe,
         statut: "ouvert",
         creneau_auto: creneau.cle,
+        condition_victoire: creneau.conditionVictoire,
       },
       { onConflict: "slug", ignoreDuplicates: true },
     )

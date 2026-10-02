@@ -49,7 +49,7 @@ tâches pg_cron. Une divergence se traite avant d'appliquer la suite.
 Toute la migration est **la fin de `docs/schema.sql`, à partir de la ligne
 « Liaison Riot réservée au serveur (2026-09-28, audit C2) »** (ligne 1448
 aujourd'hui) jusqu'à la dernière ligne. Elle s'applique d'un seul bloc, dans
-une transaction, et contient 19 sections, dans cet ordre :
+une transaction, et contient 22 sections, dans cet ordre :
 
 1. Liaison Riot réservée au serveur (C2)
 2. Règles appliquées par la base (E1, M1 à M4)
@@ -71,6 +71,11 @@ une transaction, et contient 19 sections, dans cet ordre :
     puis interdit toute modification du journal des points
 18. Certificat de niveau vérifiable (N9)
 19. Récap de la semaine (N17)
+20. Tournoi classé : critères publics (E12, N12) — un tournoi en cours au
+    moment de la migration sera jugé sur ces critères à sa clôture (un
+    tournoi à moins de 8 joueurs, par exemple, ne rapportera pas de points)
+21. Forfait automatique (N4)
+22. Conditions de victoire du 1v1 (N5)
 
 La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).

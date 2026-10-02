@@ -94,6 +94,10 @@ interface Options {
   ratings?: unknown[];
   /** Clôture reprise : lignes du journal déjà écrites pour ce tournoi. */
   dejaCredites?: unknown[];
+  /** Décision de la base sur les critères « tournoi classé » (vrai par défaut). */
+  classe?: boolean;
+  /** La base ne répond pas à figer_classement_tournoi. */
+  erreurClassement?: boolean;
 }
 
 const TOUS = ["u1", "u2", "u3", "u4"];
@@ -139,6 +143,14 @@ function installer(o: Options = {}, avecAdmin = true) {
       ? ({
           from: (table: string) => new Requete(table, repondre, journalAdmin),
           rpc: (nom: string, params: Record<string, unknown>) => {
+            if (nom === "figer_classement_tournoi") {
+              chrono.push("classement");
+              return Promise.resolve(
+                o.erreurClassement
+                  ? { data: null, error: { message: "boum" } }
+                  : { data: o.classe ?? true, error: null },
+              );
+            }
             rpcs.push({ nom, params });
             chrono.push(`rpc:${String(params.p_profile_id)}`);
             const echec = (o.joueursEnEchec ?? []).includes(String(params.p_profile_id));
@@ -191,6 +203,41 @@ describe("cloturerTournoi", () => {
 
     expect(misesAJourStatut(journalAdmin)).toHaveLength(1);
     expect(rpcs).toHaveLength(0);
+  });
+
+  it("un tournoi que la base déclare non classé (critères publics) est clôturé sans rating", async () => {
+    installer({ classe: false });
+    await cloturerTournoi("T1");
+
+    expect(chrono).toContain("classement");
+    expect(misesAJourStatut(journalAdmin)).toHaveLength(1);
+    expect(rpcs).toHaveLength(0);
+  });
+
+  it("critères de classement illisibles : rien n'est tranché, le tournoi reste ouvert", async () => {
+    installer({ erreurClassement: true });
+    const erreur = vi.spyOn(console, "error").mockImplementation(() => {});
+    await cloturerTournoi("T1");
+
+    expect(misesAJourStatut(journalAdmin)).toHaveLength(0);
+    expect(rpcs).toHaveLength(0);
+    expect(erreur).toHaveBeenCalled();
+    erreur.mockRestore();
+  });
+
+  it("la décision « classé » est figée avant l'écriture du premier rating", async () => {
+    installer();
+    await cloturerTournoi("T1");
+
+    expect(chrono.indexOf("classement")).toBeGreaterThanOrEqual(0);
+    expect(chrono.indexOf("classement")).toBeLessThan(chrono.findIndex((e) => e.startsWith("rpc:")));
+  });
+
+  it("sans saison courante, la décision n'est jamais figée (aucun point ne peut être écrit)", async () => {
+    installer({ tournoi: { season_id: null }, saisonCourante: null });
+    await cloturerTournoi("T1");
+
+    expect(chrono).not.toContain("classement");
   });
 
   it("rattache à la saison courante un tournoi sans season_id, et l'utilise pour les ratings", async () => {

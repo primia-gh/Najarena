@@ -6,6 +6,7 @@ import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
 import { COULEUR_NIVEAU } from "@/lib/tournois";
 import { RATING_INITIAL, RD_INITIAL, RD_SEUIL_CLASSEMENT } from "@/lib/classement";
+import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 
 export const metadata: Metadata = {
   title: "Comment ça marche — Najarena",
@@ -159,6 +160,40 @@ export default function CommentCaMarchePage() {
                 </div>
               </div>
             </div>
+          </section>
+        </Apparition>
+
+        <Apparition delai={0.21}>
+          <section id="tournois-classes" className="mt-12 scroll-mt-28">
+            <SectionTitre>Quels tournois comptent</SectionTitre>
+            <p className="mt-3 max-w-lg text-sm text-muted">
+              Une partie vérifiée prouve qui a gagné, pas que la rencontre était loyale : quatre amis qui
+              s&apos;arrangent dans un tournoi créé la veille joueraient de vraies parties. Seuls les tournois
+              « classés » rapportent donc des points. Chaque page de tournoi affiche ces critères, et la base de
+              données les applique à la clôture — personne ne peut les contourner, pas même l&apos;organisateur.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {[
+                {
+                  titre: "Tournois officiels",
+                  texte:
+                    "Les tournois quotidiens créés par Najarena, ouverts à tous, sont toujours classés.",
+                },
+                {
+                  titre: "Tournois d'organisateurs",
+                  texte: `Classés s'ils réunissent au moins ${JOUEURS_MIN_TOURNOI_CLASSE} joueurs au départ, ont été publiés au moins ${PREAVIS_TOURNOI_CLASSE_HEURES} h avant leur début, et si leur organisateur ne joue pas dedans. Un organisateur peut aussi déclarer son tournoi amical : aucun point en jeu.`,
+                },
+              ].map((s) => (
+                <div key={s.titre} className="rounded-[3px] border border-line border-t-[3px] border-t-accent bg-surface p-5">
+                  <h3 className="font-titre uppercase text-base font-extrabold text-text">{s.titre}</h3>
+                  <p className="mt-1.5 text-sm text-muted">{s.texte}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 max-w-lg text-sm text-muted">
+              Dans tous les cas, seuls les matchs vérifiés dans la donnée Riot comptent, et au-delà de 3 victoires
+              contre le même adversaire en 24 h, les suivantes sont ignorées.
+            </p>
           </section>
         </Apparition>
 

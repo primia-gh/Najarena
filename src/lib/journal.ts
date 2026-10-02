@@ -11,6 +11,27 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "28 septembre",
+    titre: "Le 1v1 classique, lu dans la partie",
+    texte:
+      "Un organisateur peut choisir la règle du 1v1 classique : premier sang, première tour ou 100 sbires. Le vainqueur est lu dans la chronologie Riot de la partie, minute par minute. Si deux conditions tombent dans la même minute et qu'on ne peut pas dire laquelle est la première, on ne devine pas : l'organisateur tranche.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "28 septembre",
+    titre: "« Je suis prêt » et forfait automatique",
+    texte:
+      "Dans la salle de match, chaque joueur se déclare prêt. Dès que l'un l'est, l'autre est prévenu et a 15 minutes pour faire de même, sinon il perd par forfait — aucun point pour personne. Garde-fou : jamais de forfait contre un joueur déjà en partie chez Riot.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "28 septembre",
+    titre: "Tournois classés : des critères publics",
+    texte:
+      "Une partie vérifiée prouve qui a gagné, pas que la rencontre était loyale. Seuls les tournois classés rapportent donc des points : les tournois officiels, et ceux d'organisateurs qui réunissent au moins 8 joueurs, publiés 24 h à l'avance, sans leur organisateur dans le bracket. Chaque page de tournoi affiche ces critères un par un.",
+    tags: ["Fiabilité"],
+  },
+  {
+    date: "28 septembre",
     titre: "Le registre des points, scellé",
     texte:
       "Chaque variation de points porte désormais l'empreinte de la précédente, comme les maillons d'une chaîne : retoucher une seule ligne passée, même depuis l'intérieur de Najarena, se verrait. L'empreinte du jour est publiée chaque soir sur Discord, et n'importe qui peut refaire le calcul depuis la page /registre.",

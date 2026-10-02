@@ -3,6 +3,7 @@
 // le navigateur (règle de sécurité non négociable, cf. CLAUDE.md §6).
 
 import { REGIONS as REGIONS_LOL } from "./regions";
+import type { ChronologieRiot } from "./conditions-1v1";
 
 export type Continent = "europe" | "americas" | "asia";
 
@@ -131,6 +132,8 @@ export async function recupererInvocateur(
 export interface ParticipantMatchRiot {
   puuid: string;
   win: boolean;
+  /** 100 ou 200 (conditions du 1v1 classique, src/lib/conditions-1v1.ts). */
+  teamId?: number;
   championName: string;
   kills: number;
   deaths: number;
@@ -170,6 +173,29 @@ export async function recupererDetailsMatch(
 ): Promise<DetailsMatchRiot> {
   const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/${encodeURIComponent(matchId)}`;
   return appelRiot<DetailsMatchRiot>(url);
+}
+
+// match-v5 timeline — chronologie minute par minute d'une partie (morts,
+// tours, sbires). Sert au 1v1 classique (audit N5) : qui a rempli la
+// première condition de victoire.
+export async function recupererChronologieMatch(matchId: string, continent: Continent): Promise<ChronologieRiot> {
+  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/${encodeURIComponent(matchId)}/timeline`;
+  return appelRiot<ChronologieRiot>(url);
+}
+
+// spectator-v5 — partie en cours d'un joueur (routage plateforme). Sert de
+// garde-fou au forfait automatique (audit N4) : un joueur en partie à cet
+// instant n'est jamais déclaré forfait, même s'il a oublié de se dire prêt.
+export async function estEnPartie(puuid: string, plateforme: string): Promise<boolean> {
+  try {
+    await appelRiot<unknown>(
+      `https://${plateforme}.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${encodeURIComponent(puuid)}`,
+    );
+    return true;
+  } catch (e) {
+    if (e instanceof ErreurRiot && e.code === "introuvable") return false;
+    throw e;
+  }
 }
 
 // Data Dragon : CDN statique public, ni clé ni quota — sert uniquement à
