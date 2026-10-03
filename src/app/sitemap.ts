@@ -38,6 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/lol/saisons`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/lol/tournois/demo`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${BASE_URL}/lol/coequipiers`, changeFrequency: "daily", priority: 0.6 },
+    { url: `${BASE_URL}/lol/arene`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/comment-ca-marche`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/faq`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/journal`, changeFrequency: "weekly", priority: 0.5 },

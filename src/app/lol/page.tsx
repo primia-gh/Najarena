@@ -45,7 +45,7 @@ function IconeEtape({ chemin }: { chemin: keyof typeof ICONE_ETAPE }) {
 const PORTES = [
   {
     titre: "Je veux jouer",
-    texte: "Des tournois quotidiens en 1v1, des tournois 5v5 entre équipes, ton classement recalculé à la fin de chaque tournoi.",
+    texte: "Des tournois quotidiens en 1v1, des tournois 5v5 entre équipes, l'arène pour un duel tout de suite contre un joueur de ton niveau.",
     cta: "Voir les tournois",
     href: "/lol/tournois",
   },
@@ -135,6 +135,9 @@ export default async function LolHubPage() {
           </Apparition>
           <Apparition delai={0.08} className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <BoutonLien href="/lol/tournois">Voir les tournois</BoutonLien>
+            <BoutonLien href="/lol/arene" variante="contour">
+              Duel tout de suite
+            </BoutonLien>
             <BoutonLien href="/lol/classement" variante="contour">
               Voir le classement
             </BoutonLien>

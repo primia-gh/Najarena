@@ -98,7 +98,11 @@ export default function CguPage() {
             accepté devient un duel arbitré par Najarena, dont le résultat
             est lu de la même façon. Entre deux mêmes joueurs, un seul défi
             par période de 24 heures compte au classement ; un défi sans
-            partie retrouvée dans les 24 heures est annulé.
+            partie retrouvée dans les 24 heures est annulé. L&apos;arène
+            ouvre le même duel avec un adversaire choisi par Najarena : même
+            région, même règle de victoire, rating proche selon un écart
+            public ; une place dans la file expire après 30 minutes sans
+            adversaire.
           </p>
           <p className="mt-2 text-muted">
             Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq

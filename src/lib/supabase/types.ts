@@ -314,6 +314,41 @@ export type Database = {
           },
         ]
       }
+      file_arene: {
+        Row: {
+          condition_victoire: string
+          entree_le: string
+          profile_id: string
+          rating: number
+          rd: number
+          region: string
+        }
+        Insert: {
+          condition_victoire?: string
+          entree_le?: string
+          profile_id: string
+          rating: number
+          rd: number
+          region: string
+        }
+        Update: {
+          condition_victoire?: string
+          entree_le?: string
+          profile_id?: string
+          rating?: number
+          rd?: number
+          region?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_arene_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       defis: {
         Row: {
           adversaire_id: string | null
@@ -2001,6 +2036,13 @@ export type Database = {
       }
       definir_compte_principal: { Args: { p_game_id: number; p_puuid: string }; Returns: boolean }
       delier_compte_secondaire: { Args: { p_game_id: number; p_puuid: string }; Returns: boolean }
+      rejoindre_arene: { Args: { p_condition?: string }; Returns: string | null }
+      quitter_arene: { Args: never; Returns: boolean }
+      etat_arene: {
+        Args: never
+        Returns: { en_attente_region: number; en_file: boolean; entree_le: string | null }[]
+      }
+      apparier_arene: { Args: never; Returns: { slug: string }[] }
       delier_compte_riot: { Args: { p_game_id: number }; Returns: boolean }
       emettre_certificat: { Args: { p_game_id?: number }; Returns: string }
       enregistrer_consentement: { Args: { p_version: string }; Returns: boolean }

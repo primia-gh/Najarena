@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "L'arène : un duel tout de suite",
+    texte:
+      "Plus besoin d'attendre le prochain tournoi : entre dans l'arène, le site te trouve un joueur de ta région au rating proche et ouvre le duel. L'écart toléré est public — 100 points, plus la moitié de l'indice d'incertitude, plus 20 par minute d'attente — et le résultat est lu chez Riot comme pour un défi.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "3 octobre",
     titre: "Tes autres comptes, en transparence",
     texte:
       "Tu peux déclarer jusqu'à trois comptes Riot, vérifiés de la même façon. Ils s'affichent sur ton CV avec le nombre de matchs vérifiés joués sur chacun, plutôt que de laisser croire qu'il n'en existe qu'un. Seul ton compte principal t'inscrit aux tournois, et il ne change pas pendant un tournoi en cours.",
