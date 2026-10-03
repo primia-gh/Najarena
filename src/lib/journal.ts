@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "L'IA rédige, elle ne décide pas",
+    texte:
+      "Trois nouveaux usages, toujours à la demande et sur des données déjà vérifiées : une analyse détaillée de tes matchs (offre Elite), un dossier qui rassemble les faits d'un litige pour l'organisateur — sans jamais désigner de vainqueur —, et une recherche de joueurs en langage naturel pour les recruteurs, traduite en filtres sur des comptes vérifiés. Aucun résultat ni point n'est jamais écrit par l'IA.",
+    tags: ["Fonctionnalité", "Fiabilité"],
+  },
+  {
+    date: "3 octobre",
     titre: "Objectif Clash et Nexus Tour",
     texte:
       "La page Coéquipiers affiche les prochaines échéances : les dates de Clash, lues dans le calendrier officiel de Riot, et les étapes du Nexus Tour, ajoutées avec leur lien officiel. Une annonce peut viser l'une d'elles — « je cherche une équipe pour la prochaine étape » — et chaque échéance montre combien de joueurs la préparent.",

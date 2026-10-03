@@ -5876,3 +5876,50 @@ drop trigger if exists recherches_coequipiers_objectif on public.recherches_coeq
 create trigger recherches_coequipiers_objectif
   before insert or update of objectif_id on public.recherches_coequipiers
   for each row execute function public.controler_objectif_annonce();
+
+-- ---------- Revue de match et dossier de litige rédigés par l'IA (2026-10-03, audit N25 et N28) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (« Analyse détaillée » du CV, « Préparer le dossier » des litiges).
+-- Textes rédigés par Claude (src/lib/claude.ts) à partir de données déjà
+-- en base ou lues chez Riot, gardés pour ne pas payer deux fois le même
+-- texte. Écrits par le serveur seul, après ses contrôles (offre Elite pour
+-- la revue, organisateur ou administrateur pour le dossier) et la limite
+-- de demandes à l'IA (reserver_appel_assistant_ia, 10 par 24 h).
+-- Un dossier de litige ne tranche jamais : il rassemble les faits pour la
+-- personne qui décide.
+create table if not exists public.revues_match_ia (
+  match_id    uuid not null references public.matches(id) on delete cascade,
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  points      text[] not null,
+  conseil     text not null,
+  modele      text not null,
+  cree_le     timestamptz not null default now(),
+  primary key (match_id, profile_id)
+);
+create index if not exists revues_match_ia_profile_id_idx on public.revues_match_ia (profile_id);
+alter table public.revues_match_ia enable row level security;
+create policy "un joueur lit ses revues" on public.revues_match_ia
+  for select using (profile_id = (select auth.uid()));
+revoke insert, update, delete on public.revues_match_ia from anon, authenticated;
+
+create table if not exists public.dossiers_litige (
+  dispute_id  uuid primary key references public.disputes(id) on delete cascade,
+  faits       text[] not null,
+  synthese    jsonb not null,
+  modele      text not null,
+  cree_par    uuid references public.profiles(id) on delete set null,
+  cree_le     timestamptz not null default now()
+);
+create index if not exists dossiers_litige_cree_par_idx on public.dossiers_litige (cree_par);
+alter table public.dossiers_litige enable row level security;
+create policy "organisateur et administrateurs lisent le dossier" on public.dossiers_litige
+  for select using (
+    exists (select 1 from public.admins a where a.profile_id = (select auth.uid()))
+    or exists (
+      select 1 from public.disputes d
+      join public.matches m on m.id = d.match_id
+      join public.tournaments t on t.id = m.tournament_id
+      where d.id = dossiers_litige.dispute_id and t.organisateur_id = (select auth.uid())
+    )
+  );
+revoke insert, update, delete on public.dossiers_litige from anon, authenticated;

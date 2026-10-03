@@ -23,6 +23,7 @@ import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import DossierLitige, { lireSynthese } from "@/components/litige/DossierLitige";
 
 export const metadata: Metadata = {
   title: "Administration — Najarena",
@@ -218,6 +219,20 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   const litiges = litigesData ?? [];
   const litigesOuverts = litiges.filter((l) => !l.resolution);
+  // Dossiers déjà préparés (audit N28).
+  const { data: dossiersData } =
+    litigesOuverts.length > 0
+      ? await supabase
+          .from("dossiers_litige")
+          .select("dispute_id, faits, synthese")
+          .in(
+            "dispute_id",
+            litigesOuverts.map((l) => l.id),
+          )
+      : { data: [] };
+  const dossierParLitige = new Map(
+    (dossiersData ?? []).map((d) => [d.dispute_id, { faits: d.faits, synthese: lireSynthese(d.synthese) }]),
+  );
   const litigesResolus = litiges.filter((l) => l.resolution);
   const comptes = derniersInscrits ?? [];
   const suspensions = suspensionsData ?? [];
@@ -685,6 +700,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     Résoudre
                   </Bouton>
                 </form>
+                <DossierLitige disputeId={l.id} dossier={dossierParLitige.get(l.id) ?? null} depuis="admin" />
               </li>
             ))}
           </ul>

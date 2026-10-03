@@ -466,6 +466,48 @@ export type Database = {
           },
         ]
       }
+      dossiers_litige: {
+        Row: {
+          cree_le: string
+          cree_par: string | null
+          dispute_id: string
+          faits: string[]
+          modele: string
+          synthese: Json
+        }
+        Insert: {
+          cree_le?: string
+          cree_par?: string | null
+          dispute_id: string
+          faits: string[]
+          modele: string
+          synthese: Json
+        }
+        Update: {
+          cree_le?: string
+          cree_par?: string | null
+          dispute_id?: string
+          faits?: string[]
+          modele?: string
+          synthese?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dossiers_litige_cree_par_fkey"
+            columns: ["cree_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dossiers_litige_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: true
+            referencedRelation: "disputes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       echeances: {
         Row: {
           cle_externe: string | null
@@ -1322,6 +1364,48 @@ export type Database = {
             columns: ["tournament_id"]
             isOneToOne: false
             referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revues_match_ia: {
+        Row: {
+          conseil: string
+          cree_le: string
+          match_id: string
+          modele: string
+          points: string[]
+          profile_id: string
+        }
+        Insert: {
+          conseil: string
+          cree_le?: string
+          match_id: string
+          modele: string
+          points: string[]
+          profile_id: string
+        }
+        Update: {
+          conseil?: string
+          cree_le?: string
+          match_id?: string
+          modele?: string
+          points?: string[]
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revues_match_ia_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revues_match_ia_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

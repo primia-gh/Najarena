@@ -68,7 +68,7 @@ tâches pg_cron. Une divergence se traite avant d'appliquer la suite.
 Toute la migration est **la fin de `docs/schema.sql`, à partir de la ligne
 « Liaison Riot réservée au serveur (2026-09-28, audit C2) »** (ligne 1448
 aujourd'hui) jusqu'à la dernière ligne. Elle s'applique d'un seul bloc, dans
-une transaction, et contient 28 sections, dans cet ordre :
+une transaction, et contient 29 sections, dans cet ordre :
 
 1. Liaison Riot réservée au serveur (C2)
 2. Règles appliquées par la base (E1, M1 à M4)
@@ -108,12 +108,15 @@ une transaction, et contient 28 sections, dans cet ordre :
 28. Objectif Nexus Tour et Clash (N24) — le calendrier Clash se remplit
     seul (clé Riot valide nécessaire) ; les étapes du Nexus Tour sont à
     saisir dans `/admin#echeances`, avec leur lien officiel
+29. Revue de match et dossier de litige rédigés par l'IA (N25, N28) — sans
+    `ANTHROPIC_API_KEY`, ces boutons n'apparaissent pas et le dossier de
+    litige garde les faits seuls
 
 La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).
 
 Le même bloc est rejoué à chaque envoi de code sur une base PostgreSQL de
-test par `npm run test:base` (399 vérifications, toutes au vert au
+test par `npm run test:base` (405 vérifications, toutes au vert au
 03/10/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
 
 Après application : lancer les conseillers de sécurité et de performance

@@ -23,6 +23,7 @@ import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
 import { libelleEquipe } from "@/lib/cinq-contre-cinq";
+import DossierLitige, { lireSynthese } from "@/components/litige/DossierLitige";
 
 export const metadata: Metadata = {
   title: "Cockpit organisateur — Najarena",
@@ -115,6 +116,20 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
   const litiges = litigesData ?? [];
   const litigesOuverts = litiges.filter((l) => !l.resolution);
+  // Dossiers déjà préparés (audit N28).
+  const { data: dossiersData } =
+    litigesOuverts.length > 0
+      ? await supabase
+          .from("dossiers_litige")
+          .select("dispute_id, faits, synthese")
+          .in(
+            "dispute_id",
+            litigesOuverts.map((l) => l.id),
+          )
+      : { data: [] };
+  const dossierParLitige = new Map(
+    (dossiersData ?? []).map((d) => [d.dispute_id, { faits: d.faits, synthese: lireSynthese(d.synthese) }]),
+  );
 
   const rounds = new Map<number, typeof matchs>();
   for (const m of matchs) {
@@ -456,6 +471,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                     Résoudre
                   </Bouton>
                 </form>
+                <DossierLitige disputeId={l.id} dossier={dossierParLitige.get(l.id) ?? null} depuis="cockpit" />
               </li>
             ))}
           </ul>

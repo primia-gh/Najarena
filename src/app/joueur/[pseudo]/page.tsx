@@ -12,6 +12,8 @@ import { mettreAJourBioProfile } from "@/lib/offres-actions";
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { demarrerConversation } from "@/lib/messagerie-actions";
 import { chargerMoyennes, genererRevue, type StatsMatch } from "@/lib/revue-match";
+import { demanderRevueIA } from "@/lib/revue-ia-actions";
+import { iaDisponible } from "@/lib/claude";
 import { JsonLd } from "@/lib/json-ld";
 import { chargerComplementsProfil } from "@/lib/profil-vitrine";
 import { adresseActuelleProfil, enregistrerVisite } from "@/lib/visites-profil";
@@ -54,7 +56,20 @@ const LABEL_MOTIF: Record<string, string> = {
 
 interface JoueurPageProps {
   params: Promise<{ pseudo: string }>;
+  searchParams?: Promise<{ revue?: string }>;
 }
+
+// Réponse à « Analyse détaillée » (audit N25, src/lib/revue-ia-actions.ts).
+const MESSAGES_REVUE_IA: Record<string, { texte: string; erreur: boolean }> = {
+  ok: { texte: "Analyse détaillée prête : elle est rangée sous le match.", erreur: false },
+  deja: { texte: "Ce match a déjà son analyse détaillée.", erreur: false },
+  offre: { texte: "L'analyse détaillée fait partie de l'offre Elite.", erreur: true },
+  "sans-stats": { texte: "Pas de statistiques Riot pour ce match : rien à analyser.", erreur: true },
+  limite: { texte: "Tu as atteint tes 10 demandes à l'IA des dernières 24 heures : réessaie demain.", erreur: true },
+  refus: { texte: "L'IA n'a pas pu rédiger cette analyse.", erreur: true },
+  invalide: { texte: "L'analyse reçue était incomplète : réessaie.", erreur: true },
+  indisponible: { texte: "L'analyse détaillée est indisponible pour l'instant.", erreur: true },
+};
 
 // cache : generateMetadata et la page partagent un seul chargement par
 // requête (audit M12 — tout était chargé deux fois, visite comprise).
@@ -201,15 +216,19 @@ const chargerJoueur = cache(async (slug: string) => {
   const peutRevue = estProprietaire && ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.elite;
   let statsParMatch = new Map<string, StatsMatch>();
   let moyennesVictoires: Awaited<ReturnType<typeof chargerMoyennes>>["victoires"] = null;
+  let revuesIA = new Map<string, { points: string[]; conseil: string }>();
   if (peutRevue && matchIds.length > 0) {
-    const [{ data: statsData }, moyennes] = await Promise.all([
+    const [{ data: statsData }, moyennes, { data: revuesData }] = await Promise.all([
       supabase
         .from("stats_match_joueur")
         .select("match_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne")
         .eq("profile_id", profil.id)
         .in("match_id", matchIds),
       chargerMoyennes(supabase, profil.id),
+      // Analyses détaillées déjà rédigées par l'IA (audit N25).
+      supabase.from("revues_match_ia").select("match_id, points, conseil").in("match_id", matchIds),
     ]);
+    revuesIA = new Map((revuesData ?? []).map((r) => [r.match_id, { points: r.points, conseil: r.conseil }]));
     statsParMatch = new Map(
       (statsData ?? []).map((s) => [
         s.match_id,
@@ -244,6 +263,7 @@ const chargerJoueur = cache(async (slug: string) => {
         creeLe: verdict.cree_le,
         stats,
         revue: stats ? genererRevue(stats, moyennesVictoires) : null,
+        revueIA: revuesIA.get(p.match_id) ?? null,
       };
     })
     .filter((h): h is NonNullable<typeof h> => h !== null)
@@ -263,6 +283,7 @@ const chargerJoueur = cache(async (slug: string) => {
     dejaSuivi,
     peutRevue,
     visiteurId,
+    iaPossible: iaDisponible(),
   };
 });
 
@@ -299,8 +320,9 @@ export async function generateMetadata({ params }: JoueurPageProps): Promise<Met
   };
 }
 
-export default async function JoueurPage({ params }: JoueurPageProps) {
+export default async function JoueurPage({ params, searchParams }: JoueurPageProps) {
   const { pseudo } = await params;
+  const { revue: retourRevue } = (await searchParams) ?? {};
   const donnees = await chargerJoueur(pseudo);
 
   if (donnees.statut === "deplace") {
@@ -337,7 +359,8 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     );
   }
 
-  const { profil, compteRiot, rating, historique, evenementsPoints, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi, peutRevue, visiteurId } = donnees;
+  const { profil, compteRiot, rating, historique, evenementsPoints, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi, peutRevue, visiteurId, iaPossible } = donnees;
+  const messageRevue = estProprietaire && retourRevue ? MESSAGES_REVUE_IA[retourRevue] : undefined;
 
   // Jamais pour un visiteur déconnecté ni pour le propriétaire lui-même.
   if (visiteurId && !estProprietaire) {
@@ -781,6 +804,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
             </Panneau>
 
             {/* Historique des matchs */}
+            <span id="historique" aria-hidden="true" className="-mb-8 block scroll-mt-28" />
             <Panneau className="flex flex-col gap-6 p-6 sm:p-8">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <LibelleSection as="h2">Historique des matchs</LibelleSection>
@@ -788,6 +812,11 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                   {matchsVerifies} match{matchsVerifies > 1 ? "s" : ""} vérifié{matchsVerifies > 1 ? "s" : ""}
                 </span>
               </div>
+              {messageRevue && (
+                <p role={messageRevue.erreur ? "alert" : "status"} className={`text-sm ${messageRevue.erreur ? "text-danger" : "text-accent"}`}>
+                  {messageRevue.texte}
+                </p>
+              )}
               {historique.length === 0 ? (
                 <p className="text-muted">Aucun résultat enregistré pour l&apos;instant.</p>
               ) : (
@@ -874,6 +903,33 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                                       ))
                                     ) : (
                                       <p className="text-muted">Pas encore assez de matchs pour comparer.</p>
+                                    )}
+                                    {/* Analyse détaillée rédigée par l'IA (audit N25). */}
+                                    {h.revueIA ? (
+                                      <div className="mt-2 flex flex-col gap-1.5 border-t border-line pt-3">
+                                        <p className="text-mini text-muted uppercase">
+                                          Analyse détaillée — rédigée par IA à partir des seuls chiffres officiels
+                                        </p>
+                                        <ul className="flex list-disc flex-col gap-1 pl-5 text-text-2">
+                                          {h.revueIA.points.map((point) => (
+                                            <li key={point}>{point}</li>
+                                          ))}
+                                        </ul>
+                                        <p className="text-text">
+                                          <span className="font-semibold">Conseil : </span>
+                                          {h.revueIA.conseil}
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      iaPossible && (
+                                        <form action={demanderRevueIA} className="mt-2 border-t border-line pt-3">
+                                          <input type="hidden" name="match_id" value={h.matchId} />
+                                          <input type="hidden" name="slug" value={profil.slug} />
+                                          <BoutonEnvoi variante="contour" libelleEnCours="Analyse…" className="self-start">
+                                            Analyse détaillée (IA)
+                                          </BoutonEnvoi>
+                                        </form>
+                                      )
                                     )}
                                   </div>
                                 </details>
