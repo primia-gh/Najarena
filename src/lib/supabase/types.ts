@@ -314,6 +314,95 @@ export type Database = {
           },
         ]
       }
+      communautes: {
+        Row: {
+          code_liaison: string | null
+          code_liaison_expire_le: string | null
+          couleur: string
+          cree_le: string
+          description: string | null
+          discord_guild_id: string | null
+          game_id: number
+          id: string
+          lien_discord: string | null
+          nom: string
+          proprietaire_id: string
+          slug: string
+        }
+        Insert: {
+          code_liaison?: string | null
+          code_liaison_expire_le?: string | null
+          couleur?: string
+          cree_le?: string
+          description?: string | null
+          discord_guild_id?: string | null
+          game_id?: number
+          id?: string
+          lien_discord?: string | null
+          nom: string
+          proprietaire_id: string
+          slug: string
+        }
+        Update: {
+          code_liaison?: string | null
+          code_liaison_expire_le?: string | null
+          couleur?: string
+          cree_le?: string
+          description?: string | null
+          discord_guild_id?: string | null
+          game_id?: number
+          id?: string
+          lien_discord?: string | null
+          nom?: string
+          proprietaire_id?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communautes_proprietaire_id_fkey"
+            columns: ["proprietaire_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      membres_communaute: {
+        Row: {
+          communaute_id: string
+          profile_id: string
+          rejoint_le: string
+          role: string
+        }
+        Insert: {
+          communaute_id: string
+          profile_id: string
+          rejoint_le?: string
+          role?: string
+        }
+        Update: {
+          communaute_id?: string
+          profile_id?: string
+          rejoint_le?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membres_communaute_communaute_id_fkey"
+            columns: ["communaute_id"]
+            isOneToOne: false
+            referencedRelation: "communautes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membres_communaute_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pronostics: {
         Row: {
           cree_le: string
@@ -1792,6 +1881,7 @@ export type Database = {
           checkin_ouvre_le: string
           classe: boolean | null
           compte_pour_classement: boolean
+          communaute_id: string | null
           condition_victoire: string
           couleur_accent: string | null
           cree_le: string
@@ -1820,6 +1910,7 @@ export type Database = {
           checkin_ouvre_le: string
           classe?: boolean | null
           compte_pour_classement?: boolean
+          communaute_id?: string | null
           condition_victoire?: string
           couleur_accent?: string | null
           cree_le?: string
@@ -1848,6 +1939,7 @@ export type Database = {
           checkin_ouvre_le?: string
           classe?: boolean | null
           compte_pour_classement?: boolean
+          communaute_id?: string | null
           condition_victoire?: string
           couleur_accent?: string | null
           cree_le?: string
@@ -1871,6 +1963,13 @@ export type Database = {
           verrouille_le?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tournaments_communaute_id_fkey"
+            columns: ["communaute_id"]
+            isOneToOne: false
+            referencedRelation: "communautes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tournaments_game_id_fkey"
             columns: ["game_id"]
@@ -2087,6 +2186,24 @@ export type Database = {
       }
       apparier_arene: { Args: never; Returns: { slug: string }[] }
       pronostiquer: { Args: { p_gagnant: string; p_match_id: string }; Returns: boolean }
+      creer_communaute: {
+        Args: { p_couleur?: string; p_description?: string; p_lien_discord?: string; p_nom: string; p_slug: string }
+        Returns: string
+      }
+      modifier_communaute: {
+        Args: { p_communaute_id: string; p_couleur: string; p_description: string; p_lien_discord: string }
+        Returns: boolean
+      }
+      rejoindre_communaute: { Args: { p_communaute_id: string }; Returns: boolean }
+      quitter_communaute: { Args: { p_communaute_id: string }; Returns: boolean }
+      retirer_membre_communaute: { Args: { p_communaute_id: string; p_profile_id: string }; Returns: boolean }
+      nommer_admin_communaute: {
+        Args: { p_admin: boolean; p_communaute_id: string; p_profile_id: string }
+        Returns: boolean
+      }
+      code_liaison_discord: { Args: { p_communaute_id: string }; Returns: string }
+      lier_serveur_discord: { Args: { p_code: string; p_guild_id: string }; Returns: string }
+      delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
       repartition_pronostics: {
         Args: { p_tournament_id: string }
         Returns: { gagnant_prevu: string; match_id: string; nombre: number }[]

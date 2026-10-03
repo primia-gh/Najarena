@@ -36,6 +36,9 @@ export async function creerTournoi(formData: FormData) {
   const format = formData.get("format") === "5v5" ? "5v5" : "1v1";
   // Condition de victoire (audit N5) : Nexus par défaut, 1v1 classique au choix.
   const condition = format === "1v1" && formData.get("condition_victoire") === "classique" ? "classique" : "nexus";
+  // Communauté (audit N30) : la base vérifie que l'organisateur en est le
+  // fondateur ou un administrateur.
+  const communauteId = String(formData.get("communaute_id") ?? "");
 
   if (nom.length < 3 || nom.length > 60) {
     redirect(
@@ -119,11 +122,16 @@ export async function creerTournoi(formData: FormData) {
     statut: publier ? "ouvert" : "brouillon",
     compte_pour_classement: format === "1v1" && !amical,
     condition_victoire: condition,
+    communaute_id: /^[0-9a-f-]{36}$/.test(communauteId) ? communauteId : null,
   });
 
   if (error) {
     redirect(
-      `/organiser/nouveau?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant.")}`,
+      `/organiser/nouveau?erreur=${encodeURIComponent(
+        error.message.includes("COMMUNAUTE_INTERDITE")
+          ? "Seuls le fondateur et les administrateurs publient des tournois dans cette communauté."
+          : (messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant."),
+      )}`,
     );
   }
 

@@ -22,13 +22,26 @@ const CAPACITES = [4, 8, 16, 32, 64];
 const CAPACITE_ETENDUE = 128;
 
 interface OrganiserNouveauPageProps {
-  searchParams: Promise<{ erreur?: string }>;
+  // Pré-remplissage (commande /organiser du bot Discord, page d'une
+  // communauté) : simples valeurs par défaut, toutes revérifiées à l'envoi.
+  searchParams: Promise<{
+    erreur?: string;
+    nom?: string;
+    debut?: string;
+    checkin?: string;
+    capacite?: string;
+    region?: string;
+    communaute?: string;
+  }>;
 }
+
+const DATE_SAISIE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 export default async function OrganiserNouveauPage({
   searchParams,
 }: OrganiserNouveauPageProps) {
-  const { erreur } = await searchParams;
+  const { erreur, nom: nomPropose, debut, checkin, capacite: capacitePropose, region: regionProposee, communaute } =
+    await searchParams;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -36,8 +49,20 @@ export default async function OrganiserNouveauPage({
     redirect("/connexion");
   }
 
-  const { offre } = await chargerOffre(supabase, userData.user.id);
+  const [{ offre }, { data: communautesData }] = await Promise.all([
+    chargerOffre(supabase, userData.user.id),
+    // Communautés où il peut publier (audit N30) : fondateur ou administrateur.
+    supabase
+      .from("membres_communaute")
+      .select("communaute:communautes(id, slug, nom)")
+      .eq("profile_id", userData.user.id)
+      .in("role", ["proprietaire", "admin"]),
+  ]);
   const estOrganisateurPremium = offre === "organisateur";
+  const mesCommunautes = (communautesData ?? []).flatMap((m) => (m.communaute ? [m.communaute] : []));
+  const communauteParDefaut = mesCommunautes.find((c) => c.slug === communaute)?.id ?? "";
+  const capaciteParDefaut = CAPACITES.includes(Number(capacitePropose)) ? String(Number(capacitePropose)) : "8";
+  const regionParDefaut = REGIONS.some((r) => r.code === regionProposee) ? (regionProposee ?? "") : "";
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -93,6 +118,7 @@ export default async function OrganiserNouveauPage({
             minLength={3}
             maxLength={60}
             placeholder="Ex. Tournoi du jeudi soir"
+            defaultValue={nomPropose?.slice(0, 60) ?? ""}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
@@ -118,7 +144,7 @@ export default async function OrganiserNouveauPage({
             id="capacite"
             name="capacite"
             required
-            defaultValue="8"
+            defaultValue={capaciteParDefaut}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             {CAPACITES.map((c) => (
@@ -182,7 +208,7 @@ export default async function OrganiserNouveauPage({
             id="region"
             name="region"
             required
-            defaultValue=""
+            defaultValue={regionParDefaut}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <option value="" disabled>
@@ -205,6 +231,7 @@ export default async function OrganiserNouveauPage({
             name="checkin_ouvre_le"
             type="datetime-local"
             required
+            defaultValue={checkin && DATE_SAISIE.test(checkin) ? checkin : undefined}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
@@ -218,9 +245,29 @@ export default async function OrganiserNouveauPage({
             name="debute_le"
             type="datetime-local"
             required
+            defaultValue={debut && DATE_SAISIE.test(debut) ? debut : undefined}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
+
+        {mesCommunautes.length > 0 && (
+          <label className="flex flex-col gap-1">
+            <span className="font-texte text-mini font-medium text-muted uppercase">Communauté</span>
+            <select
+              name="communaute_id"
+              defaultValue={communauteParDefaut}
+              className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <option value="">Aucune</option>
+              {mesCommunautes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nom}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-muted">Le tournoi apparaîtra aussi sur la page de la communauté.</span>
+          </label>
+        )}
 
         <fieldset className="flex flex-col gap-2">
           <legend className="font-texte text-mini font-medium text-muted uppercase">

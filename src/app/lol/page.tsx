@@ -57,7 +57,7 @@ const PORTES = [
   },
   {
     titre: "J'organise un tournoi",
-    texte: "Check-in, bracket, verdicts — un cockpit qui fait le travail d'admin à ta place.",
+    texte: "Check-in, bracket, verdicts — un cockpit qui fait le travail d'admin à ta place. Et une page pour ta communauté ou ton serveur Discord.",
     cta: "Organiser un tournoi",
     href: "/organiser/nouveau",
   },

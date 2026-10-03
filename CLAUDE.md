@@ -33,6 +33,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 03/10/2026 (audit N20) : **pronostics gratuits** — vainqueur des demi-finales (1 point) et des finales (2 points) des tournois (`nature = 'tournoi'`), depuis la page du tournoi (`#pronostics`, fonction `pronostiquer`, table `pronostics`). Fermé dès qu'un joueur du match est prêt ou 10 minutes après l'ouverture du match ; les joueurs du tournoi et l'organisateur ne pronostiquent pas. Compté seulement sur un verdict lu chez Riot (forfait, verdict manuel = annulé). Classement par saison sur `/lol/pronostics` (`classement_pronostics`). **Aucune mise, aucun gain** — ne jamais y attacher de récompense (ce serait un jeu d'argent).*
 
+*Mise à jour du 03/10/2026 (audit N30) : **espaces communauté** — `/communautes`, `/communaute/[slug]`, `/communaute/nouvelle` : tables `communautes` et `membres_communaute`, `tournaments.communaute_id`. Créées par l'offre Organisateur (3 au plus, `creer_communaute`), rejointes librement ; fondateur / administrateurs / membres. Classement interne = rating officiel des membres classés, jamais un rating à part. Serveur Discord lié par un code de 30 minutes saisi avec `/lier` par un membre qui peut gérer le serveur (`lier_serveur_discord`, rôle service) ; commandes `/communaute` et `/organiser` (lien pré-rempli vers `/organiser/nouveau`, le bot n'écrit jamais de tournoi). Commandes à réenregistrer : `npm run discord:commandes`.*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -172,6 +174,7 @@ Schéma de base de données : `docs/schema.sql`.
 /defi/[code]               lien « Invite ton rival » : un ami s'inscrit, lie son Riot ID et relève le défi (non indexé)
 /equipe/[slug]             page publique d'équipe
 /equipe/nouvelle           création d'équipe
+/communautes               espaces communauté (serveur Discord, association) ; /communaute/[slug], /communaute/nouvelle
 /organiser/nouveau         création de tournoi
 /moi                       tableau de bord joueur (bandeau « ton match », gérer mon abonnement)
 /moi/profil                pseudo, pays, visites anonymes, suppression du compte

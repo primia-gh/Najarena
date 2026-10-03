@@ -15,7 +15,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createClient();
 
-  const [{ data: tournois }, { data: ratings }, { data: equipes }, { data: recaps }] = await Promise.all([
+  const [{ data: tournois }, { data: ratings }, { data: equipes }, { data: recaps }, { data: communautes }] = await Promise.all([
     supabase
       .from("tournaments")
       .select("slug, cree_le")
@@ -27,6 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     supabase.from("ratings").select("maj_le, profil:profiles(slug)").gt("matchs_joues", 0),
     supabase.from("teams").select("slug, cree_le"),
     supabase.from("recaps_semaine").select("semaine, publie_le").eq("annonce", true).order("semaine", { ascending: false }).limit(52),
+    supabase.from("communautes").select("slug, cree_le"),
   ]);
 
   const pagesStatiques: MetadataRoute.Sitemap = [
@@ -40,6 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/lol/coequipiers`, changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/lol/arene`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/lol/pronostics`, changeFrequency: "daily", priority: 0.5 },
+    { url: `${BASE_URL}/communautes`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/comment-ca-marche`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/faq`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/journal`, changeFrequency: "weekly", priority: 0.5 },
@@ -88,5 +90,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.4,
   }));
 
-  return [...pagesStatiques, ...pagesTournois, ...pagesJoueurs, ...pagesEquipes, ...pagesRecaps];
+  // Espaces communauté (audit N30).
+  const pagesCommunautes: MetadataRoute.Sitemap = (communautes ?? []).map((c) => ({
+    url: `${BASE_URL}/communaute/${c.slug}`,
+    lastModified: c.cree_le,
+    changeFrequency: "weekly",
+    priority: 0.4,
+  }));
+
+  return [...pagesStatiques, ...pagesTournois, ...pagesJoueurs, ...pagesEquipes, ...pagesRecaps, ...pagesCommunautes];
 }

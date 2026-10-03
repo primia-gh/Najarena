@@ -103,7 +103,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, communaute:communautes(slug, nom)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -950,6 +950,19 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                   {organisateur.pseudo}
                 </Link>
                 {resumeOrganisateur && <span className="text-muted"> ({resumeOrganisateur})</span>}
+                {/* Communauté (audit N30). */}
+                {tournoi.communaute && (
+                  <>
+                    {" "}
+                    · Communauté{" "}
+                    <Link
+                      href={`/communaute/${tournoi.communaute.slug}`}
+                      className="text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    >
+                      {tournoi.communaute.nom}
+                    </Link>
+                  </>
+                )}
               </>
             )}{" "}
             · Résultats vérifiés automatiquement

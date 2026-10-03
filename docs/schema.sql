@@ -6491,3 +6491,317 @@ as $$
   limit least(greatest(p_limite, 1), 200);
 $$;
 grant execute on function public.classement_pronostics(integer) to anon, authenticated;
+
+-- ---------- Espaces communauté (2026-10-03, audit N30) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Une communauté (serveur Discord, association, école…) a sa page : ses
+-- tournois, le classement interne de ses membres (leur rating officiel,
+-- jamais un rating à part) et ses membres. Créée par un compte de l'offre
+-- Organisateur (3 au plus), rejointe librement. Son serveur Discord se lie
+-- par un code à usage unique saisi avec la commande /lier du bot, par un
+-- membre du serveur autorisé à le gérer : personne ne s'approprie le
+-- serveur d'un autre.
+create table if not exists public.communautes (
+  id                     uuid primary key default gen_random_uuid(),
+  game_id                smallint not null default 1 references public.games(id),
+  slug                   text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and char_length(slug) <= 60),
+  nom                    text not null check (char_length(btrim(nom)) between 3 and 40),
+  description            text check (char_length(description) <= 500),
+  couleur                text not null default '#2BD47D' check (couleur ~ '^#[0-9A-Fa-f]{6}$'),
+  lien_discord           text check (lien_discord is null or lien_discord ~ '^https://(discord\.gg|discord\.com/invite)/[A-Za-z0-9-]{2,40}$'),
+  discord_guild_id       text unique check (discord_guild_id is null or discord_guild_id ~ '^[0-9]{5,25}$'),
+  code_liaison           text unique,
+  code_liaison_expire_le timestamptz,
+  proprietaire_id        uuid not null references public.profiles(id) on delete cascade,
+  cree_le                timestamptz not null default now()
+);
+create index if not exists communautes_proprietaire_idx on public.communautes (proprietaire_id);
+alter table public.communautes enable row level security;
+create policy "communautes lisibles par tous" on public.communautes for select using (true);
+revoke insert, update, delete on public.communautes from anon, authenticated;
+-- Le code de liaison ne se lit que par code_liaison_discord (propriétaire).
+revoke select on public.communautes from anon, authenticated;
+grant select (id, game_id, slug, nom, description, couleur, lien_discord, discord_guild_id, proprietaire_id, cree_le)
+  on public.communautes to anon, authenticated;
+
+create table if not exists public.membres_communaute (
+  communaute_id uuid not null references public.communautes(id) on delete cascade,
+  profile_id    uuid not null references public.profiles(id) on delete cascade,
+  role          text not null default 'membre' check (role in ('proprietaire', 'admin', 'membre')),
+  rejoint_le    timestamptz not null default now(),
+  primary key (communaute_id, profile_id)
+);
+create index if not exists membres_communaute_profile_idx on public.membres_communaute (profile_id);
+alter table public.membres_communaute enable row level security;
+create policy "membres de communaute lisibles par tous" on public.membres_communaute for select using (true);
+revoke insert, update, delete on public.membres_communaute from anon, authenticated;
+
+alter table public.tournaments add column if not exists communaute_id uuid references public.communautes(id) on delete set null;
+create index if not exists tournaments_communaute_idx on public.tournaments (communaute_id);
+
+-- Textes libres de la communauté : modérés comme ceux d'une équipe.
+create or replace function public.moderer_communaute()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.analyser_texte(new.nom, 'nom'), '') like 'refus:%' then
+    raise exception 'NOM_INTERDIT';
+  end if;
+  if coalesce(public.analyser_texte(new.description, 'texte_public'), '') like 'refus:%' then
+    raise exception 'TEXTE_INTERDIT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_communaute() from public, anon, authenticated;
+drop trigger if exists moderation_communaute on public.communautes;
+create trigger moderation_communaute
+  before insert or update of nom, description on public.communautes
+  for each row execute function public.moderer_communaute();
+
+-- Un tournoi n'est publié dans une communauté que par son propriétaire ou
+-- un de ses administrateurs.
+create or replace function public.controler_communaute_tournoi()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.communaute_id is not null
+     and (tg_op = 'INSERT' or new.communaute_id is distinct from old.communaute_id)
+     and not exists (
+       select 1 from public.membres_communaute
+       where communaute_id = new.communaute_id and profile_id = new.organisateur_id
+         and role in ('proprietaire', 'admin')
+     ) then
+    raise exception 'COMMUNAUTE_INTERDITE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_communaute_tournoi() from public, anon, authenticated;
+drop trigger if exists controle_communaute_tournoi on public.tournaments;
+create trigger controle_communaute_tournoi
+  before insert or update of communaute_id on public.tournaments
+  for each row execute function public.controler_communaute_tournoi();
+
+create or replace function public.creer_communaute(
+  p_nom text, p_slug text, p_description text default null, p_couleur text default '#2BD47D',
+  p_lien_discord text default null
+)
+returns text -- slug
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_id uuid;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if not exists (select 1 from public.comptes_offres where profile_id = v_moi and offre = 'organisateur') then
+    raise exception 'OFFRE_ORGANISATEUR_REQUISE';
+  end if;
+  perform 1 from public.profiles where id = v_moi for update;
+  if (select count(*) from public.communautes where proprietaire_id = v_moi) >= 3 then
+    raise exception 'TROP_DE_COMMUNAUTES';
+  end if;
+
+  insert into public.communautes (slug, nom, description, couleur, lien_discord, proprietaire_id)
+  values (p_slug, btrim(p_nom), nullif(btrim(coalesce(p_description, '')), ''), upper(p_couleur),
+          nullif(btrim(coalesce(p_lien_discord, '')), ''), v_moi)
+  returning id into v_id;
+  insert into public.membres_communaute (communaute_id, profile_id, role) values (v_id, v_moi, 'proprietaire');
+  return p_slug;
+end;
+$$;
+revoke execute on function public.creer_communaute(text, text, text, text, text) from public, anon;
+grant execute on function public.creer_communaute(text, text, text, text, text) to authenticated;
+
+-- Rôle du joueur connecté dans une communauté, ou nul.
+create or replace function public.role_communaute(p_communaute_id uuid, p_profile_id uuid)
+returns text
+language sql
+stable
+security definer set search_path = public
+as $$
+  select role from public.membres_communaute where communaute_id = p_communaute_id and profile_id = p_profile_id;
+$$;
+revoke all on function public.role_communaute(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.modifier_communaute(
+  p_communaute_id uuid, p_description text, p_couleur text, p_lien_discord text
+)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.role_communaute(p_communaute_id, auth.uid()), '') not in ('proprietaire', 'admin') then
+    raise exception 'GESTION_RESERVEE';
+  end if;
+  update public.communautes
+  set description = nullif(btrim(coalesce(p_description, '')), ''),
+      couleur = upper(p_couleur),
+      lien_discord = nullif(btrim(coalesce(p_lien_discord, '')), '')
+  where id = p_communaute_id;
+  return found;
+end;
+$$;
+revoke execute on function public.modifier_communaute(uuid, text, text, text) from public, anon;
+grant execute on function public.modifier_communaute(uuid, text, text, text) to authenticated;
+
+create or replace function public.rejoindre_communaute(p_communaute_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if not exists (select 1 from public.communautes where id = p_communaute_id) then
+    raise exception 'COMMUNAUTE_INTROUVABLE';
+  end if;
+  insert into public.membres_communaute (communaute_id, profile_id) values (p_communaute_id, v_moi)
+  on conflict do nothing;
+  return found;
+end;
+$$;
+revoke execute on function public.rejoindre_communaute(uuid) from public, anon;
+grant execute on function public.rejoindre_communaute(uuid) to authenticated;
+
+create or replace function public.quitter_communaute(p_communaute_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if public.role_communaute(p_communaute_id, auth.uid()) = 'proprietaire' then
+    raise exception 'COMMUNAUTE_PROPRIETAIRE';
+  end if;
+  delete from public.membres_communaute where communaute_id = p_communaute_id and profile_id = auth.uid();
+  return found;
+end;
+$$;
+revoke execute on function public.quitter_communaute(uuid) from public, anon;
+grant execute on function public.quitter_communaute(uuid) to authenticated;
+
+-- Le propriétaire (ou un administrateur, sauf envers un autre
+-- administrateur) retire un membre ; le propriétaire nomme les
+-- administrateurs.
+create or replace function public.retirer_membre_communaute(p_communaute_id uuid, p_profile_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_mon_role text := public.role_communaute(p_communaute_id, auth.uid());
+  v_son_role text := public.role_communaute(p_communaute_id, p_profile_id);
+begin
+  if v_mon_role is null or v_mon_role = 'membre' then
+    raise exception 'GESTION_RESERVEE';
+  end if;
+  if v_son_role = 'proprietaire' or (v_son_role = 'admin' and v_mon_role <> 'proprietaire') then
+    raise exception 'GESTION_RESERVEE';
+  end if;
+  delete from public.membres_communaute where communaute_id = p_communaute_id and profile_id = p_profile_id;
+  return found;
+end;
+$$;
+revoke execute on function public.retirer_membre_communaute(uuid, uuid) from public, anon;
+grant execute on function public.retirer_membre_communaute(uuid, uuid) to authenticated;
+
+create or replace function public.nommer_admin_communaute(p_communaute_id uuid, p_profile_id uuid, p_admin boolean)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.role_communaute(p_communaute_id, auth.uid()), '') <> 'proprietaire' then
+    raise exception 'GESTION_RESERVEE';
+  end if;
+  update public.membres_communaute
+  set role = case when p_admin then 'admin' else 'membre' end
+  where communaute_id = p_communaute_id and profile_id = p_profile_id and role <> 'proprietaire';
+  return found;
+end;
+$$;
+revoke execute on function public.nommer_admin_communaute(uuid, uuid, boolean) from public, anon;
+grant execute on function public.nommer_admin_communaute(uuid, uuid, boolean) to authenticated;
+
+-- Liaison du serveur Discord : le propriétaire obtient un code (30 min),
+-- qu'un gestionnaire du serveur saisit avec /lier ; le serveur (tâche
+-- Discord du site, rôle service) enregistre alors l'identifiant du serveur.
+create or replace function public.code_liaison_discord(p_communaute_id uuid)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_code text := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
+begin
+  if coalesce(public.role_communaute(p_communaute_id, auth.uid()), '') <> 'proprietaire' then
+    raise exception 'GESTION_RESERVEE';
+  end if;
+  update public.communautes
+  set code_liaison = v_code, code_liaison_expire_le = now() + interval '30 minutes'
+  where id = p_communaute_id;
+  return v_code;
+end;
+$$;
+revoke execute on function public.code_liaison_discord(uuid) from public, anon;
+grant execute on function public.code_liaison_discord(uuid) to authenticated;
+
+create or replace function public.lier_serveur_discord(p_code text, p_guild_id text)
+returns text -- nom de la communauté liée
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_communaute record;
+begin
+  select * into v_communaute from public.communautes
+  where code_liaison = upper(btrim(p_code)) and code_liaison_expire_le > now()
+  for update;
+  if not found then
+    raise exception 'CODE_INVALIDE';
+  end if;
+  if exists (select 1 from public.communautes where discord_guild_id = p_guild_id and id <> v_communaute.id) then
+    raise exception 'SERVEUR_DEJA_LIE';
+  end if;
+  update public.communautes
+  set discord_guild_id = p_guild_id, code_liaison = null, code_liaison_expire_le = null
+  where id = v_communaute.id;
+  return v_communaute.nom;
+end;
+$$;
+revoke all on function public.lier_serveur_discord(text, text) from public, anon, authenticated;
+grant execute on function public.lier_serveur_discord(text, text) to service_role;
+
+create or replace function public.delier_serveur_discord(p_communaute_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.role_communaute(p_communaute_id, auth.uid()), '') <> 'proprietaire' then
+    raise exception 'GESTION_RESERVEE';
+  end if;
+  update public.communautes set discord_guild_id = null where id = p_communaute_id;
+  return found;
+end;
+$$;
+revoke execute on function public.delier_serveur_discord(uuid) from public, anon;
+grant execute on function public.delier_serveur_discord(uuid) to authenticated;

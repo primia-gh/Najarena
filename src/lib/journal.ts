@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "Une page pour ta communauté",
+    texte:
+      "Serveur Discord, association, école : une communauté a maintenant sa page, avec ses tournois, le classement interne de ses membres — leur rating officiel, rien de recalculé — et ses membres. Lie ton serveur avec la commande /lier du bot, puis /communaute et /organiser y fonctionnent : le bot prépare le tournoi, tu le valides sur le site.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "3 octobre",
     titre: "Pronostics, pour le plaisir",
     texte:
       "Désigne le vainqueur des demi-finales et des finales des tournois en cours : 1 point pour une demi-finale juste, 2 pour une finale, dans un classement des pronostiqueurs par saison. Aucune mise, aucun gain. Seul un résultat lu chez Riot compte, et les pronostics ferment dès qu'un joueur se déclare prêt.",

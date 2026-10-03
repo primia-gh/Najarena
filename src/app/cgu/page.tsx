@@ -114,6 +114,17 @@ export default function CguPage() {
             ses matchs.
           </p>
           <p className="mt-2 text-muted">
+            Un compte de l&apos;offre Organisateur peut créer jusqu&apos;à trois
+            communautés. Son fondateur est responsable de son nom, de sa
+            description et des tournois qu&apos;il y publie ; ces textes sont
+            soumis à la même modération que le reste du site. Rejoindre une
+            communauté est libre et gratuit ; son fondateur ou ses
+            administrateurs peuvent en retirer un membre. Le classement
+            interne d&apos;une communauté reprend le rating officiel de ses
+            membres, sans jamais le modifier. Un serveur Discord n&apos;est lié
+            à une communauté que par un membre autorisé à gérer ce serveur.
+          </p>
+          <p className="mt-2 text-muted">
             Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq
             de ses membres, lui compris, chacun titulaire d&apos;un compte
             Riot vérifié dans la région du tournoi ; un joueur ne joue que

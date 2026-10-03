@@ -68,6 +68,11 @@ export default function ConfidentialitePage() {
               minutes.
             </li>
             <li>
+              Communautés : la liste des membres d&apos;une communauté (pseudo, rôle, date d&apos;arrivée) est publique,
+              comme son classement interne (rating officiel des membres classés). Pour un serveur Discord lié, seul son
+              identifiant technique est conservé, pas la liste de ses membres.
+            </li>
+            <li>
               Pronostics : ton choix pour chaque match n&apos;est visible que de toi ; seule la répartition des
               pronostics d&apos;un match est publique. Si un de tes pronostics est tranché, ton pseudo, tes points
               et ton nombre de pronostics justes apparaissent dans le classement public des pronostiqueurs.
