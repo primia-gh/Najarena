@@ -205,10 +205,12 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
   const { data: alignes } = await supabase
     .from("alignements")
     .select(
-      "registration:registrations!inner(profile_id, equipe_nom, equipe_tag), tournament:tournaments!inner(id, nom, slug, statut, debute_le, capacite)",
+      "registration:registrations!inner(profile_id, equipe_nom, equipe_tag), tournament:tournaments!inner(id, nom, slug, statut, debute_le, capacite, nature)",
     )
     .eq("profile_id", profilId)
     .eq("tournament.statut", "termine")
+    // Tournois seulement : les scrims (audit N22) restent sur la page d'équipe.
+    .eq("tournament.nature", "tournoi")
     .order("aligne_le", { ascending: false })
     .limit(10);
   const capitaines = [...new Set((alignes ?? []).map((a) => a.registration.profile_id))];

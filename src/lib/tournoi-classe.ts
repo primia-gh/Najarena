@@ -27,6 +27,8 @@ export interface DonneesClassement {
   defi?: boolean;
   /** Tournoi 5v5 (audit N21) : jamais au classement individuel. */
   equipes?: boolean;
+  /** Scrim entre deux équipes (audit N22) : un entraînement. */
+  scrim?: boolean;
 }
 
 export type EtatCritere = "ok" | "ko" | "attente";
@@ -54,6 +56,16 @@ export function publieATemps(publieLe: string | null, debuteLe: string): boolean
 }
 
 export function criteresClassement(d: DonneesClassement): CritereClassement[] {
+  if (d.scrim) {
+    return [
+      {
+        libelle: "Match d'entraînement entre deux équipes",
+        etat: "ko",
+        detail: "Le résultat vérifié s'affiche sur la page des deux équipes.",
+      },
+    ];
+  }
+
   if (d.equipes) {
     return [
       {
@@ -120,6 +132,16 @@ export function criteresClassement(d: DonneesClassement): CritereClassement[] {
 
 export function evaluerClassement(d: DonneesClassement): EvaluationClassement {
   const criteres = criteresClassement(d);
+
+  if (d.scrim) {
+    return {
+      statut: "non_classe",
+      titre: "Scrim",
+      explication:
+        "Match d'entraînement : il ne compte pas au classement individuel. Le résultat vérifié s'affiche sur la page des deux équipes.",
+      criteres,
+    };
+  }
 
   if (d.equipes) {
     return {

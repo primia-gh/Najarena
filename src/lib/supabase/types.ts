@@ -1217,6 +1217,80 @@ export type Database = {
           },
         ]
       }
+      scrims: {
+        Row: {
+          best_of: number
+          cree_le: string
+          equipe_a_id: string
+          equipe_b_id: string
+          id: string
+          joueurs_a: string[]
+          prevu_le: string
+          propose_par: string | null
+          region: string
+          repondu_le: string | null
+          statut: string
+          tournament_id: string | null
+        }
+        Insert: {
+          best_of?: number
+          cree_le?: string
+          equipe_a_id: string
+          equipe_b_id: string
+          id?: string
+          joueurs_a: string[]
+          prevu_le: string
+          propose_par?: string | null
+          region: string
+          repondu_le?: string | null
+          statut?: string
+          tournament_id?: string | null
+        }
+        Update: {
+          best_of?: number
+          cree_le?: string
+          equipe_a_id?: string
+          equipe_b_id?: string
+          id?: string
+          joueurs_a?: string[]
+          prevu_le?: string
+          propose_par?: string | null
+          region?: string
+          repondu_le?: string | null
+          statut?: string
+          tournament_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scrims_equipe_a_id_fkey"
+            columns: ["equipe_a_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scrims_equipe_b_id_fkey"
+            columns: ["equipe_b_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scrims_propose_par_fkey"
+            columns: ["propose_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scrims_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seasons: {
         Row: {
           debut_le: string
@@ -1719,6 +1793,7 @@ export type Database = {
       }
       repondre_defi: { Args: { p_accepte: boolean; p_defi_id: string }; Returns: string | null }
       accepter_invitation_defi: { Args: { p_code: string }; Returns: string }
+      annuler_scrim: { Args: { p_scrim_id: string }; Returns: boolean }
       annuler_defi: { Args: { p_defi_id: string }; Returns: boolean }
       texte_acceptable: { Args: { p_contexte?: string; p_texte: string }; Returns: boolean }
       traiter_signalement: { Args: { p_signalement_id: string; p_valide: boolean }; Returns: string }
@@ -1779,6 +1854,16 @@ export type Database = {
         Returns: { pseudo_modifie_le: string | null; visites_anonymes: boolean }[]
       }
       mon_abonnement_stripe: { Args: never; Returns: { statut: string | null }[] }
+      proposer_scrim: {
+        Args: {
+          p_adversaire_id: string
+          p_best_of: number
+          p_equipe_id: string
+          p_joueurs: string[]
+          p_prevu_le: string
+        }
+        Returns: string
+      }
       modifier_alignement: { Args: { p_joueurs: string[]; p_tournament_id: string }; Returns: boolean }
       modifier_mon_profil: {
         Args: { p_pays: string | null; p_pseudo: string; p_visites_anonymes: boolean }
@@ -1786,6 +1871,10 @@ export type Database = {
       }
       reconnaitre_defaite: { Args: { p_match_id: string }; Returns: string }
       reserver_appel_assistant_ia: { Args: never; Returns: boolean }
+      repondre_scrim: {
+        Args: { p_accepte: boolean; p_joueurs?: string[]; p_scrim_id: string }
+        Returns: string | null
+      }
       s_inscrire_equipe: {
         Args: { p_joueurs: string[]; p_team_id: string; p_tournament_id: string }
         Returns: string

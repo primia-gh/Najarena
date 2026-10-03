@@ -4797,6 +4797,46 @@ alter table public.alignements enable row level security;
 create policy "alignements lisibles par tous" on public.alignements for select using (true);
 revoke insert, update, delete on public.alignements from anon, authenticated;
 
+-- Cinq joueurs d'une équipe, capitaine compris : membres acceptés, compte
+-- Riot vérifié dans la région, aucun suspendu. Renvoie les cinq, sans
+-- doublon. Partagée par les tournois 5v5 et les scrims.
+create or replace function public.verifier_alignement(
+  p_team_id uuid, p_capitaine uuid, p_joueurs uuid[], p_region text, p_game_id smallint
+)
+returns uuid[]
+language plpgsql
+stable
+security definer set search_path = public
+as $$
+declare
+  v_joueurs uuid[];
+begin
+  select coalesce(array_agg(distinct j), '{}') into v_joueurs
+  from unnest(p_joueurs) j where j is not null;
+
+  if cardinality(v_joueurs) <> 5 then
+    raise exception 'ALIGNEMENT_DE_CINQ';
+  end if;
+  if not (p_capitaine = any (v_joueurs)) then
+    raise exception 'CAPITAINE_DANS_ALIGNEMENT';
+  end if;
+  if (select count(*) from public.team_members
+      where team_id = p_team_id and profile_id = any (v_joueurs) and accepte_le is not null) <> 5 then
+    raise exception 'JOUEUR_HORS_EQUIPE';
+  end if;
+  if (select count(*) from public.game_accounts
+      where profile_id = any (v_joueurs) and game_id = p_game_id and est_principal
+        and verifie_le is not null and region = p_region) <> 5 then
+    raise exception 'ALIGNEMENT_COMPTE_RIOT';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = any (v_joueurs) and levee_le is null) then
+    raise exception 'ALIGNEMENT_SUSPENDU';
+  end if;
+  return v_joueurs;
+end;
+$$;
+revoke all on function public.verifier_alignement(uuid, uuid, uuid[], text, smallint) from public, anon, authenticated;
+
 -- Vérifie et enregistre l'alignement d'une inscription d'équipe ; renvoie
 -- le rating moyen des cinq joueurs (têtes de série), nul si aucun n'a de
 -- rating cette saison. Appelée par s_inscrire_equipe et
@@ -4816,27 +4856,8 @@ begin
   select region, game_id, season_id into v_tournoi
   from public.tournaments where id = p_tournament_id;
 
-  select coalesce(array_agg(distinct j), '{}') into v_joueurs
-  from unnest(p_joueurs) j where j is not null;
+  v_joueurs := public.verifier_alignement(p_team_id, p_capitaine, p_joueurs, v_tournoi.region, v_tournoi.game_id);
 
-  if cardinality(v_joueurs) <> 5 then
-    raise exception 'ALIGNEMENT_DE_CINQ';
-  end if;
-  if not (p_capitaine = any (v_joueurs)) then
-    raise exception 'CAPITAINE_DANS_ALIGNEMENT';
-  end if;
-  if (select count(*) from public.team_members
-      where team_id = p_team_id and profile_id = any (v_joueurs) and accepte_le is not null) <> 5 then
-    raise exception 'JOUEUR_HORS_EQUIPE';
-  end if;
-  if (select count(*) from public.game_accounts
-      where profile_id = any (v_joueurs) and game_id = v_tournoi.game_id and est_principal
-        and verifie_le is not null and region = v_tournoi.region) <> 5 then
-    raise exception 'ALIGNEMENT_COMPTE_RIOT';
-  end if;
-  if exists (select 1 from public.suspensions where profile_id = any (v_joueurs) and levee_le is null) then
-    raise exception 'ALIGNEMENT_SUSPENDU';
-  end if;
   if exists (
     select 1 from public.alignements
     where tournament_id = p_tournament_id and profile_id = any (v_joueurs)
@@ -5257,3 +5278,260 @@ drop trigger if exists registrations_confirmation_equipe on public.registrations
 create trigger registrations_confirmation_equipe
   before update of statut on public.registrations
   for each row execute function public.controler_confirmation_equipe();
+
+-- ---------- Scrims vérifiés entre équipes (2026-10-03, audit N22) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (scrims de la page d'équipe).
+-- Un capitaine propose à une autre équipe un match d'entraînement, à une
+-- date donnée, avec cinq de ses joueurs. Accepté par le capitaine adverse
+-- (avec les siens), il devient un mini-tournoi 5v5 à deux équipes
+-- (tournaments.nature = 'scrim') : même salle de match, même lecture du
+-- résultat chez Riot (les dix joueurs alignés dans la partie). Jamais au
+-- classement individuel ; le résultat s'affiche sur la page des deux
+-- équipes. Arbitre : le premier administrateur, comme pour les défis. Pas
+-- de forfait automatique (c'est un entraînement) ; sans partie retrouvée
+-- 24 h après l'heure prévue, le scrim est annulé, sans verdict.
+alter table public.tournaments drop constraint if exists tournaments_nature_check;
+alter table public.tournaments add constraint tournaments_nature_check
+  check (nature in ('tournoi', 'defi', 'scrim'));
+alter table public.tournaments drop constraint if exists tournaments_capacite_check;
+alter table public.tournaments add constraint tournaments_capacite_check
+  check (capacite in (4, 8, 16, 32, 64, 128) or (nature in ('defi', 'scrim') and capacite = 2));
+alter table public.tournaments drop constraint if exists tournaments_defi_en_1v1;
+alter table public.tournaments add constraint tournaments_defi_en_1v1
+  check (nature <> 'defi' or format = '1v1');
+alter table public.tournaments drop constraint if exists tournaments_scrim_en_5v5;
+alter table public.tournaments add constraint tournaments_scrim_en_5v5
+  check (nature <> 'scrim' or (format = '5v5' and not compte_pour_classement));
+
+create table if not exists public.scrims (
+  id             uuid primary key default gen_random_uuid(),
+  equipe_a_id    uuid not null references public.teams(id) on delete cascade, -- équipe qui propose
+  equipe_b_id    uuid not null references public.teams(id) on delete cascade,
+  propose_par    uuid references public.profiles(id) on delete set null,
+  joueurs_a      uuid[] not null,
+  region         text not null,
+  prevu_le       timestamptz not null,
+  best_of        smallint not null default 1 check (best_of in (1, 3)),
+  statut         text not null default 'propose' check (statut in ('propose', 'accepte', 'refuse', 'annule')),
+  tournament_id  uuid references public.tournaments(id) on delete set null,
+  cree_le        timestamptz not null default now(),
+  repondu_le     timestamptz,
+  check (equipe_a_id <> equipe_b_id)
+);
+create index if not exists scrims_equipe_a_idx on public.scrims (equipe_a_id, statut);
+create index if not exists scrims_equipe_b_idx on public.scrims (equipe_b_id, statut);
+create index if not exists scrims_tournament_id_idx on public.scrims (tournament_id);
+create index if not exists scrims_propose_par_idx on public.scrims (propose_par);
+alter table public.scrims enable row level security;
+-- Propositions visibles des deux capitaines seulement ; un scrim accepté
+-- est public, comme tout match (page du scrim, pages des équipes).
+create policy "les capitaines voient leurs scrims" on public.scrims
+  for select using (exists (
+    select 1 from public.teams t
+    where t.id in (scrims.equipe_a_id, scrims.equipe_b_id) and t.capitaine_id = (select auth.uid())
+  ));
+revoke insert, update, delete on public.scrims from anon, authenticated;
+
+create or replace function public.proposer_scrim(
+  p_equipe_id uuid, p_adversaire_id uuid, p_prevu_le timestamptz, p_best_of smallint, p_joueurs uuid[]
+)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_capitaine uuid := auth.uid();
+  v_equipe record;
+  v_adverse record;
+  v_region text;
+  v_joueurs uuid[];
+  v_id uuid;
+begin
+  if v_capitaine is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, capitaine_id, game_id into v_equipe from public.teams where id = p_equipe_id;
+  if not found or v_equipe.capitaine_id <> v_capitaine then
+    raise exception 'CAPITAINE_REQUIS';
+  end if;
+  select id, game_id into v_adverse from public.teams where id = p_adversaire_id;
+  if not found then
+    raise exception 'EQUIPE_INTROUVABLE';
+  end if;
+  if v_adverse.id = v_equipe.id then
+    raise exception 'SCRIM_CONTRE_SOI';
+  end if;
+  if v_adverse.game_id <> v_equipe.game_id then
+    raise exception 'EQUIPE_AUTRE_JEU';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_capitaine and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if p_prevu_le is null or p_prevu_le < now() + interval '15 minutes' or p_prevu_le > now() + interval '30 days' then
+    raise exception 'DATE_SCRIM_INVALIDE';
+  end if;
+  if p_best_of is null or p_best_of not in (1, 3) then
+    raise exception 'FORMAT_INVALIDE';
+  end if;
+
+  v_region := public.region_compte_verifie(v_capitaine);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  v_joueurs := public.verifier_alignement(p_equipe_id, v_capitaine, p_joueurs, v_region, v_equipe.game_id);
+
+  if exists (
+    select 1 from public.scrims
+    where statut = 'propose' and prevu_le > now()
+      and ((equipe_a_id = p_equipe_id and equipe_b_id = p_adversaire_id)
+        or (equipe_a_id = p_adversaire_id and equipe_b_id = p_equipe_id))
+  ) then
+    raise exception 'SCRIM_DEJA_PROPOSE';
+  end if;
+  if (select count(*) from public.scrims
+      where equipe_a_id = p_equipe_id and statut = 'propose' and prevu_le > now()) >= 3 then
+    raise exception 'TROP_DE_SCRIMS';
+  end if;
+
+  insert into public.scrims (equipe_a_id, equipe_b_id, propose_par, joueurs_a, region, prevu_le, best_of)
+  values (p_equipe_id, p_adversaire_id, v_capitaine, v_joueurs, v_region, p_prevu_le, p_best_of)
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke execute on function public.proposer_scrim(uuid, uuid, timestamptz, smallint, uuid[]) from public, anon;
+grant execute on function public.proposer_scrim(uuid, uuid, timestamptz, smallint, uuid[]) to authenticated;
+
+-- Réponse du capitaine invité. Accepté : le scrim est créé (adresse du
+-- match renvoyée), l'alignement proposé est revérifié.
+create or replace function public.repondre_scrim(p_scrim_id uuid, p_accepte boolean, p_joueurs uuid[] default null)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_capitaine uuid := auth.uid();
+  v_scrim record;
+  v_a record;
+  v_b record;
+  v_joueurs_a uuid[];
+  v_joueurs_b uuid[];
+  v_arbitre uuid;
+  v_tournoi uuid;
+  v_match uuid;
+  v_reg_a uuid;
+  v_reg_b uuid;
+  v_slug text;
+begin
+  if v_capitaine is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select * into v_scrim from public.scrims where id = p_scrim_id for update;
+  if not found then
+    raise exception 'SCRIM_INTROUVABLE';
+  end if;
+  select id, nom, tag, capitaine_id, game_id into v_b from public.teams where id = v_scrim.equipe_b_id;
+  if v_b.capitaine_id <> v_capitaine then
+    raise exception 'NON_DESTINATAIRE';
+  end if;
+  if v_scrim.statut <> 'propose' then
+    raise exception 'SCRIM_DEJA_TRAITE';
+  end if;
+  if v_scrim.prevu_le <= now() then
+    raise exception 'SCRIM_EXPIRE';
+  end if;
+
+  if not p_accepte then
+    update public.scrims set statut = 'refuse', repondu_le = now() where id = p_scrim_id;
+    return null;
+  end if;
+
+  if exists (select 1 from public.suspensions where profile_id = v_capitaine and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  select id, nom, tag, capitaine_id into v_a from public.teams where id = v_scrim.equipe_a_id;
+  v_joueurs_b := public.verifier_alignement(v_b.id, v_capitaine, p_joueurs, v_scrim.region, v_b.game_id);
+  -- Un joueur de l'équipe qui propose a pu partir ou être suspendu depuis.
+  begin
+    v_joueurs_a := public.verifier_alignement(v_a.id, v_a.capitaine_id, v_scrim.joueurs_a, v_scrim.region, v_b.game_id);
+  exception when others then
+    raise exception 'ALIGNEMENT_ADVERSE_INVALIDE';
+  end;
+  if v_joueurs_a && v_joueurs_b then
+    raise exception 'JOUEUR_DANS_LES_DEUX_EQUIPES';
+  end if;
+
+  select profile_id into v_arbitre from public.admins order by ajoute_le, profile_id limit 1;
+  if v_arbitre is null then
+    raise exception 'AUCUN_ARBITRE';
+  end if;
+
+  v_slug := 'scrim-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
+  insert into public.tournaments (
+    game_id, organisateur_id, slug, nom, format, type_bracket, best_of, capacite, region,
+    compte_pour_classement, debute_le, checkin_ouvre_le, statut, condition_victoire, nature
+  ) values (
+    v_b.game_id, v_arbitre, v_slug, 'Scrim ' || v_a.tag || ' contre ' || v_b.tag, '5v5', 'elim_simple',
+    v_scrim.best_of, 2, v_scrim.region, false, v_scrim.prevu_le, v_scrim.prevu_le, 'en_cours', 'nexus', 'scrim'
+  ) returning id into v_tournoi;
+
+  insert into public.registrations (tournament_id, profile_id, statut, confirme_le, seed, team_id, equipe_nom, equipe_tag)
+  values (v_tournoi, v_a.capitaine_id, 'confirme', now(), 1, v_a.id, v_a.nom, v_a.tag)
+  returning id into v_reg_a;
+  insert into public.registrations (tournament_id, profile_id, statut, confirme_le, seed, team_id, equipe_nom, equipe_tag)
+  values (v_tournoi, v_capitaine, 'confirme', now(), 2, v_b.id, v_b.nom, v_b.tag)
+  returning id into v_reg_b;
+  insert into public.alignements (tournament_id, profile_id, registration_id)
+  select v_tournoi, j, v_reg_a from unnest(v_joueurs_a) j
+  union all
+  select v_tournoi, j, v_reg_b from unnest(v_joueurs_b) j;
+
+  -- Le match s'ouvre à l'heure prévue : la recherche Riot ne retient que
+  -- les parties commencées après.
+  insert into public.matches (tournament_id, tour, position, statut, demarre_le)
+  values (v_tournoi, 1, 1, 'en_cours', v_scrim.prevu_le)
+  returning id into v_match;
+  insert into public.match_participants (match_id, profile_id, slot) values
+    (v_match, v_a.capitaine_id, 1),
+    (v_match, v_capitaine, 2);
+
+  update public.scrims
+  set statut = 'accepte', repondu_le = now(), tournament_id = v_tournoi
+  where id = p_scrim_id;
+  return v_slug;
+end;
+$$;
+revoke execute on function public.repondre_scrim(uuid, boolean, uuid[]) from public, anon;
+grant execute on function public.repondre_scrim(uuid, boolean, uuid[]) to authenticated;
+
+-- Annulation par l'un des deux capitaines : une proposition, ou un scrim
+-- accepté tant que son heure n'est pas venue.
+create or replace function public.annuler_scrim(p_scrim_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_scrim record;
+begin
+  select * into v_scrim from public.scrims where id = p_scrim_id for update;
+  if not found then
+    raise exception 'SCRIM_INTROUVABLE';
+  end if;
+  if not exists (
+    select 1 from public.teams
+    where id in (v_scrim.equipe_a_id, v_scrim.equipe_b_id) and capitaine_id = auth.uid()
+  ) then
+    raise exception 'NON_AUTORISE';
+  end if;
+  if v_scrim.statut = 'propose' or (v_scrim.statut = 'accepte' and v_scrim.prevu_le > now()) then
+    update public.tournaments set statut = 'annule' where id = v_scrim.tournament_id and statut = 'en_cours';
+    update public.scrims set statut = 'annule', repondu_le = coalesce(repondu_le, now()) where id = p_scrim_id;
+    return true;
+  end if;
+  raise exception 'SCRIM_NON_ANNULABLE';
+end;
+$$;
+revoke execute on function public.annuler_scrim(uuid) from public, anon;
+grant execute on function public.annuler_scrim(uuid) to authenticated;

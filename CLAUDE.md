@@ -17,6 +17,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 03/10/2026 (audit N21) : **tournois 5v5** — format choisi à la création. Le capitaine inscrit son équipe avec cinq membres aux comptes Riot vérifiés (`s_inscrire_equipe`, table `alignements`, un joueur par équipe et par tournoi), fait le check-in et représente l'équipe dans le bracket (`match_participants.profile_id` = capitaine). Résultat retenu seulement si les dix joueurs alignés sont dans la partie, chaque équipe de son côté. Hors classement individuel ; palmarès sur la page d'équipe, parcours sur le CV.*
 
+*Mise à jour du 03/10/2026 (audit N22) : **scrims vérifiés** — un capitaine propose un match d'entraînement à une autre équipe depuis sa page (date, Bo1/Bo3, cinq joueurs) ; accepté avec les cinq joueurs adverses, il devient un mini-tournoi 5v5 à deux (`tournaments.nature = 'scrim'`, `proposer_scrim` / `repondre_scrim` / `annuler_scrim`), arbitré par le premier administrateur, lu chez Riot comme un match de tournoi, sans forfait automatique, annulé sans partie retrouvée 24 h après l'heure prévue. Jamais classé ; résultat sur la page des deux équipes.*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.

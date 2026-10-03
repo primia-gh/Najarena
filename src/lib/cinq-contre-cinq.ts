@@ -51,6 +51,14 @@ export function libelleEquipe(tag: string | null | undefined, nom: string | null
   return tag ? `[${tag}] ${nom}` : nom;
 }
 
+/** Membre qu'un capitaine peut cocher dans son alignement. */
+export interface MembreAlignable {
+  profileId: string;
+  pseudo: string;
+  /** Compte Riot vérifié dans la région du tournoi (ou du scrim). */
+  compteValide: boolean;
+}
+
 /**
  * Membres qu'un capitaine peut aligner : membres acceptés de l'équipe,
  * capitaine en tête. Ceux sans compte Riot vérifié dans la région du

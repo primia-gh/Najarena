@@ -108,8 +108,9 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
   ]);
   const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
-  // Les duels (défis) ont leur propre section.
-  const inscriptions = (inscriptionsData ?? []).filter((i) => i.tournament?.nature !== "defi");
+  // Les duels (défis) ont leur propre section, les scrims sont sur la page
+  // de l'équipe (audit N22).
+  const inscriptions = (inscriptionsData ?? []).filter((i) => i.tournament?.nature === "tournoi");
   const tournoisOrganises = tournoisOrganisesData ?? [];
 
   const affiliations = affiliationsData ?? [];

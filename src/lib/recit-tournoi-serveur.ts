@@ -16,7 +16,7 @@ export async function annoncerVainqueur(tournamentId: string, gagnantId: string)
   if (!admin) return;
 
   const [{ data: tournoi }, { data: matchs }, { data: departs }] = await Promise.all([
-    admin.from("tournaments").select("nom, slug, best_of, format").eq("id", tournamentId).maybeSingle(),
+    admin.from("tournaments").select("nom, slug, best_of, format, nature").eq("id", tournamentId).maybeSingle(),
     admin
       .from("matches")
       .select(
@@ -29,7 +29,8 @@ export async function annoncerVainqueur(tournamentId: string, gagnantId: string)
       .eq("tournament_id", tournamentId)
       .eq("motif", "tournoi"),
   ]);
-  if (!tournoi) return;
+  // Un scrim (audit N22) est un entraînement : rien à annoncer.
+  if (!tournoi || tournoi.nature === "scrim") return;
   // 5v5 (audit N21) : chaque capitaine du bracket représente son équipe.
   const equipes = tournoi.format === "5v5" ? await chargerEquipesDesTournois(admin, [tournamentId]) : new Map();
   const nom = (id: string, pseudo: string | undefined) =>

@@ -68,6 +68,12 @@ describe("tournoi classé", () => {
     expect(evaluerClassement({ ...base, decision: false }).statut).toBe("non_classe");
   });
 
+  it("un scrim est un entraînement, jamais classé", () => {
+    const e = evaluerClassement({ ...base, scrim: true, equipes: true, amical: true });
+    expect(e.statut).toBe("non_classe");
+    expect(e.titre).toBe("Scrim");
+  });
+
   it("un tournoi 5v5 ne compte jamais au classement individuel", () => {
     const e = evaluerClassement({ ...base, equipes: true, amical: true });
     expect(e.statut).toBe("non_classe");

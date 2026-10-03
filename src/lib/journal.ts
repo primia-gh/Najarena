@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "Des scrims, vérifiés eux aussi",
+    texte:
+      "Un capitaine peut proposer un scrim à une autre équipe, depuis sa page : une date, Bo1 ou Bo3, ses cinq joueurs. Accepté, le scrim a sa salle de match et son résultat est lu chez Riot comme celui d'un tournoi. Il ne compte pas au classement, mais s'affiche sur la page des deux équipes : une activité réelle, avant même le premier tournoi.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "3 octobre",
     titre: "Les tournois 5v5 sont ouverts",
     texte:
       "Un organisateur peut créer un tournoi 5v5. Le capitaine y inscrit son équipe avec cinq membres aux comptes Riot vérifiés, et le résultat n'est retenu que si les dix joueurs inscrits ont joué la partie, chaque équipe de son côté. Ces tournois ne touchent pas au rating individuel : ils remplissent le palmarès de l'équipe et le parcours de chaque joueur aligné.",

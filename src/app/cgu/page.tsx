@@ -106,7 +106,11 @@ export default function CguPage() {
             reconnaissance de défaite et les litiges. Un résultat n&apos;est
             retenu que si les dix joueurs inscrits ont joué la partie, chaque
             équipe de son côté. Les tournois 5v5 ne modifient pas le
-            classement individuel.
+            classement individuel. Les mêmes règles valent pour un scrim,
+            match d&apos;entraînement proposé par un capitaine à une autre
+            équipe et accepté par la sienne : il n&apos;y a pas de forfait
+            automatique, et un scrim sans partie retrouvée dans les 24 heures
+            suivant l&apos;heure prévue est annulé.
           </p>
         </section>
 

@@ -104,6 +104,10 @@ Seul un tournoi **classé** écrit des points (audit E12 / N12, 28/09/2026) : un
 
 Un tournoi 5v5 n'écrit jamais de points (contrainte `tournaments_5v5_hors_classement` : `compte_pour_classement` est faux) : le rating Glicko-2 mesure un joueur seul. Sa clôture se fait comme celle d'un tournoi non classé. Ses résultats vérifiés vont au palmarès de l'équipe (page `/equipe/[slug]`) et au parcours du CV de chaque joueur aligné.
 
+### Scrims entre équipes
+
+Un scrim accepté (audit N22, 03/10/2026) devient un mini-tournoi 5v5 à deux équipes (`tournaments.nature = 'scrim'`), arbitré par le premier administrateur. Son match s'ouvre à l'heure prévue (`demarre_le`) : la recherche Riot ne commence que 8 minutes après, et ne retient que les parties commencées après cette heure, avec les dix joueurs alignés. Pas de forfait automatique (c'est un entraînement), pas d'annonce Discord. Sans partie retrouvée, les capitaines sont relancés, puis le scrim est annulé 25 h après l'heure prévue, sans verdict. Jamais classé.
+
 ### Défis entre joueurs
 
 Un défi accepté (audit N16 / N18, 02/10/2026) devient un mini-tournoi à deux (`tournaments.nature = 'defi'`) : un seul match, ouvert dès l'acceptation, arbitré par le premier administrateur (jamais l'un des deux joueurs). Il suit exactement le cycle d'un match de tournoi (prêt, forfait, recherche Riot, défaite reconnue) et sa clôture est une période de notation Glicko-2 d'un match. Classé sauf s'il est le deuxième défi classé de la même paire en 24 h (joué en amical, décidé à l'acceptation), en plus des plafonds habituels. Sans partie retrouvée, le passage en litige ne prévient pas l'arbitre : les joueurs sont relancés, puis le duel est annulé 25 h après son ouverture, sans verdict ni point.

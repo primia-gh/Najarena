@@ -5,6 +5,7 @@ import LibelleSection from "@/components/design/LibelleSection";
 import BoutonCopier from "@/components/design/BoutonCopier";
 import { etapesMatch, etapesMatch5v5 } from "@/lib/reglement";
 import { heureParis } from "@/lib/tournois-auto/creneaux";
+import { formaterDate } from "@/lib/tournois";
 import { DELAI_FORFAIT_MINUTES, limiteForfait } from "@/lib/forfait";
 import type { ConditionVictoire } from "@/lib/conditions-1v1";
 
@@ -48,6 +49,8 @@ export interface InfosSalleDeMatch {
   condition?: ConditionVictoire;
   /** Tournoi 5v5 : `adversaire.pseudo` est alors le nom de l'équipe adverse. */
   equipes?: EquipesSalleDeMatch | null;
+  /** Match programmé plus tard (scrim, audit N22). */
+  aVenir?: boolean;
 }
 
 interface SalleDeMatchProps {
@@ -179,7 +182,9 @@ export default function SalleDeMatch({ infos, actions, actionPret }: SalleDeMatc
           Ton match — {tour}
         </LibelleSection>
         {demarreLe && etat !== "attente_adversaire" && (
-          <span className="text-xs text-muted tabular-nums">Ouvert à {heureParis(demarreLe)}</span>
+          <span className="text-xs text-muted tabular-nums">
+            {infos.aVenir ? `Prévu le ${formaterDate(demarreLe)}` : `Ouvert à ${heureParis(demarreLe)}`}
+          </span>
         )}
       </div>
 

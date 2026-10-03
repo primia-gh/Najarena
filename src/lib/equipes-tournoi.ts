@@ -7,7 +7,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
-import { libelleEquipe, parcoursDansTournoi } from "@/lib/cinq-contre-cinq";
+import { libelleEquipe, membresAlignables, parcoursDansTournoi, type MembreAlignable } from "@/lib/cinq-contre-cinq";
 
 export interface EquipeInscrite {
   registrationId: string;
@@ -92,8 +92,10 @@ export async function chargerPalmaresEquipe(
 ): Promise<LignePalmares[]> {
   const { data: inscriptions } = await supabase
     .from("registrations")
-    .select("tournament:tournaments(id, nom, slug, statut, debute_le, capacite)")
+    .select("tournament:tournaments!inner(id, nom, slug, statut, debute_le, capacite, nature)")
     .eq("team_id", teamId)
+    // Les scrims (audit N22) ont leur propre liste.
+    .eq("tournament.nature", "tournoi")
     .neq("statut", "retire");
   const tournois = (inscriptions ?? [])
     .flatMap((i) => (i.tournament && i.tournament.statut !== "brouillon" ? [i.tournament] : []))
@@ -124,4 +126,117 @@ export async function chargerPalmaresEquipe(
     });
     return { slug: t.slug, nom: t.nom, debuteLe: t.debute_le, libelle, victoiresVerifiees };
   });
+}
+
+export interface EquipeCapitaine {
+  id: string;
+  nom: string;
+  tag: string;
+  slug: string;
+  /** Membres acceptés, capitaine en tête. */
+  membres: MembreAlignable[];
+}
+
+/**
+ * Équipes dont ce joueur est capitaine, avec les membres qu'il peut aligner
+ * (inscription à un tournoi 5v5, scrim). Seuls les comptes Riot vérifiés
+ * sont lisibles : exactement ceux qui comptent.
+ */
+export async function chargerEquipesCapitaine(
+  supabase: SupabaseClient<Database>,
+  capitaineId: string,
+  gameId: number,
+  region: string | null,
+): Promise<EquipeCapitaine[]> {
+  const { data } = await supabase
+    .from("teams")
+    .select(
+      "id, nom, tag, slug, team_members(profile_id, accepte_le, profile:profiles(pseudo, game_accounts(region, verifie_le, est_principal, game_id)))",
+    )
+    .eq("capitaine_id", capitaineId)
+    .eq("game_id", gameId);
+
+  return (data ?? []).map((t) => ({
+    id: t.id,
+    nom: t.nom,
+    tag: t.tag,
+    slug: t.slug,
+    membres: membresAlignables(
+      t.team_members.map((m) => ({
+        profileId: m.profile_id,
+        accepte: Boolean(m.accepte_le),
+        pseudo: m.profile?.pseudo ?? "Joueur",
+        compteValide: (m.profile?.game_accounts ?? []).some(
+          (c) =>
+            c.est_principal && Boolean(c.verifie_le) && c.game_id === gameId && (region === null || c.region === region),
+        ),
+      })),
+      capitaineId,
+    ),
+  }));
+}
+
+export interface LigneScrim {
+  tournamentId: string;
+  /** Adresse du scrim (page du match). */
+  slug: string;
+  prevuLe: string;
+  statutTournoi: string;
+  adversaire: { libelle: string; slug: string | null };
+  estGagnant: boolean | null;
+  /** Niveau du verdict définitif, nul tant qu'il n'y en a pas. */
+  niveau: string | null;
+}
+
+/**
+ * Scrims acceptés d'une équipe (audit N22), du plus récent au plus ancien :
+ * adversaire et résultat, publics comme tout match.
+ */
+export async function chargerScrimsEquipe(
+  supabase: SupabaseClient<Database>,
+  teamId: string,
+  capitaineId: string,
+): Promise<LigneScrim[]> {
+  const { data: inscriptions } = await supabase
+    .from("registrations")
+    .select("tournament_id, tournament:tournaments!inner(slug, statut, debute_le, nature)")
+    .eq("team_id", teamId)
+    .eq("tournament.nature", "scrim")
+    .order("inscrit_le", { ascending: false })
+    .limit(20);
+  const ids = (inscriptions ?? []).map((i) => i.tournament_id);
+  if (ids.length === 0) return [];
+
+  const [{ data: adverses }, { data: matchs }] = await Promise.all([
+    supabase
+      .from("registrations")
+      .select("tournament_id, equipe_nom, equipe_tag, team:teams(slug)")
+      .in("tournament_id", ids)
+      .neq("profile_id", capitaineId),
+    supabase
+      .from("match_participants")
+      .select("est_gagnant, match:matches!inner(tournament_id, match_verdicts(niveau, est_definitif))")
+      .eq("profile_id", capitaineId)
+      .in("match.tournament_id", ids),
+  ]);
+
+  return (inscriptions ?? [])
+    .map((i) => {
+      const adverse = (adverses ?? []).find((a) => a.tournament_id === i.tournament_id);
+      const match = (matchs ?? []).find((m) => m.match.tournament_id === i.tournament_id);
+      const verdict = match?.match.match_verdicts.find((v) => v.est_definitif);
+      return {
+        tournamentId: i.tournament_id,
+        slug: i.tournament.slug,
+        prevuLe: i.tournament.debute_le,
+        statutTournoi: i.tournament.statut,
+        adversaire: {
+          libelle: libelleEquipe(adverse?.equipe_tag, adverse?.equipe_nom),
+          slug: adverse?.team?.slug ?? null,
+        },
+        estGagnant: verdict ? (match?.est_gagnant ?? null) : null,
+        niveau: verdict?.niveau ?? null,
+      };
+    })
+    .sort((a, b) => b.prevuLe.localeCompare(a.prevuLe));
 }

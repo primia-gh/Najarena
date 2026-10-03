@@ -52,8 +52,9 @@ export default function ConfidentialitePage() {
             <li>Riot ID (nom de jeu, tag, région) et identifiant Riot stable (puuid), une fois lié.</li>
             <li>Historique de tournois, de matchs et de résultats.</li>
             <li>
-              Tournois 5v5 : les cinq joueurs alignés par chaque équipe, publics comme une inscription ; les
-              statistiques de partie (champion, KDA, sbires, or) des dix joueurs d&apos;un match vérifié.
+              Tournois 5v5 et scrims : les cinq joueurs alignés par chaque équipe, publics comme une inscription ;
+              les statistiques de partie (champion, KDA, sbires, or) des dix joueurs d&apos;un match vérifié. Une
+              proposition de scrim n&apos;est visible que des deux capitaines ; un scrim accepté est public.
             </li>
             <li>
               Défis : qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement ; un défi

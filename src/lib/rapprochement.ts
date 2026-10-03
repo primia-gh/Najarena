@@ -310,15 +310,19 @@ async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat, nom: (profil
   const libelle = m.match_participants.map((p) => nom(p.profile_id)).join(" vs ");
   const lienTournoi = `${URL_SITE}/lol/tournois/${tournoi.slug}`;
 
-  // Duel entre deux joueurs (audit N16) : pas d'organisateur à déranger ;
-  // sans partie retrouvée dans les 24 h, le défi est annulé.
-  if (tournoi.nature === "defi") {
+  // Duel entre deux joueurs (audit N16) ou scrim entre deux équipes (N22) :
+  // pas d'organisateur à déranger ; sans partie retrouvée dans les 24 h, le
+  // match est annulé.
+  if (tournoi.nature === "defi" || tournoi.nature === "scrim") {
+    const scrim = tournoi.nature === "scrim";
     await Promise.all(
       m.match_participants.map((p) =>
         envoyerRappel(
           p.profile_id,
-          `Duel sans résultat — ${tournoi.nom}`,
-          "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant, sinon le défi sera annulé.",
+          `${scrim ? "Scrim" : "Duel"} sans résultat — ${tournoi.nom}`,
+          scrim
+            ? "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant avec les dix joueurs inscrits, sinon le scrim sera annulé."
+            : "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant, sinon le défi sera annulé.",
           `${lienTournoi}#ton-match`,
         ),
       ),
@@ -489,7 +493,8 @@ export async function traiterRechercheResultats(): Promise<{
 
     // Forfait automatique (audit N4) : un joueur prêt depuis 15 minutes,
     // son adversaire jamais — et aucune partie Riot retrouvée ci-dessus.
-    if (statut === "en_cours") {
+    // Jamais pour un scrim (audit N22) : c'est un entraînement.
+    if (statut === "en_cours" && m.tournament.nature !== "scrim") {
       const forfait = forfaitAAppliquer(
         m.match_participants.map((p) => ({ profileId: p.profile_id, pretLe: p.pret_le })),
         new Date(),
@@ -513,15 +518,15 @@ export async function traiterRechercheResultats(): Promise<{
   return { trouves, litiges, ignores };
 }
 
-// Duels (défis entre joueurs, audit N16) sans résultat 24 h après leur
-// ouverture, recherche Riot terminée : annulés, sans verdict ni point —
-// personne n'a à trancher un duel que les deux joueurs n'ont pas joué.
+// Duels (défis entre joueurs, audit N16) et scrims (N22) sans résultat 24 h
+// après leur ouverture, recherche Riot terminée : annulés, sans verdict ni
+// point — personne n'a à trancher un match que personne n'a joué.
 async function annulerDuelsSansResultat(admin: ClientAdmin): Promise<void> {
   const limite = new Date(Date.now() - (RECHERCHE_APRES_LITIGE_HEURES + 1) * 3_600_000).toISOString();
   const { data: duels } = await admin
     .from("matches")
     .select("id, tournament_id, tournament:tournaments!inner(nature, statut), match_verdicts(est_definitif)")
-    .eq("tournament.nature", "defi")
+    .in("tournament.nature", ["defi", "scrim"])
     .eq("tournament.statut", "en_cours")
     .in("statut", ["en_cours", "litige"])
     .lt("demarre_le", limite);

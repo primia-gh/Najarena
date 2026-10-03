@@ -42,8 +42,14 @@ import {
 import OngletsTournoi from "@/components/tournoi/OngletsTournoi";
 import SalleDeMatch, { type InfosSalleDeMatch, type JoueurAligne } from "@/components/tournoi/SalleDeMatch";
 import FormulaireAlignement from "@/components/tournoi/FormulaireAlignement";
-import { chargerEquipesDesTournois, cleEquipe, equipeDuJoueur, type EquipeInscrite } from "@/lib/equipes-tournoi";
-import { libelleEquipe, membresAlignables, TAILLE_ALIGNEMENT } from "@/lib/cinq-contre-cinq";
+import {
+  chargerEquipesCapitaine,
+  chargerEquipesDesTournois,
+  cleEquipe,
+  equipeDuJoueur,
+  type EquipeInscrite,
+} from "@/lib/equipes-tournoi";
+import { libelleEquipe, TAILLE_ALIGNEMENT } from "@/lib/cinq-contre-cinq";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
@@ -159,7 +165,7 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: compteAdversaire },
     { data: profilsAlignesData },
     { data: comptesDuMatchData },
-    { data: mesEquipesData },
+    mesEquipes,
   ] = await Promise.all([
     profileIds.length > 0
       ? (() => {
@@ -222,17 +228,10 @@ const chargerTournoi = cache(async (slug: string) => {
           .eq("game_id", tournoi.game_id)
           .eq("est_principal", true)
       : Promise.resolve({ data: [] }),
-    // … et les équipes dont il est capitaine, pour les inscrire. Seuls les
-    // comptes Riot vérifiés sont lisibles : exactement ceux qui comptent.
+    // … et les équipes dont il est capitaine, pour les inscrire.
     userData.user && tournoi.format === "5v5"
-      ? supabase
-          .from("teams")
-          .select(
-            "id, nom, tag, slug, team_members(profile_id, accepte_le, profile:profiles(pseudo, game_accounts(region, verifie_le, est_principal, game_id)))",
-          )
-          .eq("capitaine_id", userData.user.id)
-          .eq("game_id", tournoi.game_id)
-      : Promise.resolve({ data: [] }),
+      ? chargerEquipesCapitaine(supabase, userData.user.id, tournoi.game_id, tournoi.region)
+      : Promise.resolve([]),
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
@@ -262,25 +261,6 @@ const chargerTournoi = cache(async (slug: string) => {
     slug: profilParId.get(profileId)?.slug ?? "",
     riotId: riotIdParId.get(profileId) ?? null,
   });
-  // Équipes que le visiteur peut inscrire : membres acceptés, capitaine en
-  // tête, compte Riot vérifié dans la région du tournoi ou non.
-  const mesEquipes = (mesEquipesData ?? []).map((t) => ({
-    id: t.id,
-    nom: t.nom,
-    tag: t.tag,
-    slug: t.slug,
-    membres: membresAlignables(
-      t.team_members.map((m) => ({
-        profileId: m.profile_id,
-        accepte: Boolean(m.accepte_le),
-        pseudo: m.profile?.pseudo ?? "Joueur",
-        compteValide: (m.profile?.game_accounts ?? []).some(
-          (c) => c.est_principal && c.verifie_le && c.region === tournoi.region && c.game_id === tournoi.game_id,
-        ),
-      })),
-      userData.user?.id ?? "",
-    ),
-  }));
 
   return {
     statut: "ok" as const,
@@ -306,6 +286,12 @@ const chargerTournoi = cache(async (slug: string) => {
     mesEquipes,
   };
 });
+
+// Heure du match encore à venir (scrim programmé, audit N22). Hors des
+// composants : la date courante ne se lit pas pendant le rendu.
+function estAVenir(iso: string | null): boolean {
+  return iso !== null && new Date(iso).getTime() > Date.now();
+}
 
 function crestJoueur(
   profileId: string,
@@ -336,9 +322,9 @@ export async function generateMetadata({
   }
 
   const { tournoi } = donnees;
-  // Duel entre deux joueurs (audit N16) : page utile aux deux joueurs, pas
-  // une page à faire indexer.
-  if (tournoi.nature === "defi") {
+  // Duel entre deux joueurs (audit N16) ou scrim entre deux équipes (N22) :
+  // page utile aux joueurs, pas une page à faire indexer.
+  if (tournoi.nature !== "tournoi") {
     return { title: `${tournoi.nom} — Najarena`, robots: { index: false, follow: true } };
   }
   return {
@@ -391,8 +377,10 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
-  // Duel issu d'un défi entre deux joueurs (audit N16).
+  // Duel issu d'un défi entre deux joueurs (audit N16), scrim entre deux
+  // équipes (N22) : un match unique, arbitré par Najarena.
   const estDefi = tournoi.nature === "defi";
+  const estScrim = tournoi.nature === "scrim";
   // Condition de victoire du tournoi (audit N5).
   const condition: ConditionVictoire = tournoi.condition_victoire === "classique" ? "classique" : "nexus";
   // Tournoi 5v5 (audit N21) : dans le bracket, chaque capitaine représente
@@ -457,6 +445,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     officiel: complements.estQuotidien,
     defi: estDefi,
     equipes: estEquipes,
+    scrim: estScrim,
     amical: !complements.comptePourClassement,
     publieLe: complements.publieLe,
     debuteLe: tournoi.debute_le,
@@ -474,7 +463,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   // bracket (lib/organisation-actions.ts), le dernier est donc la finale.
   const libelleTour = (index: number) => {
     const reste = toursOrdonnes.length - index;
-    if (reste === 1) return estDefi ? "Duel" : "Finale";
+    if (reste === 1) return estDefi ? "Duel" : estScrim ? "Scrim" : "Finale";
     if (reste === 2) return "Demi-finales";
     if (reste === 3) return "Quarts";
     if (reste === 4) return "Huitièmes";
@@ -520,8 +509,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                     return { moi, adversaire: lui };
                   })()
                 : null,
-            // « Je suis prêt » de chacun (forfait automatique, audit N4).
-            pret: { moi: moiDansMatch?.pret_le ?? null, adversaire: adversaire?.pret_le ?? null },
+            // « Je suis prêt » de chacun (forfait automatique, audit N4) ;
+            // pas de forfait pour un scrim (entraînement, audit N22).
+            pret: estScrim
+              ? undefined
+              : { moi: moiDansMatch?.pret_le ?? null, adversaire: adversaire?.pret_le ?? null },
+            aVenir: estAVenir(monMatch.demarre_le),
             condition,
             equipes:
               estEquipes && monEquipe
@@ -538,14 +531,29 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
   const etapes: { titre: string; quand: string; etat: EtatEtape }[] =
     statut === "annule"
-      ? [{ titre: estDefi ? "Défi annulé" : "Tournoi annulé", quand: formaterDate(tournoi.debute_le), etat: "fait" }]
-      : estDefi
+      ? [
+          {
+            titre: estDefi ? "Défi annulé" : estScrim ? "Scrim annulé" : "Tournoi annulé",
+            quand: formaterDate(tournoi.debute_le),
+            etat: "fait",
+          },
+        ]
+      : estDefi || estScrim
         ? [
-            { titre: "Défi relevé", quand: formaterDate(tournoi.debute_le), etat: "fait" },
             {
-              titre: "Duel",
-              quand: statut === "termine" ? "Terminé" : "En cours",
-              etat: statut === "termine" ? "fait" : "maintenant",
+              titre: estDefi ? "Défi relevé" : "Scrim accepté",
+              quand: estDefi ? formaterDate(tournoi.debute_le) : "Fait",
+              etat: "fait",
+            },
+            {
+              titre: estDefi ? "Duel" : "Scrim",
+              quand:
+                statut === "termine"
+                  ? "Terminé"
+                  : estAVenir(tournoi.debute_le)
+                    ? formaterDate(tournoi.debute_le)
+                    : "En cours",
+              etat: statut === "termine" ? "fait" : estAVenir(tournoi.debute_le) ? "a_venir" : "maintenant",
             },
           ]
       : [
@@ -595,7 +603,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const infos: InfoTournoi[] = [
     {
       libelle: "En jeu",
-      valeur: libelleEnJeu(classement.statut, !complements.comptePourClassement, estEquipes),
+      valeur: estScrim
+        ? "Entraînement"
+        : libelleEnJeu(classement.statut, !complements.comptePourClassement, estEquipes),
       grand: true,
       accent: classement.statut === "classe",
     },
@@ -762,7 +772,13 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             {statut !== "annule" && <BadgeClassement statut={classement.statut} />}
             <span className="text-text-2">
               LoL · {tournoi.format}
-              {estDefi ? " · Défi en une partie" : complements.typeBracket ? ` · ${complements.typeBracket}` : ""}
+              {estDefi
+                ? " · Défi en une partie"
+                : estScrim
+                  ? " · Scrim (entraînement)"
+                  : complements.typeBracket
+                    ? ` · ${complements.typeBracket}`
+                    : ""}
               {complements.estQuotidien ? " · Tournoi quotidien" : ""}
               {condition === "classique" ? " · 1v1 classique" : ""}
             </span>
@@ -783,8 +799,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 </a>
               </>
             )}
-            {estDefi && " · Arbitré par Najarena"}
-            {organisateur && !estDefi && (
+            {(estDefi || estScrim) && " · Arbitré par Najarena"}
+            {organisateur && !estDefi && !estScrim && (
               <>
                 {" "}
                 · Organisé par{" "}
