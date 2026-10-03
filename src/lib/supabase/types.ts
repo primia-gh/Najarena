@@ -2059,6 +2059,19 @@ export type Database = {
         }
         Returns: string
       }
+      fiche_organisateur: {
+        Args: { p_profile_id: string }
+        Returns: {
+          litiges: number
+          litiges_resolus: number
+          matchs_decides: number
+          matchs_verifies: number
+          resolution_mediane_heures: number | null
+          tournois_annules: number
+          tournois_publies: number
+          tournois_termines: number
+        }[]
+      }
       former_equipes_agents_libres: { Args: { p_equipes: Json; p_tournament_id: string }; Returns: number }
       modifier_alignement: { Args: { p_joueurs: string[]; p_tournament_id: string }; Returns: boolean }
       modifier_mon_profil: {

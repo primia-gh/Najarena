@@ -5923,3 +5923,58 @@ create policy "organisateur et administrateurs lisent le dossier" on public.doss
     )
   );
 revoke insert, update, delete on public.dossiers_litige from anon, authenticated;
+
+-- ---------- Fiche publique de l'organisateur (2026-10-03, audit N13) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (bloc « Organisateur » du CV, ligne sous « Organisé par » d'un tournoi).
+-- Le sérieux d'un organisateur, en chiffres publics : tournois menés à
+-- terme ou annulés, part des matchs dont le résultat a été lu chez Riot,
+-- litiges tranchés et délai médian. Seuls ses propres tournois comptent :
+-- ni les tournois officiels quotidiens, ni les défis ou scrims (arbitrés
+-- par Najarena), ni les brouillons. Les exemptions (match à un seul
+-- joueur) ne sont pas des matchs.
+create or replace function public.fiche_organisateur(p_profile_id uuid)
+returns table (
+  tournois_publies integer,
+  tournois_termines integer,
+  tournois_annules integer,
+  matchs_decides integer,
+  matchs_verifies integer,
+  litiges integer,
+  litiges_resolus integer,
+  resolution_mediane_heures numeric
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with t as (
+    select id, statut from public.tournaments
+    where organisateur_id = p_profile_id and nature = 'tournoi' and creneau_auto is null and statut <> 'brouillon'
+  ),
+  m as (
+    select v.niveau
+    from public.matches ma
+    join t on t.id = ma.tournament_id
+    join public.match_verdicts v on v.match_id = ma.id and v.est_definitif
+    where (select count(*) from public.match_participants mp where mp.match_id = ma.id) = 2
+  ),
+  d as (
+    select di.cree_le, di.resolu_le
+    from public.disputes di
+    join public.matches ma on ma.id = di.match_id
+    join t on t.id = ma.tournament_id
+  )
+  select
+    (select count(*) from t)::integer,
+    (select count(*) from t where statut = 'termine')::integer,
+    (select count(*) from t where statut = 'annule')::integer,
+    (select count(*) from m)::integer,
+    (select count(*) from m where niveau <> 'manuel')::integer,
+    (select count(*) from d)::integer,
+    (select count(*) from d where resolu_le is not null)::integer,
+    (select round((percentile_cont(0.5) within group (order by extract(epoch from (resolu_le - cree_le)) / 3600))::numeric, 1)
+     from d where resolu_le is not null);
+$$;
+revoke execute on function public.fiche_organisateur(uuid) from public;
+grant execute on function public.fiche_organisateur(uuid) to anon, authenticated, service_role;

@@ -25,6 +25,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 03/10/2026 (audit N25, N28, N29) : **textes rédigés par l'IA**, tous via `src/lib/claude.ts` (SDK `@anthropic-ai/sdk`, modèle `claude-opus-5-5`, effort `low`, réponse JSON contrainte par schéma puis revérifiée, repli `fallbacks: "default"`), à la demande, dans la limite de 10 demandes par 24 h (`reserver_appel_assistant_ia`) : analyse détaillée d'un match (offre Elite, chiffres Riot seuls, table `revues_match_ia`), dossier de litige (faits rassemblés par le serveur + synthèse, **ne désigne jamais de vainqueur**, table `dossiers_litige`, lisible par l'organisateur et les admins), recherche de joueurs en langage naturel (offre Organisateur, l'IA ne produit que des filtres). Toute saisie d'un utilisateur est passée à l'IA entre balises, comme une donnée.*
 
+*Mise à jour du 03/10/2026 (audit N13) : **fiche publique de l'organisateur** — `fiche_organisateur` (base) : tournois publiés, menés à terme, annulés ; part des matchs lus chez Riot ; litiges tranchés et délai médian. Sur ses seuls tournois (hors officiels, défis, scrims, brouillons). Bloc « Organisateur » du CV, résumé sous « Organisé par » d'un tournoi (`src/lib/fiche-organisateur.ts`, pas de pourcentage sous 5 matchs).*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.

@@ -1086,6 +1086,24 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               </ol>
             </Panneau>
 
+            {/* Fiche d'organisateur (audit N13) : le sérieux de ses tournois. */}
+            {complements.ficheOrganisateur && (
+              <Panneau className="flex flex-col gap-4 p-7">
+                <LibelleSection as="h2">Organisateur</LibelleSection>
+                <dl className="flex flex-col gap-3">
+                  {complements.ficheOrganisateur.map((ligne) => (
+                    <div key={ligne.libelle} className="flex flex-col gap-0.5">
+                      <dt className="text-[11px] tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
+                      <dd className="text-sm text-text tabular-nums">{ligne.valeur}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="text-xs text-muted">
+                  Calculé sur ses propres tournois publiés, hors tournois officiels, défis et scrims.
+                </p>
+              </Panneau>
+            )}
+
             {/* Face-à-face : adversaires affrontés au moins deux fois */}
             {rivalites.length > 0 && (
               <Panneau className="flex flex-col gap-4 p-7">

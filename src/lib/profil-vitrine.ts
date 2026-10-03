@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { progressionPalier, type Palier } from "@/lib/classement";
 import { LABEL_ROLE, type Role } from "@/lib/roles";
 import { libelleEquipe, parcoursDansTournoi } from "@/lib/cinq-contre-cinq";
+import { lignesFiche } from "@/lib/fiche-organisateur";
 
 // Données d'affichage ajoutées par la refonte « Venin » du profil
 // (design-system/najarena/pages/profil.md) : classement national, palier,
@@ -204,6 +205,9 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
   );
   saisonsPassees.sort((a, b) => b.numero - a.numero);
 
+  // Fiche publique d'organisateur (audit N13), s'il en a publié.
+  const { data: fiche } = await supabase.rpc("fiche_organisateur", { p_profile_id: profilId }).maybeSingle();
+
   // Tournois 5v5 terminés où il était aligné (audit N21) : où son équipe
   // s'est arrêtée, d'après le bracket (le capitaine y représente l'équipe).
   const { data: alignes } = await supabase
@@ -262,6 +266,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     avatarUrl: profil?.avatar_url ?? null,
     saisonsPassees,
     tournoisEnEquipe,
+    ficheOrganisateur: fiche && fiche.tournois_publies > 0 ? lignesFiche(fiche) : null,
     // Lu ici, pas pendant le rendu : sert à ne plus afficher un objectif passé.
     maintenantIso: new Date().toISOString(),
   };

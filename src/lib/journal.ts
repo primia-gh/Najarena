@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "Le sérieux d'un organisateur, en chiffres",
+    texte:
+      "Avant de t'inscrire, tu vois à côté du nom de l'organisateur combien de ses tournois ont été menés à terme et quelle part de leurs matchs a été lue chez Riot. Son CV détaille aussi ses tournois annulés et ses litiges tranchés, avec le délai médian.",
+    tags: ["Fiabilité"],
+  },
+  {
+    date: "3 octobre",
     titre: "L'IA rédige, elle ne décide pas",
     texte:
       "Trois nouveaux usages, toujours à la demande et sur des données déjà vérifiées : une analyse détaillée de tes matchs (offre Elite), un dossier qui rassemble les faits d'un litige pour l'organisateur — sans jamais désigner de vainqueur —, et une recherche de joueurs en langage naturel pour les recruteurs, traduite en filtres sur des comptes vérifiés. Aucun résultat ni point n'est jamais écrit par l'IA.",

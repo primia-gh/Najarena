@@ -13,6 +13,7 @@ import {
 } from "@/lib/inscription-actions";
 import { confirmerAgentLibre, confirmerMaPresence } from "@/lib/checkin-actions";
 import { LABEL_ROLE, ROLES, type Role } from "@/lib/roles";
+import { resumeFiche } from "@/lib/fiche-organisateur";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { ouvrirLitige } from "@/lib/litige-actions";
 import { declarerPret, reconnaitreDefaite } from "@/lib/match-actions";
@@ -116,6 +117,7 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: matchsData },
     equipes,
     { data: agentsLibresData },
+    { data: ficheOrganisateur },
   ] = await Promise.all([
     supabase.from("profiles").select("pseudo, slug").eq("id", tournoi.organisateur_id).maybeSingle(),
     supabase.auth.getUser(),
@@ -147,6 +149,8 @@ const chargerTournoi = cache(async (slug: string) => {
           .eq("tournament_id", tournoi.id)
           .order("inscrit_le", { ascending: true })
       : Promise.resolve({ data: [] }),
+    // Fiche publique de l'organisateur (audit N13).
+    supabase.rpc("fiche_organisateur", { p_profile_id: tournoi.organisateur_id }).maybeSingle(),
   ]);
 
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
@@ -303,6 +307,7 @@ const chargerTournoi = cache(async (slug: string) => {
     aligne,
     mesEquipes,
     agentsLibres: agentsLibresData ?? [],
+    resumeOrganisateur: ficheOrganisateur ? resumeFiche(ficheOrganisateur) : null,
   };
 });
 
@@ -394,6 +399,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     aligne,
     mesEquipes,
     agentsLibres,
+    resumeOrganisateur,
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
@@ -910,6 +916,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 >
                   {organisateur.pseudo}
                 </Link>
+                {resumeOrganisateur && <span className="text-muted"> ({resumeOrganisateur})</span>}
               </>
             )}{" "}
             · Résultats vérifiés automatiquement
