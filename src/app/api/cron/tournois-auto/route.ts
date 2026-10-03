@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { executerTournoisAuto } from "@/lib/tournois-auto/execution";
+import { doitSynchroniserClash, synchroniserClash } from "@/lib/echeances-serveur";
 
 // Tournois automatiques (24/09/2026) : création des tournois quotidiens,
 // ouverture du check-in, rappels, démarrage ou annulation — voir
@@ -29,5 +30,8 @@ export async function GET(request: Request) {
 
   const simulation = new URL(request.url).searchParams.get("simulation") === "1";
   const bilan = await executerTournoisAuto(simulation);
-  return NextResponse.json(bilan, { status: bilan.erreur ? 503 : 200 });
+  // Calendrier Clash (audit N24) : quatre fois par jour, jamais bloquant.
+  const clash =
+    !simulation && doitSynchroniserClash(new Date()) ? await synchroniserClash().catch(() => null) : undefined;
+  return NextResponse.json({ ...bilan, clash }, { status: bilan.erreur ? 503 : 200 });
 }

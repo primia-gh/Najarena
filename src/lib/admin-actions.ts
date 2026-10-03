@@ -6,6 +6,7 @@ import { creerClientAdmin } from "@/lib/supabase/admin";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { echapperHtml } from "@/lib/echappement";
 import { slugifier } from "@/lib/slug";
+import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -237,4 +238,49 @@ export async function traiterSignalement(formData: FormData) {
   }
 
   redirect(`/admin?message=${encodeURIComponent(valide ? "Texte validé." : "Texte rejeté.")}#moderation`);
+}
+
+// ---------- Calendrier des échéances (03/10/2026, audit N24) ----------
+// Nexus Tour et autres compétitions : saisis à la main, avec leur lien
+// officiel (source vérifiable) ; Clash est lu chez Riot. La base réserve
+// l'écriture aux administrateurs.
+export async function ajouterEcheance(formData: FormData) {
+  const supabase = await createClient();
+  const utilisateur = await verifierAdmin(supabase);
+
+  const type = String(formData.get("type") ?? "");
+  const nom = String(formData.get("nom") ?? "").trim();
+  const lien = String(formData.get("lien_officiel") ?? "").trim();
+  const debutLe = instantDepuisSaisieParis(String(formData.get("debut_le") ?? ""));
+
+  if (!["nexus_tour", "clash", "autre"].includes(type) || nom.length < 3 || nom.length > 80 || !debutLe) {
+    redirect(`/admin?erreur=${encodeURIComponent("Échéance incomplète : type, nom (3 à 80 caractères) et date.")}#echeances`);
+  }
+  if (!/^https:\/\/\S+$/.test(lien)) {
+    redirect(
+      `/admin?erreur=${encodeURIComponent("Lien officiel obligatoire (adresse en https://) : il prouve la date annoncée.")}#echeances`,
+    );
+  }
+
+  const { error } = await supabase.from("echeances").insert({
+    type,
+    nom,
+    debut_le: debutLe.toISOString(),
+    lien_officiel: lien,
+    cree_par: utilisateur.id,
+  });
+  if (error) {
+    redirect(`/admin?erreur=${encodeURIComponent("Impossible d'enregistrer cette échéance.")}#echeances`);
+  }
+  redirect(`/admin?message=${encodeURIComponent("Échéance ajoutée.")}#echeances`);
+}
+
+export async function retirerEcheance(formData: FormData) {
+  const supabase = await createClient();
+  await verifierAdmin(supabase);
+  await supabase
+    .from("echeances")
+    .delete()
+    .eq("id", String(formData.get("echeance_id") ?? ""));
+  redirect(`/admin?message=${encodeURIComponent("Échéance retirée.")}#echeances`);
 }

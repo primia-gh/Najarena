@@ -973,6 +973,12 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                 <LibelleSection as="h2">Disponibilité</LibelleSection>
                 <BadgeChercheEquipe className="self-start" />
                 {complements.annonce.message && <p className="text-sm text-text-2">{complements.annonce.message}</p>}
+                {/* Objectif (audit N24) : une échéance à venir du calendrier. */}
+                {complements.annonce.objectif && complements.annonce.objectif.debut_le > complements.maintenantIso && (
+                  <p className="text-xs text-accent">
+                    Objectif : {complements.annonce.objectif.nom} ({formaterDate(complements.annonce.objectif.debut_le)})
+                  </p>
+                )}
                 <p className="text-xs text-faint">Annonce publiée le {formaterDate(complements.annonce.cree_le)}</p>
                 <BoutonLien href="/lol/coequipiers" variante="secondaire" className="self-start text-sm">
                   Voir les annonces

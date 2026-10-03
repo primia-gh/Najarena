@@ -17,10 +17,21 @@ export async function publierRechercheCoequipier(formData: FormData) {
   }
 
   const message = String(formData.get("message") ?? "").trim().slice(0, MESSAGE_MAX);
+  // Objectif (audit N24) : une échéance à venir du calendrier, ou aucune.
+  const objectif = String(formData.get("objectif_id") ?? "");
 
-  const { error } = await supabase
-    .from("recherches_coequipiers")
-    .upsert({ profile_id: userData.user.id, message: message || null, cree_le: new Date().toISOString() });
+  const { error } = await supabase.from("recherches_coequipiers").upsert({
+    profile_id: userData.user.id,
+    message: message || null,
+    objectif_id: objectif || null,
+    cree_le: new Date().toISOString(),
+  });
+
+  if (error?.message.includes("OBJECTIF_PASSE")) {
+    redirect(
+      `/lol/coequipiers?erreur=${encodeURIComponent("Cette échéance est déjà passée : choisis-en une à venir.")}`,
+    );
+  }
 
   if (error) {
     redirect(

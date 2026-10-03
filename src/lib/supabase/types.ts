@@ -466,6 +466,53 @@ export type Database = {
           },
         ]
       }
+      echeances: {
+        Row: {
+          cle_externe: string | null
+          cree_par: string | null
+          debut_le: string
+          id: string
+          lien_officiel: string | null
+          maj_le: string
+          nom: string
+          region: string | null
+          source: string
+          type: string
+        }
+        Insert: {
+          cle_externe?: string | null
+          cree_par?: string | null
+          debut_le: string
+          id?: string
+          lien_officiel?: string | null
+          maj_le?: string
+          nom: string
+          region?: string | null
+          source?: string
+          type: string
+        }
+        Update: {
+          cle_externe?: string | null
+          cree_par?: string | null
+          debut_le?: string
+          id?: string
+          lien_officiel?: string | null
+          maj_le?: string
+          nom?: string
+          region?: string | null
+          source?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "echeances_cree_par_fkey"
+            columns: ["cree_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empreintes_publiees: {
         Row: {
           empreinte: string
@@ -1165,19 +1212,29 @@ export type Database = {
         Row: {
           cree_le: string
           message: string | null
+          objectif_id: string | null
           profile_id: string
         }
         Insert: {
           cree_le?: string
           message?: string | null
+          objectif_id?: string | null
           profile_id: string
         }
         Update: {
           cree_le?: string
           message?: string | null
+          objectif_id?: string | null
           profile_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "recherches_coequipiers_objectif_id_fkey"
+            columns: ["objectif_id"]
+            isOneToOne: false
+            referencedRelation: "echeances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "recherches_coequipiers_profile_id_fkey"
             columns: ["profile_id"]

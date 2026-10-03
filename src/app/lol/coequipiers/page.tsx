@@ -15,6 +15,8 @@ import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import CrestPalier from "@/components/ui/CrestPalier";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import { formaterDate } from "@/lib/tournois";
+import { LIBELLE_TYPE_ECHEANCE, typeEcheance } from "@/lib/echeances";
 
 export const metadata: Metadata = {
   title: "Trouver un coéquipier — Najarena",
@@ -23,7 +25,12 @@ export const metadata: Metadata = {
 };
 
 interface CoequipiersPageProps {
-  searchParams: Promise<{ erreur?: string; message?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; objectif?: string }>;
+}
+
+// Hors du composant : la date courante ne se lit pas pendant le rendu.
+function maintenantIso(): string {
+  return new Date().toISOString();
 }
 
 async function chargerCoequipiers() {
@@ -35,16 +42,29 @@ async function chargerCoequipiers() {
   // logique que /lol/classement, pour afficher le palier de chaque joueur
   // disponible — l'équivalent du matching par Elo réel, sans reconstruire
   // un algorithme d'appariement.
-  const [{ data: userData }, { data: annoncesData }, { data: saison }, { data: paliersData }] =
-    await Promise.all([
-      supabase.auth.getUser(),
-      supabase
-        .from("recherches_coequipiers")
-        .select("profile_id, message, cree_le, profile:profiles(pseudo, slug)")
-        .order("cree_le", { ascending: false }),
-      supabase.from("seasons").select("id").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
-      supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
-    ]);
+  const [
+    { data: userData },
+    { data: annoncesData },
+    { data: saison },
+    { data: paliersData },
+    { data: echeancesData },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("recherches_coequipiers")
+      .select("profile_id, message, cree_le, objectif_id, profile:profiles(pseudo, slug)")
+      .order("cree_le", { ascending: false }),
+    supabase.from("seasons").select("id").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
+    supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
+    // Prochaines échéances (audit N24) : Clash lu chez Riot, Nexus Tour saisi
+    // avec son lien officiel.
+    supabase
+      .from("echeances")
+      .select("id, type, nom, debut_le, lien_officiel, region")
+      .gt("debut_le", maintenantIso())
+      .order("debut_le", { ascending: true })
+      .limit(8),
+  ]);
 
   const annonces = annoncesData ?? [];
   const paliers: Palier[] = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
@@ -103,6 +123,7 @@ async function chargerCoequipiers() {
       .map((e) => ({ id: e.id, slug: e.slug, nom: e.nom, tag: e.tag }));
   }
 
+  const echeances = echeancesData ?? [];
   return {
     annonces: annoncesTriees,
     ratingsParJoueur,
@@ -110,13 +131,31 @@ async function chargerCoequipiers() {
     monAnnonce,
     mesEquipesAvecPlace,
     utilisateur: userData.user,
+    echeances,
+    // Joueurs qui visent chaque échéance.
+    candidatsParEcheance: new Map(
+      echeances.map((e) => [e.id, annonces.filter((a) => a.objectif_id === e.id).length]),
+    ),
   };
 }
 
 export default async function CoequipiersPage({ searchParams }: CoequipiersPageProps) {
-  const { erreur, message } = await searchParams;
-  const { annonces, ratingsParJoueur, offresParJoueur, monAnnonce, mesEquipesAvecPlace, utilisateur } =
-    await chargerCoequipiers();
+  const { erreur, message, objectif } = await searchParams;
+  const {
+    annonces: toutesLesAnnonces,
+    ratingsParJoueur,
+    offresParJoueur,
+    monAnnonce,
+    mesEquipesAvecPlace,
+    utilisateur,
+    echeances,
+    candidatsParEcheance,
+  } = await chargerCoequipiers();
+  const echeanceParId = new Map(echeances.map((e) => [e.id, e]));
+  const echeanceFiltree = objectif ? echeanceParId.get(objectif) : undefined;
+  const annonces = echeanceFiltree
+    ? toutesLesAnnonces.filter((a) => a.objectif_id === echeanceFiltree.id)
+    : toutesLesAnnonces;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -164,6 +203,25 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
             placeholder="Ex. « Support, dispo le soir, cherche une équipe régulière »"
             className="resize-none min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
+          {echeances.length > 0 && (
+            <label className="flex flex-col gap-1">
+              <span className="font-texte text-mini font-medium text-muted uppercase">Objectif</span>
+              <select
+                name="objectif_id"
+                defaultValue={
+                  monAnnonce?.objectif_id && echeanceParId.has(monAnnonce.objectif_id) ? monAnnonce.objectif_id : ""
+                }
+                className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <option value="">Une équipe régulière, pas d&apos;échéance précise</option>
+                {echeances.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nom} — {formaterDate(e.debut_le)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="flex items-center gap-3">
             <Bouton libelleEnCours="Envoi…">
               {monAnnonce ? "Mettre à jour" : "Publier mon annonce"}
@@ -188,9 +246,53 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
         </p>
       )}
 
+      {echeances.length > 0 && (
+        <Apparition delai={0.08}>
+        <section id="echeances" className="mt-10 scroll-mt-28">
+          <SectionTitre>Prochaines échéances</SectionTitre>
+          <p className="mt-2 max-w-lg text-sm text-muted">
+            Clash est lu dans le calendrier officiel de Riot ; le Nexus Tour et les autres compétitions sont ajoutés
+            avec leur lien officiel. Cherche une équipe pour l&apos;une d&apos;elles.
+          </p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {echeances.map((e) => {
+              const candidats = candidatsParEcheance.get(e.id) ?? 0;
+              return (
+                <li key={e.id} className={"flex flex-col gap-1 " + classeCarte(echeanceFiltree?.id === e.id ? "atteste" : "none")}>
+                  <span className="font-texte text-mini text-muted uppercase">
+                    {LIBELLE_TYPE_ECHEANCE[typeEcheance(e.type)]}
+                    {e.region ? ` · ${e.region}` : ""}
+                  </span>
+                  <span className="text-sm font-semibold text-text">{e.nom}</span>
+                  <span className="text-xs text-muted tabular-nums">{formaterDate(e.debut_le)}</span>
+                  <span className="flex flex-wrap items-center gap-x-3 text-xs">
+                    <Link href={`/lol/coequipiers?objectif=${e.id}`} className="text-text underline underline-offset-3">
+                      {candidats} joueur{candidats > 1 ? "s" : ""} cherche{candidats > 1 ? "nt" : ""} une équipe
+                    </Link>
+                    {e.lien_officiel && (
+                      <a href={e.lien_officiel} rel="noopener noreferrer nofollow" target="_blank" className="text-muted underline underline-offset-3">
+                        Site officiel
+                      </a>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+        </Apparition>
+      )}
+
       <Apparition delai={0.1}>
       <section className="mt-10">
-        <SectionTitre>Joueurs disponibles</SectionTitre>
+        <SectionTitre>
+          {echeanceFiltree ? `Joueurs disponibles — ${echeanceFiltree.nom}` : "Joueurs disponibles"}
+        </SectionTitre>
+        {echeanceFiltree && (
+          <Link href="/lol/coequipiers" className="mt-1 inline-flex min-h-11 items-center text-xs text-muted underline underline-offset-3">
+            Voir toutes les annonces
+          </Link>
+        )}
         {annonces.length === 0 ? (
           <div className="mt-3">
             <EtatVide illustration={<IllustrationEffectifVide />}>
@@ -235,6 +337,11 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                   })()}
                 </div>
                 {a.message && <p className="mt-1 text-sm text-muted">{a.message}</p>}
+                {a.objectif_id && echeanceParId.get(a.objectif_id) && (
+                  <p className="mt-1 text-xs text-accent">
+                    Objectif : {echeanceParId.get(a.objectif_id)!.nom} ({formaterDate(echeanceParId.get(a.objectif_id)!.debut_le)})
+                  </p>
+                )}
 
                 {utilisateur?.id !== a.profile_id && mesEquipesAvecPlace.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">

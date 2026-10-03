@@ -21,6 +21,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 03/10/2026 (audit N23) : **agents libres** — dans un tournoi 5v5, un joueur sans équipe s'inscrit seul (`s_inscrire_agent_libre`, rôle facultatif) et fait son check-in ; au lancement du bracket, les agents confirmés sont regroupés en équipes de cinq équilibrées par rating et par rôle (`src/lib/agents-libres.ts`), inscrites par la base sous le nom « Agents libres N » (`former_equipes_agents_libres`, pas de page d'équipe). Premiers inscrits servis en premier ; les agents en trop sont prévenus.*
 
+*Mise à jour du 03/10/2026 (audit N24) : **échéances (Nexus Tour, Clash)** — table `echeances` : Clash lu dans l'API Riot (clash-v1) par la tâche des tournois automatiques, quatre fois par jour (`src/lib/echeances-serveur.ts`) ; Nexus Tour et autres saisis dans `/admin#echeances` avec un lien officiel obligatoire. Jamais une date inventée. Une annonce « cherche une équipe » peut viser une échéance à venir (`recherches_coequipiers.objectif_id`), affichée sur `/lol/coequipiers` et sur le CV.*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.

@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "Objectif Clash et Nexus Tour",
+    texte:
+      "La page Coéquipiers affiche les prochaines échéances : les dates de Clash, lues dans le calendrier officiel de Riot, et les étapes du Nexus Tour, ajoutées avec leur lien officiel. Une annonce peut viser l'une d'elles — « je cherche une équipe pour la prochaine étape » — et chaque échéance montre combien de joueurs la préparent.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "3 octobre",
     titre: "Pas d'équipe ? Agent libre",
     texte:
       "Dans un tournoi 5v5, un joueur sans équipe peut s'inscrire seul, en précisant son rôle s'il le souhaite. Au lancement du bracket, les agents libres présents sont regroupés en équipes de cinq, de niveau proche et aux rôles variés. Le résultat se lit chez Riot comme pour toutes les équipes.",

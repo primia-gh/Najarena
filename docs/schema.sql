@@ -5815,3 +5815,64 @@ drop trigger if exists game_accounts_retirer_agent_libre on public.game_accounts
 create trigger game_accounts_retirer_agent_libre
   after delete on public.game_accounts
   for each row execute function public.retirer_agent_libre_indisponible();
+
+-- ---------- Objectif Nexus Tour et Clash (2026-10-03, audit N24) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (échéances de /lol/coequipiers et de /admin).
+-- Calendrier des compétitions que les joueurs préparent : Clash, lu dans
+-- l'API Riot (clash-v1) par le serveur, et Nexus Tour ou autre, saisis par
+-- un administrateur avec leur lien officiel — jamais une date inventée.
+-- Une annonce « cherche une équipe » peut viser une échéance à venir
+-- (« je cherche une équipe pour la prochaine étape »).
+create table if not exists public.echeances (
+  id             uuid primary key default gen_random_uuid(),
+  type           text not null check (type in ('clash', 'nexus_tour', 'autre')),
+  nom            text not null check (char_length(nom) between 3 and 80),
+  region         text,
+  debut_le       timestamptz not null,
+  lien_officiel  text check (lien_officiel is null or lien_officiel ~ '^https://[^[:space:]]+$'),
+  source         text not null default 'admin' check (source in ('admin', 'riot')),
+  cle_externe    text unique,
+  cree_par       uuid references public.profiles(id) on delete set null,
+  maj_le         timestamptz not null default now()
+);
+create index if not exists echeances_debut_le_idx on public.echeances (debut_le);
+create index if not exists echeances_cree_par_idx on public.echeances (cree_par);
+alter table public.echeances enable row level security;
+create policy "echeances lisibles par tous" on public.echeances for select using (true);
+-- Saisie et retrait par les administrateurs ; les dates Clash sont écrites
+-- par le serveur seul (source 'riot').
+create policy "les administrateurs ajoutent une echeance" on public.echeances
+  for insert with check (
+    source = 'admin' and cle_externe is null
+    and exists (select 1 from public.admins a where a.profile_id = (select auth.uid()))
+  );
+create policy "les administrateurs retirent une echeance" on public.echeances
+  for delete using (exists (select 1 from public.admins a where a.profile_id = (select auth.uid())));
+revoke update on public.echeances from anon, authenticated;
+revoke insert, delete on public.echeances from anon;
+
+alter table public.recherches_coequipiers
+  add column if not exists objectif_id uuid references public.echeances(id) on delete set null;
+create index if not exists recherches_coequipiers_objectif_id_idx on public.recherches_coequipiers (objectif_id);
+
+-- Une annonce ne vise qu'une échéance à venir.
+create or replace function public.controler_objectif_annonce()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.objectif_id is not null
+     and (tg_op = 'INSERT' or new.objectif_id is distinct from old.objectif_id)
+     and not exists (select 1 from public.echeances where id = new.objectif_id and debut_le > now()) then
+    raise exception 'OBJECTIF_PASSE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_objectif_annonce() from public, anon, authenticated;
+drop trigger if exists recherches_coequipiers_objectif on public.recherches_coequipiers;
+create trigger recherches_coequipiers_objectif
+  before insert or update of objectif_id on public.recherches_coequipiers
+  for each row execute function public.controler_objectif_annonce();

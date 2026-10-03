@@ -59,7 +59,11 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
   ] = await Promise.all([
     supabase.from("seasons").select("id, nom, numero").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
     supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
-    supabase.from("recherches_coequipiers").select("message, cree_le").eq("profile_id", profilId).maybeSingle(),
+    supabase
+      .from("recherches_coequipiers")
+      .select("message, cree_le, objectif:echeances(nom, debut_le)")
+      .eq("profile_id", profilId)
+      .maybeSingle(),
     supabase
       .from("game_accounts")
       .select("role_prefere")
@@ -258,5 +262,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     avatarUrl: profil?.avatar_url ?? null,
     saisonsPassees,
     tournoisEnEquipe,
+    // Lu ici, pas pendant le rendu : sert à ne plus afficher un objectif passé.
+    maintenantIso: new Date().toISOString(),
   };
 });

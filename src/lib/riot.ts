@@ -198,6 +198,28 @@ export async function estEnPartie(puuid: string, plateforme: string): Promise<bo
   }
 }
 
+// clash-v1 — tournois Clash à venir d'une région (routage plateforme).
+// Alimente le calendrier des échéances (audit N24) : les dates viennent de
+// Riot, jamais d'une saisie.
+export interface PhaseClashRiot {
+  id: number;
+  registrationTime: number; // ms epoch
+  startTime: number; // ms epoch
+  cancelled: boolean;
+}
+
+export interface TournoiClashRiot {
+  id: number;
+  themeId: number;
+  nameKey: string;
+  nameKeySecondary: string;
+  schedule: PhaseClashRiot[];
+}
+
+export async function recupererTournoisClash(plateforme: string): Promise<TournoiClashRiot[]> {
+  return appelRiot<TournoiClashRiot[]>(`https://${plateforme}.api.riotgames.com/lol/clash/v1/tournaments`);
+}
+
 // Data Dragon : CDN statique public, ni clé ni quota — sert uniquement à
 // afficher l'image de l'icône-défi, aucune donnée de compte n'y transite.
 const VERSION_DDRAGON_PAR_DEFAUT = "14.1.1";

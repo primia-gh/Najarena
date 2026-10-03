@@ -2,7 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { leverSuspension, resoudreLitigeAdmin, suspendreCompte, traiterSignalement } from "@/lib/admin-actions";
+import {
+  ajouterEcheance,
+  leverSuspension,
+  resoudreLitigeAdmin,
+  retirerEcheance,
+  suspendreCompte,
+  traiterSignalement,
+} from "@/lib/admin-actions";
 import { LIBELLE_RAISON } from "@/lib/moderation";
 import { attribuerOffreAdmin } from "@/lib/offres-actions";
 import { LABEL_OFFRE, chargerOffres, type Offre } from "@/lib/offres";
@@ -21,6 +28,14 @@ export const metadata: Metadata = {
   title: "Administration — Najarena",
   robots: { index: false, follow: false },
 };
+
+const CHAMP_ADMIN =
+  "min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
+// Hors du composant : la date courante ne se lit pas pendant le rendu.
+function hier(): string {
+  return new Date(Date.now() - 86_400_000).toISOString();
+}
 
 interface AdminPageProps {
   searchParams: Promise<{ erreur?: string; message?: string }>;
@@ -123,6 +138,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: derniersInscrits },
     { data: suspensionsData },
     { data: signalementsData },
+    { data: echeancesData },
   ] = await Promise.all([
     supabase
       .from("disputes")
@@ -161,6 +177,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .eq("statut", "a_examiner")
       .order("cree_le", { ascending: true })
       .limit(50),
+    // Calendrier des échéances à venir (audit N24).
+    supabase
+      .from("echeances")
+      .select("id, type, nom, debut_le, lien_officiel, source, region")
+      .gte("debut_le", hier())
+      .order("debut_le", { ascending: true })
+      .limit(40),
   ]);
 
   const { signaux, profilsSignales, tournoisRecents } = await chargerSignaux(supabase);
@@ -374,6 +397,70 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     Lever
                   </BoutonConfirmation>
                 </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      </Apparition>
+
+      <Apparition delai={0.125}>
+      <section id="echeances" className="mt-10 scroll-mt-28" aria-labelledby="titre-echeances">
+        <SectionTitre>
+          <span id="titre-echeances">Échéances (Nexus Tour, Clash…)</span>
+        </SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Les joueurs peuvent chercher une équipe pour une échéance à venir (/lol/coequipiers). Clash est lu dans
+          l&apos;API Riot quatre fois par jour ; le reste se saisit ici, avec le lien officiel qui prouve la date —
+          jamais une date supposée.
+        </p>
+        <form action={ajouterEcheance} className="mt-3 grid max-w-2xl gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1">
+            <span className="font-texte text-mini font-medium text-muted uppercase">Type</span>
+            <select name="type" defaultValue="nexus_tour" className={CHAMP_ADMIN}>
+              <option value="nexus_tour">Nexus Tour</option>
+              <option value="clash">Clash (hors calendrier Riot)</option>
+              <option value="autre">Autre compétition</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="font-texte text-mini font-medium text-muted uppercase">Nom</span>
+            <input name="nom" required minLength={3} maxLength={80} placeholder="Nexus Tour — étape 3" className={CHAMP_ADMIN} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="font-texte text-mini font-medium text-muted uppercase">Début (heure de Paris)</span>
+            <input name="debut_le" type="datetime-local" required className={CHAMP_ADMIN} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="font-texte text-mini font-medium text-muted uppercase">Lien officiel</span>
+            <input name="lien_officiel" type="url" required placeholder="https://" className={CHAMP_ADMIN} />
+          </label>
+          <Bouton libelleEnCours="Ajout…" className="self-start">
+            Ajouter l&apos;échéance
+          </Bouton>
+        </form>
+        {(echeancesData ?? []).length > 0 && (
+          <ul className="mt-4 flex max-w-2xl flex-col gap-2">
+            {(echeancesData ?? []).map((e) => (
+              <li key={e.id} className={"flex flex-wrap items-center justify-between gap-2 " + classeCarte("none")}>
+                <span className="text-sm text-text">
+                  <span className="font-semibold">{e.nom}</span> ·{" "}
+                  <span className="tabular-nums">{formaterDate(e.debut_le)}</span>
+                  {e.region ? ` · ${e.region}` : ""} ·{" "}
+                  <span className="text-muted">{e.source === "riot" ? "lu chez Riot" : "saisi"}</span>
+                </span>
+                {e.source === "admin" && (
+                  <form action={retirerEcheance}>
+                    <input type="hidden" name="echeance_id" value={e.id} />
+                    <BoutonConfirmation
+                      type="submit"
+                      confirmation={`Retirer « ${e.nom} » ?`}
+                      className="inline-flex min-h-11 items-center font-texte text-mini text-danger underline underline-offset-3"
+                    >
+                      Retirer
+                    </BoutonConfirmation>
+                  </form>
+                )}
               </li>
             ))}
           </ul>
