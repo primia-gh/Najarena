@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "Tes résultats sur ton site et ton stream",
+    texte:
+      "Trois widgets à intégrer — le bracket d'un tournoi, le top 10 et la carte CV d'un joueur —, avec un fond transparent pour les overlays de stream, et une API publique en lecture seule pour les créateurs de contenu. Mêmes règles que le site : un verdict manuel n'est jamais présenté comme vérifié, et aucun rating n'est affiché avant l'entrée au classement.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "3 octobre",
     titre: "Une page pour ta communauté",
     texte:
       "Serveur Discord, association, école : une communauté a maintenant sa page, avec ses tournois, le classement interne de ses membres — leur rating officiel, rien de recalculé — et ses membres. Lie ton serveur avec la commande /lier du bot, puis /communaute et /organiser y fonctionnent : le bot prépare le tournoi, tu le valides sur le site.",

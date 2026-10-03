@@ -123,6 +123,9 @@ une transaction, et contient 34 sections, dans cet ordre :
     `npm run discord:commandes` pour ajouter `/communaute`, `/lier` et
     `/organiser` au bot
 
+Les widgets et l'API publique (N31) n'ajoutent rien à la base : ils lisent
+avec la clé publique, comme un visiteur déconnecté.
+
 La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).
 

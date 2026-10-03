@@ -7,6 +7,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Widgets et API publique (audit N31) : lectures anonymes, sans session
+    // à rafraîchir — exclus pour rester légers et mis en cache.
+    "/((?!_next/static|_next/image|favicon.ico|widget/|api/public/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

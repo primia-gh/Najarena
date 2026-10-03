@@ -35,6 +35,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 03/10/2026 (audit N30) : **espaces communauté** — `/communautes`, `/communaute/[slug]`, `/communaute/nouvelle` : tables `communautes` et `membres_communaute`, `tournaments.communaute_id`. Créées par l'offre Organisateur (3 au plus, `creer_communaute`), rejointes librement ; fondateur / administrateurs / membres. Classement interne = rating officiel des membres classés, jamais un rating à part. Serveur Discord lié par un code de 30 minutes saisi avec `/lier` par un membre qui peut gérer le serveur (`lier_serveur_discord`, rôle service) ; commandes `/communaute` et `/organiser` (lien pré-rempli vers `/organiser/nouveau`, le bot n'écrit jamais de tournoi). Commandes à réenregistrer : `npm run discord:commandes`.*
 
+*Mise à jour du 03/10/2026 (audit N31) : **widgets et API publique** — widgets HTML autonomes sans script (`/widget/bracket/[slug]`, `/widget/top10`, `/widget/joueur/[pseudo]`, `?fond=transparent` pour OBS, rafraîchis toutes les 60 s), seules pages intégrables dans un autre site (`frame-ancestors *` dans `next.config.ts`) ; API JSON en lecture seule `/api/public/v1/{classement, joueurs/[pseudo], tournois/[slug]}` (CORS ouvert, cache CDN 1 min, client anonyme). Données communes : `src/lib/donnees-publiques.ts` (pas de rating avant l'entrée au classement, `verifie` faux pour un verdict manuel). Mode d'emploi : `/developpeurs`. Exclus du proxy de session.*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -186,6 +188,7 @@ Schéma de base de données : `docs/schema.sql`.
 /journal                   journal de bord public (docs/journal réel, voir src/lib/journal.ts)
 /note-du-fondateur         positionnement produit, en 1ère personne
 /charte                    charte graphique vivante (interne, absente du site en ligne)
+/developpeurs              widgets intégrables (/widget/...) et API publique en lecture seule (/api/public/v1/...)
 ```
 
 Le segment de jeu (`/lol/...`) est obligatoire dès maintenant : sans lui, l'ajout d'un second jeu imposerait une migration d'URL et une perte de référencement.

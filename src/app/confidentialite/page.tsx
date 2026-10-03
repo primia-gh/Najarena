@@ -68,6 +68,11 @@ export default function ConfidentialitePage() {
               minutes.
             </li>
             <li>
+              Widgets et API publique : ce qui est déjà public sur ton CV et sur les pages de tournoi (pseudo, rating
+              une fois classé, palier, matchs vérifiés, brackets) peut aussi être affiché sur d&apos;autres sites ou lu en
+              JSON. Rien de plus : ni Riot ID, ni données de compte.
+            </li>
+            <li>
               Communautés : la liste des membres d&apos;une communauté (pseudo, rôle, date d&apos;arrivée) est publique,
               comme son classement interne (rating officiel des membres classés). Pour un serveur Discord lié, seul son
               identifiant technique est conservé, pas la liste de ses membres.

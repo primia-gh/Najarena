@@ -22,10 +22,22 @@ const ENTETES_SECURITE = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
+// Widgets (audit N31) : faits pour être intégrés dans la page d'un autre
+// site ou un overlay de stream — seule exception à l'interdiction
+// d'affichage dans un cadre. Pages sans formulaire ni action : rien à
+// détourner par superposition.
+const ENTETES_WIDGETS = [
+  { key: "Content-Security-Policy", value: "frame-ancestors *; base-uri 'self'; object-src 'none'; script-src 'none'" },
+  ...ENTETES_SECURITE.filter((e) => e.key !== "Content-Security-Policy" && e.key !== "X-Frame-Options"),
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: ENTETES_SECURITE }];
+    return [
+      { source: "/:path((?!widget/).*)", headers: ENTETES_SECURITE },
+      { source: "/widget/:path*", headers: ENTETES_WIDGETS },
+    ];
   },
   images: {
     remotePatterns: supabaseHost
