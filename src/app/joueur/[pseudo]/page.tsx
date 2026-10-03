@@ -1086,6 +1086,32 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               </ol>
             </Panneau>
 
+            {/* Comptes Riot déclarés (audit N15), dès qu'il y en a plus d'un. */}
+            {complements.comptesRiot.length > 1 && (
+              <Panneau className="flex flex-col gap-4 p-7">
+                <LibelleSection as="h2">Comptes Riot</LibelleSection>
+                <ul className="flex flex-col gap-3">
+                  {complements.comptesRiot.map((c) => (
+                    <li key={c.riotId} className="flex flex-col gap-0.5">
+                      <span className="text-sm font-semibold text-text tabular-nums">
+                        {c.riotId} <span className="font-normal text-muted">· {c.region}</span>
+                      </span>
+                      <span className="text-xs text-muted">
+                        {c.principal ? "Principal — inscrit aux tournois" : "Secondaire déclaré"} · vérifié le{" "}
+                        {formaterDate(c.verifieLe)}
+                        {c.matchsVerifies > 0 &&
+                          ` · ${c.matchsVerifies} match${c.matchsVerifies > 1 ? "s" : ""} vérifié${c.matchsVerifies > 1 ? "s" : ""}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted">
+                  Déclarés par le joueur et vérifiés par l&apos;icône de profil. Seul le compte principal joue les
+                  tournois.
+                </p>
+              </Panneau>
+            )}
+
             {/* Fiche d'organisateur (audit N13) : le sérieux de ses tournois. */}
             {complements.ficheOrganisateur && (
               <Panneau className="flex flex-col gap-4 p-7">

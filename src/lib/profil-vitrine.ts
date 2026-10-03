@@ -38,6 +38,16 @@ export interface TournoiEnEquipe {
   resultat: string;
 }
 
+/** Compte Riot vérifié du joueur, principal ou secondaire déclaré (audit N15). */
+export interface CompteRiotDeclare {
+  riotId: string;
+  region: string;
+  principal: boolean;
+  verifieLe: string;
+  /** Matchs vérifiés joués sur ce compte (suivi depuis le 03/10/2026). */
+  matchsVerifies: number;
+}
+
 export interface EquipeJoueur {
   nom: string;
   slug: string;
@@ -205,6 +215,35 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
   );
   saisonsPassees.sort((a, b) => b.numero - a.numero);
 
+  // Comptes Riot déclarés (audit N15) : seuls les comptes vérifiés sont
+  // lisibles, avec le nombre de matchs vérifiés joués sur chacun.
+  const { data: comptesData } = await supabase
+    .from("game_accounts")
+    .select("puuid, riot_game_name, riot_tag_line, region, est_principal, verifie_le")
+    .eq("profile_id", profilId)
+    .eq("game_id", 1)
+    .not("verifie_le", "is", null);
+  const { data: statsComptes } =
+    (comptesData ?? []).length > 1
+      ? await supabase
+          .from("stats_match_joueur")
+          .select("puuid")
+          .eq("profile_id", profilId)
+          .in(
+            "puuid",
+            (comptesData ?? []).map((c) => c.puuid),
+          )
+      : { data: [] };
+  const comptesRiot: CompteRiotDeclare[] = (comptesData ?? [])
+    .map((c) => ({
+      riotId: `${c.riot_game_name}#${c.riot_tag_line}`,
+      region: c.region,
+      principal: c.est_principal,
+      verifieLe: c.verifie_le as string,
+      matchsVerifies: (statsComptes ?? []).filter((s) => s.puuid === c.puuid).length,
+    }))
+    .sort((a, b) => Number(b.principal) - Number(a.principal));
+
   // Fiche publique d'organisateur (audit N13), s'il en a publié.
   const { data: fiche } = await supabase.rpc("fiche_organisateur", { p_profile_id: profilId }).maybeSingle();
 
@@ -267,6 +306,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     saisonsPassees,
     tournoisEnEquipe,
     ficheOrganisateur: fiche && fiche.tournois_publies > 0 ? lignesFiche(fiche) : null,
+    comptesRiot,
     // Lu ici, pas pendant le rendu : sert à ne plus afficher un objectif passé.
     maintenantIso: new Date().toISOString(),
   };

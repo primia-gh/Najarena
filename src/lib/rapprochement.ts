@@ -216,6 +216,8 @@ async function enregistrerSerie(
   const ligne = (profileId: string, stat: ParticipantMatchRiot, gagne: boolean) => ({
     match_id: m.id,
     profile_id: profileId,
+    // Compte qui a joué ce match (comptes secondaires déclarés, audit N15).
+    puuid: stat.puuid,
     champion: stat.championName,
     kills: stat.kills,
     deaths: stat.deaths,

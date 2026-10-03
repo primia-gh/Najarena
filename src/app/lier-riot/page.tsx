@@ -4,7 +4,13 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { destinationInterne } from "@/lib/redirection";
 import { createClient } from "@/lib/supabase/server";
-import { delierCompteRiot, lierRiotId, verifierRiotId } from "@/lib/riot-actions";
+import {
+  definirComptePrincipal,
+  delierCompteRiot,
+  delierCompteSecondaire,
+  lierRiotId,
+  verifierRiotId,
+} from "@/lib/riot-actions";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import { REGIONS, obtenirVersionDDragon, urlIconeProfil } from "@/lib/riot";
 import { classeCarte } from "@/lib/ui";
@@ -32,12 +38,14 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
     redirect("/connexion");
   }
 
-  const { data: compte } = await supabase
+  const { data: comptes } = await supabase
     .from("game_accounts")
-    .select("puuid, riot_game_name, riot_tag_line, region, verifie_le, defi_icone_id")
+    .select("puuid, riot_game_name, riot_tag_line, region, verifie_le, defi_icone_id, est_principal")
     .eq("profile_id", userData.user.id)
-    .eq("est_principal", true)
-    .maybeSingle();
+    .eq("game_id", 1);
+  const compte = (comptes ?? []).find((c) => c.est_principal) ?? null;
+  // Comptes secondaires déclarés (audit N15).
+  const secondaires = (comptes ?? []).filter((c) => !c.est_principal);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -85,11 +93,68 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
         <EtapeSaisie suite={suite} />
       )}
 
+      {compte?.verifie_le && (
+        <section className="mt-10 flex flex-col gap-3" aria-labelledby="titre-secondaires">
+          <h2 id="titre-secondaires" className="font-titre text-lg font-extrabold uppercase">
+            Comptes secondaires déclarés
+          </h2>
+          <p className="text-sm text-muted">
+            Tu joues aussi sur d&apos;autres comptes ? Déclare-les : une fois vérifiés, ils s&apos;affichent sur ton CV,
+            en transparence. Seul ton compte principal t&apos;inscrit aux tournois et sert à lire tes résultats.
+          </p>
+          {secondaires.map((s) => (
+            <div key={s.puuid} className={classeCarte(s.verifie_le ? "none" : "sceau")}>
+              <p className="font-texte tabular-nums text-sm text-text">
+                {s.riot_game_name}#{s.riot_tag_line} · {s.region} ·{" "}
+                <span className={s.verifie_le ? "text-accent" : "text-muted"}>
+                  {s.verifie_le ? "vérifié" : "à vérifier"}
+                </span>
+              </p>
+              {!s.verifie_le && s.defi_icone_id != null && (
+                <EtapeVerification puuid={s.puuid} defiIconeId={s.defi_icone_id} />
+              )}
+              <div className="mt-2 flex flex-wrap gap-4">
+                {s.verifie_le && (
+                  <form action={definirComptePrincipal}>
+                    <input type="hidden" name="puuid" value={s.puuid} />
+                    <BoutonConfirmation
+                      type="submit"
+                      confirmation={`Faire de ${s.riot_game_name}#${s.riot_tag_line} ton compte principal ? Il t'inscrira aux tournois et servira à lire tes résultats.`}
+                      className="inline-flex min-h-11 items-center font-texte text-mini font-semibold text-text uppercase underline underline-offset-3 hover:text-accent"
+                    >
+                      Définir comme principal
+                    </BoutonConfirmation>
+                  </form>
+                )}
+                <form action={delierCompteSecondaire}>
+                  <input type="hidden" name="puuid" value={s.puuid} />
+                  <BoutonConfirmation
+                    type="submit"
+                    confirmation={`Retirer ${s.riot_game_name}#${s.riot_tag_line} de tes comptes déclarés ?`}
+                    className="inline-flex min-h-11 items-center font-texte text-mini font-semibold text-muted uppercase underline underline-offset-3 hover:text-text"
+                  >
+                    Retirer
+                  </BoutonConfirmation>
+                </form>
+              </div>
+            </div>
+          ))}
+          {(comptes ?? []).length < 3 && (
+            <details className={classeCarte("none")}>
+              <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-text">
+                Déclarer un compte secondaire
+              </summary>
+              <EtapeSaisie suite={null} secondaire />
+            </details>
+          )}
+        </section>
+      )}
+
       {compte && (
         <form action={delierCompteRiot} className="mt-6">
           <BoutonConfirmation
             type="submit"
-            confirmation={`Délier ${compte.riot_game_name}#${compte.riot_tag_line} ? Il faudra refaire la vérification pour lier un compte.`}
+            confirmation={`Délier ${compte.riot_game_name}#${compte.riot_tag_line}${secondaires.length > 0 ? " et tes comptes secondaires" : ""} ? Il faudra refaire la vérification pour lier un compte.`}
             className="inline-flex min-h-11 items-center font-texte text-mini font-semibold text-muted uppercase underline underline-offset-3 hover:text-text"
           >
             {compte.verifie_le ? "Délier ce compte" : "Changer de Riot ID"}
@@ -102,7 +167,7 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
   );
 }
 
-function EtapeSaisie({ suite }: { suite: string | null }) {
+function EtapeSaisie({ suite, secondaire = false }: { suite: string | null; secondaire?: boolean }) {
   return (
     <>
       <p className="mt-2 text-sm text-muted">
@@ -111,6 +176,7 @@ function EtapeSaisie({ suite }: { suite: string | null }) {
       </p>
       <form action={lierRiotId} className="mt-6 flex flex-col gap-4">
         {suite && <input type="hidden" name="suite" value={suite} />}
+        {secondaire && <input type="hidden" name="principal" value="non" />}
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
             Riot ID

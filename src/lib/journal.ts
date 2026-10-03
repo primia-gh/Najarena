@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "Tes autres comptes, en transparence",
+    texte:
+      "Tu peux déclarer jusqu'à trois comptes Riot, vérifiés de la même façon. Ils s'affichent sur ton CV avec le nombre de matchs vérifiés joués sur chacun, plutôt que de laisser croire qu'il n'en existe qu'un. Seul ton compte principal t'inscrit aux tournois, et il ne change pas pendant un tournoi en cours.",
+    tags: ["Fiabilité"],
+  },
+  {
+    date: "3 octobre",
     titre: "Le sérieux d'un organisateur, en chiffres",
     texte:
       "Avant de t'inscrire, tu vois à côté du nom de l'organisateur combien de ses tournois ont été menés à terme et quelle part de leurs matchs a été lue chez Riot. Son CV détaille aussi ses tournois annulés et ses litiges tranchés, avec le délai médian.",

@@ -22,8 +22,10 @@ select essai('Serveur : Bob lie son compte P-BOB',
   $q$select public.lier_compte_riot('00000000-0000-0000-0000-00000000000b'::uuid, 1::smallint, 'P-BOB', 'Bob', 'EUW', 'EUW', 12::smallint)$q$, 'passe');
 select essai('Serveur : Eve tente de lier P-BOB, déjà lié à Bob',
   $q$select public.lier_compte_riot('00000000-0000-0000-0000-00000000000e'::uuid, 1::smallint, 'P-BOB', 'Faker', 'KR1', 'EUW', 3::smallint)$q$, 'bloque');
-select essai('Serveur : Bob lie un second compte P-BOB2',
-  $q$select public.lier_compte_riot('00000000-0000-0000-0000-00000000000b'::uuid, 1::smallint, 'P-BOB2', 'Bob2', 'EUW', 'EUW', 5::smallint)$q$, 'passe');
+-- Bob est inscrit à des tournois en cours : un nouveau compte ne peut
+-- être que secondaire (comptes secondaires déclarés, audit N15).
+select essai('Serveur : Bob lie un second compte P-BOB2, comme secondaire',
+  $q$select public.lier_compte_riot('00000000-0000-0000-0000-00000000000b'::uuid, 1::smallint, 'P-BOB2', 'Bob2', 'EUW', 'EUW', 5::smallint, false)$q$, 'passe');
 reset role;
 select verifie('Bob n''a qu''un seul compte Riot principal', (select count(*) = 1 from game_accounts where profile_id = :bob and est_principal));
 select verifie('Le compte P-BOB affiche le nom renvoyé par Riot, pas celui choisi par Eve', (select riot_game_name = 'Bob' and profile_id = :bob from game_accounts where puuid = 'P-BOB'));

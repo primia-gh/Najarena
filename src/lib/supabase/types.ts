@@ -1535,6 +1535,7 @@ export type Database = {
           match_id: string
           or_gagne: number
           profile_id: string
+          puuid: string | null
         }
         Insert: {
           assists: number
@@ -1548,6 +1549,7 @@ export type Database = {
           match_id: string
           or_gagne: number
           profile_id: string
+          puuid?: string | null
         }
         Update: {
           assists?: number
@@ -1561,6 +1563,7 @@ export type Database = {
           match_id?: string
           or_gagne?: number
           profile_id?: string
+          puuid?: string | null
         }
         Relationships: [
           {
@@ -1996,6 +1999,8 @@ export type Database = {
         Args: { p_gagnant_id: string; p_match_id: string }
         Returns: undefined
       }
+      definir_compte_principal: { Args: { p_game_id: number; p_puuid: string }; Returns: boolean }
+      delier_compte_secondaire: { Args: { p_game_id: number; p_puuid: string }; Returns: boolean }
       delier_compte_riot: { Args: { p_game_id: number }; Returns: boolean }
       emettre_certificat: { Args: { p_game_id?: number }; Returns: string }
       enregistrer_consentement: { Args: { p_version: string }; Returns: boolean }
@@ -2016,6 +2021,7 @@ export type Database = {
         Args: {
           p_defi_icone_id: number
           p_game_id: number
+          p_principal?: boolean
           p_profile_id: string
           p_puuid: string
           p_region: string

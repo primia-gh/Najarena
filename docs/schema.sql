@@ -5978,3 +5978,179 @@ as $$
 $$;
 revoke execute on function public.fiche_organisateur(uuid) from public;
 grant execute on function public.fiche_organisateur(uuid) to anon, authenticated, service_role;
+
+-- ---------- Comptes Riot secondaires déclarés (2026-10-03, audit N15) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (page /lier-riot, bloc « Comptes Riot » du CV, recherche des résultats).
+-- Un joueur peut déclarer jusqu'à trois comptes Riot pour LoL, vérifiés de
+-- la même façon (icône de profil), affichés en transparence sur son CV
+-- plutôt que de laisser croire qu'il n'en a qu'un. Le compte principal
+-- reste le seul qui inscrit aux tournois et dont l'historique est lu.
+-- Changer de compte principal (ou en lier un nouveau comme principal) est
+-- refusé pendant un tournoi pas encore terminé : ses résultats sont lus
+-- sur le compte inscrit. Chaque match vérifié garde désormais le compte
+-- qui l'a joué (stats_match_joueur.puuid).
+alter table public.stats_match_joueur add column if not exists puuid text;
+
+-- Engagé dans un tournoi pas encore terminé (inscription, alignement 5v5,
+-- liste des agents libres).
+create or replace function public.engage_en_tournoi(p_profile_id uuid, p_game_id smallint)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = p_profile_id and r.statut in ('inscrit', 'confirme')
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) or exists (
+    select 1 from public.alignements a
+    join public.registrations r on r.id = a.registration_id
+    join public.tournaments t on t.id = a.tournament_id
+    where a.profile_id = p_profile_id and r.statut in ('inscrit', 'confirme')
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) or exists (
+    select 1 from public.agents_libres g
+    join public.tournaments t on t.id = g.tournament_id
+    where g.profile_id = p_profile_id and g.statut <> 'place'
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin')
+  );
+$$;
+revoke all on function public.engage_en_tournoi(uuid, smallint) from public, anon, authenticated;
+
+drop function if exists public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint);
+create or replace function public.lier_compte_riot(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_puuid text,
+  p_riot_game_name text,
+  p_riot_tag_line text,
+  p_region text,
+  p_defi_icone_id smallint,
+  p_principal boolean default true
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_principal boolean := p_principal;
+begin
+  -- Le premier compte est toujours le principal.
+  if not exists (
+    select 1 from public.game_accounts
+    where profile_id = p_profile_id and game_id = p_game_id and est_principal and puuid <> p_puuid
+  ) then
+    v_principal := true;
+  end if;
+
+  if v_principal
+     and exists (
+       select 1 from public.game_accounts
+       where profile_id = p_profile_id and game_id = p_game_id and est_principal and puuid <> p_puuid
+     )
+     and public.engage_en_tournoi(p_profile_id, p_game_id) then
+    raise exception 'INSCRIT_A_UN_TOURNOI';
+  end if;
+
+  if not exists (select 1 from public.game_accounts where game_id = p_game_id and puuid = p_puuid)
+     and (select count(*) from public.game_accounts where profile_id = p_profile_id and game_id = p_game_id) >= 3 then
+    raise exception 'TROP_DE_COMPTES';
+  end if;
+
+  -- Nouveau principal : les autres comptes de ce joueur cessent de l'être
+  -- (annulé avec le reste si la liaison échoue plus bas).
+  if v_principal then
+    update public.game_accounts
+    set est_principal = false
+    where profile_id = p_profile_id
+      and game_id = p_game_id
+      and puuid <> p_puuid
+      and est_principal;
+  end if;
+
+  insert into public.game_accounts (
+    profile_id, game_id, puuid, riot_game_name, riot_tag_line, region,
+    est_principal, defi_icone_id, methode_verification
+  )
+  values (
+    p_profile_id, p_game_id, p_puuid, p_riot_game_name, p_riot_tag_line, p_region,
+    v_principal, p_defi_icone_id, 'icone_profil'
+  )
+  on conflict (game_id, puuid) do update set
+    riot_game_name = excluded.riot_game_name,
+    riot_tag_line = excluded.riot_tag_line,
+    region = excluded.region,
+    est_principal = public.game_accounts.est_principal or excluded.est_principal,
+    defi_icone_id = excluded.defi_icone_id,
+    methode_verification = 'icone_profil',
+    verifie_le = null
+  -- Compte déjà lié à un autre profil : aucune ligne touchée, refus.
+  where public.game_accounts.profile_id = p_profile_id;
+
+  if not found then
+    raise exception 'RIOT_ACCOUNT_TAKEN';
+  end if;
+end;
+$$;
+revoke execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint, boolean) from public, anon, authenticated;
+grant execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint, boolean) to service_role;
+
+-- Un compte secondaire vérifié devient le principal.
+create or replace function public.definir_compte_principal(p_game_id smallint, p_puuid text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_compte record;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select est_principal, verifie_le into v_compte
+  from public.game_accounts
+  where profile_id = v_joueur and game_id = p_game_id and puuid = p_puuid
+  for update;
+  if not found then
+    raise exception 'COMPTE_INTROUVABLE';
+  end if;
+  if v_compte.est_principal then
+    return false;
+  end if;
+  if v_compte.verifie_le is null then
+    raise exception 'COMPTE_NON_VERIFIE';
+  end if;
+  if public.engage_en_tournoi(v_joueur, p_game_id) then
+    raise exception 'INSCRIT_A_UN_TOURNOI';
+  end if;
+  update public.game_accounts set est_principal = false
+  where profile_id = v_joueur and game_id = p_game_id and est_principal;
+  update public.game_accounts set est_principal = true
+  where profile_id = v_joueur and game_id = p_game_id and puuid = p_puuid;
+  return true;
+end;
+$$;
+revoke execute on function public.definir_compte_principal(smallint, text) from public, anon;
+grant execute on function public.definir_compte_principal(smallint, text) to authenticated;
+
+-- Retirer un compte secondaire (le principal se délie avec delier_compte_riot).
+create or replace function public.delier_compte_secondaire(p_game_id smallint, p_puuid text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  delete from public.game_accounts
+  where profile_id = auth.uid() and game_id = p_game_id and puuid = p_puuid and not est_principal;
+  return found;
+end;
+$$;
+revoke execute on function public.delier_compte_secondaire(smallint, text) from public, anon;
+grant execute on function public.delier_compte_secondaire(smallint, text) to authenticated;

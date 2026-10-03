@@ -66,7 +66,10 @@ export default function CguPage() {
             disponible, la possession d&apos;un compte Riot est vérifiée en
             demandant au joueur de modifier temporairement son icône de
             profil en jeu. Un Riot ID ne peut être lié qu&apos;à un seul
-            compte Najarena à la fois.
+            compte Najarena à la fois. Un joueur peut déclarer jusqu&apos;à
+            trois comptes Riot, vérifiés de la même façon et affichés sur
+            son profil ; seul son compte principal l&apos;inscrit aux
+            tournois, et il ne peut en changer pendant un tournoi en cours.
           </p>
         </section>
 

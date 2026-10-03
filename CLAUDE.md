@@ -27,6 +27,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 03/10/2026 (audit N13) : **fiche publique de l'organisateur** — `fiche_organisateur` (base) : tournois publiés, menés à terme, annulés ; part des matchs lus chez Riot ; litiges tranchés et délai médian. Sur ses seuls tournois (hors officiels, défis, scrims, brouillons). Bloc « Organisateur » du CV, résumé sous « Organisé par » d'un tournoi (`src/lib/fiche-organisateur.ts`, pas de pourcentage sous 5 matchs).*
 
+*Mise à jour du 03/10/2026 (audit N15) : **comptes Riot secondaires déclarés** — jusqu'à 3 comptes par joueur (`lier_compte_riot(..., p_principal)`), vérifiés par l'icône, affichés sur le CV (bloc « Comptes Riot »). Seul le principal inscrit aux tournois et sert à lire les résultats ; en changer (`definir_compte_principal`) ou en lier un nouveau comme principal est refusé pendant un tournoi pas encore terminé (`engage_en_tournoi`). Chaque match vérifié garde le compte qui l'a joué (`stats_match_joueur.puuid`).*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.

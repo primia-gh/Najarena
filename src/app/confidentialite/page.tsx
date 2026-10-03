@@ -49,7 +49,10 @@ export default function ConfidentialitePage() {
             <li>Adresse e-mail et mot de passe (le mot de passe n&apos;est jamais stocké en clair, seul son hachage l&apos;est).</li>
             <li>Si tu te connectes via Discord : ton identifiant Discord, ton nom d&apos;utilisateur et l&apos;e-mail associé à ton compte Discord.</li>
             <li>Pseudo, identifiant public (slug), pays si renseigné.</li>
-            <li>Riot ID (nom de jeu, tag, région) et identifiant Riot stable (puuid), une fois lié.</li>
+            <li>
+              Riot ID (nom de jeu, tag, région) et identifiant Riot stable (puuid), une fois lié — y compris les
+              comptes secondaires que tu déclares, affichés sur ton profil une fois vérifiés.
+            </li>
             <li>Historique de tournois, de matchs et de résultats.</li>
             <li>
               Tournois 5v5 et scrims : les cinq joueurs alignés par chaque équipe, publics comme une inscription ;
