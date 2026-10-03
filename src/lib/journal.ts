@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "Pronostics, pour le plaisir",
+    texte:
+      "Désigne le vainqueur des demi-finales et des finales des tournois en cours : 1 point pour une demi-finale juste, 2 pour une finale, dans un classement des pronostiqueurs par saison. Aucune mise, aucun gain. Seul un résultat lu chez Riot compte, et les pronostics ferment dès qu'un joueur se déclare prêt.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "3 octobre",
     titre: "L'arène : un duel tout de suite",
     texte:
       "Plus besoin d'attendre le prochain tournoi : entre dans l'arène, le site te trouve un joueur de ta région au rating proche et ouvre le duel. L'écart toléré est public — 100 points, plus la moitié de l'indice d'incertitude, plus 20 par minute d'attente — et le résultat est lu chez Riot comme pour un défi.",

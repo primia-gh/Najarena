@@ -63,6 +63,11 @@ const QUESTIONS = [
       "Non. L'IA n'écrit jamais de résultat ni de point : elle rédige seulement des textes d'aide, à la demande, à partir de données déjà vérifiées. Quatre usages, disponibles quand ils sont activés : l'assistant de création de tournoi (l'organisateur valide avant de créer), l'analyse détaillée d'un match (offre Elite, à partir des seuls chiffres Riot du match, en plus de la revue par règles), le dossier de litige (il rassemble les faits pour l'organisateur et ne désigne jamais de vainqueur : la décision reste humaine) et la recherche de joueurs en langage naturel (offre Organisateur : l'IA traduit la demande en filtres, la recherche ne porte que sur des comptes vérifiés).",
   },
   {
+    question: "Les pronostics, c'est des paris ?",
+    reponse:
+      "Non. Les pronostics sont gratuits : aucune mise, aucun gain, aucune récompense. Tu désignes le vainqueur des demi-finales et des finales d'un tournoi en cours ; une demi-finale juste vaut 1 point, une finale 2 points, dans un classement des pronostiqueurs par saison. Seul un résultat lu chez Riot compte (un forfait ou une décision manuelle annule le pronostic), et les pronostics ferment dès qu'un joueur se déclare prêt. Les joueurs du tournoi et son organisateur ne pronostiquent pas.",
+  },
+  {
     question: "Qui peut modifier un résultat ou un classement ?",
     reponse:
       "Ni les joueurs, ni le site depuis ton navigateur : le classement n'est écrit que par des fonctions serveur, jamais par le client. Chaque variation de points est journalisée (rating avant et après) et visible dans le journal des points du profil de chaque joueur. Un verdict manuel garde toujours son motif affiché.",

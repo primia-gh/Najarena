@@ -59,6 +59,16 @@ import {
   type EquipeInscrite,
 } from "@/lib/equipes-tournoi";
 import { libelleEquipe, TAILLE_ALIGNEMENT } from "@/lib/cinq-contre-cinq";
+import {
+  issuePronostic,
+  LIBELLE_ISSUE,
+  partsPronostics,
+  pointsPronostic,
+  pronosticOuvert,
+  type MatchPronostiquable,
+} from "@/lib/pronostics";
+import { chargerPronosticsTournoi } from "@/lib/pronostics-serveur";
+import { pronostiquer } from "@/lib/pronostic-actions";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
@@ -317,6 +327,11 @@ function estAVenir(iso: string | null): boolean {
   return iso !== null && new Date(iso).getTime() > Date.now();
 }
 
+// Pronostics (audit N20) : même raison, l'heure courante est lue ici.
+function pronosticOuvertMaintenant(m: MatchPronostiquable): boolean {
+  return pronosticOuvert(m, new Date());
+}
+
 function crestJoueur(
   profileId: string,
   ratingParProfile: Map<string, { rating: number; est_classe: boolean | null }>,
@@ -462,6 +477,24 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
 
   const complements = await chargerComplementsTournoi(tournoi.id);
+
+  // Pronostics gratuits (audit N20) : demi-finales et finale d'un tournoi
+  // (jamais d'un défi ni d'un scrim), dès que les deux adversaires sont
+  // connus. Les joueurs du tournoi et l'organisateur ne pronostiquent pas.
+  const matchsPronostic =
+    tournoi.nature === "tournoi"
+      ? matchs.filter((m) => pointsPronostic(m.tour, tournoi.capacite) > 0 && m.match_participants.length === 2)
+      : [];
+  const pronostics =
+    matchsPronostic.length > 0
+      ? await chargerPronosticsTournoi(
+          await createClient(),
+          tournoi.id,
+          matchsPronostic.map((m) => m.id),
+          utilisateur?.id,
+        )
+      : null;
+  const peutPronostiquer = Boolean(utilisateur) && !estOrganisateur && !inscriptionActuelle && !monEquipe;
 
   // Tournoi classé (audit E12 / N12) : critères publics, décision figée par
   // la base à la clôture. Un tournoi terminé sans décision (clos sans
@@ -1242,6 +1275,110 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           )}
         </div>
       </section>
+
+      {/* ================= PRONOSTICS ================= */}
+      {pronostics && (
+        <section id="pronostics" className="scroll-mt-28 px-gouttiere pt-section-outil">
+          <div className="mx-auto flex max-w-contenu flex-col gap-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <LibelleSection as="h2">Pronostics</LibelleSection>
+              <Link
+                href="/lol/pronostics"
+                className="inline-flex min-h-11 items-center text-mini font-semibold text-accent uppercase underline underline-offset-3"
+              >
+                Classement des pronostiqueurs
+              </Link>
+            </div>
+            <p className="max-w-2xl text-sm text-muted">
+              Qui gagne ? Demi-finale juste = 1 point, finale = 2 points, comptés seulement sur un résultat lu chez
+              Riot. Aucune mise, aucun gain : un classement des pronostiqueurs, rien d&apos;autre. Fermé dès qu&apos;un
+              joueur se déclare prêt.
+            </p>
+            <ul className="grid gap-4 md:grid-cols-2">
+              {matchsPronostic.map((m) => {
+                const verdict = verdictParMatch.get(m.id);
+                const duo = [...m.match_participants].sort((a, b) => a.slot - b.slot);
+                const parJoueur = pronostics.repartition.get(m.id);
+                const nombres = duo.map((p) => parJoueur?.get(p.profile_id) ?? 0);
+                const parts = partsPronostics(nombres[0], nombres[1]);
+                const total = nombres[0] + nombres[1];
+                const monChoix = pronostics.miens.get(m.id);
+                const ouvert = pronosticOuvertMaintenant({
+                  statutTournoi: statut,
+                  statutMatch: m.statut,
+                  demarreLe: m.demarre_le,
+                  nbParticipants: duo.length,
+                  unJoueurPret: duo.some((p) => p.pret_le),
+                  aUnVerdict: Boolean(verdict),
+                });
+                const issue = monChoix
+                  ? issuePronostic(monChoix, verdict ? { niveau: verdict.niveau, gagnantId: verdict.gagnant_id } : null)
+                  : null;
+                return (
+                  <li key={m.id}>
+                    <Panneau className="flex h-full flex-col gap-3 p-5">
+                      <p className="text-mini text-muted uppercase">
+                        {pointsPronostic(m.tour, tournoi.capacite) === 2
+                          ? "Finale · 2 points"
+                          : "Demi-finale · 1 point"}
+                      </p>
+                      <ul className="flex flex-col gap-2">
+                        {duo.map((p, i) => (
+                          <li key={p.profile_id} className="flex flex-col gap-1">
+                            <div className="flex items-baseline justify-between gap-3 text-sm">
+                              <span className={monChoix === p.profile_id ? "font-semibold text-accent" : "text-text"}>
+                                {nomDe(p.profile_id, p.profile?.pseudo)}
+                              </span>
+                              <span className="text-muted tabular-nums">{total > 0 ? `${parts[i]} %` : "—"}</span>
+                            </div>
+                            <div className="h-1.5 overflow-hidden rounded-full bg-line" aria-hidden="true">
+                              <div className="h-full bg-accent/70" style={{ width: `${parts[i]}%` }} />
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-muted tabular-nums">
+                        {total} pronostic{total > 1 ? "s" : ""}
+                        {issue && monChoix
+                          ? ` · ton choix : ${nomDe(monChoix, duo.find((p) => p.profile_id === monChoix)?.profile?.pseudo)} — ${LIBELLE_ISSUE[issue]}`
+                          : ""}
+                      </p>
+                      {ouvert && peutPronostiquer && (
+                        <div className="flex flex-wrap gap-2">
+                          {duo.map((p) => (
+                            <form key={p.profile_id} action={pronostiquer}>
+                              <input type="hidden" name="match_id" value={m.id} />
+                              <input type="hidden" name="gagnant_id" value={p.profile_id} />
+                              <input type="hidden" name="slug" value={tournoi.slug} />
+                              <BoutonEnvoi
+                                variante={monChoix === p.profile_id ? "principal" : "contour"}
+                                libelleEnCours="Envoi…"
+                              >
+                                {nomDe(p.profile_id, p.profile?.pseudo)}
+                              </BoutonEnvoi>
+                            </form>
+                          ))}
+                        </div>
+                      )}
+                      {ouvert && !utilisateur && (
+                        <Link
+                          href={`/connexion?suite=${encodeURIComponent(`/lol/tournois/${tournoi.slug}#pronostics`)}`}
+                          className="inline-flex min-h-11 items-center text-mini font-semibold text-accent uppercase underline underline-offset-3"
+                        >
+                          Se connecter pour pronostiquer
+                        </Link>
+                      )}
+                      {!ouvert && !verdict && (
+                        <p className="text-xs text-muted">Pronostics fermés : le match a commencé.</p>
+                      )}
+                    </Panneau>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+      )}
 
       {/* ================= INSCRITS ================= */}
       <section id="inscrits" className="scroll-mt-28 px-gouttiere pt-section-outil">

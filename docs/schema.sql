@@ -6357,3 +6357,137 @@ end;
 $$;
 revoke all on function public.apparier_arene() from public, anon, authenticated;
 grant execute on function public.apparier_arene() to service_role;
+
+-- ---------- Pronostics gratuits (2026-10-03, audit N20) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Les visiteurs connectés pronostiquent le vainqueur des demi-finales
+-- (1 point) et de la finale (2 points) des tournois en cours. Aucune mise,
+-- aucun gain : un classement des pronostiqueurs par saison, rien d'autre.
+-- Un pronostic n'est compté que sur un résultat lu chez Riot (verdict
+-- définitif, niveaux 2 et 3) : forfait ou décision manuelle = pronostic
+-- annulé. Fermé dès qu'un joueur du match se déclare prêt, ou 10 minutes
+-- après l'ouverture du match. Les joueurs du tournoi et son organisateur
+-- ne pronostiquent pas.
+create table if not exists public.pronostics (
+  match_id       uuid not null references public.matches(id) on delete cascade,
+  profile_id     uuid not null references public.profiles(id) on delete cascade,
+  gagnant_prevu  uuid not null references public.profiles(id),
+  cree_le        timestamptz not null default now(),
+  primary key (match_id, profile_id)
+);
+create index if not exists pronostics_profile_idx on public.pronostics (profile_id);
+alter table public.pronostics enable row level security;
+create policy "un joueur voit ses pronostics" on public.pronostics
+  for select using (profile_id = (select auth.uid()));
+revoke insert, update, delete on public.pronostics from anon, authenticated;
+
+-- Points d'un pronostic juste selon le tour : 2 en finale, 1 en
+-- demi-finale, 0 avant (pas de pronostic possible).
+create or replace function public.points_pronostic(p_tour smallint, p_capacite integer)
+returns integer
+language sql
+immutable
+as $$
+  select case
+    when p_capacite < 4 then 0
+    when p_tour = round(log(2, p_capacite::numeric))::integer then 2
+    when p_tour = round(log(2, p_capacite::numeric))::integer - 1 then 1
+    else 0
+  end;
+$$;
+
+create or replace function public.pronostiquer(p_match_id uuid, p_gagnant uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_match record;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+
+  select m.id, m.tour, m.statut, m.demarre_le, t.id as tournament_id, t.capacite, t.nature,
+         t.statut as statut_tournoi, t.organisateur_id
+  into v_match
+  from public.matches m join public.tournaments t on t.id = m.tournament_id
+  where m.id = p_match_id
+  for update of m;
+  if not found then
+    raise exception 'MATCH_INTROUVABLE';
+  end if;
+  if v_match.nature <> 'tournoi' or public.points_pronostic(v_match.tour, v_match.capacite) = 0 then
+    raise exception 'PRONOSTIC_HORS_PHASE';
+  end if;
+  if v_match.organisateur_id = v_moi
+     or exists (select 1 from public.registrations r
+                where r.tournament_id = v_match.tournament_id and r.profile_id = v_moi and r.statut <> 'retire')
+     or exists (select 1 from public.alignements a
+                where a.tournament_id = v_match.tournament_id and a.profile_id = v_moi) then
+    raise exception 'JOUEUR_DU_TOURNOI';
+  end if;
+  if (select count(*) from public.match_participants where match_id = p_match_id) <> 2
+     or not exists (select 1 from public.match_participants where match_id = p_match_id and profile_id = p_gagnant) then
+    raise exception 'CHOIX_INVALIDE';
+  end if;
+  if v_match.statut_tournoi <> 'en_cours'
+     or v_match.statut not in ('en_attente', 'en_cours')
+     or (v_match.demarre_le is not null and v_match.demarre_le < now() - interval '10 minutes')
+     or exists (select 1 from public.match_participants where match_id = p_match_id and pret_le is not null)
+     or exists (select 1 from public.match_verdicts where match_id = p_match_id and est_definitif) then
+    raise exception 'PRONOSTIC_FERME';
+  end if;
+
+  insert into public.pronostics (match_id, profile_id, gagnant_prevu)
+  values (p_match_id, v_moi, p_gagnant)
+  on conflict (match_id, profile_id) do update set gagnant_prevu = excluded.gagnant_prevu, cree_le = now();
+  return true;
+end;
+$$;
+revoke execute on function public.pronostiquer(uuid, uuid) from public, anon;
+grant execute on function public.pronostiquer(uuid, uuid) to authenticated;
+
+-- Répartition publique des pronostics d'un tournoi (jamais qui a voté quoi).
+create or replace function public.repartition_pronostics(p_tournament_id uuid)
+returns table (match_id uuid, gagnant_prevu uuid, nombre integer)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select p.match_id, p.gagnant_prevu, count(*)::integer
+  from public.pronostics p
+  join public.matches m on m.id = p.match_id
+  where m.tournament_id = p_tournament_id
+  group by p.match_id, p.gagnant_prevu;
+$$;
+grant execute on function public.repartition_pronostics(uuid) to anon, authenticated;
+
+-- Classement des pronostiqueurs de la saison en cours : seuls les
+-- pronostics tranchés par un résultat lu chez Riot comptent.
+create or replace function public.classement_pronostics(p_limite integer default 50)
+returns table (profile_id uuid, pseudo text, slug text, points integer, justes integer, comptes integer)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select pr.id, pr.pseudo, pr.slug,
+         sum(case when v.gagnant_id = p.gagnant_prevu then public.points_pronostic(m.tour, t.capacite) else 0 end)::integer,
+         count(*) filter (where v.gagnant_id = p.gagnant_prevu)::integer,
+         count(*)::integer
+  from public.pronostics p
+  join public.profiles pr on pr.id = p.profile_id and pr.supprime_le is null
+  join public.matches m on m.id = p.match_id
+  join public.tournaments t on t.id = m.tournament_id
+  join public.seasons s on s.id = t.season_id and s.est_courante
+  join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+    and v.niveau <> 'manuel' and v.gagnant_id is not null
+  group by pr.id, pr.pseudo, pr.slug
+  order by 4 desc, 5 desc, 6 asc, pr.pseudo
+  limit least(greatest(p_limite, 1), 200);
+$$;
+grant execute on function public.classement_pronostics(integer) to anon, authenticated;

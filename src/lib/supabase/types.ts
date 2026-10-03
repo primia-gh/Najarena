@@ -314,6 +314,49 @@ export type Database = {
           },
         ]
       }
+      pronostics: {
+        Row: {
+          cree_le: string
+          gagnant_prevu: string
+          match_id: string
+          profile_id: string
+        }
+        Insert: {
+          cree_le?: string
+          gagnant_prevu: string
+          match_id: string
+          profile_id: string
+        }
+        Update: {
+          cree_le?: string
+          gagnant_prevu?: string
+          match_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pronostics_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pronostics_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pronostics_gagnant_prevu_fkey"
+            columns: ["gagnant_prevu"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file_arene: {
         Row: {
           condition_victoire: string
@@ -2043,6 +2086,15 @@ export type Database = {
         Returns: { en_attente_region: number; en_file: boolean; entree_le: string | null }[]
       }
       apparier_arene: { Args: never; Returns: { slug: string }[] }
+      pronostiquer: { Args: { p_gagnant: string; p_match_id: string }; Returns: boolean }
+      repartition_pronostics: {
+        Args: { p_tournament_id: string }
+        Returns: { gagnant_prevu: string; match_id: string; nombre: number }[]
+      }
+      classement_pronostics: {
+        Args: { p_limite?: number }
+        Returns: { comptes: number; justes: number; points: number; profile_id: string; pseudo: string; slug: string }[]
+      }
       delier_compte_riot: { Args: { p_game_id: number }; Returns: boolean }
       emettre_certificat: { Args: { p_game_id?: number }; Returns: string }
       enregistrer_consentement: { Args: { p_version: string }; Returns: boolean }

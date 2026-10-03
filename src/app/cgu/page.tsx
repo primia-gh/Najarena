@@ -105,6 +105,15 @@ export default function CguPage() {
             adversaire.
           </p>
           <p className="mt-2 text-muted">
+            Les pronostics sont un jeu gratuit, sans mise ni gain d&apos;aucune
+            sorte : ils ne donnent droit qu&apos;à une place dans le
+            classement des pronostiqueurs. Ils portent sur les demi-finales et
+            les finales des tournois, ferment dès qu&apos;un joueur du match se
+            déclare prêt, et ne comptent que sur un résultat lu chez Riot. Les
+            joueurs d&apos;un tournoi et son organisateur ne pronostiquent pas
+            ses matchs.
+          </p>
+          <p className="mt-2 text-muted">
             Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq
             de ses membres, lui compris, chacun titulaire d&apos;un compte
             Riot vérifié dans la région du tournoi ; un joueur ne joue que

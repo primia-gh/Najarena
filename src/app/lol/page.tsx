@@ -178,6 +178,13 @@ export default async function LolHubPage() {
               </li>
             ))}
           </ul>
+          <p className="text-sm text-muted">
+            Pas en lice ce soir ?{" "}
+            <Link href="/lol/pronostics" className="text-accent underline underline-offset-3">
+              Pronostique les demi-finales et les finales en cours
+            </Link>{" "}
+            — gratuit, sans mise ni gain.
+          </p>
         </div>
       </section>
 

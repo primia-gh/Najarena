@@ -31,6 +31,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 03/10/2026 (audit N19) : **arène 1v1** — `/lol/arene` : un joueur entre dans la file de sa région (`rejoindre_arene`, table `file_arene`) ; il est apparié à un joueur de même région et même règle de victoire si l'écart de rating ≤ 100 + moitié du plus grand RD + 20 par minute d'attente, 500 au plus (`ecart_arene`, `src/lib/arene.ts`). Le duel est un défi accepté d'office (`creer_duel`, nommé « Arène A contre B »), mêmes règles de classement. Appariement aussi à chaque passage de la tâche des tournois automatiques (`apparier_arene`) ; place expirée après 30 minutes.*
 
+*Mise à jour du 03/10/2026 (audit N20) : **pronostics gratuits** — vainqueur des demi-finales (1 point) et des finales (2 points) des tournois (`nature = 'tournoi'`), depuis la page du tournoi (`#pronostics`, fonction `pronostiquer`, table `pronostics`). Fermé dès qu'un joueur du match est prêt ou 10 minutes après l'ouverture du match ; les joueurs du tournoi et l'organisateur ne pronostiquent pas. Compté seulement sur un verdict lu chez Riot (forfait, verdict manuel = annulé). Classement par saison sur `/lol/pronostics` (`classement_pronostics`). **Aucune mise, aucun gain** — ne jamais y attacher de récompense (ce serait un jeu d'argent).*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -164,6 +166,7 @@ Schéma de base de données : `docs/schema.sql`.
 /registre                  registre des points scellé (preuve publique, export, vérification)
 /lol/coequipiers           recherche de coéquipiers (5v5)
 /lol/arene                 arène 1v1 : file d'attente, duel contre un joueur de son niveau
+/lol/pronostics            pronostics gratuits : matchs ouverts, classement des pronostiqueurs
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
 /certificat/[code]         certificat de niveau daté et figé, émis depuis le CV (non indexé)
 /defi/[code]               lien « Invite ton rival » : un ami s'inscrit, lie son Riot ID et relève le défi (non indexé)

@@ -63,7 +63,14 @@ export default function ConfidentialitePage() {
             </li>
             <li>
               Défis : qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement ; un défi
-              relevé devient un duel public, comme un match de tournoi.
+              relevé devient un duel public, comme un match de tournoi. Ta place dans la file de l&apos;arène (heure
+              d&apos;entrée, rating et région) n&apos;est visible que de toi et disparaît au plus tard après 30
+              minutes.
+            </li>
+            <li>
+              Pronostics : ton choix pour chaque match n&apos;est visible que de toi ; seule la répartition des
+              pronostics d&apos;un match est publique. Si un de tes pronostics est tranché, ton pseudo, tes points
+              et ton nombre de pronostics justes apparaissent dans le classement public des pronostiqueurs.
             </li>
             <li>
               Modération : les textes que tu saisis (pseudo, noms, annonces, messages, motifs de litige) sont
