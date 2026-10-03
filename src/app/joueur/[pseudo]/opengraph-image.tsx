@@ -48,7 +48,12 @@ async function chargerCarte(slug: string): Promise<CarteProfil | null> {
       .limit(1)
       .maybeSingle(),
     supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
-    supabase.from("match_participants").select("match_id, est_gagnant").eq("profile_id", profil.id),
+    // 1v1 seulement : un match 5v5 n'est pas un résultat individuel (audit N21).
+    supabase
+      .from("match_participants")
+      .select("match_id, est_gagnant, match:matches!inner(tournament:tournaments!inner(format))")
+      .eq("profile_id", profil.id)
+      .eq("match.tournament.format", "1v1"),
   ]);
 
   const ids = (participations ?? []).map((p) => p.match_id);

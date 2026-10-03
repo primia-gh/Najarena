@@ -6,6 +6,7 @@ import { apresVerdict } from "@/lib/apres-verdict";
 import { envoyerRappel, URL_SITE } from "@/lib/notifications";
 import { DELAI_FORFAIT_MINUTES, limiteForfait } from "@/lib/forfait";
 import { heureParis } from "@/lib/tournois-auto/creneaux";
+import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 
 // Refus de la fonction reconnaitre_defaite (docs/schema.sql).
 const MESSAGES_REFUS: Record<string, string> = {
@@ -98,7 +99,9 @@ export async function declarerPret(formData: FormData) {
 
   const { data: match } = await supabase
     .from("matches")
-    .select("tournament:tournaments(nom, slug), match_participants(profile_id, pret_le, profile:profiles(pseudo))")
+    .select(
+      "tournament_id, tournament:tournaments(nom, slug, format), match_participants(profile_id, pret_le, profile:profiles(pseudo))",
+    )
     .eq("id", matchId)
     .maybeSingle();
   const moi = match?.match_participants.find((p) => p.profile_id === userData.user.id);
@@ -108,13 +111,26 @@ export async function declarerPret(formData: FormData) {
     redirect(`${page}?message=${encodeURIComponent("Vous êtes prêts tous les deux : lancez la partie.")}#ton-match`);
   }
 
-  // Première déclaration : l'adversaire est prévenu (push et Discord), une fois.
+  // Première déclaration : l'adversaire est prévenu (push et Discord), une
+  // fois. En 5v5 (audit N21), toute l'équipe adverse : son capitaine seul
+  // peut la déclarer prête, mais chacun doit savoir que l'heure tourne.
   if (nouveau && match?.tournament && moi?.pret_le && adversaire) {
-    await envoyerRappel(
-      adversaire.profile_id,
-      `${moi.profile?.pseudo ?? "Ton adversaire"} est prêt — ${match.tournament.nom}`,
-      `Déclare-toi prêt dans la salle de match avant ${heureParis(limiteForfait(moi.pret_le).toISOString())} (heure de Paris), sinon tu perds ce match par forfait.`,
-      `${URL_SITE}/lol/tournois/${match.tournament.slug}#ton-match`,
+    const equipes =
+      match.tournament.format === "5v5" ? await chargerEquipesDesTournois(supabase, [match.tournament_id]) : null;
+    const monEquipe = equipes?.get(cleEquipe(match.tournament_id, moi.profile_id));
+    const equipeAdverse = equipes?.get(cleEquipe(match.tournament_id, adversaire.profile_id));
+    const limite = heureParis(limiteForfait(moi.pret_le).toISOString());
+    await Promise.all(
+      (equipeAdverse?.joueurs ?? [adversaire.profile_id]).map((id) =>
+        envoyerRappel(
+          id,
+          `${monEquipe?.libelle ?? moi.profile?.pseudo ?? "Ton adversaire"} est prêt — ${match.tournament!.nom}`,
+          equipeAdverse
+            ? `Ton capitaine doit déclarer l'équipe prête dans la salle de match avant ${limite} (heure de Paris), sinon elle perd ce match par forfait.`
+            : `Déclare-toi prêt dans la salle de match avant ${limite} (heure de Paris), sinon tu perds ce match par forfait.`,
+          `${URL_SITE}/lol/tournois/${match.tournament!.slug}#ton-match`,
+        ),
+      ),
     );
   }
 

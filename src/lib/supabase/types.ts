@@ -37,6 +37,49 @@ export type Database = {
           },
         ]
       }
+      alignements: {
+        Row: {
+          aligne_le: string
+          profile_id: string
+          registration_id: string
+          tournament_id: string
+        }
+        Insert: {
+          aligne_le?: string
+          profile_id: string
+          registration_id: string
+          tournament_id: string
+        }
+        Update: {
+          aligne_le?: string
+          profile_id?: string
+          registration_id?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alignements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alignements_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alignements_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anciens_slugs: {
         Row: {
           profile_id: string
@@ -1113,32 +1156,41 @@ export type Database = {
       registrations: {
         Row: {
           confirme_le: string | null
+          equipe_nom: string | null
+          equipe_tag: string | null
           id: string
           inscrit_le: string
           profile_id: string
           rating_a_inscription: number | null
           seed: number | null
           statut: Database["public"]["Enums"]["registration_status"]
+          team_id: string | null
           tournament_id: string
         }
         Insert: {
           confirme_le?: string | null
+          equipe_nom?: string | null
+          equipe_tag?: string | null
           id?: string
           inscrit_le?: string
           profile_id: string
           rating_a_inscription?: number | null
           seed?: number | null
           statut?: Database["public"]["Enums"]["registration_status"]
+          team_id?: string | null
           tournament_id: string
         }
         Update: {
           confirme_le?: string | null
+          equipe_nom?: string | null
+          equipe_tag?: string | null
           id?: string
           inscrit_le?: string
           profile_id?: string
           rating_a_inscription?: number | null
           seed?: number | null
           statut?: Database["public"]["Enums"]["registration_status"]
+          team_id?: string | null
           tournament_id?: string
         }
         Relationships: [
@@ -1147,6 +1199,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -1720,12 +1779,17 @@ export type Database = {
         Returns: { pseudo_modifie_le: string | null; visites_anonymes: boolean }[]
       }
       mon_abonnement_stripe: { Args: never; Returns: { statut: string | null }[] }
+      modifier_alignement: { Args: { p_joueurs: string[]; p_tournament_id: string }; Returns: boolean }
       modifier_mon_profil: {
         Args: { p_pays: string | null; p_pseudo: string; p_visites_anonymes: boolean }
         Returns: string
       }
       reconnaitre_defaite: { Args: { p_match_id: string }; Returns: string }
       reserver_appel_assistant_ia: { Args: never; Returns: boolean }
+      s_inscrire_equipe: {
+        Args: { p_joueurs: string[]; p_team_id: string; p_tournament_id: string }
+        Returns: string
+      }
       s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
       se_desinscrire: { Args: { p_tournament_id: string }; Returns: boolean }
       supprimer_mon_compte: { Args: never; Returns: string }

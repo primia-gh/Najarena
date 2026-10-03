@@ -24,6 +24,8 @@ import {
 } from "@/lib/riot";
 import { DELAI_FORFAIT_MINUTES, forfaitAAppliquer } from "@/lib/forfait";
 import { vainqueurClassique, type ConditionVictoire } from "@/lib/conditions-1v1";
+import { alignementsDansLaPartie, type Alignements } from "@/lib/cinq-contre-cinq";
+import { chargerEquipesDesTournois, cleEquipe, type EquipeInscrite } from "@/lib/equipes-tournoi";
 import { envoyerRappel, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { apresVerdict } from "@/lib/apres-verdict";
 import { echapperHtml } from "@/lib/echappement";
@@ -45,6 +47,8 @@ interface PartieTrouvee extends PartieSerie {
   // appel supplémentaire.
   participantA: ParticipantMatchRiot;
   participantB: ParticipantMatchRiot;
+  /** Tous les joueurs de la partie (stats des dix joueurs alignés en 5v5). */
+  participants: ParticipantMatchRiot[];
   dureeSecondes: number;
 }
 
@@ -72,6 +76,9 @@ function detailsEnCache(cache: CacheDetails, matchId: string, continent: Contine
  * joueur A pour retrouver les parties jouées contre le joueur B depuis
  * l'ouverture du match, puis décide la série (Bo1, Bo3, Bo5). Null tant
  * qu'aucun joueur n'a atteint le nombre de victoires nécessaire.
+ * En 5v5 (audit N21), A et B sont les capitaines, et `alignements` les
+ * cinq joueurs inscrits de chaque équipe : la partie doit les réunir tous
+ * les dix, chaque équipe de son côté.
  */
 export async function trouverSerieCorrespondante(
   puuidA: string,
@@ -82,6 +89,7 @@ export async function trouverSerieCorrespondante(
   unContreUn: boolean,
   cache: CacheDetails = new Map(),
   condition: ConditionVictoire = "nexus",
+  alignements?: Alignements,
 ): Promise<SerieTrouvee | null> {
   const ids = await recupererIdsMatchsRecents(
     puuidA,
@@ -101,8 +109,12 @@ export async function trouverSerieCorrespondante(
     const participantA = info.participants.find((p) => p.puuid === puuidA);
     const participantB = info.participants.find((p) => p.puuid === puuidB);
     if (!participantA || !participantB) continue; // les deux puuid y figurent
-    // En 1v1, une partie personnalisée à dix entre amis ne compte pas.
-    if (unContreUn && info.participants.length !== 2) continue;
+    if (alignements) {
+      if (!alignementsDansLaPartie(info.participants, alignements)) continue;
+    } else if (unContreUn && info.participants.length !== 2) {
+      // En 1v1, une partie personnalisée à dix entre amis ne compte pas.
+      continue;
+    }
     if (info.gameStartTimestamp < ouvertureLe.getTime()) continue; // postérieure à l'ouverture
     if (info.queueId !== QUEUE_ID_PERSONNALISEE) continue; // partie personnalisée
 
@@ -134,6 +146,7 @@ export async function trouverSerieCorrespondante(
       gagnantEstA,
       participantA,
       participantB,
+      participants: info.participants,
       dureeSecondes: info.gameDuration,
     });
   }
@@ -180,6 +193,9 @@ async function enregistrerSerie(
   serie: SerieTrouvee,
   compteA: CompteRapprochement,
   compteB: CompteRapprochement,
+  // 5v5 : joueurs alignés de chaque équipe (puuid → profil), dont les
+  // stats sont enregistrées comme celles des capitaines.
+  equipes?: { a: Map<string, string>; b: Map<string, string> },
 ): Promise<boolean> {
   const gagnantId = serie.gagnantPuuid === compteA.puuid ? compteA.profile_id : compteB.profile_id;
 
@@ -197,7 +213,7 @@ async function enregistrerSerie(
   const decisive = serie.parties[serie.parties.length - 1];
   const statA = decisive.participantA;
   const statB = decisive.participantB;
-  const ligne = (profileId: string, stat: ParticipantMatchRiot) => ({
+  const ligne = (profileId: string, stat: ParticipantMatchRiot, gagne: boolean) => ({
     match_id: m.id,
     profile_id: profileId,
     champion: stat.championName,
@@ -207,9 +223,19 @@ async function enregistrerSerie(
     cs: stat.totalMinionsKilled + stat.neutralMinionsKilled,
     or_gagne: stat.goldEarned,
     duree_secondes: decisive.dureeSecondes,
-    gagne: profileId === gagnantId,
+    gagne,
   });
-  await admin.from("stats_match_joueur").upsert([ligne(compteA.profile_id, statA), ligne(compteB.profile_id, statB)]);
+  const gagnantEstA = gagnantId === compteA.profile_id;
+  const lignes = equipes
+    ? decisive.participants.flatMap((stat) => {
+        const deA = equipes.a.get(stat.puuid);
+        const deB = equipes.b.get(stat.puuid);
+        if (deA) return [ligne(deA, stat, gagnantEstA)];
+        if (deB) return [ligne(deB, stat, !gagnantEstA)];
+        return [];
+      })
+    : [ligne(compteA.profile_id, statA, gagnantEstA), ligne(compteB.profile_id, statB, !gagnantEstA)];
+  await admin.from("stats_match_joueur").upsert(lignes);
 
   const manches = serie.parties.length > 1 ? ` (${serie.parties.length} manches)` : "";
   await apresVerdict(
@@ -245,6 +271,7 @@ async function appliquerForfait(
   m: MatchCandidat,
   forfait: { absentId: string; presentId: string },
   comptes: Map<string, CompteRapprochement>,
+  nom: (profileId: string) => string,
 ): Promise<boolean> {
   if (!m.tournament) return false;
   for (const profileId of [forfait.absentId, forfait.presentId]) {
@@ -261,7 +288,7 @@ async function appliquerForfait(
   const { data: gagnantId } = await admin.rpc("appliquer_forfait_absence", { p_match_id: m.id });
   if (!gagnantId) return false;
 
-  const absent = m.match_participants.find((p) => p.profile_id === forfait.absentId)?.profile?.pseudo ?? "Ton adversaire";
+  const absent = nom(forfait.absentId);
   await apresVerdict(
     m.id,
     gagnantId,
@@ -270,7 +297,7 @@ async function appliquerForfait(
   return true;
 }
 
-async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat): Promise<void> {
+async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat, nom: (profileId: string) => string): Promise<void> {
   const { data: bascule } = await admin
     .from("matches")
     .update({ statut: "litige" })
@@ -280,7 +307,7 @@ async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat): Promise<voi
   if (!bascule?.length || !m.tournament) return;
 
   const tournoi = m.tournament;
-  const libelle = m.match_participants.map((p) => p.profile?.pseudo ?? "Joueur inconnu").join(" vs ");
+  const libelle = m.match_participants.map((p) => nom(p.profile_id)).join(" vs ");
   const lienTournoi = `${URL_SITE}/lol/tournois/${tournoi.slug}`;
 
   // Duel entre deux joueurs (audit N16) : pas d'organisateur à déranger ;
@@ -353,12 +380,28 @@ export async function traiterRechercheResultats(): Promise<{
 
   const candidats = (candidatsData ?? []) as MatchCandidat[];
 
-  // Un seul aller-retour pour tous les comptes Riot des matchs candidats.
+  // Tournois 5v5 (audit N21) : l'équipe et ses cinq joueurs alignés
+  // derrière chaque capitaine du bracket.
+  const equipes = await chargerEquipesDesTournois(
+    supabase,
+    Array.from(new Set(candidats.filter((m) => m.tournament?.format === "5v5").map((m) => m.tournament_id))),
+  );
+  const equipeDe = (m: MatchCandidat, profileId: string): EquipeInscrite | undefined =>
+    m.tournament?.format === "5v5" ? equipes.get(cleEquipe(m.tournament_id, profileId)) : undefined;
+  const nomDans = (m: MatchCandidat) => (profileId: string) =>
+    equipeDe(m, profileId)?.libelle ??
+    m.match_participants.find((p) => p.profile_id === profileId)?.profile?.pseudo ??
+    "Joueur inconnu";
+
+  // Un seul aller-retour pour tous les comptes Riot des matchs candidats
+  // (et des joueurs alignés en 5v5).
   const tousLesParticipantIds = Array.from(
     new Set(
       candidats
         .filter((m) => m.match_participants.length === 2 && m.tournament)
-        .flatMap((m) => m.match_participants.map((p) => p.profile_id)),
+        .flatMap((m) =>
+          m.match_participants.flatMap((p) => [p.profile_id, ...(equipeDe(m, p.profile_id)?.joueurs ?? [])]),
+        ),
     ),
   );
 
@@ -397,6 +440,18 @@ export async function traiterRechercheResultats(): Promise<{
       const region = compteA ? trouverRegion(compteA.region) : undefined;
 
       if (compteA?.verifie_le && compteB?.verifie_le && compteA.region === compteB.region && region) {
+        // 5v5 : puuid des joueurs alignés (compte vérifié, même région).
+        const joueursAlignes = (capitaineId: string) =>
+          new Map(
+            (equipeDe(m, capitaineId)?.joueurs ?? []).flatMap((id) => {
+              const compte = compteParJoueurEtJeu.get(`${id}:${m.tournament!.game_id}`);
+              return compte?.verifie_le && compte.region === compteA.region ? [[compte.puuid, id] as const] : [];
+            }),
+          );
+        const equipesDuMatch =
+          m.tournament.format === "5v5"
+            ? { a: joueursAlignes(participantIds[0]), b: joueursAlignes(participantIds[1]) }
+            : undefined;
         try {
           const serie = await trouverSerieCorrespondante(
             compteA.puuid,
@@ -407,8 +462,9 @@ export async function traiterRechercheResultats(): Promise<{
             m.tournament.format === "1v1",
             cache,
             m.tournament.condition_victoire === "classique" ? "classique" : "nexus",
+            equipesDuMatch ? { a: [...equipesDuMatch.a.keys()], b: [...equipesDuMatch.b.keys()] } : undefined,
           );
-          if (serie && (await enregistrerSerie(admin, m, serie, compteA, compteB))) {
+          if (serie && (await enregistrerSerie(admin, m, serie, compteA, compteB, equipesDuMatch))) {
             trouves += 1;
             continue;
           }
@@ -438,14 +494,14 @@ export async function traiterRechercheResultats(): Promise<{
         m.match_participants.map((p) => ({ profileId: p.profile_id, pretLe: p.pret_le })),
         new Date(),
       );
-      if (forfait && (await appliquerForfait(admin, m, forfait, compteParJoueurEtJeu))) {
+      if (forfait && (await appliquerForfait(admin, m, forfait, compteParJoueurEtJeu, nomDans(m)))) {
         trouves += 1;
         continue;
       }
     }
 
     if (statut === "en_cours" && doitPasserEnLitige(ageMinutes, bestOf)) {
-      await passerEnLitige(admin, m);
+      await passerEnLitige(admin, m, nomDans(m));
       litiges += 1;
     } else {
       ignores += 1;

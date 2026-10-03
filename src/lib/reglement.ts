@@ -59,3 +59,35 @@ export function reglePartie1v1(condition: ConditionVictoire = "nexus"): string {
 }
 
 export const REGLE_PARTIE_1V1 = reglePartie1v1("nexus");
+
+// Tournois 5v5 (03/10/2026, audit N21) : les dix joueurs alignés à
+// l'inscription, sur la carte standard. Le moteur exige la présence des dix,
+// chaque équipe de son côté (src/lib/cinq-contre-cinq.ts).
+export const CARTE_5V5 = "Faille de l'invocateur";
+export const MODE_5V5 = "Draft tournoi (tournament draft)";
+
+export const REGLE_FORFAIT_5V5 = `Le capitaine déclare son équipe prête dans la salle de match : dès que l'une des deux l'est, l'autre a ${DELAI_FORFAIT_MINUTES} minutes pour faire de même, sinon elle perd par forfait. Jamais de forfait contre une équipe dont le capitaine est déjà en partie.`;
+
+export const REGLE_PARTIE_5V5 = `Partie personnalisée ${CARTE_5V5} en 5v5, ${MODE_5V5}, avec les cinq joueurs alignés de chaque équipe et eux seuls, menée jusqu'à la destruction du Nexus ou l'abandon ; moins de 5 minutes = remake, la partie n'est pas retenue.`;
+
+/** Étapes d'un match 5v5, pour la salle de match (vue d'un joueur aligné). */
+export function etapesMatch5v5(nousCreonsLaPartie: boolean, estCapitaine: boolean, bestOf: number): string[] {
+  const pret = estCapitaine
+    ? `Clique « Je suis prêt » ci-dessous dès que tes cinq joueurs sont devant leur jeu : l'équipe adverse a alors ${DELAI_FORFAIT_MINUTES} minutes pour faire de même (et la tienne aussi, si elle l'est avant).`
+    : `Ton capitaine déclare l'équipe prête dès que vous êtes tous les cinq devant votre jeu : l'équipe adverse a alors ${DELAI_FORFAIT_MINUTES} minutes pour faire de même.`;
+  const creation = nousCreonsLaPartie
+    ? `${estCapitaine ? "Crée" : "Ton capitaine crée"} une partie personnalisée : ${CARTE_5V5}, ${MODE_5V5}, cinq joueurs par équipe, puis invite les dix joueurs alignés (Riot ID ci-dessous).`
+    : `Le capitaine adverse crée la partie personnalisée (${CARTE_5V5}, ${MODE_5V5}) et invite les dix joueurs : accepte son invitation.`;
+  const manches =
+    bestOf > 1
+      ? `Jouez les manches à la suite, une partie par manche : la série s'arrête dès qu'une équipe a gagné ${Math.floor(bestOf / 2) + 1} manches.`
+      : null;
+  return [
+    pret,
+    creation,
+    "Les dix joueurs alignés, et eux seuls, chaque équipe de son côté : avec un remplaçant non inscrit, la partie ne peut pas être retenue.",
+    "Jouez jusqu'à la destruction du Nexus (ou l'abandon d'une équipe) : une partie quittée sans vainqueur ne peut pas être lue.",
+    ...(manches ? [manches] : []),
+    "Rien à déclarer : le résultat est lu automatiquement dans l'historique Riot, quelques minutes après la fin de la partie.",
+  ];
+}

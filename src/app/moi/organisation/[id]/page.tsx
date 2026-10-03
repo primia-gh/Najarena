@@ -22,6 +22,7 @@ import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import { libelleEquipe } from "@/lib/cinq-contre-cinq";
 
 export const metadata: Metadata = {
   title: "Cockpit organisateur — Najarena",
@@ -64,7 +65,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const [{ data: inscriptionsData }, { data: matchsData }] = await Promise.all([
     supabase
       .from("registrations")
-      .select("id, statut, profile:profiles(pseudo, slug)")
+      .select("id, statut, profile_id, equipe_nom, equipe_tag, profile:profiles(pseudo, slug)")
       .eq("tournament_id", id)
       .order("inscrit_le", { ascending: true }),
     supabase
@@ -78,6 +79,12 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   ]);
   const inscriptions = inscriptionsData ?? [];
   const matchs = matchsData ?? [];
+  // Tournoi 5v5 (audit N21) : chaque capitaine inscrit représente son équipe.
+  const equipeParCapitaine = new Map(
+    inscriptions.filter((i) => i.equipe_nom).map((i) => [i.profile_id, libelleEquipe(i.equipe_tag, i.equipe_nom)]),
+  );
+  const nom = (profileId: string, pseudo: string | null | undefined) =>
+    equipeParCapitaine.get(profileId) ?? pseudo ?? "Joueur inconnu";
 
   const matchIds = matchs.map((m) => m.id);
 
@@ -203,7 +210,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
             {inscriptions.map((i) => (
               <li key={i.id} className={"flex items-center justify-between " + classeCarte("none")}>
                 <span className="text-sm font-medium text-text">
-                  {i.profile?.pseudo ?? "Joueur inconnu"}
+                  {nom(i.profile_id, i.profile?.pseudo)}
                 </span>
                 <div className="flex items-center gap-3">
                   <span className="font-texte tabular-nums text-mini text-muted uppercase">
@@ -216,7 +223,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       <input type="hidden" name="tournament_id" value={tournoi.id} />
                       <button
                         type="submit"
-                        aria-label={`Confirmer l'inscription de ${i.profile?.pseudo ?? "ce joueur"}`}
+                        aria-label={`Confirmer l'inscription de ${nom(i.profile_id, i.profile?.pseudo)}`}
                         className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-accent underline underline-offset-3"
                       >
                         Confirmer
@@ -229,7 +236,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                       <input type="hidden" name="tournament_id" value={tournoi.id} />
                       <button
                         type="submit"
-                        aria-label={`Marquer ${i.profile?.pseudo ?? "ce joueur"} comme absent`}
+                        aria-label={`Marquer ${nom(i.profile_id, i.profile?.pseudo)} comme absent`}
                         className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
                       >
                         Absent
@@ -308,7 +315,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                                 <span
                                   className={`text-sm ${p.est_gagnant ? "font-semibold text-text" : "text-text"}`}
                                 >
-                                  {p.profile?.pseudo ?? "Joueur inconnu"}
+                                  {nom(p.profile_id, p.profile?.pseudo)}
                                 </span>
                               </div>
                             ))}
@@ -346,7 +353,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                               <legend className="font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
                                 Déclarer le vainqueur —{" "}
                                 {participants
-                                  .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                  .map((p) => nom(p.profile_id, p.profile?.pseudo))
                                   .join(" vs ")}
                               </legend>
                               {participants.map((p) => (
@@ -361,7 +368,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                                     required
                                     className="accent-accent"
                                   />
-                                  {p.profile?.pseudo ?? "Joueur inconnu"}
+                                  {nom(p.profile_id, p.profile?.pseudo)}
                                 </label>
                               ))}
                               <input
@@ -369,7 +376,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                                 type="text"
                                 required
                                 aria-label={`Motif — ${participants
-                                  .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                  .map((p) => nom(p.profile_id, p.profile?.pseudo))
                                   .join(" vs ")}`}
                                 placeholder="Motif (obligatoire, affiché publiquement)"
                                 className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
@@ -377,7 +384,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                             </fieldset>
                             <Bouton
                               aria-label={`Enregistrer le résultat — ${participants
-                                .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                .map((p) => nom(p.profile_id, p.profile?.pseudo))
                                 .join(" vs ")}`}
                               libelleEnCours="Enregistrement…"
                               className="self-start"

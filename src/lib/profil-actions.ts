@@ -69,6 +69,7 @@ const MESSAGES_SUPPRESSION: Record<string, string> = {
   EQUIPE_AVEC_MEMBRES:
     "Tu es capitaine d'une équipe qui a d'autres membres : retire-les depuis la page de l'équipe d'abord.",
   ABONNEMENT_ACTIF: "Ton abonnement payant est encore actif : résilie-le depuis « Gérer mon abonnement » d'abord.",
+  ALIGNE_EN_TOURNOI: "Tu es aligné avec ton équipe dans un tournoi 5v5 en check-in ou en cours : attends sa fin.",
 };
 
 export async function supprimerMonCompte(formData: FormData) {

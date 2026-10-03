@@ -15,6 +15,8 @@ import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import UploadLogo from "@/components/ui/UploadLogo";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import { chargerPalmaresEquipe } from "@/lib/equipes-tournoi";
+import { formaterDate } from "@/lib/tournois";
 
 interface EquipePageProps {
   params: Promise<{ slug: string }>;
@@ -42,7 +44,7 @@ async function chargerEquipe(slug: string) {
   // Quatre requêtes indépendantes entre elles, ne dépendant que de l'équipe
   // déjà chargée — lancées en parallèle plutôt qu'en série (correctif du
   // 13/09/2026, même logique que sur l'accueil).
-  const [{ data: userData }, { data: jeu }, { data: capitaine }, { data: membresData }, infoOffreCapitaine] =
+  const [{ data: userData }, { data: jeu }, { data: capitaine }, { data: membresData }, infoOffreCapitaine, palmares] =
     await Promise.all([
       supabase.auth.getUser(),
       supabase.from("games").select("nom").eq("id", equipe.game_id).maybeSingle(),
@@ -54,6 +56,8 @@ async function chargerEquipe(slug: string) {
         .select("profile_id, role, accepte_le, profile:profiles(pseudo, slug)")
         .eq("team_id", equipe.id),
       chargerOffre(supabase, equipe.capitaine_id),
+      // Tournois 5v5 joués (audit N21) : seuls résultats d'équipe affichés.
+      chargerPalmaresEquipe(supabase, equipe.id, equipe.capitaine_id),
     ]);
 
   const peutBranding = ORDRE_OFFRE[infoOffreCapitaine.offre] >= ORDRE_OFFRE.verifie;
@@ -79,6 +83,7 @@ async function chargerEquipe(slug: string) {
     estCapitaine,
     peutQuitter: Boolean(monAffiliation?.accepte_le) && !estCapitaine,
     peutBranding,
+    palmares,
   };
 }
 
@@ -116,7 +121,8 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
     );
   }
 
-  const { equipe, jeu, capitaine, membres, invitesEnAttente, estCapitaine, peutQuitter, peutBranding } = donnees;
+  const { equipe, jeu, capitaine, membres, invitesEnAttente, estCapitaine, peutQuitter, peutBranding, palmares } =
+    donnees;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -245,6 +251,46 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
               Quitter l&apos;équipe
             </BoutonConfirmation>
           </form>
+        )}
+      </section>
+      </Apparition>
+
+      <Apparition delai={0.11}>
+      <section className="mt-10">
+        <SectionTitre>Palmarès</SectionTitre>
+        {palmares.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">
+            Aucun tournoi 5v5 joué pour l&apos;instant.{" "}
+            <Link href="/lol/tournois" className="text-text underline underline-offset-3 hover:text-accent">
+              Voir les tournois
+            </Link>
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {palmares.map((t) => (
+              <li key={t.slug} className={"flex flex-wrap items-center justify-between gap-2 " + classeCarte("none")}>
+                <span className="flex min-w-0 flex-col">
+                  <Link href={`/lol/tournois/${t.slug}`} className="truncate text-sm font-medium text-text hover:underline">
+                    {t.nom}
+                  </Link>
+                  <span className="text-xs text-muted tabular-nums">{formaterDate(t.debuteLe)}</span>
+                </span>
+                <span className="flex flex-col items-end">
+                  <span
+                    className={`font-texte text-mini uppercase ${t.libelle === "Vainqueur" ? "font-semibold text-accent" : "text-text-2"}`}
+                  >
+                    {t.libelle}
+                  </span>
+                  {t.victoiresVerifiees > 0 && (
+                    <span className="text-xs text-muted tabular-nums">
+                      {t.victoiresVerifiees} victoire{t.victoiresVerifiees > 1 ? "s" : ""} vérifiée
+                      {t.victoiresVerifiees > 1 ? "s" : ""} chez Riot
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
       </Apparition>

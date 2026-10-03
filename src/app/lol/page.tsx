@@ -45,7 +45,7 @@ function IconeEtape({ chemin }: { chemin: keyof typeof ICONE_ETAPE }) {
 const PORTES = [
   {
     titre: "Je veux jouer",
-    texte: "Des tournois quotidiens en 1v1 (5v5 bientôt), ton classement qui progresse à chaque résultat vérifié.",
+    texte: "Des tournois quotidiens en 1v1, des tournois 5v5 entre équipes, ton classement recalculé à la fin de chaque tournoi.",
     cta: "Voir les tournois",
     href: "/lol/tournois",
   },
@@ -129,8 +129,8 @@ export default async function LolHubPage() {
               Ton niveau, <span className="text-accent">vérifié.</span>
             </h1>
             <p className="max-w-[560px] text-courant text-text-2">
-              Des tournois 1v1 quotidiens, le 5v5 arrive bientôt. Les résultats sont lus dans la donnée officielle
-              Riot — ton classement devient une preuve, pas une déclaration.
+              Des tournois 1v1 quotidiens et des tournois 5v5 entre équipes. Les résultats sont lus dans la donnée
+              officielle Riot — ton classement devient une preuve, pas une déclaration.
             </p>
           </Apparition>
           <Apparition delai={0.08} className="flex flex-wrap items-center gap-x-5 gap-y-3">

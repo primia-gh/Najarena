@@ -8,6 +8,7 @@ import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { echapperDiscord, echapperHtml } from "@/lib/echappement";
 import { prevenirMatchOuvert } from "@/lib/apres-verdict";
+import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
@@ -49,6 +50,13 @@ export async function confirmerInscription(formData: FormData) {
   if (erreurConfirmation?.message.includes("COMPTE_SUSPENDU")) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce joueur est suspendu : son inscription ne peut pas être confirmée.")}`,
+    );
+  }
+
+  // Tournoi 5v5 (audit N21) : la base refuse une équipe à moins de cinq.
+  if (erreurConfirmation?.message.includes("ALIGNEMENT_INCOMPLET")) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Cette équipe n'a pas cinq joueurs alignés : son capitaine doit compléter l'alignement.")}`,
     );
   }
 
@@ -185,26 +193,34 @@ export async function enregistrerResultat(formData: FormData) {
   // resultats.md §4 — jamais match par match, seulement à la clôture).
   const { data: matchDecide } = await supabase
     .from("matches")
-    .select("match_suivant_id, tournament:tournaments(nom, slug), match_participants(profile_id, profile:profiles(pseudo))")
+    .select(
+      "match_suivant_id, tournament:tournaments(nom, slug, format), match_participants(profile_id, profile:profiles(pseudo))",
+    )
     .eq("id", matchId)
     .maybeSingle();
 
   if (matchDecide?.tournament) {
+    // 5v5 (audit N21) : l'équipe derrière chaque capitaine, et ses cinq joueurs.
+    const equipes =
+      matchDecide.tournament.format === "5v5" ? await chargerEquipesDesTournois(supabase, [tournamentId]) : null;
+    const equipe = (capitaineId: string) => equipes?.get(cleEquipe(tournamentId, capitaineId));
     const gagnant = matchDecide.match_participants.find((p) => p.profile_id === gagnantId);
-    const nomGagnant = gagnant?.profile?.pseudo ?? "le vainqueur";
+    const nomGagnant = equipe(gagnantId)?.libelle ?? gagnant?.profile?.pseudo ?? "le vainqueur";
     // Une notification par participant, indépendantes les unes des autres —
     // lancées en parallèle plutôt qu'en série (correctif du 13/09/2026,
     // même logique que sur l'accueil).
     await Promise.all(
-      matchDecide.match_participants.map((p) => {
+      matchDecide.match_participants.flatMap((p) => {
         const aGagne = p.profile_id === gagnantId;
-        return notifierJoueur(
-          p.profile_id,
-          `Résultat enregistré — ${matchDecide.tournament!.nom}`,
-          aGagne ? "Tu as gagné ce match" : "Résultat de ton match",
-          `<p>${aGagne ? "Tu remportes" : `${echapperHtml(nomGagnant)} remporte`} ce match du tournoi <strong>${echapperHtml(matchDecide.tournament!.nom)}</strong>.</p>
-           <p>Motif : ${echapperHtml(motif)}</p>
-           <p><a href="${URL_SITE}/lol/tournois/${matchDecide.tournament!.slug}">Voir le bracket</a></p>`,
+        return (equipe(p.profile_id)?.joueurs ?? [p.profile_id]).map((id) =>
+          notifierJoueur(
+            id,
+            `Résultat enregistré — ${matchDecide.tournament!.nom}`,
+            aGagne ? "Tu as gagné ce match" : "Résultat de ton match",
+            `<p>${aGagne ? "Tu remportes" : `${echapperHtml(nomGagnant)} remporte`} ce match du tournoi <strong>${echapperHtml(matchDecide.tournament!.nom)}</strong>.</p>
+             <p>Motif : ${echapperHtml(motif)}</p>
+             <p><a href="${URL_SITE}/lol/tournois/${matchDecide.tournament!.slug}">Voir le bracket</a></p>`,
+          ),
         );
       }),
     );

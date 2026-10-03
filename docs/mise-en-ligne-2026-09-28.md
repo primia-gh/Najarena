@@ -38,6 +38,12 @@ where est_principal group by profile_id having count(*) > 1;
 --    ont pu être vérifiés sans preuve. Décision du porteur : les garder,
 --    ou les repasser en « non vérifié » pour une nouvelle vérification.
 select count(*) from public.game_accounts where verifie_le is not null;
+
+-- e) Formats de tournoi : la section 25 n'accepte que « 1v1 » et « 5v5 »,
+--    et un 5v5 hors classement individuel. Toute ligne renvoyée ici ferait
+--    échouer la migration : à corriger à la main avant.
+select id, nom, format, compte_pour_classement from public.tournaments
+where format not in ('1v1', '5v5') or (format = '5v5' and compte_pour_classement);
 ```
 
 Après la migration (section 24), les textes déjà en base que la modération
@@ -62,7 +68,7 @@ tâches pg_cron. Une divergence se traite avant d'appliquer la suite.
 Toute la migration est **la fin de `docs/schema.sql`, à partir de la ligne
 « Liaison Riot réservée au serveur (2026-09-28, audit C2) »** (ligne 1448
 aujourd'hui) jusqu'à la dernière ligne. Elle s'applique d'un seul bloc, dans
-une transaction, et contient 24 sections, dans cet ordre :
+une transaction, et contient 25 sections, dans cet ordre :
 
 1. Liaison Riot réservée au serveur (C2)
 2. Règles appliquées par la base (E1, M1 à M4)
@@ -95,13 +101,14 @@ une transaction, et contient 24 sections, dans cet ordre :
     pseudos, noms d'équipe et de tournoi déjà en base qui seraient refusés
     (requête ci-dessous) : ils restent tels quels, mais ne pourront plus
     être réenregistrés sans changement
+25. Tournois 5v5 (N21) — vérification e) ci-dessus avant de l'appliquer
 
 La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).
 
 Le même bloc est rejoué à chaque envoi de code sur une base PostgreSQL de
-test par `npm run test:base` (183 vérifications, toutes au vert au
-28/09/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
+test par `npm run test:base` (333 vérifications, toutes au vert au
+03/10/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
 
 Après application : lancer les conseillers de sécurité et de performance
 de Supabase (Advisors) et comparer avec l'état d'avant.

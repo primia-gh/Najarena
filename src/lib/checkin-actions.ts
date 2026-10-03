@@ -48,6 +48,14 @@ export async function confirmerMaPresence(formData: FormData) {
     redirect(`${page}?erreur=${encodeURIComponent("Ton compte est suspendu : tu ne peux pas confirmer ta présence.")}`);
   }
 
+  // Tournoi 5v5 (audit N21) : un joueur a quitté l'équipe ou a été suspendu
+  // depuis l'inscription.
+  if (error?.message.includes("ALIGNEMENT_INCOMPLET")) {
+    redirect(
+      `${page}?erreur=${encodeURIComponent("Ton alignement n'a plus cinq joueurs : complète-le avant de confirmer la présence de l'équipe.")}`,
+    );
+  }
+
   if (error?.message.includes("CHECKIN_FERME")) {
     redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
   }

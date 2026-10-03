@@ -9,13 +9,14 @@ import { echapperDiscord } from "@/lib/echappement";
 import { probabiliteVictoire } from "@/lib/glicko2";
 import { ETAT_DE_DEPART, type EtatRating } from "@/lib/estimations";
 import { recitTournoi, type MatchRecit } from "@/lib/recit-tournoi";
+import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 
 export async function annoncerVainqueur(tournamentId: string, gagnantId: string): Promise<void> {
   const admin = creerClientAdmin();
   if (!admin) return;
 
   const [{ data: tournoi }, { data: matchs }, { data: departs }] = await Promise.all([
-    admin.from("tournaments").select("nom, slug, best_of").eq("id", tournamentId).maybeSingle(),
+    admin.from("tournaments").select("nom, slug, best_of, format").eq("id", tournamentId).maybeSingle(),
     admin
       .from("matches")
       .select(
@@ -29,6 +30,10 @@ export async function annoncerVainqueur(tournamentId: string, gagnantId: string)
       .eq("motif", "tournoi"),
   ]);
   if (!tournoi) return;
+  // 5v5 (audit N21) : chaque capitaine du bracket représente son équipe.
+  const equipes = tournoi.format === "5v5" ? await chargerEquipesDesTournois(admin, [tournamentId]) : new Map();
+  const nom = (id: string, pseudo: string | undefined) =>
+    equipes.get(cleEquipe(tournamentId, id))?.libelle ?? pseudo ?? "un joueur";
 
   const etats = new Map<string, EtatRating>(
     (departs ?? []).map((d) => [d.profile_id, { rating: d.rating_avant, rd: d.rd_avant }]),
@@ -41,7 +46,7 @@ export async function annoncerVainqueur(tournamentId: string, gagnantId: string)
       tour: m.tour,
       participants: m.match_participants.map((p) => ({
         id: p.profile_id,
-        pseudo: p.profile?.pseudo ?? "un joueur",
+        pseudo: nom(p.profile_id, p.profile?.pseudo),
         score: p.score,
       })),
       verdict: verdict ? { niveau: verdict.niveau, gagnantId: verdict.gagnant_id } : null,
@@ -54,7 +59,9 @@ export async function annoncerVainqueur(tournamentId: string, gagnantId: string)
     nbJoueurs: joueurs.size,
     bestOf: tournoi.best_of,
     matchs: matchsRecit,
-    chances: (g, p) => probabiliteVictoire(etat(g), etat(p)),
+    // Chances estimées d'après les ratings individuels : sans objet en 5v5.
+    chances: tournoi.format === "5v5" ? undefined : (g, p) => probabiliteVictoire(etat(g), etat(p)),
+    equipes: tournoi.format === "5v5",
   });
 
   const lien = `${URL_SITE}/lol/tournois/${tournoi.slug}`;

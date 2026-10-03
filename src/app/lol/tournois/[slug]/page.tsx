@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { sInscrireATournoi, seDesinscrire } from "@/lib/inscription-actions";
+import { inscrireEquipe, modifierAlignement, sInscrireATournoi, seDesinscrire } from "@/lib/inscription-actions";
 import { confirmerMaPresence } from "@/lib/checkin-actions";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { ouvrirLitige } from "@/lib/litige-actions";
@@ -40,7 +40,10 @@ import {
   type InfoTournoi,
 } from "@/components/tournoi/BlocsTournoi";
 import OngletsTournoi from "@/components/tournoi/OngletsTournoi";
-import SalleDeMatch, { type InfosSalleDeMatch } from "@/components/tournoi/SalleDeMatch";
+import SalleDeMatch, { type InfosSalleDeMatch, type JoueurAligne } from "@/components/tournoi/SalleDeMatch";
+import FormulaireAlignement from "@/components/tournoi/FormulaireAlignement";
+import { chargerEquipesDesTournois, cleEquipe, equipeDuJoueur, type EquipeInscrite } from "@/lib/equipes-tournoi";
+import { libelleEquipe, membresAlignables, TAILLE_ALIGNEMENT } from "@/lib/cinq-contre-cinq";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
@@ -88,7 +91,7 @@ const chargerTournoi = cache(async (slug: string) => {
     return { statut: "introuvable" as const };
   }
 
-  // Étage 1 : ces cinq requêtes ne dépendent que du tournoi déjà chargé,
+  // Étage 1 : ces requêtes ne dépendent que du tournoi déjà chargé,
   // jamais les unes des autres — lancées en parallèle plutôt qu'en série
   // (correctif du 13/09/2026, même logique que sur l'accueil).
   const [
@@ -97,12 +100,13 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: inscriptionsData },
     { data: paliersData },
     { data: matchsData },
+    equipes,
   ] = await Promise.all([
     supabase.from("profiles").select("pseudo, slug").eq("id", tournoi.organisateur_id).maybeSingle(),
     supabase.auth.getUser(),
     supabase
       .from("registrations")
-      .select("id, statut, seed, profile_id, profile:profiles(pseudo, slug)")
+      .select("id, statut, seed, profile_id, equipe_nom, equipe_tag, profile:profiles(pseudo, slug)")
       .eq("tournament_id", tournoi.id)
       .order("seed", { ascending: true, nullsFirst: false }),
     supabase.from("tiers").select("nom, rating_min").eq("game_id", tournoi.game_id),
@@ -114,6 +118,11 @@ const chargerTournoi = cache(async (slug: string) => {
       .eq("tournament_id", tournoi.id)
       .order("tour", { ascending: true })
       .order("position", { ascending: true }),
+    // Tournoi 5v5 (audit N21) : l'équipe et les cinq joueurs alignés
+    // derrière chaque capitaine inscrit.
+    tournoi.format === "5v5"
+      ? chargerEquipesDesTournois(supabase, [tournoi.id])
+      : Promise.resolve(new Map<string, EquipeInscrite>()),
   ]);
 
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
@@ -122,15 +131,22 @@ const chargerTournoi = cache(async (slug: string) => {
 
   // Salle de match : le match que le visiteur doit jouer (ou attend), et son
   // adversaire. Un match décidé passe « terminé » : il n'est plus retenu.
+  // En 5v5, un joueur aligné joue le match de son capitaine (seul inscrit
+  // dans le bracket).
   const moi = userData.user?.id;
-  const monMatch = moi
+  const monEquipe = moi && tournoi.format === "5v5" ? equipeDuJoueur(equipes, tournoi.id, moi) : undefined;
+  const monRepresentant = monEquipe?.capitaineId ?? moi;
+  const monMatch = monRepresentant
     ? (matchsData ?? []).find(
         (m) =>
           ["en_attente", "en_cours", "litige"].includes(m.statut) &&
-          m.match_participants.some((p) => p.profile_id === moi),
+          m.match_participants.some((p) => p.profile_id === monRepresentant),
       )
     : undefined;
-  const adversaireId = monMatch?.match_participants.find((p) => p.profile_id !== moi)?.profile_id;
+  const adversaireId = monMatch?.match_participants.find((p) => p.profile_id !== monRepresentant)?.profile_id;
+  const equipeAdverse = adversaireId ? equipes.get(cleEquipe(tournoi.id, adversaireId)) : undefined;
+  const joueursAlignes = Array.from(equipes.values()).flatMap((e) => e.joueurs);
+  const joueursDuMatch5v5 = monEquipe && equipeAdverse ? [...monEquipe.joueurs, ...equipeAdverse.joueurs] : [];
 
   // Étage 2 : dépendent des résultats de l'étage 1 (profileIds, matchIds,
   // userData) mais pas les unes des autres — parallélisées de même.
@@ -141,6 +157,9 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: litigesData },
     { data: monCompteRiot },
     { data: compteAdversaire },
+    { data: profilsAlignesData },
+    { data: comptesDuMatchData },
+    { data: mesEquipesData },
   ] = await Promise.all([
     profileIds.length > 0
       ? (() => {
@@ -181,7 +200,7 @@ const chargerTournoi = cache(async (slug: string) => {
           .eq("est_principal", true)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    adversaireId
+    adversaireId && tournoi.format !== "5v5"
       ? supabase
           .from("game_accounts")
           .select("riot_game_name, riot_tag_line, verifie_le")
@@ -190,6 +209,30 @@ const chargerTournoi = cache(async (slug: string) => {
           .eq("est_principal", true)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    // 5v5 : pseudos des joueurs alignés (listes des équipes inscrites)…
+    joueursAlignes.length > 0
+      ? supabase.from("profiles").select("id, pseudo, slug").in("id", joueursAlignes)
+      : Promise.resolve({ data: [] }),
+    // … Riot ID des dix joueurs du match du visiteur (invitations)…
+    joueursDuMatch5v5.length > 0
+      ? supabase
+          .from("game_accounts")
+          .select("profile_id, riot_game_name, riot_tag_line, verifie_le")
+          .in("profile_id", joueursDuMatch5v5)
+          .eq("game_id", tournoi.game_id)
+          .eq("est_principal", true)
+      : Promise.resolve({ data: [] }),
+    // … et les équipes dont il est capitaine, pour les inscrire. Seuls les
+    // comptes Riot vérifiés sont lisibles : exactement ceux qui comptent.
+    userData.user && tournoi.format === "5v5"
+      ? supabase
+          .from("teams")
+          .select(
+            "id, nom, tag, slug, team_members(profile_id, accepte_le, profile:profiles(pseudo, game_accounts(region, verifie_le, est_principal, game_id)))",
+          )
+          .eq("capitaine_id", userData.user.id)
+          .eq("game_id", tournoi.game_id)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
@@ -208,6 +251,36 @@ const chargerTournoi = cache(async (slug: string) => {
   };
   const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
   const litigeParMatch = new Map((litigesData ?? []).map((l) => [l.match_id, l]));
+  const profilParId = new Map((profilsAlignesData ?? []).map((p) => [p.id, p]));
+  const riotIdParId = new Map(
+    (comptesDuMatchData ?? [])
+      .filter((c) => c.verifie_le)
+      .map((c) => [c.profile_id, `${c.riot_game_name}#${c.riot_tag_line}`]),
+  );
+  const aligne = (profileId: string): JoueurAligne => ({
+    pseudo: profilParId.get(profileId)?.pseudo ?? "Joueur",
+    slug: profilParId.get(profileId)?.slug ?? "",
+    riotId: riotIdParId.get(profileId) ?? null,
+  });
+  // Équipes que le visiteur peut inscrire : membres acceptés, capitaine en
+  // tête, compte Riot vérifié dans la région du tournoi ou non.
+  const mesEquipes = (mesEquipesData ?? []).map((t) => ({
+    id: t.id,
+    nom: t.nom,
+    tag: t.tag,
+    slug: t.slug,
+    membres: membresAlignables(
+      t.team_members.map((m) => ({
+        profileId: m.profile_id,
+        accepte: Boolean(m.accepte_le),
+        pseudo: m.profile?.pseudo ?? "Joueur",
+        compteValide: (m.profile?.game_accounts ?? []).some(
+          (c) => c.est_principal && c.verifie_le && c.region === tournoi.region && c.game_id === tournoi.game_id,
+        ),
+      })),
+      userData.user?.id ?? "",
+    ),
+  }));
 
   return {
     statut: "ok" as const,
@@ -225,6 +298,12 @@ const chargerTournoi = cache(async (slug: string) => {
     paliers,
     ratingParProfile,
     etatDepart,
+    equipes,
+    monEquipe,
+    monRepresentant,
+    equipeAdverse,
+    aligne,
+    mesEquipes,
   };
 });
 
@@ -303,6 +382,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     paliers,
     ratingParProfile,
     etatDepart,
+    equipes,
+    monEquipe,
+    monRepresentant,
+    equipeAdverse,
+    aligne,
+    mesEquipes,
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
@@ -310,6 +395,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const estDefi = tournoi.nature === "defi";
   // Condition de victoire du tournoi (audit N5).
   const condition: ConditionVictoire = tournoi.condition_victoire === "classique" ? "classique" : "nexus";
+  // Tournoi 5v5 (audit N21) : dans le bracket, chaque capitaine représente
+  // son équipe — c'est elle qu'on affiche.
+  const estEquipes = tournoi.format === "5v5";
+  const equipeDe = (profileId: string) => (estEquipes ? equipes.get(cleEquipe(tournoi.id, profileId)) : undefined);
+  const nomDe = (profileId: string, pseudo: string | null | undefined) =>
+    equipeDe(profileId)?.libelle ?? pseudo ?? "Joueur inconnu";
 
   // Récit factuel du tournoi terminé (vainqueur, parcours, exploit, part de
   // matchs vérifiés) — src/lib/recit-tournoi.ts.
@@ -325,13 +416,15 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               tour: m.tour,
               participants: m.match_participants.map((p) => ({
                 id: p.profile_id,
-                pseudo: p.profile?.pseudo ?? "un joueur",
+                pseudo: estEquipes ? nomDe(p.profile_id, p.profile?.pseudo) : (p.profile?.pseudo ?? "un joueur"),
                 score: p.score,
               })),
               verdict: verdict ? { niveau: verdict.niveau, gagnantId: verdict.gagnant_id } : null,
             };
           }),
-          chances: (g, p) => probabiliteVictoire(etatDepart(g), etatDepart(p)),
+          // Chances d'après les ratings individuels : sans objet en 5v5.
+          chances: estEquipes ? undefined : (g, p) => probabiliteVictoire(etatDepart(g), etatDepart(p)),
+          equipes: estEquipes,
         })
       : null;
   const estOrganisateur = utilisateur?.id === tournoi.organisateur_id;
@@ -363,6 +456,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const classement = evaluerClassement({
     officiel: complements.estQuotidien,
     defi: estDefi,
+    equipes: estEquipes,
     amical: !complements.comptePourClassement,
     publieLe: complements.publieLe,
     debuteLe: tournoi.debute_le,
@@ -390,11 +484,16 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const infosSalle: InfosSalleDeMatch | null =
     monMatch && utilisateur && statut === "en_cours"
       ? (() => {
-          const moiDansMatch = monMatch.match_participants.find((p) => p.profile_id === utilisateur.id);
-          const adversaire = monMatch.match_participants.find((p) => p.profile_id !== utilisateur.id);
+          // En 5v5, le visiteur voit le match par son capitaine.
+          const moiDansMatch = monMatch.match_participants.find((p) => p.profile_id === monRepresentant);
+          const adversaire = monMatch.match_participants.find((p) => p.profile_id !== monRepresentant);
+          const perdantDansMatch = monMatch.defaite_reconnue_par
+            ? monMatch.match_participants.find((p) => p.profile_id === monMatch.defaite_reconnue_par)
+            : undefined;
           const perdant = monMatch.defaite_reconnue_par
-            ? (monMatch.match_participants.find((p) => p.profile_id === monMatch.defaite_reconnue_par)?.profile
-                ?.pseudo ?? "un joueur")
+            ? estEquipes && perdantDansMatch
+              ? nomDe(perdantDansMatch.profile_id, perdantDansMatch.profile?.pseudo)
+              : (perdantDansMatch?.profile?.pseudo ?? "un joueur")
             : null;
           return {
             tour: libelleTour(toursOrdonnes.indexOf(monMatch.tour)),
@@ -406,21 +505,33 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                   ? "litige"
                   : "a_jouer",
             adversaire: adversaire?.profile
-              ? { pseudo: adversaire.profile.pseudo, slug: adversaire.profile.slug, riotId: riotIdAdversaire }
+              ? estEquipes
+                ? { pseudo: nomDe(adversaire.profile_id, adversaire.profile.pseudo), slug: "", riotId: null }
+                : { pseudo: adversaire.profile.pseudo, slug: adversaire.profile.slug, riotId: riotIdAdversaire }
               : null,
             jeCreeLaPartie: moiDansMatch?.slot === 1,
             demarreLe: monMatch.demarre_le,
             bestOf: tournoi.best_of,
             perdantDeclare: perdant,
-            chances: adversaire
-              ? (() => {
-                  const [moi, lui] = pourcentages(etatDepart(utilisateur.id), etatDepart(adversaire.profile_id));
-                  return { moi, adversaire: lui };
-                })()
-              : null,
+            chances:
+              adversaire && !estEquipes
+                ? (() => {
+                    const [moi, lui] = pourcentages(etatDepart(utilisateur.id), etatDepart(adversaire.profile_id));
+                    return { moi, adversaire: lui };
+                  })()
+                : null,
             // « Je suis prêt » de chacun (forfait automatique, audit N4).
             pret: { moi: moiDansMatch?.pret_le ?? null, adversaire: adversaire?.pret_le ?? null },
             condition,
+            equipes:
+              estEquipes && monEquipe
+                ? {
+                    estCapitaine: monEquipe.capitaineId === utilisateur.id,
+                    slugAdverse: equipeAdverse?.slug ?? null,
+                    nous: monEquipe.joueurs.map(aligne),
+                    eux: (equipeAdverse?.joueurs ?? []).map(aligne),
+                  }
+                : null,
           };
         })()
       : null;
@@ -484,14 +595,151 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const infos: InfoTournoi[] = [
     {
       libelle: "En jeu",
-      valeur: libelleEnJeu(classement.statut, !complements.comptePourClassement),
+      valeur: libelleEnJeu(classement.statut, !complements.comptePourClassement, estEquipes),
       grand: true,
       accent: classement.statut === "classe",
     },
-    { libelle: "Inscrits", valeur: `${inscriptionsActives.length}/${tournoi.capacite}`, grand: true, accent: false },
+    {
+      libelle: estEquipes ? "Équipes" : "Inscrits",
+      valeur: `${inscriptionsActives.length}/${tournoi.capacite}`,
+      grand: true,
+      accent: false,
+    },
     { libelle: "Format", valeur: `${tournoi.format} · BO${tournoi.best_of}`, grand: false, accent: false },
     { libelle: "Niveau", valeur: complements.niveau, grand: false, accent: false },
   ];
+
+  // Tournoi 5v5 (audit N21) : le capitaine inscrit son équipe, fait le
+  // check-in et peut changer l'alignement ; les joueurs alignés suivent.
+  const monInscriptionEquipe = estEquipes ? inscriptionActuelle : undefined;
+  const equipeInscrite = monInscriptionEquipe && utilisateur ? equipeDe(utilisateur.id) : undefined;
+  const equipeCapitaine = equipeInscrite ? mesEquipes.find((e) => e.slug === equipeInscrite.slug) : undefined;
+  const lienDiscret =
+    "text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  const actionEquipes = !estEquipes ? null : monInscriptionEquipe ? (
+    <>
+      {checkinOuvert && monInscriptionEquipe.statut === "inscrit" && (
+        <form action={confirmerMaPresence} className="flex flex-col gap-2">
+          <input type="hidden" name="tournament_id" value={tournoi.id} />
+          <BoutonEnvoi libelleEnCours="Confirmation…" className="w-full">
+            Confirmer la présence de l&apos;équipe
+          </BoutonEnvoi>
+          <p className="text-[13px] leading-normal text-muted">
+            Check-in ouvert : sans confirmation avant le début, pas de place dans le bracket.
+          </p>
+        </form>
+      )}
+      {statut === "ouvert" && !checkinOuvert && monInscriptionEquipe.statut === "inscrit" && (
+        <p className="text-[13px] leading-normal text-muted">
+          Pense au check-in de l&apos;équipe : il ouvre le{" "}
+          <span className="tabular-nums text-text-2">{formaterDate(tournoi.checkin_ouvre_le)}</span>.
+        </p>
+      )}
+      <p className="flex items-center justify-between gap-3 border-t border-line pt-[18px] text-[13px]">
+        <span className="min-w-0 truncate text-muted">
+          {nomDe(monInscriptionEquipe.profile_id, monInscriptionEquipe.equipe_nom)}
+        </span>
+        <span className="shrink-0 font-bold text-accent uppercase">
+          {LABEL_INSCRIPTION[monInscriptionEquipe.statut] ?? monInscriptionEquipe.statut}
+        </span>
+      </p>
+      {(statut === "ouvert" || statut === "checkin") &&
+        (monInscriptionEquipe.statut === "inscrit" || monInscriptionEquipe.statut === "confirme") && (
+          <>
+            {equipeCapitaine && (
+              <details>
+                <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-[13px] text-text underline underline-offset-3 hover:text-accent [&::-webkit-details-marker]:hidden">
+                  Modifier l&apos;alignement
+                </summary>
+                <FormulaireAlignement
+                  action={modifierAlignement}
+                  tournamentId={tournoi.id}
+                  slug={tournoi.slug}
+                  region={tournoi.region}
+                  capitaineId={monInscriptionEquipe.profile_id}
+                  membres={equipeCapitaine.membres}
+                  coches={equipeInscrite?.joueurs ?? []}
+                  libelle="Enregistrer l'alignement"
+                />
+              </details>
+            )}
+            <form action={seDesinscrire}>
+              <input type="hidden" name="tournament_id" value={tournoi.id} />
+              <input type="hidden" name="slug" value={tournoi.slug} />
+              <BoutonConfirmation
+                type="submit"
+                confirmation="Désinscrire ton équipe de ce tournoi ? Sa place sera libérée."
+                className="inline-flex min-h-11 items-center text-[13px] text-muted underline underline-offset-3 hover:text-text"
+              >
+                Désinscrire l&apos;équipe
+              </BoutonConfirmation>
+            </form>
+          </>
+        )}
+    </>
+  ) : monEquipe ? (
+    <p className="flex flex-col gap-1 border-t border-line pt-[18px] text-[13px] leading-normal text-muted">
+      <span>
+        Tu es aligné avec <span className="font-semibold text-text">{monEquipe.libelle}</span>.
+      </span>
+      <span>Ton capitaine gère l&apos;inscription, le check-in et le « Je suis prêt » de l&apos;équipe.</span>
+    </p>
+  ) : statut === "ouvert" && estComplet ? (
+    <p className="flex items-center justify-between gap-3 border-t border-line pt-[18px] text-[13px]">
+      <span className="text-muted">Inscriptions</span>
+      <span className="font-bold text-muted uppercase">Complet</span>
+    </p>
+  ) : statut === "ouvert" ? (
+    !utilisateur ? (
+      <BoutonLien href="/connexion" className="w-full">
+        Se connecter pour inscrire ton équipe
+      </BoutonLien>
+    ) : mesEquipes.length === 0 ? (
+      <div className="flex flex-col gap-3">
+        <p className="text-[13px] leading-normal text-muted">
+          Ce tournoi se joue en équipe de {TAILLE_ALIGNEMENT} : c&apos;est le capitaine qui inscrit son équipe, avec
+          cinq membres aux comptes Riot vérifiés ({tournoi.region}).
+        </p>
+        <BoutonLien href="/equipe/nouvelle" className="w-full">
+          Créer mon équipe
+        </BoutonLien>
+        <Link href="/lol/coequipiers" className={`self-start text-[13px] ${lienDiscret}`}>
+          Trouver des coéquipiers
+        </Link>
+      </div>
+    ) : (
+      <div className="flex flex-col gap-4">
+        {mesEquipes.map((e) =>
+          e.membres.length < TAILLE_ALIGNEMENT ? (
+            <p key={e.id} className="text-[13px] leading-normal text-muted">
+              {libelleEquipe(e.tag, e.nom)} compte {e.membres.length} membre{e.membres.length > 1 ? "s" : ""} : il en
+              faut {TAILLE_ALIGNEMENT} pour l&apos;inscrire.{" "}
+              <Link href={`/equipe/${e.slug}`} className={lienDiscret}>
+                Compléter l&apos;équipe
+              </Link>
+            </p>
+          ) : (
+            <details key={e.id} open={mesEquipes.length === 1}>
+              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-[13px] font-semibold text-text uppercase hover:text-accent [&::-webkit-details-marker]:hidden">
+                Inscrire {libelleEquipe(e.tag, e.nom)}
+              </summary>
+              <FormulaireAlignement
+                action={inscrireEquipe}
+                tournamentId={tournoi.id}
+                slug={tournoi.slug}
+                region={tournoi.region}
+                teamId={e.id}
+                capitaineId={utilisateur.id}
+                membres={e.membres}
+                coches={e.membres.slice(0, TAILLE_ALIGNEMENT).map((m) => m.profileId)}
+                libelle="Inscrire l'équipe"
+              />
+            </details>
+          ),
+        )}
+      </div>
+    )
+  ) : null;
 
   const CHAMP =
     "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -569,6 +817,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               <BoutonLien href={`/moi/organisation/${tournoi.id}`} className="w-full">
                 Gérer ce tournoi
               </BoutonLien>
+            ) : estEquipes ? (
+              actionEquipes
             ) : inscriptionActuelle ? (
               <>
                 {checkinOuvert && inscriptionActuelle.statut === "inscrit" && (
@@ -732,15 +982,24 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 matchs: rounds.get(tour)!.map((m) => {
                   const verdict = verdictParMatch.get(m.id);
                   const litige = litigeParMatch.get(m.id);
-                  const estParticipantDuMatch = utilisateur
+                  // En 5v5, tout joueur aligné voit le match de son équipe
+                  // comme le sien ; seul le capitaine signale un litige.
+                  const estParticipantDuMatch = monRepresentant
+                    ? m.match_participants.some((p) => p.profile_id === monRepresentant)
+                    : false;
+                  const jeJoueCeMatch = utilisateur
                     ? m.match_participants.some((p) => p.profile_id === utilisateur.id)
                     : false;
-                  const peutSignalerLitige = estParticipantDuMatch && verdict && !litige;
+                  const peutSignalerLitige = jeJoueCeMatch && verdict && !litige;
                   const enJeu =
                     !verdict && (m.statut === "en_cours" || m.statut === "litige") && m.match_participants.length === 2;
+                  const perdantDansMatch = m.defaite_reconnue_par
+                    ? m.match_participants.find((p) => p.profile_id === m.defaite_reconnue_par)
+                    : undefined;
                   const perdantDeclare = m.defaite_reconnue_par
-                    ? (m.match_participants.find((p) => p.profile_id === m.defaite_reconnue_par)?.profile?.pseudo ??
-                      "un joueur")
+                    ? perdantDansMatch
+                      ? nomDe(perdantDansMatch.profile_id, perdantDansMatch.profile?.pseudo)
+                      : "un joueur"
                     : null;
                   const etat: EtatMatch =
                     litige && !litige.resolution
@@ -753,19 +1012,21 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                             ? "direct"
                             : "a_venir";
                   const libelleMatch = m.match_participants
-                    .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                    .map((p) => nomDe(p.profile_id, p.profile?.pseudo))
                     .join(" vs ");
                   // Chances estimées (match à jouer) et exploit (victoire
                   // vérifiée d'un joueur donné perdant) — audit N10.
                   const duo = [...m.match_participants].sort((a, b) => a.slot - b.slot);
                   const chances =
-                    duo.length === 2 ? pourcentages(etatDepart(duo[0].profile_id), etatDepart(duo[1].profile_id)) : null;
+                    duo.length === 2 && !estEquipes
+                      ? pourcentages(etatDepart(duo[0].profile_id), etatDepart(duo[1].profile_id))
+                      : null;
                   const perdantVerifie =
                     verdict && verdict.niveau !== "manuel" && verdict.gagnant_id
                       ? duo.find((p) => p.profile_id !== verdict.gagnant_id)
                       : undefined;
                   const exploit =
-                    verdict?.gagnant_id && perdantVerifie
+                    verdict?.gagnant_id && perdantVerifie && !estEquipes
                       ? chancesSiExploit(etatDepart(verdict.gagnant_id), etatDepart(perdantVerifie.profile_id))
                       : null;
                   return {
@@ -776,8 +1037,13 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                       <CaseMatch
                         participants={duo.map((p, i) => ({
                           cle: p.profile_id,
-                          pseudo: p.profile?.pseudo ?? null,
-                          slug: p.profile?.slug ?? null,
+                          pseudo: estEquipes ? nomDe(p.profile_id, p.profile?.pseudo) : (p.profile?.pseudo ?? null),
+                          slug: estEquipes ? null : (p.profile?.slug ?? null),
+                          lien: estEquipes
+                            ? equipeDe(p.profile_id)?.slug
+                              ? `/equipe/${equipeDe(p.profile_id)?.slug}`
+                              : null
+                            : undefined,
                           score: p.score,
                           estGagnant: p.est_gagnant,
                           chances: chances ? chances[i] : null,
@@ -805,7 +1071,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                             href="#ton-match"
                             className="inline-flex min-h-11 items-center text-mini font-semibold text-accent uppercase underline underline-offset-3"
                           >
-                            Ton match : adversaire et règles
+                            {estEquipes ? "Votre match : équipes et règles" : "Ton match : adversaire et règles"}
                           </a>
                         )}
                         {litige && (
@@ -858,7 +1124,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       <section id="inscrits" className="scroll-mt-28 px-gouttiere pt-section-outil">
         <div className="mx-auto flex max-w-contenu flex-col gap-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <LibelleSection as="h2">Inscrits</LibelleSection>
+            <LibelleSection as="h2">{estEquipes ? "Équipes inscrites" : "Inscrits"}</LibelleSection>
             <span className="text-xs text-muted tabular-nums">
               {inscriptionsActives.length} / {tournoi.capacite} places
             </span>
@@ -867,6 +1133,43 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             <Panneau reperes className="px-8 py-10">
               <p className="text-muted">Aucune inscription pour l&apos;instant.</p>
             </Panneau>
+          ) : estEquipes ? (
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {inscriptionsActives.map((i) => {
+                const equipe = equipeDe(i.profile_id);
+                const nous = monEquipe?.capitaineId === i.profile_id;
+                return (
+                  <li
+                    key={i.id}
+                    className={`panneau flex flex-col gap-2.5 px-4 py-3 ${nous ? "border-l-[3px] border-l-accent!" : ""}`}
+                  >
+                    <span className="flex items-baseline justify-between gap-3">
+                      {equipe?.slug ? (
+                        <Link
+                          href={`/equipe/${equipe.slug}`}
+                          className="truncate font-semibold hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          {nomDe(i.profile_id, i.equipe_nom)}
+                        </Link>
+                      ) : (
+                        <span className="truncate font-semibold">{nomDe(i.profile_id, i.equipe_nom)}</span>
+                      )}
+                      <span className="shrink-0 text-mini text-muted uppercase tabular-nums">
+                        {i.seed ? `Seed ${i.seed}` : (LABEL_INSCRIPTION[i.statut] ?? i.statut)}
+                      </span>
+                    </span>
+                    <span className="text-xs leading-relaxed text-muted">
+                      {equipe && equipe.joueurs.length > 0
+                        ? equipe.joueurs.map((id) => aligne(id).pseudo).join(" · ")
+                        : "Alignement à compléter"}
+                      {equipe && equipe.joueurs.length > 0 && equipe.joueurs.length < TAILLE_ALIGNEMENT && (
+                        <span className="text-danger"> — alignement incomplet</span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {inscriptionsActives.map((i) => {
@@ -918,7 +1221,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             <Deroulement etapes={etapes} />
             {statut !== "annule" && <CriteresClassement evaluation={classement} />}
           </div>
-          <EssentielReglement organisateur={organisateur?.pseudo} condition={condition} />
+          <EssentielReglement organisateur={organisateur?.pseudo} condition={condition} equipes={estEquipes} />
         </div>
       </section>
     </main>

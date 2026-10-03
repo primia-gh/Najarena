@@ -19,7 +19,7 @@ import Apparition from "@/components/design/Apparition";
 export const metadata: Metadata = {
   title: "Trouver un coéquipier — Najarena",
   description:
-    "Recherche de coéquipiers pour former une équipe 5v5 sur Najarena (tournois 5v5 bientôt) — publie une annonce ou invite un joueur disponible dans ton équipe.",
+    "Recherche de coéquipiers pour former une équipe 5v5 sur Najarena et jouer les tournois 5v5 — publie une annonce ou invite un joueur disponible dans ton équipe.",
 };
 
 interface CoequipiersPageProps {
@@ -120,7 +120,8 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
-      <FondEcailles />      <div className="relative px-grille">
+      <FondEcailles />
+      <div className="relative px-grille">
       <Apparition>
       <Link
         href="/lol"
@@ -133,7 +134,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
         Trouver un coéquipier
       </h1>
       <p className="mt-2 max-w-lg text-sm text-muted">
-        Pour jouer en 5v5 (les tournois 5v5 ouvriront bientôt) — une équipe compte jusqu&apos;à{" "}
+        Pour jouer les tournois 5v5 : ton capitaine y inscrit cinq membres de l&apos;équipe — une équipe compte jusqu&apos;à{" "}
         {TAILLE_MAX_EQUIPE} joueurs. Publie une annonce pour te rendre visible, ou invite directement un joueur disponible dans une équipe
         où il reste de la place.{" "}
         <Link href="/equipe/nouvelle" className="text-text underline underline-offset-3">

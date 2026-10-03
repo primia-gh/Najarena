@@ -68,6 +68,13 @@ describe("tournoi classé", () => {
     expect(evaluerClassement({ ...base, decision: false }).statut).toBe("non_classe");
   });
 
+  it("un tournoi 5v5 ne compte jamais au classement individuel", () => {
+    const e = evaluerClassement({ ...base, equipes: true, amical: true });
+    expect(e.statut).toBe("non_classe");
+    expect(e.titre).toBe("Tournoi en équipe");
+    expect(libelleEnJeu(e.statut, true, true)).toBe("Palmarès d'équipe");
+  });
+
   it("un défi est classé, sauf le deuxième de la même paire en 24 h (amical)", () => {
     const defi = { ...base, defi: true, joueursAuDepart: 2, publieLe: base.debuteLe };
     expect(evaluerClassement(defi).statut).toBe("classe");

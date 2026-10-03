@@ -21,7 +21,7 @@ import Apparition from "@/components/design/Apparition";
 export const metadata: Metadata = {
   title: "Tournois LoL — Najarena",
   description:
-    "Tous les tournois League of Legends en 1v1 sur Najarena : à venir, en cours et terminés. Résultats lus dans la donnée officielle Riot.",
+    "Tous les tournois League of Legends en 1v1 et en 5v5 sur Najarena : à venir, en cours et terminés. Résultats lus dans la donnée officielle Riot.",
 };
 
 interface TournoisPageProps {
@@ -174,7 +174,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
                     </Badge>
                   </div>
                   <div className="mt-2 font-texte tabular-nums text-[0.72rem] text-muted">
-                    {t.format} · {t.capacite} joueurs · {t.region} ·{" "}
+                    {t.format} · {t.capacite} {t.format === "5v5" ? "équipes" : "joueurs"} · {t.region} ·{" "}
                     {formaterDate(t.debute_le)}
                   </div>
                 </Link>

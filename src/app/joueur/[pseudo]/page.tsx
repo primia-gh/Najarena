@@ -111,9 +111,12 @@ const chargerJoueur = cache(async (slug: string) => {
     supabase
       .from("match_participants")
       .select(
-        "match_id, score, est_gagnant, match:matches(tour, tournament:tournaments(nom, slug))",
+        "match_id, score, est_gagnant, match:matches!inner(tour, tournament:tournaments!inner(nom, slug, format))",
       )
-      .eq("profile_id", profil.id),
+      .eq("profile_id", profil.id)
+      // Matchs 1v1 seulement : en 5v5 (audit N21), le capitaine représente
+      // son équipe, ce n'est pas un résultat individuel.
+      .eq("match.tournament.format", "1v1"),
     supabase.auth.getUser(),
     chargerOffre(supabase, profil.id),
     // Journal des points : public par conception (CLAUDE.md §4, policy
@@ -428,6 +431,14 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
       titre: sp.palier ? `${sp.palier.nom} — ${arrondir(sp.rating)}` : `Non classé — ${arrondir(sp.rating)}`,
       lien: "/lol/saisons",
       detail: sp.rang ? `#${sp.rang} sur ${sp.classes} joueur${sp.classes > 1 ? "s" : ""} classé${sp.classes > 1 ? "s" : ""}` : "",
+    })),
+    // Tournois 5v5 joués avec une équipe (audit N21).
+    ...complements.tournoisEnEquipe.map((t) => ({
+      cle: `tournoi-equipe-${t.slug}`,
+      quand: formaterDate(t.debuteLe),
+      titre: `${t.nom} — ${t.resultat}`,
+      lien: `/lol/tournois/${t.slug}`,
+      detail: `En 5v5 avec ${t.equipe}`,
     })),
     ...complements.equipes.map((e) => ({
       cle: `equipe-${e.slug}`,

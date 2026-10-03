@@ -4744,3 +4744,516 @@ end;
 $$;
 revoke execute on function public.traiter_signalement(uuid, boolean) from public, anon;
 grant execute on function public.traiter_signalement(uuid, boolean) to authenticated;
+
+-- ---------- Tournois 5v5 : inscription d'une équipe (2026-10-03, audit N21) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (format 5v5 à la création d'un tournoi, inscription d'équipe sur la page
+-- du tournoi, salle de match à dix).
+-- Une équipe s'inscrit par son capitaine, avec cinq de ses membres (lui
+-- compris) : l'« alignement ». Chacun a un compte Riot vérifié dans la
+-- région du tournoi et ne joue que pour une équipe par tournoi. Dans le
+-- bracket, l'équipe est représentée par son capitaine
+-- (match_participants.profile_id) : bracket, verdicts et clôture restent
+-- les mêmes qu'en 1v1. Le capitaine fait le check-in, se déclare prêt,
+-- reconnaît une défaite ou signale un litige au nom de l'équipe.
+-- Un résultat n'est retenu que si les dix joueurs alignés sont dans la
+-- partie personnalisée, chaque équipe de son côté (src/lib/rapprochement.ts).
+-- Hors classement individuel : le rating Glicko-2 mesure un joueur seul, un
+-- résultat d'équipe ne le modifie pas. Les résultats vérifiés vont au
+-- palmarès de l'équipe et aux statistiques de chaque joueur aligné.
+-- Départs : quitter l'équipe pendant les inscriptions retire le joueur de
+-- l'alignement (le capitaine le complète avant le check-in) ; pendant le
+-- check-in et le tournoi, c'est refusé. Une équipe inscrite ne peut pas
+-- être supprimée. Un joueur suspendu est retiré des alignements des
+-- tournois pas encore commencés.
+alter table public.tournaments drop constraint if exists tournaments_format_valide;
+alter table public.tournaments add constraint tournaments_format_valide check (format in ('1v1', '5v5'));
+alter table public.tournaments drop constraint if exists tournaments_5v5_hors_classement;
+alter table public.tournaments add constraint tournaments_5v5_hors_classement
+  check (format = '1v1' or not compte_pour_classement);
+alter table public.tournaments drop constraint if exists tournaments_defi_en_1v1;
+alter table public.tournaments add constraint tournaments_defi_en_1v1
+  check (nature = 'tournoi' or format = '1v1');
+
+-- Nom et tag figés à l'inscription : le bracket garde le nom de l'équipe
+-- même si elle est supprimée ensuite (team_id passe alors à nul).
+alter table public.registrations add column if not exists team_id uuid references public.teams(id) on delete set null;
+alter table public.registrations add column if not exists equipe_nom text;
+alter table public.registrations add column if not exists equipe_tag text;
+create unique index if not exists registrations_une_inscription_par_equipe
+  on public.registrations (tournament_id, team_id) where team_id is not null;
+create index if not exists registrations_team_id_idx on public.registrations (team_id);
+
+create table if not exists public.alignements (
+  tournament_id   uuid not null references public.tournaments(id) on delete cascade,
+  profile_id      uuid not null references public.profiles(id) on delete cascade,
+  registration_id uuid not null references public.registrations(id) on delete cascade,
+  aligne_le       timestamptz not null default now(),
+  primary key (tournament_id, profile_id)
+);
+create index if not exists alignements_registration_id_idx on public.alignements (registration_id);
+create index if not exists alignements_profile_id_idx on public.alignements (profile_id);
+alter table public.alignements enable row level security;
+create policy "alignements lisibles par tous" on public.alignements for select using (true);
+revoke insert, update, delete on public.alignements from anon, authenticated;
+
+-- Vérifie et enregistre l'alignement d'une inscription d'équipe ; renvoie
+-- le rating moyen des cinq joueurs (têtes de série), nul si aucun n'a de
+-- rating cette saison. Appelée par s_inscrire_equipe et
+-- modifier_alignement, tournoi déjà verrouillé.
+create or replace function public.enregistrer_alignement(
+  p_tournament_id uuid, p_team_id uuid, p_capitaine uuid, p_joueurs uuid[], p_registration_id uuid
+)
+returns int
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi record;
+  v_joueurs uuid[];
+  v_rating int;
+begin
+  select region, game_id, season_id into v_tournoi
+  from public.tournaments where id = p_tournament_id;
+
+  select coalesce(array_agg(distinct j), '{}') into v_joueurs
+  from unnest(p_joueurs) j where j is not null;
+
+  if cardinality(v_joueurs) <> 5 then
+    raise exception 'ALIGNEMENT_DE_CINQ';
+  end if;
+  if not (p_capitaine = any (v_joueurs)) then
+    raise exception 'CAPITAINE_DANS_ALIGNEMENT';
+  end if;
+  if (select count(*) from public.team_members
+      where team_id = p_team_id and profile_id = any (v_joueurs) and accepte_le is not null) <> 5 then
+    raise exception 'JOUEUR_HORS_EQUIPE';
+  end if;
+  if (select count(*) from public.game_accounts
+      where profile_id = any (v_joueurs) and game_id = v_tournoi.game_id and est_principal
+        and verifie_le is not null and region = v_tournoi.region) <> 5 then
+    raise exception 'ALIGNEMENT_COMPTE_RIOT';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = any (v_joueurs) and levee_le is null) then
+    raise exception 'ALIGNEMENT_SUSPENDU';
+  end if;
+  if exists (
+    select 1 from public.alignements
+    where tournament_id = p_tournament_id and profile_id = any (v_joueurs)
+      and registration_id <> p_registration_id
+  ) then
+    raise exception 'JOUEUR_DEJA_ALIGNE';
+  end if;
+
+  select round(avg(r.rating))::int into v_rating
+  from public.ratings r
+  where r.profile_id = any (v_joueurs)
+    and r.game_id = v_tournoi.game_id
+    and r.season_id = coalesce(
+      v_tournoi.season_id,
+      (select s.id from public.seasons s where s.game_id = v_tournoi.game_id and s.est_courante limit 1)
+    );
+
+  delete from public.alignements where registration_id = p_registration_id;
+  insert into public.alignements (tournament_id, profile_id, registration_id)
+  select p_tournament_id, j, p_registration_id from unnest(v_joueurs) j;
+
+  return v_rating;
+end;
+$$;
+revoke all on function public.enregistrer_alignement(uuid, uuid, uuid, uuid[], uuid) from public, anon, authenticated;
+
+-- Inscription d'une équipe par son capitaine (seule porte d'entrée d'un
+-- tournoi 5v5). Réactive une inscription retirée, comme en 1v1.
+create or replace function public.s_inscrire_equipe(p_tournament_id uuid, p_team_id uuid, p_joueurs uuid[])
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_capitaine uuid := auth.uid();
+  v_tournoi record;
+  v_equipe record;
+  v_existante_id uuid;
+  v_existante_statut public.registration_status;
+  v_id uuid;
+begin
+  if v_capitaine is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select id, statut, capacite, format, game_id into v_tournoi
+  from public.tournaments where id = p_tournament_id
+  for update;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_tournoi.format <> '5v5' then
+    raise exception 'TOURNOI_EN_SOLO';
+  end if;
+  if v_tournoi.statut <> 'ouvert' then
+    raise exception 'INSCRIPTIONS_FERMEES';
+  end if;
+
+  select id, nom, tag, capitaine_id, game_id into v_equipe
+  from public.teams where id = p_team_id;
+  if not found or v_equipe.capitaine_id <> v_capitaine then
+    raise exception 'CAPITAINE_REQUIS';
+  end if;
+  if v_equipe.game_id <> v_tournoi.game_id then
+    raise exception 'EQUIPE_AUTRE_JEU';
+  end if;
+
+  select id, statut into v_existante_id, v_existante_statut
+  from public.registrations
+  where tournament_id = p_tournament_id and profile_id = v_capitaine;
+  if v_existante_id is not null and v_existante_statut <> 'retire' then
+    raise exception 'DEJA_INSCRIT';
+  end if;
+
+  if (select count(*) from public.registrations
+      where tournament_id = p_tournament_id and statut <> 'retire') >= v_tournoi.capacite then
+    raise exception 'TOURNOI_COMPLET';
+  end if;
+
+  if v_existante_id is not null then
+    update public.registrations
+    set statut = 'inscrit', inscrit_le = now(), confirme_le = null, seed = null,
+        team_id = v_equipe.id, equipe_nom = v_equipe.nom, equipe_tag = v_equipe.tag
+    where id = v_existante_id;
+    v_id := v_existante_id;
+  else
+    insert into public.registrations (tournament_id, profile_id, team_id, equipe_nom, equipe_tag)
+    values (p_tournament_id, v_capitaine, v_equipe.id, v_equipe.nom, v_equipe.tag)
+    returning id into v_id;
+  end if;
+
+  update public.registrations
+  set rating_a_inscription = public.enregistrer_alignement(p_tournament_id, v_equipe.id, v_capitaine, p_joueurs, v_id)
+  where id = v_id;
+
+  return v_id;
+end;
+$$;
+revoke execute on function public.s_inscrire_equipe(uuid, uuid, uuid[]) from public, anon;
+grant execute on function public.s_inscrire_equipe(uuid, uuid, uuid[]) to authenticated;
+
+-- Le capitaine change ses cinq joueurs jusqu'au lancement du bracket.
+create or replace function public.modifier_alignement(p_tournament_id uuid, p_joueurs uuid[])
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_capitaine uuid := auth.uid();
+  v_statut public.tournament_status;
+  v_inscription record;
+begin
+  if v_capitaine is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select statut into v_statut from public.tournaments where id = p_tournament_id for update;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_statut not in ('ouvert', 'checkin') then
+    raise exception 'ALIGNEMENT_FIGE';
+  end if;
+
+  select id, team_id into v_inscription
+  from public.registrations
+  where tournament_id = p_tournament_id and profile_id = v_capitaine
+    and statut in ('inscrit', 'confirme') and team_id is not null;
+  if not found then
+    raise exception 'EQUIPE_NON_INSCRITE';
+  end if;
+
+  update public.registrations
+  set rating_a_inscription = public.enregistrer_alignement(p_tournament_id, v_inscription.team_id, v_capitaine, p_joueurs, v_inscription.id)
+  where id = v_inscription.id;
+  return true;
+end;
+$$;
+revoke execute on function public.modifier_alignement(uuid, uuid[]) from public, anon;
+grant execute on function public.modifier_alignement(uuid, uuid[]) to authenticated;
+
+-- 1v1 : inscription individuelle, refusée dans un tournoi par équipes.
+create or replace function public.s_inscrire_tournoi(p_tournament_id uuid)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_tournoi record;
+  v_compte record;
+  v_existante_id uuid;
+  v_existante_statut public.registration_status;
+  v_inscrits int;
+  v_rating int;
+  v_id uuid;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select id, statut, capacite, game_id, season_id, region, format
+  into v_tournoi
+  from public.tournaments
+  where id = p_tournament_id
+  for update;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if v_tournoi.format <> '1v1' then
+    raise exception 'TOURNOI_PAR_EQUIPES';
+  end if;
+
+  if v_tournoi.statut <> 'ouvert' then
+    raise exception 'INSCRIPTIONS_FERMEES';
+  end if;
+
+  select id, statut
+  into v_existante_id, v_existante_statut
+  from public.registrations
+  where tournament_id = p_tournament_id and profile_id = v_joueur;
+
+  if v_existante_id is not null and v_existante_statut <> 'retire' then
+    raise exception 'DEJA_INSCRIT';
+  end if;
+
+  select count(*) into v_inscrits
+  from public.registrations
+  where tournament_id = p_tournament_id and statut <> 'retire';
+
+  if v_inscrits >= v_tournoi.capacite then
+    raise exception 'TOURNOI_COMPLET';
+  end if;
+
+  select region, verifie_le
+  into v_compte
+  from public.game_accounts
+  where profile_id = v_joueur and game_id = v_tournoi.game_id and est_principal;
+
+  if not found or v_compte.verifie_le is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+
+  if v_compte.region <> v_tournoi.region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+
+  select round(r.rating)::int
+  into v_rating
+  from public.ratings r
+  where r.profile_id = v_joueur
+    and r.game_id = v_tournoi.game_id
+    and r.season_id = coalesce(
+      v_tournoi.season_id,
+      (select s.id from public.seasons s where s.game_id = v_tournoi.game_id and s.est_courante limit 1)
+    );
+
+  if v_existante_id is not null then
+    update public.registrations
+    set statut = 'inscrit', inscrit_le = now(), confirme_le = null, seed = null, rating_a_inscription = v_rating
+    where id = v_existante_id;
+    return v_existante_id;
+  end if;
+
+  insert into public.registrations (tournament_id, profile_id, rating_a_inscription)
+  values (p_tournament_id, v_joueur, v_rating)
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+revoke execute on function public.s_inscrire_tournoi(uuid) from public, anon;
+grant execute on function public.s_inscrire_tournoi(uuid) to authenticated;
+
+-- Check-in d'une équipe : l'alignement doit être complet (un joueur a pu
+-- quitter l'équipe ou être suspendu depuis l'inscription).
+create or replace function public.confirmer_presence(p_tournament_id uuid)
+returns boolean -- faux : aucune inscription en attente de check-in
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_statut public.tournament_status;
+  v_checkin timestamptz;
+  v_format text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select statut, checkin_ouvre_le, format
+  into v_statut, v_checkin, v_format
+  from public.tournaments
+  where id = p_tournament_id
+  for share;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if not (v_statut = 'checkin' or (v_statut = 'ouvert' and v_checkin <= now())) then
+    raise exception 'CHECKIN_FERME';
+  end if;
+
+  if v_format = '5v5' and (
+    select count(*)
+    from public.alignements a
+    join public.registrations r on r.id = a.registration_id
+    where r.tournament_id = p_tournament_id and r.profile_id = v_joueur and r.statut = 'inscrit'
+  ) not in (0, 5) then
+    raise exception 'ALIGNEMENT_INCOMPLET';
+  end if;
+
+  update public.registrations
+  set statut = 'confirme', confirme_le = now()
+  where tournament_id = p_tournament_id
+    and profile_id = v_joueur
+    and statut = 'inscrit'
+    and (v_format = '1v1' or exists (select 1 from public.alignements a where a.registration_id = registrations.id));
+
+  return found;
+end;
+$$;
+revoke execute on function public.confirmer_presence(uuid) from public, anon;
+grant execute on function public.confirmer_presence(uuid) to authenticated;
+
+-- Inscription retirée : ses joueurs sont libres de jouer pour une autre
+-- équipe du même tournoi.
+create or replace function public.liberer_alignement()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.statut = 'retire' and old.statut is distinct from 'retire' then
+    delete from public.alignements where registration_id = new.id;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.liberer_alignement() from public, anon, authenticated;
+drop trigger if exists registrations_liberer_alignement on public.registrations;
+create trigger registrations_liberer_alignement
+  after update of statut on public.registrations
+  for each row execute function public.liberer_alignement();
+
+-- Départ d'un membre aligné (il quitte l'équipe, le capitaine le retire,
+-- ou il supprime son compte).
+create or replace function public.controler_depart_aligne()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_ligne record;
+begin
+  for v_ligne in
+    select a.tournament_id, a.registration_id, t.statut as statut_tournoi
+    from public.alignements a
+    join public.registrations r on r.id = a.registration_id
+    join public.tournaments t on t.id = a.tournament_id
+    where a.profile_id = old.profile_id
+      and r.team_id = old.team_id
+      and r.statut in ('inscrit', 'confirme')
+      and t.statut in ('ouvert', 'checkin', 'en_cours')
+  loop
+    if v_ligne.statut_tournoi <> 'ouvert' then
+      raise exception 'ALIGNE_EN_TOURNOI';
+    end if;
+    delete from public.alignements
+    where tournament_id = v_ligne.tournament_id and profile_id = old.profile_id;
+    update public.registrations set statut = 'inscrit', confirme_le = null
+    where id = v_ligne.registration_id and statut = 'confirme';
+  end loop;
+  return old;
+end;
+$$;
+revoke execute on function public.controler_depart_aligne() from public, anon, authenticated;
+drop trigger if exists team_members_depart_aligne on public.team_members;
+create trigger team_members_depart_aligne
+  before delete on public.team_members
+  for each row execute function public.controler_depart_aligne();
+
+create or replace function public.controler_suppression_equipe()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.team_id = old.id and r.statut in ('inscrit', 'confirme')
+      and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) then
+    raise exception 'EQUIPE_INSCRITE_EN_TOURNOI';
+  end if;
+  return old;
+end;
+$$;
+revoke execute on function public.controler_suppression_equipe() from public, anon, authenticated;
+drop trigger if exists teams_suppression_equipe on public.teams;
+create trigger teams_suppression_equipe
+  before delete on public.teams
+  for each row execute function public.controler_suppression_equipe();
+
+-- Joueur suspendu : retiré des alignements des tournois pas encore
+-- commencés (son équipe repasse « inscrite » et doit le remplacer avant le
+-- check-in). Son inscription de capitaine, elle, est retirée par /admin.
+create or replace function public.retirer_suspendu_des_alignements()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.levee_le is null then
+    update public.registrations r
+    set statut = 'inscrit', confirme_le = null
+    from public.alignements a, public.tournaments t
+    where a.registration_id = r.id and t.id = a.tournament_id
+      and a.profile_id = new.profile_id and r.profile_id <> new.profile_id
+      and r.statut = 'confirme' and t.statut in ('ouvert', 'checkin');
+    delete from public.alignements a
+    using public.registrations r, public.tournaments t
+    where a.registration_id = r.id and t.id = a.tournament_id
+      and a.profile_id = new.profile_id and r.profile_id <> new.profile_id
+      and r.statut in ('inscrit', 'confirme') and t.statut in ('ouvert', 'checkin');
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.retirer_suspendu_des_alignements() from public, anon, authenticated;
+drop trigger if exists suspensions_retirer_des_alignements on public.suspensions;
+create trigger suspensions_retirer_des_alignements
+  after insert on public.suspensions
+  for each row execute function public.retirer_suspendu_des_alignements();
+
+-- Une équipe n'est confirmée qu'avec un alignement complet, quel que soit
+-- l'auteur (capitaine au check-in, organisateur depuis son cockpit).
+create or replace function public.controler_confirmation_equipe()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.team_id is not null and new.statut = 'confirme' and old.statut is distinct from 'confirme'
+     and (select count(*) from public.alignements where registration_id = new.id) <> 5 then
+    raise exception 'ALIGNEMENT_INCOMPLET';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_confirmation_equipe() from public, anon, authenticated;
+drop trigger if exists registrations_confirmation_equipe on public.registrations;
+create trigger registrations_confirmation_equipe
+  before update of statut on public.registrations
+  for each row execute function public.controler_confirmation_equipe();

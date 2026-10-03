@@ -58,8 +58,10 @@ async function chargerCV(slug: string) {
         .maybeSingle(),
       supabase
         .from("match_participants")
-        .select("match_id, est_gagnant, match:matches(tournament:tournaments(nom))")
-        .eq("profile_id", profil.id),
+        .select("match_id, est_gagnant, match:matches!inner(tournament:tournaments!inner(nom, format))")
+        .eq("profile_id", profil.id)
+        // 1v1 seulement : un match 5v5 n'est pas un résultat individuel (audit N21).
+        .eq("match.tournament.format", "1v1"),
       chargerOffre(supabase, profil.id),
     ]);
 

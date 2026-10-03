@@ -97,6 +97,17 @@ export default function CguPage() {
             par période de 24 heures compte au classement ; un défi sans
             partie retrouvée dans les 24 heures est annulé.
           </p>
+          <p className="mt-2 text-muted">
+            Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq
+            de ses membres, lui compris, chacun titulaire d&apos;un compte
+            Riot vérifié dans la région du tournoi ; un joueur ne joue que
+            pour une équipe par tournoi. Le capitaine représente
+            l&apos;équipe pour le check-in, la déclaration « prêt », la
+            reconnaissance de défaite et les litiges. Un résultat n&apos;est
+            retenu que si les dix joueurs inscrits ont joué la partie, chaque
+            équipe de son côté. Les tournois 5v5 ne modifient pas le
+            classement individuel.
+          </p>
         </section>
 
         <section>

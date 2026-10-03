@@ -77,6 +77,8 @@ export interface ParticipantCase {
   estGagnant: boolean | null;
   /** Chances estimées avant le match, en % (match pas encore décidé). */
   chances?: number | null;
+  /** Lien du nom (par défaut, le CV du joueur) : page de l'équipe en 5v5. */
+  lien?: string | null;
 }
 
 export type EtatMatch = "direct" | "verdict" | "litige" | "attente" | "a_venir";
@@ -122,9 +124,9 @@ export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit
                     p.estGagnant ? "font-semibold text-text" : p.estGagnant === false ? "text-faint" : "text-text-2"
                   }`}
                 >
-                  {p.slug ? (
+                  {p.lien || p.slug ? (
                     <Link
-                      href={`/joueur/${p.slug}`}
+                      href={p.lien ?? `/joueur/${p.slug}`}
                       className="hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     >
                       {p.pseudo}

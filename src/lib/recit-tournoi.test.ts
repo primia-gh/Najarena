@@ -28,6 +28,11 @@ describe("récit de tournoi", () => {
     ]);
   });
 
+  it("parle d'équipes dans un tournoi 5v5", () => {
+    const recit = recitTournoi({ nom: "Coupe 5v5", nbJoueurs: 4, bestOf: 1, matchs: bracket, equipes: true });
+    expect(recit?.[0]).toBe("A remporte Coupe 5v5 (4 équipes) en battant C en finale, 2-0.");
+  });
+
   it("n'écrit rien tant que la finale n'est pas décidée", () => {
     expect(recitTournoi({ nom: "X", nbJoueurs: 4, bestOf: 1, matchs: [bracket[0], bracket[1], m(2, ["a", null], ["c", null], null)] })).toBeNull();
   });

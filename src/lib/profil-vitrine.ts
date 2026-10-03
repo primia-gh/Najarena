@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { progressionPalier, type Palier } from "@/lib/classement";
 import { LABEL_ROLE, type Role } from "@/lib/roles";
+import { libelleEquipe, parcoursDansTournoi } from "@/lib/cinq-contre-cinq";
 
 // Données d'affichage ajoutées par la refonte « Venin » du profil
 // (design-system/najarena/pages/profil.md) : classement national, palier,
@@ -25,6 +26,15 @@ export interface SaisonPassee {
   palier: Palier | null;
   rang: number | null;
   classes: number;
+}
+
+/** Tournoi 5v5 terminé où le joueur était aligné (audit N21). */
+export interface TournoiEnEquipe {
+  nom: string;
+  slug: string;
+  debuteLe: string;
+  equipe: string;
+  resultat: string;
 }
 
 export interface EquipeJoueur {
@@ -190,6 +200,49 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
   );
   saisonsPassees.sort((a, b) => b.numero - a.numero);
 
+  // Tournois 5v5 terminés où il était aligné (audit N21) : où son équipe
+  // s'est arrêtée, d'après le bracket (le capitaine y représente l'équipe).
+  const { data: alignes } = await supabase
+    .from("alignements")
+    .select(
+      "registration:registrations!inner(profile_id, equipe_nom, equipe_tag), tournament:tournaments!inner(id, nom, slug, statut, debute_le, capacite)",
+    )
+    .eq("profile_id", profilId)
+    .eq("tournament.statut", "termine")
+    .order("aligne_le", { ascending: false })
+    .limit(10);
+  const capitaines = [...new Set((alignes ?? []).map((a) => a.registration.profile_id))];
+  const { data: matchsEquipes } =
+    capitaines.length > 0
+      ? await supabase
+          .from("match_participants")
+          .select(
+            "profile_id, est_gagnant, match:matches!inner(tour, tournament_id, match_verdicts(niveau, est_definitif))",
+          )
+          .in("profile_id", capitaines)
+          .in(
+            "match.tournament_id",
+            (alignes ?? []).map((a) => a.tournament.id),
+          )
+      : { data: [] };
+  const tournoisEnEquipe: TournoiEnEquipe[] = (alignes ?? []).map((a) => ({
+    nom: a.tournament.nom,
+    slug: a.tournament.slug,
+    debuteLe: a.tournament.debute_le,
+    equipe: libelleEquipe(a.registration.equipe_tag, a.registration.equipe_nom),
+    resultat: parcoursDansTournoi({
+      statut: a.tournament.statut,
+      capacite: a.tournament.capacite,
+      matchs: (matchsEquipes ?? [])
+        .filter((m) => m.profile_id === a.registration.profile_id && m.match.tournament_id === a.tournament.id)
+        .map((m) => ({
+          tour: m.match.tour,
+          estGagnant: m.est_gagnant,
+          verifie: m.match.match_verdicts.some((v) => v.est_definitif && v.niveau !== "manuel"),
+        })),
+    }).libelle,
+  }));
+
   return {
     saison,
     rangNational,
@@ -202,5 +255,6 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     roleLibelle: role ? LABEL_ROLE[role] : null,
     avatarUrl: profil?.avatar_url ?? null,
     saisonsPassees,
+    tournoisEnEquipe,
   };
 });

@@ -35,6 +35,8 @@ async function chargerSignaux(supabase: Awaited<ReturnType<typeof createClient>>
       .from("tournaments")
       .select("id, nom, slug, organisateur_id, statut")
       .eq("nature", "tournoi")
+      // Les tournois 5v5 (audit N21) ne touchent pas au rating individuel.
+      .eq("format", "1v1")
       .gte("debute_le", depuis),
     supabase
       .from("rating_events")

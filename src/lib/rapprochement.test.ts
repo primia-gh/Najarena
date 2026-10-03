@@ -158,3 +158,41 @@ describe("trouverSerieCorrespondante", () => {
     expect(riot.recupererDetailsMatch).toHaveBeenCalledTimes(1);
   });
 });
+
+// 5v5 (audit N21) : A et B sont les capitaines, chacun avec quatre
+// coéquipiers alignés.
+function ajouterPartie5v5(id: string, bleus: string[], rouges: string[], bleusGagnent: boolean) {
+  const participants = [
+    ...bleus.map((p) => ({ ...joueur(p, bleusGagnent), teamId: 100 })),
+    ...rouges.map((p) => ({ ...joueur(p, !bleusGagnent), teamId: 200 })),
+  ];
+  parties.set(id, {
+    info: { gameStartTimestamp: OUVERTURE.getTime() + 5 * MINUTE, gameDuration: 1500, queueId: 0, participants },
+  });
+  idsParJoueur.set("A", [id, ...(idsParJoueur.get("A") ?? [])]);
+}
+
+describe("trouverSerieCorrespondante — 5v5", () => {
+  const equipeA = ["A", "a2", "a3", "a4", "a5"];
+  const equipeB = ["B", "b2", "b3", "b4", "b5"];
+
+  it("retient la partie qui réunit les dix joueurs alignés, chaque équipe de son côté", async () => {
+    ajouterPartie5v5("EUW1_5v5", equipeB, equipeA, true);
+    const serie = await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, false, new Map(), "nexus", {
+      a: equipeA,
+      b: equipeB,
+    });
+    expect(serie?.gagnantPuuid).toBe("B");
+    expect(serie?.parties[0].participants).toHaveLength(10);
+  });
+
+  it("ignore une partie avec un remplaçant non inscrit", async () => {
+    ajouterPartie5v5("EUW1_remplacant", ["A", "a2", "a3", "a4", "x9"], equipeB, true);
+    expect(
+      await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, false, new Map(), "nexus", {
+        a: equipeA,
+        b: equipeB,
+      }),
+    ).toBeNull();
+  });
+});

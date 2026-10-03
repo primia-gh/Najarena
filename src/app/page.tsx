@@ -152,8 +152,8 @@ const AFFICHES_COMPLEMENT = [
   {
     cle: "organiser",
     nom: "Ton tournoi",
-    // Seul le 1v1 se crée aujourd'hui (audit M14).
-    format: "1v1",
+    // 1v1 ou 5v5 (audit N21).
+    format: "1v1 · 5v5",
     etiquette: "À toi de jouer",
     info: "Check-in, bracket et résultats gérés pour toi",
     lien: "/organiser/nouveau",

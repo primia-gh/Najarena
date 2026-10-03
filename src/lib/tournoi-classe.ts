@@ -25,6 +25,8 @@ export interface DonneesClassement {
   decision: boolean | null;
   /** Défi entre deux joueurs (audit N16) : classé sauf s'il se joue en amical. */
   defi?: boolean;
+  /** Tournoi 5v5 (audit N21) : jamais au classement individuel. */
+  equipes?: boolean;
 }
 
 export type EtatCritere = "ok" | "ko" | "attente";
@@ -52,6 +54,16 @@ export function publieATemps(publieLe: string | null, debuteLe: string): boolean
 }
 
 export function criteresClassement(d: DonneesClassement): CritereClassement[] {
+  if (d.equipes) {
+    return [
+      {
+        libelle: "Rating individuel : un résultat d'équipe ne dit pas le niveau de chacun",
+        etat: "ko",
+        detail: "Les résultats vérifiés vont au palmarès de l'équipe et aux statistiques de chaque joueur aligné.",
+      },
+    ];
+  }
+
   if (d.defi) {
     return [
       { libelle: "Défi entre deux comptes Riot vérifiés, arbitré par Najarena", etat: "ok", detail: null },
@@ -108,6 +120,16 @@ export function criteresClassement(d: DonneesClassement): CritereClassement[] {
 
 export function evaluerClassement(d: DonneesClassement): EvaluationClassement {
   const criteres = criteresClassement(d);
+
+  if (d.equipes) {
+    return {
+      statut: "non_classe",
+      titre: "Tournoi en équipe",
+      explication:
+        "Les tournois 5v5 ne modifient pas le rating individuel. Les matchs vérifiés comptent au palmarès de l'équipe et aux statistiques de chaque joueur aligné.",
+      criteres,
+    };
+  }
 
   if (d.decision === true) {
     return {
@@ -182,7 +204,8 @@ export function evaluerClassement(d: DonneesClassement): EvaluationClassement {
 }
 
 /** Valeur courte de l'encart « En jeu » de la page tournoi. */
-export function libelleEnJeu(statut: StatutClassement, amical: boolean): string {
+export function libelleEnJeu(statut: StatutClassement, amical: boolean, equipes = false): string {
+  if (equipes) return "Palmarès d'équipe";
   if (statut === "classe") return "Points de classement";
   if (statut === "a_confirmer") return "Classement à confirmer";
   return amical ? "Match amical" : "Aucun point";

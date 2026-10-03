@@ -10,6 +10,7 @@ import { envoyerRappel, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { echapperHtml } from "@/lib/echappement";
 import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
+import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 
 export async function apresVerdict(matchId: string, gagnantId: string, explication: string): Promise<void> {
   const admin = creerClientAdmin();
@@ -18,20 +19,30 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
   const { data: m } = await admin
     .from("matches")
     .select(
-      "tournament_id, match_suivant_id, tournament:tournaments(nom, slug), match_participants(profile_id, profile:profiles(pseudo))",
+      "tournament_id, match_suivant_id, tournament:tournaments(nom, slug, format), match_participants(profile_id, profile:profiles(pseudo))",
     )
     .eq("id", matchId)
     .maybeSingle();
   if (!m?.tournament) return;
   const tournoi = m.tournament;
 
+  // 5v5 (audit N21) : les cinq joueurs alignés de chaque équipe, pas
+  // seulement les capitaines du bracket.
+  const equipes = tournoi.format === "5v5" ? await chargerEquipesDesTournois(admin, [m.tournament_id]) : null;
+  const destinataires = m.match_participants.flatMap((p) =>
+    (equipes?.get(cleEquipe(m.tournament_id, p.profile_id))?.joueurs ?? [p.profile_id]).map((id) => ({
+      id,
+      gagne: p.profile_id === gagnantId,
+    })),
+  );
+
   // Une notification par joueur, indépendantes : en parallèle.
   await Promise.all(
-    m.match_participants.map((p) =>
+    destinataires.map((d) =>
       notifierJoueur(
-        p.profile_id,
+        d.id,
         `Résultat enregistré — ${tournoi.nom}`,
-        p.profile_id === gagnantId ? "Victoire enregistrée" : "Résultat de ton match",
+        d.gagne ? "Victoire enregistrée" : "Résultat de ton match",
         `<p>${echapperHtml(explication)}</p>
          <p><a href="${URL_SITE}/lol/tournois/${tournoi.slug}">Voir le bracket</a></p>`,
       ),
@@ -61,21 +72,26 @@ export async function prevenirMatchOuvert(matchId: string): Promise<void> {
 
   const { data: suivant } = await admin
     .from("matches")
-    .select("statut, tournament:tournaments(nom, slug), match_participants(profile_id, profile:profiles(pseudo))")
+    .select(
+      "statut, tournament_id, tournament:tournaments(nom, slug, format), match_participants(profile_id, profile:profiles(pseudo))",
+    )
     .eq("id", matchId)
     .maybeSingle();
   if (!suivant?.tournament || suivant.statut !== "en_cours" || suivant.match_participants.length !== 2) return;
 
-  const { nom, slug } = suivant.tournament;
+  const { nom, slug, format } = suivant.tournament;
+  // 5v5 (audit N21) : les dix joueurs alignés sont prévenus.
+  const equipes = format === "5v5" ? await chargerEquipesDesTournois(admin, [suivant.tournament_id]) : null;
+  const equipe = (capitaineId: string) => equipes?.get(cleEquipe(suivant.tournament_id, capitaineId));
   await Promise.all(
-    suivant.match_participants.map((p) => {
-      const adversaire =
-        suivant.match_participants.find((q) => q.profile_id !== p.profile_id)?.profile?.pseudo ?? "ton adversaire";
-      return envoyerRappel(
-        p.profile_id,
-        `Ton match est ouvert — ${nom}`,
-        `Adversaire : ${adversaire}. Son Riot ID, qui crée la partie et les règles sont dans la salle de match.`,
-        `${URL_SITE}/lol/tournois/${slug}#ton-match`,
+    suivant.match_participants.flatMap((p) => {
+      const autre = suivant.match_participants.find((q) => q.profile_id !== p.profile_id);
+      const adversaire = (autre && equipe(autre.profile_id)?.libelle) ?? autre?.profile?.pseudo ?? "ton adversaire";
+      const texte = equipes
+        ? `Équipe adverse : ${adversaire}. Les Riot ID des dix joueurs, qui crée la partie et les règles sont dans la salle de match.`
+        : `Adversaire : ${adversaire}. Son Riot ID, qui crée la partie et les règles sont dans la salle de match.`;
+      return (equipe(p.profile_id)?.joueurs ?? [p.profile_id]).map((id) =>
+        envoyerRappel(id, `Ton match est ouvert — ${nom}`, texte, `${URL_SITE}/lol/tournois/${slug}#ton-match`),
       );
     }),
   );

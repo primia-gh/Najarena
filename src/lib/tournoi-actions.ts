@@ -31,8 +31,11 @@ export async function creerTournoi(formData: FormData) {
   // Tournoi amical (audit N12) : aucun point de classement en jeu, choix
   // figé à la création comme les autres réglages.
   const amical = formData.get("amical") === "oui";
+  // Format (audit N21) : 5v5 = inscription par équipe, toujours jusqu'au
+  // Nexus et hors classement individuel (la base l'exige aussi).
+  const format = formData.get("format") === "5v5" ? "5v5" : "1v1";
   // Condition de victoire (audit N5) : Nexus par défaut, 1v1 classique au choix.
-  const condition = formData.get("condition_victoire") === "classique" ? "classique" : "nexus";
+  const condition = format === "1v1" && formData.get("condition_victoire") === "classique" ? "classique" : "nexus";
 
   if (nom.length < 3 || nom.length > 60) {
     redirect(
@@ -107,14 +110,14 @@ export async function creerTournoi(formData: FormData) {
     organisateur_id: userData.user.id,
     slug,
     nom,
-    format: "1v1",
+    format,
     capacite,
     best_of: bestOf,
     region,
     debute_le: debuteLe.toISOString(),
     checkin_ouvre_le: checkinOuvreLe.toISOString(),
     statut: publier ? "ouvert" : "brouillon",
-    compte_pour_classement: !amical,
+    compte_pour_classement: format === "1v1" && !amical,
     condition_victoire: condition,
   });
 
@@ -126,7 +129,7 @@ export async function creerTournoi(formData: FormData) {
 
   if (publier) {
     await notifierDiscord(
-      `📣 Nouveau tournoi ouvert — **${echapperDiscord(nom)}** (${capacite} joueurs, ${region}), débute le ${formaterDate(debuteLe.toISOString())}.\n${URL_SITE}/lol/tournois/${slug}`,
+      `📣 Nouveau tournoi ${format} ouvert — **${echapperDiscord(nom)}** (${capacite} ${format === "5v5" ? "équipes" : "joueurs"}, ${region}), débute le ${formaterDate(debuteLe.toISOString())}.\n${URL_SITE}/lol/tournois/${slug}`,
     );
     redirect(`/lol/tournois/${slug}`);
   }

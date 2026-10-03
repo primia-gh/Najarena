@@ -21,6 +21,8 @@ export interface DonneesRecit {
   matchs: MatchRecit[];
   /** Chances qu'avait le vainqueur d'un match avant de le jouer (0 à 1). */
   chances?: (gagnantId: string, perdantId: string) => number;
+  /** Tournoi 5v5 (audit N21) : des équipes, hors classement individuel. */
+  equipes?: boolean;
 }
 
 const SEUIL_EXPLOIT = 0.35;
@@ -55,10 +57,10 @@ export function recitTournoi(d: DonneesRecit): string[] | null {
   const phrases: string[] = [];
 
   // 1. Vainqueur et finale.
-  const joueurs = `${d.nbJoueurs} joueur${d.nbJoueurs > 1 ? "s" : ""}`;
+  const joueurs = `${d.nbJoueurs} ${d.equipes ? "équipe" : "joueur"}${d.nbJoueurs > 1 ? "s" : ""}`;
   if (finale.verdict.niveau === "manuel") {
     phrases.push(
-      `${vainqueur} remporte ${d.nom} (${joueurs}) : la finale contre ${finaliste?.pseudo ?? "son adversaire"} a été tranchée par l'organisateur (verdict manuel, hors classement).`,
+      `${vainqueur} remporte ${d.nom} (${joueurs}) : la finale contre ${finaliste?.pseudo ?? "son adversaire"} a été tranchée par l'organisateur (verdict manuel${d.equipes ? "" : ", hors classement"}).`,
     );
   } else {
     const score =
@@ -116,7 +118,9 @@ export function recitTournoi(d: DonneesRecit): string[] | null {
     } else {
       const manuels = joues.length - verifies;
       phrases.push(
-        `${verifies} match${verifies > 1 ? "s" : ""} sur ${joues.length} vérifié${verifies > 1 ? "s" : ""} dans la donnée officielle Riot ; ${manuels > 1 ? `les ${manuels} autres, tranchés` : "l'autre, tranché"} à la main, ne ${manuels > 1 ? "comptent" : "compte"} pas au classement.`,
+        d.equipes
+          ? `${verifies} match${verifies > 1 ? "s" : ""} sur ${joues.length} vérifié${verifies > 1 ? "s" : ""} dans la donnée officielle Riot ; ${manuels > 1 ? `les ${manuels} autres ont été tranchés` : "l'autre a été tranché"} à la main.`
+          : `${verifies} match${verifies > 1 ? "s" : ""} sur ${joues.length} vérifié${verifies > 1 ? "s" : ""} dans la donnée officielle Riot ; ${manuels > 1 ? `les ${manuels} autres, tranchés` : "l'autre, tranché"} à la main, ne ${manuels > 1 ? "comptent" : "compte"} pas au classement.`,
       );
     }
   }

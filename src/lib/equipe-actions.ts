@@ -12,6 +12,11 @@ import { messageModeration } from "@/lib/moderation";
 // 2 à 5 lettres/chiffres, convention standard des tags d'équipe esport.
 const TAG_REGEX = /^[A-Za-z0-9]{2,5}$/;
 
+// Départ refusé par la base (audit N21) : aligné dans un tournoi 5v5 dont le
+// check-in ou les matchs ont commencé.
+const MESSAGE_ALIGNE_EN_TOURNOI =
+  "Ce joueur est aligné dans un tournoi 5v5 en check-in ou en cours : il pourra quitter l'équipe à la fin du tournoi.";
+
 export async function creerEquipe(formData: FormData) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -183,11 +188,16 @@ export async function refuserInvitation(formData: FormData) {
   // Même action pour "refuser une invitation" et "quitter l'équipe" — dans
   // les deux cas, le joueur retire sa propre ligne. La policy RLS "membre
   // quitte ou capitaine retire" l'autorise.
-  await supabase
+  const { error } = await supabase
     .from("team_members")
     .delete()
     .eq("team_id", teamId)
     .eq("profile_id", userData.user.id);
+
+  // Aligné dans un tournoi 5v5 en check-in ou en cours (audit N21).
+  if (error?.message.includes("ALIGNE_EN_TOURNOI")) {
+    redirect(`/moi?erreur=${encodeURIComponent(MESSAGE_ALIGNE_EN_TOURNOI)}`);
+  }
 
   redirect("/moi");
 }
@@ -258,7 +268,11 @@ export async function retirerMembre(formData: FormData) {
   const profileId = String(formData.get("profile_id") ?? "");
   const slug = String(formData.get("slug") ?? "");
 
-  await supabase.from("team_members").delete().eq("team_id", teamId).eq("profile_id", profileId);
+  const { error } = await supabase.from("team_members").delete().eq("team_id", teamId).eq("profile_id", profileId);
+
+  if (error?.message.includes("ALIGNE_EN_TOURNOI")) {
+    redirect(`/equipe/${slug}?erreur=${encodeURIComponent(MESSAGE_ALIGNE_EN_TOURNOI)}`);
+  }
 
   redirect(`/equipe/${slug}`);
 }

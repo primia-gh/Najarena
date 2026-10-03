@@ -194,6 +194,12 @@ export default function CommentCaMarchePage() {
               Dans tous les cas, seuls les matchs vérifiés dans la donnée Riot comptent, et au-delà de 3 victoires
               contre le même adversaire en 24 h, les suivantes sont ignorées.
             </p>
+            <p className="mt-3 max-w-lg text-sm text-muted">
+              Les tournois 5v5 ne comptent jamais au classement individuel : un résultat d&apos;équipe ne dit pas le
+              niveau de chacun. Ils sont vérifiés de la même façon — la partie doit réunir les dix joueurs inscrits,
+              chaque équipe de son côté — et s&apos;inscrivent au palmarès de l&apos;équipe et au parcours de chaque
+              joueur aligné.
+            </p>
           </section>
         </Apparition>
 

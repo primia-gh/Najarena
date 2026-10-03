@@ -97,6 +97,19 @@ export default async function OrganiserNouveauPage({
           />
         </label>
 
+        {/* Format (audit N21) : en 5v5, les capitaines inscrivent leur équipe. */}
+        <fieldset className="flex flex-col gap-2">
+          <legend className="font-texte text-mini font-medium text-muted uppercase">Format</legend>
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input type="radio" name="format" value="1v1" defaultChecked className="accent-accent" />
+            1v1 — chaque joueur s&apos;inscrit lui-même
+          </label>
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input type="radio" name="format" value="5v5" className="accent-accent" />
+            5v5 — le capitaine inscrit son équipe de cinq (hors classement individuel)
+          </label>
+        </fieldset>
+
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
             Capacité
@@ -110,13 +123,14 @@ export default async function OrganiserNouveauPage({
           >
             {CAPACITES.map((c) => (
               <option key={c} value={c}>
-                {c} joueurs
+                {c} places
               </option>
             ))}
             {estOrganisateurPremium && (
-              <option value={CAPACITE_ETENDUE}>{CAPACITE_ETENDUE} joueurs — Organisateur</option>
+              <option value={CAPACITE_ETENDUE}>{CAPACITE_ETENDUE} places — Organisateur</option>
             )}
           </select>
+          <span className="text-xs text-muted">Une place = un joueur en 1v1, une équipe de cinq en 5v5.</span>
         </label>
 
         {estOrganisateurPremium && (
@@ -155,7 +169,8 @@ export default async function OrganiserNouveauPage({
             ))}
           </select>
           <span className="text-xs text-muted">
-            Dans les deux cas, le vainqueur est lu automatiquement dans la donnée Riot de la partie.
+            Dans les deux cas, le vainqueur est lu automatiquement dans la donnée Riot de la partie. En 5v5, la
+            partie se joue toujours jusqu&apos;au Nexus.
           </span>
         </label>
 
@@ -233,7 +248,8 @@ export default async function OrganiserNouveauPage({
           <p className="text-sm leading-normal text-muted">
             Ton tournoi comptera au classement s&apos;il est publié au moins {PREAVIS_TOURNOI_CLASSE_HEURES} h avant
             son début, si au moins {JOUEURS_MIN_TOURNOI_CLASSE} joueurs prennent le départ et si tu ne joues pas
-            dedans. Sinon, il se joue normalement, sans points.{" "}
+            dedans. Sinon, il se joue normalement, sans points. Un tournoi 5v5 ne compte jamais au classement
+            individuel.{" "}
             <Link href="/comment-ca-marche#tournois-classes" className="text-text underline underline-offset-3">
               Pourquoi
             </Link>

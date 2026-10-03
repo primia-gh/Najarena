@@ -71,6 +71,8 @@ Une partie de l'historique est retenue si **toutes** ces conditions sont vraies 
 
 **1v1 classique** (`tournaments.condition_victoire = 'classique'`, audit N5, 28/09/2026) : les critères 1 à 3 s'appliquent, mais le vainqueur n'est pas celui de la partie — c'est le premier qui obtient le premier sang, détruit la première tour ou atteint 100 sbires, lu dans la chronologie de la partie (match-v5 timeline, `src/lib/conditions-1v1.ts`). La durée minimale ne s'applique pas (un premier sang à 2 minutes est une vraie victoire). Les sbires ne figurent dans la chronologie qu'une fois par minute : si deux conditions remplies par des joueurs différents tombent dans la même minute, l'ordre est impossible à établir et la partie n'est pas retenue — l'organisateur tranche. Aucune condition remplie : partie non retenue.
 
+**5v5** (`tournaments.format = '5v5'`, audit N21, 03/10/2026) : dans le bracket, chaque équipe est représentée par son capitaine ; les critères 1 à 4 s'appliquent aux deux capitaines, et la partie doit en plus compter **dix joueurs, dont les cinq joueurs alignés de chaque équipe** (table `alignements`, figée au lancement du bracket), tous du même côté, les deux équipes face à face (`src/lib/cinq-contre-cinq.ts`). Un remplaçant non inscrit ou un joueur passé dans l'autre camp : partie non retenue, l'organisateur tranche. Les statistiques des dix joueurs sont enregistrées ; elles n'entrent pas dans les moyennes du 1v1.
+
 Les parties retenues sont rejouées dans l'ordre chronologique : en Bo1 la première décide, en Bo3 / Bo5 la série s'arrête dès qu'un joueur atteint 2 / 3 victoires. Une série inachevée (1-1) n'est jamais tranchée par déduction. Le verdict garde les identifiants Riot de toutes les manches (`riot_match_id`, séparés par des virgules) ; les statistiques enregistrées sont celles de la manche décisive.
 
 ---
@@ -97,6 +99,10 @@ Avant l'étape 5, vérifier qu'aucune ligne `rating_events` n'existe déjà pour
 ### Tournoi classé
 
 Seul un tournoi **classé** écrit des points (audit E12 / N12, 28/09/2026) : un tournoi officiel (quotidien automatique), ou un tournoi d'organisateur qui remplit tous ces critères publics — au moins 8 joueurs au départ du bracket, publié au moins 24 h avant son début (`publie_le`, posée par la base à l'ouverture des inscriptions), sans son organisateur dans le bracket, pas déclaré amical. La clôture demande la décision à la base (`figer_classement_tournoi`) une fois la finale jouée ; elle est alors écrite dans `tournaments.classe` et ne change plus. Un tournoi non classé est clôturé sans aucune écriture dans `ratings` ni `rating_events`, et `cloturer_rating_joueur` refuse tout tournoi non classé (`TOURNOI_NON_CLASSE`). La page du tournoi affiche chaque critère (`src/lib/tournoi-classe.ts`, mêmes seuils).
+
+### Tournois 5v5
+
+Un tournoi 5v5 n'écrit jamais de points (contrainte `tournaments_5v5_hors_classement` : `compte_pour_classement` est faux) : le rating Glicko-2 mesure un joueur seul. Sa clôture se fait comme celle d'un tournoi non classé. Ses résultats vérifiés vont au palmarès de l'équipe (page `/equipe/[slug]`) et au parcours du CV de chaque joueur aligné.
 
 ### Défis entre joueurs
 
