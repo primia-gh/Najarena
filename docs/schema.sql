@@ -6805,3 +6805,205 @@ end;
 $$;
 revoke execute on function public.delier_serveur_discord(uuid) from public, anon;
 grant execute on function public.delier_serveur_discord(uuid) to authenticated;
+
+-- ---------- Cash prizes sponsorisés, désactivés (2026-10-03, audit N32) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Une dotation est financée par un sponsor, jamais par les joueurs
+-- (l'inscription reste gratuite), saisie par un administrateur avant la
+-- clôture des inscriptions d'un tournoi 1v1. À la fin du tournoi, les
+-- gagnants sont lus dans le bracket (rang 1 = vainqueur, 2 = finaliste,
+-- 3 = demi-finalistes, 4 = quarts de finalistes) ; un rang décidé par un
+-- verdict manuel est marqué « à vérifier ». Aucun argent ne transite par
+-- le site : l'administrateur verse hors du site, après vérification
+-- d'identité, puis note la référence. Le site n'affiche rien tant que
+-- CASH_PRIZES_ACTIFS n'est pas activé côté serveur — à ne faire qu'après
+-- le statut juridique (audit E11), des CGU relues et la vérification des
+-- règles Riot sur les tournois dotés.
+create table if not exists public.dotations (
+  tournament_id  uuid primary key references public.tournaments(id) on delete cascade,
+  sponsor_nom    text not null check (char_length(btrim(sponsor_nom)) between 2 and 60),
+  sponsor_lien   text check (sponsor_lien is null or sponsor_lien ~ '^https://[^\s]{3,200}$'),
+  -- Montants en centimes d'euro par rang (index 1 = vainqueur, 2 =
+  -- finaliste, 3 = chaque demi-finaliste, 4 = chaque quart de finaliste).
+  repartition    integer[] not null check (cardinality(repartition) between 1 and 4 and 0 < all(repartition)),
+  statut         text not null default 'validee' check (statut in ('validee', 'annulee')),
+  cree_par       uuid not null references public.profiles(id),
+  cree_le        timestamptz not null default now()
+);
+alter table public.dotations enable row level security;
+create policy "dotations validees lisibles par tous" on public.dotations
+  for select using (statut = 'validee' or exists (select 1 from public.admins where profile_id = (select auth.uid())));
+revoke insert, update, delete on public.dotations from anon, authenticated;
+
+create or replace function public.moderer_dotation()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.analyser_texte(new.sponsor_nom, 'nom'), '') like 'refus:%' then
+    raise exception 'NOM_INTERDIT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_dotation() from public, anon, authenticated;
+drop trigger if exists moderation_dotation on public.dotations;
+create trigger moderation_dotation
+  before insert or update of sponsor_nom on public.dotations
+  for each row execute function public.moderer_dotation();
+
+create table if not exists public.versements_dotation (
+  tournament_id     uuid not null references public.dotations(tournament_id) on delete cascade,
+  profile_id        uuid not null references public.profiles(id),
+  rang              smallint not null check (rang between 1 and 4),
+  montant_centimes  integer not null check (montant_centimes > 0),
+  a_verifier        boolean not null default false,
+  statut            text not null default 'a_verser' check (statut in ('a_verser', 'verse', 'refuse')),
+  reference         text check (char_length(reference) <= 120),
+  maj_le            timestamptz not null default now(),
+  primary key (tournament_id, profile_id)
+);
+alter table public.versements_dotation enable row level security;
+create policy "versements lisibles par le gagnant et les admins" on public.versements_dotation
+  for select using (
+    profile_id = (select auth.uid())
+    or exists (select 1 from public.admins where profile_id = (select auth.uid()))
+  );
+revoke insert, update, delete on public.versements_dotation from anon, authenticated;
+
+create or replace function public.exiger_admin()
+returns void
+language plpgsql
+stable
+security definer set search_path = public
+as $$
+begin
+  if not exists (select 1 from public.admins where profile_id = auth.uid()) then
+    raise exception 'ADMIN_REQUIS';
+  end if;
+end;
+$$;
+revoke all on function public.exiger_admin() from public, anon, authenticated;
+
+create or replace function public.enregistrer_dotation(
+  p_tournament_id uuid, p_sponsor_nom text, p_sponsor_lien text, p_repartition integer[]
+)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi record;
+begin
+  perform public.exiger_admin();
+  select statut, nature, format into v_tournoi from public.tournaments where id = p_tournament_id;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_tournoi.nature <> 'tournoi' or v_tournoi.format <> '1v1' then
+    raise exception 'DOTATION_FORMAT';
+  end if;
+  -- Annoncée avant la fin des inscriptions : jamais ajoutée en cours de route.
+  if v_tournoi.statut not in ('brouillon', 'ouvert') then
+    raise exception 'DOTATION_TROP_TARD';
+  end if;
+  insert into public.dotations (tournament_id, sponsor_nom, sponsor_lien, repartition, cree_par)
+  values (p_tournament_id, btrim(p_sponsor_nom), nullif(btrim(coalesce(p_sponsor_lien, '')), ''), p_repartition, auth.uid())
+  on conflict (tournament_id) do update
+    set sponsor_nom = excluded.sponsor_nom, sponsor_lien = excluded.sponsor_lien,
+        repartition = excluded.repartition, statut = 'validee';
+  return true;
+end;
+$$;
+revoke execute on function public.enregistrer_dotation(uuid, text, text, integer[]) from public, anon;
+grant execute on function public.enregistrer_dotation(uuid, text, text, integer[]) to authenticated;
+
+create or replace function public.annuler_dotation(p_tournament_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  perform public.exiger_admin();
+  if exists (select 1 from public.versements_dotation where tournament_id = p_tournament_id and statut = 'verse') then
+    raise exception 'DOTATION_DEJA_VERSEE';
+  end if;
+  update public.dotations set statut = 'annulee' where tournament_id = p_tournament_id;
+  return found;
+end;
+$$;
+revoke execute on function public.annuler_dotation(uuid) from public, anon;
+grant execute on function public.annuler_dotation(uuid) to authenticated;
+
+-- Gagnants lus dans le bracket d'un tournoi terminé. Idempotent : une
+-- relance n'ajoute rien et ne touche pas aux versements déjà notés.
+create or replace function public.preparer_versements(p_tournament_id uuid)
+returns integer
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_dotation record;
+  v_capacite integer;
+  v_statut text;
+  v_nb_tours integer;
+  v_avant integer;
+  v_apres integer;
+begin
+  perform public.exiger_admin();
+  select * into v_dotation from public.dotations where tournament_id = p_tournament_id and statut = 'validee';
+  if not found then
+    raise exception 'DOTATION_INTROUVABLE';
+  end if;
+  select capacite, statut into v_capacite, v_statut from public.tournaments where id = p_tournament_id;
+  if v_statut <> 'termine' then
+    raise exception 'TOURNOI_PAS_TERMINE';
+  end if;
+  v_nb_tours := round(log(2, v_capacite::numeric))::integer;
+  select count(*) into v_avant from public.versements_dotation where tournament_id = p_tournament_id;
+
+  insert into public.versements_dotation (tournament_id, profile_id, rang, montant_centimes, a_verifier)
+  select p_tournament_id, g.profile_id, g.rang, v_dotation.repartition[g.rang], g.manuel
+  from (
+    -- Vainqueur : gagnant de la finale.
+    select v.gagnant_id as profile_id, 1 as rang, v.niveau = 'manuel' as manuel
+    from public.matches m
+    join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+    where m.tournament_id = p_tournament_id and m.tour = v_nb_tours and v.gagnant_id is not null
+    union all
+    -- Rangs 2 à 4 : perdants de la finale, des demi-finales, des quarts.
+    select mp.profile_id, v_nb_tours - m.tour + 2, v.niveau = 'manuel'
+    from public.matches m
+    join public.match_verdicts v on v.match_id = m.id and v.est_definitif and v.gagnant_id is not null
+    join public.match_participants mp on mp.match_id = m.id and mp.profile_id <> v.gagnant_id
+    where m.tournament_id = p_tournament_id and v_nb_tours - m.tour + 2 between 2 and 4
+  ) g
+  where g.rang <= cardinality(v_dotation.repartition) and g.profile_id is not null
+  on conflict (tournament_id, profile_id) do nothing;
+
+  select count(*) into v_apres from public.versements_dotation where tournament_id = p_tournament_id;
+  return v_apres - v_avant;
+end;
+$$;
+revoke execute on function public.preparer_versements(uuid) from public, anon;
+grant execute on function public.preparer_versements(uuid) to authenticated;
+
+create or replace function public.noter_versement(p_tournament_id uuid, p_profile_id uuid, p_statut text, p_reference text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  perform public.exiger_admin();
+  if p_statut not in ('a_verser', 'verse', 'refuse') then
+    raise exception 'STATUT_INVALIDE';
+  end if;
+  update public.versements_dotation
+  set statut = p_statut, reference = nullif(btrim(coalesce(p_reference, '')), ''), maj_le = now()
+  where tournament_id = p_tournament_id and profile_id = p_profile_id;
+  return found;
+end;
+$$;
+revoke execute on function public.noter_versement(uuid, uuid, text, text) from public, anon;
+grant execute on function public.noter_versement(uuid, uuid, text, text) to authenticated;

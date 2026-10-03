@@ -7,6 +7,7 @@ import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { echapperHtml } from "@/lib/echappement";
 import { slugifier } from "@/lib/slug";
 import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
+import { cashPrizesActifs, lireRepartition, messageRefusDotation } from "@/lib/dotations";
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -283,4 +284,70 @@ export async function retirerEcheance(formData: FormData) {
     .delete()
     .eq("id", String(formData.get("echeance_id") ?? ""));
   redirect(`/admin?message=${encodeURIComponent("Échéance retirée.")}#echeances`);
+}
+
+// ---------- Cash prizes sponsorisés (03/10/2026, audit N32) ----------
+// Désactivés tant que CASH_PRIZES_ACTIFS n'est pas à « 1 » (voir
+// lib/dotations.ts). La base réserve tout aux administrateurs et ne fait
+// transiter aucun argent : les versements se font hors du site, puis
+// s'y notent avec leur référence.
+function versDotations(type: "message" | "erreur", texte: string): never {
+  redirect(`/admin?${type}=${encodeURIComponent(texte)}#dotations`);
+}
+
+export async function enregistrerDotation(formData: FormData) {
+  if (!cashPrizesActifs()) versDotations("erreur", "Les cash prizes sont désactivés.");
+  const supabase = await createClient();
+  await verifierAdmin(supabase);
+
+  const slug = String(formData.get("slug") ?? "").trim();
+  const repartition = lireRepartition(String(formData.get("repartition") ?? ""));
+  if (!repartition) versDotations("erreur", "Répartition invalide : 1 à 4 montants en euros, par exemple « 100, 50, 25 ».");
+  const { data: tournoi } = await supabase.from("tournaments").select("id").eq("slug", slug).maybeSingle();
+  if (!tournoi) versDotations("erreur", "Tournoi introuvable (indique la fin de son adresse).");
+
+  const { error } = await supabase.rpc("enregistrer_dotation", {
+    p_tournament_id: tournoi.id,
+    p_sponsor_nom: String(formData.get("sponsor_nom") ?? ""),
+    p_sponsor_lien: String(formData.get("sponsor_lien") ?? ""),
+    p_repartition: repartition,
+  });
+  if (error) versDotations("erreur", messageRefusDotation(error.message, "Impossible d'enregistrer la dotation."));
+  versDotations("message", "Dotation enregistrée.");
+}
+
+export async function annulerDotation(formData: FormData) {
+  if (!cashPrizesActifs()) versDotations("erreur", "Les cash prizes sont désactivés.");
+  const supabase = await createClient();
+  await verifierAdmin(supabase);
+  const { error } = await supabase.rpc("annuler_dotation", {
+    p_tournament_id: String(formData.get("tournament_id") ?? ""),
+  });
+  if (error) versDotations("erreur", messageRefusDotation(error.message, "Impossible d'annuler la dotation."));
+  versDotations("message", "Dotation annulée.");
+}
+
+export async function preparerVersements(formData: FormData) {
+  if (!cashPrizesActifs()) versDotations("erreur", "Les cash prizes sont désactivés.");
+  const supabase = await createClient();
+  await verifierAdmin(supabase);
+  const { data: nombre, error } = await supabase.rpc("preparer_versements", {
+    p_tournament_id: String(formData.get("tournament_id") ?? ""),
+  });
+  if (error) versDotations("erreur", messageRefusDotation(error.message, "Impossible de désigner les gagnants."));
+  versDotations("message", `${nombre ?? 0} gagnant(s) ajouté(s) à la liste des versements.`);
+}
+
+export async function noterVersement(formData: FormData) {
+  if (!cashPrizesActifs()) versDotations("erreur", "Les cash prizes sont désactivés.");
+  const supabase = await createClient();
+  await verifierAdmin(supabase);
+  const { error } = await supabase.rpc("noter_versement", {
+    p_tournament_id: String(formData.get("tournament_id") ?? ""),
+    p_profile_id: String(formData.get("profile_id") ?? ""),
+    p_statut: String(formData.get("statut") ?? ""),
+    p_reference: String(formData.get("reference") ?? ""),
+  });
+  if (error) versDotations("erreur", messageRefusDotation(error.message, "Impossible de noter ce versement."));
+  versDotations("message", "Versement noté.");
 }

@@ -4,7 +4,11 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import {
   ajouterEcheance,
+  annulerDotation,
+  enregistrerDotation,
   leverSuspension,
+  noterVersement,
+  preparerVersements,
   resoudreLitigeAdmin,
   retirerEcheance,
   suspendreCompte,
@@ -14,6 +18,7 @@ import { LIBELLE_RAISON } from "@/lib/moderation";
 import { attribuerOffreAdmin } from "@/lib/offres-actions";
 import { LABEL_OFFRE, chargerOffres, type Offre } from "@/lib/offres";
 import { formaterDate } from "@/lib/tournois";
+import { cashPrizesActifs, formaterEuros, LIBELLE_RANG } from "@/lib/dotations";
 import { detecterSignaux } from "@/lib/signaux";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
@@ -186,6 +191,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .order("debut_le", { ascending: true })
       .limit(40),
   ]);
+
+  // Cash prizes (audit N32) : rien n'est lu tant qu'ils sont désactivés.
+  const { data: dotationsData } = cashPrizesActifs()
+    ? await supabase
+        .from("dotations")
+        .select(
+          "tournament_id, sponsor_nom, repartition, statut, tournament:tournaments(nom, slug, statut), versements_dotation(profile_id, rang, montant_centimes, a_verifier, statut, reference, profile:profiles(pseudo))",
+        )
+        .order("cree_le", { ascending: false })
+        .limit(30)
+    : { data: [] };
+  const dotations = dotationsData ?? [];
 
   const { signaux, profilsSignales, tournoisRecents } = await chargerSignaux(supabase);
   const joueurSignale = new Map(profilsSignales.map((p) => [p.id, p]));
@@ -479,6 +496,119 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+      </Apparition>
+
+      <Apparition delai={0.127}>
+      <section id="dotations" className="mt-10 scroll-mt-28" aria-labelledby="titre-dotations">
+        <SectionTitre>
+          <span id="titre-dotations">Cash prizes sponsorisés</span>
+        </SectionTitre>
+        {!cashPrizesActifs() ? (
+          <p className="mt-1 max-w-2xl text-sm text-muted">
+            Désactivés. À n&apos;allumer (variable CASH_PRIZES_ACTIFS=1 sur l&apos;hébergeur) qu&apos;après le statut
+            juridique de l&apos;éditeur, des CGU relues par un juriste et la vérification des règles Riot sur les
+            tournois dotés. Le site ne fait transiter aucun argent : il affiche la dotation, désigne les gagnants
+            d&apos;après le bracket et garde la trace des versements faits hors du site.
+          </p>
+        ) : (
+          <>
+            <p className="mt-1 max-w-2xl text-sm text-muted">
+              Dotation financée par un sponsor, annoncée avant la fin des inscriptions d&apos;un tournoi 1v1. Montants
+              en euros par rang : vainqueur, finaliste, chaque demi-finaliste, chaque quart de finaliste.
+            </p>
+            <form action={enregistrerDotation} className="mt-3 grid max-w-2xl gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1">
+                <span className="font-texte text-mini font-medium text-muted uppercase">Adresse du tournoi</span>
+                <input name="slug" required placeholder="coupe-du-jeudi-ab12c" className={CHAMP_ADMIN} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="font-texte text-mini font-medium text-muted uppercase">Sponsor</span>
+                <input name="sponsor_nom" required minLength={2} maxLength={60} className={CHAMP_ADMIN} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="font-texte text-mini font-medium text-muted uppercase">Site du sponsor (facultatif)</span>
+                <input name="sponsor_lien" type="url" placeholder="https://" className={CHAMP_ADMIN} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="font-texte text-mini font-medium text-muted uppercase">Répartition (€)</span>
+                <input name="repartition" required placeholder="100, 50, 25" className={CHAMP_ADMIN} />
+              </label>
+              <Bouton libelleEnCours="Enregistrement…" className="self-start">
+                Enregistrer la dotation
+              </Bouton>
+            </form>
+            {dotations.length > 0 && (
+              <ul className="mt-4 flex max-w-3xl flex-col gap-3">
+                {dotations.map((d) => (
+                  <li key={d.tournament_id} className={"flex flex-col gap-2 " + classeCarte("none")}>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span>
+                        <Link href={`/lol/tournois/${d.tournament?.slug ?? ""}`} className="font-semibold hover:text-accent">
+                          {d.tournament?.nom ?? "Tournoi"}
+                        </Link>{" "}
+                        · {d.sponsor_nom} · {d.repartition.map((c) => formaterEuros(c)).join(" / ")}
+                        {d.statut === "annulee" ? " · annulée" : ""}
+                      </span>
+                      {d.statut === "validee" && (
+                        <span className="flex flex-wrap gap-3">
+                          {d.tournament?.statut === "termine" && (
+                            <form action={preparerVersements}>
+                              <input type="hidden" name="tournament_id" value={d.tournament_id} />
+                              <button type="submit" className="inline-flex min-h-11 items-center text-mini text-accent underline underline-offset-3">
+                                Désigner les gagnants
+                              </button>
+                            </form>
+                          )}
+                          <form action={annulerDotation}>
+                            <input type="hidden" name="tournament_id" value={d.tournament_id} />
+                            <BoutonConfirmation
+                              type="submit"
+                              confirmation="Annuler cette dotation ?"
+                              className="inline-flex min-h-11 items-center text-mini text-danger underline underline-offset-3"
+                            >
+                              Annuler
+                            </BoutonConfirmation>
+                          </form>
+                        </span>
+                      )}
+                    </div>
+                    {d.versements_dotation.map((v) => (
+                      <form
+                        key={v.profile_id}
+                        action={noterVersement}
+                        className="flex flex-wrap items-center gap-2 border-t border-line pt-2 text-sm"
+                      >
+                        <input type="hidden" name="tournament_id" value={d.tournament_id} />
+                        <input type="hidden" name="profile_id" value={v.profile_id} />
+                        <span className="min-w-48">
+                          {LIBELLE_RANG[v.rang] ?? `Rang ${v.rang}`} : {v.profile?.pseudo ?? "Joueur"} ·{" "}
+                          <span className="tabular-nums">{formaterEuros(v.montant_centimes)}</span>
+                          {v.a_verifier && <span className="text-danger"> · décidé à la main, à vérifier</span>}
+                        </span>
+                        <select name="statut" defaultValue={v.statut} className={CHAMP_ADMIN}>
+                          <option value="a_verser">À verser</option>
+                          <option value="verse">Versé</option>
+                          <option value="refuse">Refusé</option>
+                        </select>
+                        <input
+                          name="reference"
+                          defaultValue={v.reference ?? ""}
+                          placeholder="Référence du virement"
+                          maxLength={120}
+                          className={CHAMP_ADMIN}
+                        />
+                        <button type="submit" className="inline-flex min-h-11 items-center text-mini text-accent underline underline-offset-3">
+                          Noter
+                        </button>
+                      </form>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
       </Apparition>

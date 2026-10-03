@@ -314,6 +314,92 @@ export type Database = {
           },
         ]
       }
+      dotations: {
+        Row: {
+          cree_le: string
+          cree_par: string
+          repartition: number[]
+          sponsor_lien: string | null
+          sponsor_nom: string
+          statut: string
+          tournament_id: string
+        }
+        Insert: {
+          cree_le?: string
+          cree_par: string
+          repartition: number[]
+          sponsor_lien?: string | null
+          sponsor_nom: string
+          statut?: string
+          tournament_id: string
+        }
+        Update: {
+          cree_le?: string
+          cree_par?: string
+          repartition?: number[]
+          sponsor_lien?: string | null
+          sponsor_nom?: string
+          statut?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dotations_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: true
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      versements_dotation: {
+        Row: {
+          a_verifier: boolean
+          maj_le: string
+          montant_centimes: number
+          profile_id: string
+          rang: number
+          reference: string | null
+          statut: string
+          tournament_id: string
+        }
+        Insert: {
+          a_verifier?: boolean
+          maj_le?: string
+          montant_centimes: number
+          profile_id: string
+          rang: number
+          reference?: string | null
+          statut?: string
+          tournament_id: string
+        }
+        Update: {
+          a_verifier?: boolean
+          maj_le?: string
+          montant_centimes?: number
+          profile_id?: string
+          rang?: number
+          reference?: string | null
+          statut?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "versements_dotation_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "dotations"
+            referencedColumns: ["tournament_id"]
+          },
+          {
+            foreignKeyName: "versements_dotation_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       communautes: {
         Row: {
           code_liaison: string | null
@@ -2204,6 +2290,16 @@ export type Database = {
       code_liaison_discord: { Args: { p_communaute_id: string }; Returns: string }
       lier_serveur_discord: { Args: { p_code: string; p_guild_id: string }; Returns: string }
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
+      enregistrer_dotation: {
+        Args: { p_repartition: number[]; p_sponsor_lien: string; p_sponsor_nom: string; p_tournament_id: string }
+        Returns: boolean
+      }
+      annuler_dotation: { Args: { p_tournament_id: string }; Returns: boolean }
+      preparer_versements: { Args: { p_tournament_id: string }; Returns: number }
+      noter_versement: {
+        Args: { p_profile_id: string; p_reference: string; p_statut: string; p_tournament_id: string }
+        Returns: boolean
+      }
       repartition_pronostics: {
         Args: { p_tournament_id: string }
         Returns: { gagnant_prevu: string; match_id: string; nombre: number }[]

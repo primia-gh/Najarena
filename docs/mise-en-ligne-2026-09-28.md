@@ -68,7 +68,7 @@ tâches pg_cron. Une divergence se traite avant d'appliquer la suite.
 Toute la migration est **la fin de `docs/schema.sql`, à partir de la ligne
 « Liaison Riot réservée au serveur (2026-09-28, audit C2) »** (ligne 1448
 aujourd'hui) jusqu'à la dernière ligne. Elle s'applique d'un seul bloc, dans
-une transaction, et contient 34 sections, dans cet ordre :
+une transaction, et contient 35 sections, dans cet ordre :
 
 1. Liaison Riot réservée au serveur (C2)
 2. Règles appliquées par la base (E1, M1 à M4)
@@ -123,6 +123,9 @@ une transaction, et contient 34 sections, dans cet ordre :
     `npm run discord:commandes` pour ajouter `/communaute`, `/lier` et
     `/organiser` au bot
 
+35. Cash prizes sponsorisés (N32) — tables créées mais fonction éteinte :
+    ne pas définir `CASH_PRIZES_ACTIFS` sur l'hébergeur
+
 Les widgets et l'API publique (N31) n'ajoutent rien à la base : ils lisent
 avec la clé publique, comme un visiteur déconnecté.
 
@@ -130,7 +133,7 @@ La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).
 
 Le même bloc est rejoué à chaque envoi de code sur une base PostgreSQL de
-test par `npm run test:base` (510 vérifications, toutes au vert au
+test par `npm run test:base` (527 vérifications, toutes au vert au
 03/10/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
 
 Après application : lancer les conseillers de sécurité et de performance

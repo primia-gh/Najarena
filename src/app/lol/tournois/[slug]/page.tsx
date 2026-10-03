@@ -69,14 +69,16 @@ import {
 } from "@/lib/pronostics";
 import { chargerPronosticsTournoi } from "@/lib/pronostics-serveur";
 import { pronostiquer } from "@/lib/pronostic-actions";
+import { cashPrizesActifs, formaterEuros, LIBELLE_RANG } from "@/lib/dotations";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
 // changé. chargerTournoi et les conditions d'inscription / de litige sont
 // repris tels quels ; les informations ajoutées (type de bracket, niveau,
 // prise en compte au classement) viennent de lib/tournoi-vitrine.ts.
-// Pas de bloc « Récompenses » : aucune récompense n'existe en base (cash
-// prizes = phase 4) — remplacé par « En jeu : points de classement ».
+// Bloc « Récompenses » seulement pour une dotation sponsorisée enregistrée
+// en base, et tant que CASH_PRIZES_ACTIFS est allumé (audit N32, éteint par
+// défaut) ; sinon « En jeu : points de classement ».
 
 // "Non classé" n'est pas un palier réel (table tiers) : jamais de rating
 // affiché tant que le RD n'est pas descendu sous le seuil de classement
@@ -495,6 +497,18 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         )
       : null;
   const peutPronostiquer = Boolean(utilisateur) && !estOrganisateur && !inscriptionActuelle && !monEquipe;
+
+  // Cash prizes sponsorisés (audit N32) : rien n'est lu ni affiché tant
+  // qu'ils sont désactivés.
+  const { data: dotation } =
+    cashPrizesActifs() && tournoi.nature === "tournoi"
+      ? await (await createClient())
+          .from("dotations")
+          .select("sponsor_nom, sponsor_lien, repartition")
+          .eq("tournament_id", tournoi.id)
+          .eq("statut", "validee")
+          .maybeSingle()
+      : { data: null };
 
   // Tournoi classé (audit E12 / N12) : critères publics, décision figée par
   // la base à la clôture. Un tournoi terminé sans décision (clos sans
@@ -1127,6 +1141,45 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               ))}
             </div>
           </Panneau>
+        </section>
+      )}
+
+      {/* ================= RÉCOMPENSES (audit N32) ================= */}
+      {dotation && (
+        <section id="recompenses" className="scroll-mt-28 px-gouttiere pt-12">
+          <div className="mx-auto flex max-w-contenu flex-col gap-4">
+            <LibelleSection as="h2">Récompenses</LibelleSection>
+            <Panneau className="flex flex-col gap-3 p-6">
+              <p className="text-sm text-text-2">
+                Offertes par{" "}
+                {dotation.sponsor_lien ? (
+                  <a
+                    href={dotation.sponsor_lien}
+                    target="_blank"
+                    rel="sponsored nofollow noopener noreferrer"
+                    className="font-semibold text-text underline underline-offset-3"
+                  >
+                    {dotation.sponsor_nom}
+                  </a>
+                ) : (
+                  <span className="font-semibold text-text">{dotation.sponsor_nom}</span>
+                )}
+                . Inscription gratuite.
+              </p>
+              <ul className="flex flex-col gap-1 text-sm">
+                {dotation.repartition.map((centimes, i) => (
+                  <li key={i} className="flex justify-between gap-4 border-b border-line py-1">
+                    <span>{LIBELLE_RANG[i + 1]}</span>
+                    <span className="font-semibold tabular-nums">{formaterEuros(centimes)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted">
+                Versées après la fin du tournoi et la vérification d&apos;identité des gagnants. Un résultat tranché à
+                la main est vérifié avant tout versement.
+              </p>
+            </Panneau>
+          </div>
         </section>
       )}
 
