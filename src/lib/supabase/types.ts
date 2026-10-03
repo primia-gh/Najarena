@@ -37,6 +37,58 @@ export type Database = {
           },
         ]
       }
+      agents_libres: {
+        Row: {
+          inscrit_le: string
+          profile_id: string
+          rating_a_inscription: number | null
+          registration_id: string | null
+          role: string | null
+          statut: string
+          tournament_id: string
+        }
+        Insert: {
+          inscrit_le?: string
+          profile_id: string
+          rating_a_inscription?: number | null
+          registration_id?: string | null
+          role?: string | null
+          statut?: string
+          tournament_id: string
+        }
+        Update: {
+          inscrit_le?: string
+          profile_id?: string
+          rating_a_inscription?: number | null
+          registration_id?: string | null
+          role?: string | null
+          statut?: string
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agents_libres_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agents_libres_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agents_libres_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alignements: {
         Row: {
           aligne_le: string
@@ -1793,6 +1845,8 @@ export type Database = {
       }
       repondre_defi: { Args: { p_accepte: boolean; p_defi_id: string }; Returns: string | null }
       accepter_invitation_defi: { Args: { p_code: string }; Returns: string }
+      confirmer_agent_libre: { Args: { p_tournament_id: string }; Returns: boolean }
+      quitter_agents_libres: { Args: { p_tournament_id: string }; Returns: boolean }
       annuler_scrim: { Args: { p_scrim_id: string }; Returns: boolean }
       annuler_defi: { Args: { p_defi_id: string }; Returns: boolean }
       texte_acceptable: { Args: { p_contexte?: string; p_texte: string }; Returns: boolean }
@@ -1864,6 +1918,7 @@ export type Database = {
         }
         Returns: string
       }
+      former_equipes_agents_libres: { Args: { p_equipes: Json; p_tournament_id: string }; Returns: number }
       modifier_alignement: { Args: { p_joueurs: string[]; p_tournament_id: string }; Returns: boolean }
       modifier_mon_profil: {
         Args: { p_pays: string | null; p_pseudo: string; p_visites_anonymes: boolean }
@@ -1875,6 +1930,7 @@ export type Database = {
         Args: { p_accepte: boolean; p_joueurs?: string[]; p_scrim_id: string }
         Returns: string | null
       }
+      s_inscrire_agent_libre: { Args: { p_role?: string; p_tournament_id: string }; Returns: boolean }
       s_inscrire_equipe: {
         Args: { p_joueurs: string[]; p_team_id: string; p_tournament_id: string }
         Returns: string

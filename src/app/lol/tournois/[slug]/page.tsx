@@ -3,8 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { inscrireEquipe, modifierAlignement, sInscrireATournoi, seDesinscrire } from "@/lib/inscription-actions";
-import { confirmerMaPresence } from "@/lib/checkin-actions";
+import {
+  inscrireAgentLibre,
+  inscrireEquipe,
+  modifierAlignement,
+  quitterAgentsLibres,
+  sInscrireATournoi,
+  seDesinscrire,
+} from "@/lib/inscription-actions";
+import { confirmerAgentLibre, confirmerMaPresence } from "@/lib/checkin-actions";
+import { LABEL_ROLE, ROLES, type Role } from "@/lib/roles";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { ouvrirLitige } from "@/lib/litige-actions";
 import { declarerPret, reconnaitreDefaite } from "@/lib/match-actions";
@@ -107,6 +115,7 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: paliersData },
     { data: matchsData },
     equipes,
+    { data: agentsLibresData },
   ] = await Promise.all([
     supabase.from("profiles").select("pseudo, slug").eq("id", tournoi.organisateur_id).maybeSingle(),
     supabase.auth.getUser(),
@@ -129,6 +138,15 @@ const chargerTournoi = cache(async (slug: string) => {
     tournoi.format === "5v5"
       ? chargerEquipesDesTournois(supabase, [tournoi.id])
       : Promise.resolve(new Map<string, EquipeInscrite>()),
+    // Agents libres (audit N23) : joueurs sans équipe, formés en équipes au
+    // lancement du bracket.
+    tournoi.format === "5v5"
+      ? supabase
+          .from("agents_libres")
+          .select("profile_id, role, statut, profile:profiles(pseudo, slug)")
+          .eq("tournament_id", tournoi.id)
+          .order("inscrit_le", { ascending: true })
+      : Promise.resolve({ data: [] }),
   ]);
 
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
@@ -284,6 +302,7 @@ const chargerTournoi = cache(async (slug: string) => {
     equipeAdverse,
     aligne,
     mesEquipes,
+    agentsLibres: agentsLibresData ?? [],
   };
 });
 
@@ -374,6 +393,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     equipeAdverse,
     aligne,
     mesEquipes,
+    agentsLibres,
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
@@ -619,13 +639,55 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     { libelle: "Niveau", valeur: complements.niveau, grand: false, accent: false },
   ];
 
+  const CHAMP =
+    "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
+  const lienDiscret =
+    "text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
   // Tournoi 5v5 (audit N21) : le capitaine inscrit son équipe, fait le
   // check-in et peut changer l'alignement ; les joueurs alignés suivent.
   const monInscriptionEquipe = estEquipes ? inscriptionActuelle : undefined;
   const equipeInscrite = monInscriptionEquipe && utilisateur ? equipeDe(utilisateur.id) : undefined;
   const equipeCapitaine = equipeInscrite ? mesEquipes.find((e) => e.slug === equipeInscrite.slug) : undefined;
-  const lienDiscret =
-    "text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  // Agents libres (audit N23) : ceux qui attendent encore une équipe.
+  const agentsEnAttente = agentsLibres.filter((a) => a.statut !== "place");
+  const monAgent = utilisateur ? agentsEnAttente.find((a) => a.profile_id === utilisateur.id) : undefined;
+  const formulaireAgentLibre =
+    statut === "ouvert" && utilisateur ? (
+      compteRiotValide ? (
+        <form action={inscrireAgentLibre} className="flex flex-col gap-2 border-t border-line pt-[18px]">
+          <input type="hidden" name="tournament_id" value={tournoi.id} />
+          <input type="hidden" name="slug" value={tournoi.slug} />
+          <p className="text-[13px] leading-normal text-muted">
+            Pas d&apos;équipe ? Inscris-toi comme agent libre : au lancement du bracket, les agents libres sont
+            regroupés en équipes de cinq, de niveau proche et aux rôles variés.
+          </p>
+          <label className="flex flex-col gap-1">
+            <span className="text-mini text-muted uppercase">Ton rôle</span>
+            <select name="role" defaultValue="" className={CHAMP}>
+              <option value="">Peu importe</option>
+              {ROLES.map((r: Role) => (
+                <option key={r} value={r}>
+                  {LABEL_ROLE[r]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <BoutonEnvoi variante="contour" libelleEnCours="Inscription…" className="w-full">
+            M&apos;inscrire comme agent libre
+          </BoutonEnvoi>
+        </form>
+      ) : (
+        <p className="border-t border-line pt-[18px] text-[13px] leading-normal text-muted">
+          Pas d&apos;équipe ? Avec un compte Riot vérifié sur {tournoi.region}, tu pourras t&apos;inscrire comme agent
+          libre.{" "}
+          <Link href="/lier-riot" className={lienDiscret}>
+            Lier mon compte Riot
+          </Link>
+        </p>
+      )
+    ) : null;
   const actionEquipes = !estEquipes ? null : monInscriptionEquipe ? (
     <>
       {checkinOuvert && monInscriptionEquipe.statut === "inscrit" && (
@@ -687,6 +749,46 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           </>
         )}
     </>
+  ) : monAgent ? (
+    <>
+      {checkinOuvert && monAgent.statut === "inscrit" && (
+        <form action={confirmerAgentLibre} className="flex flex-col gap-2">
+          <input type="hidden" name="tournament_id" value={tournoi.id} />
+          <input type="hidden" name="slug" value={tournoi.slug} />
+          <BoutonEnvoi libelleEnCours="Confirmation…" className="w-full">
+            Confirmer ma présence
+          </BoutonEnvoi>
+          <p className="text-[13px] leading-normal text-muted">
+            Check-in ouvert : seuls les agents libres confirmés sont placés dans une équipe.
+          </p>
+        </form>
+      )}
+      <p className="flex items-center justify-between gap-3 border-t border-line pt-[18px] text-[13px]">
+        <span className="text-muted">
+          Agent libre
+          {monAgent.role && ROLES.includes(monAgent.role as Role) ? ` · ${LABEL_ROLE[monAgent.role as Role]}` : ""}
+        </span>
+        <span className="font-bold text-accent uppercase">
+          {monAgent.statut === "confirme" ? "Présence confirmée" : "Inscrit"}
+        </span>
+      </p>
+      <p className="text-[13px] leading-normal text-muted">
+        Ton équipe sera formée au lancement du bracket, avec des joueurs de niveau proche : tu seras prévenu.
+      </p>
+      {(statut === "ouvert" || statut === "checkin") && (
+        <form action={quitterAgentsLibres}>
+          <input type="hidden" name="tournament_id" value={tournoi.id} />
+          <input type="hidden" name="slug" value={tournoi.slug} />
+          <BoutonConfirmation
+            type="submit"
+            confirmation="Ne plus être agent libre dans ce tournoi ?"
+            className="inline-flex min-h-11 items-center text-[13px] text-muted underline underline-offset-3 hover:text-text"
+          >
+            Me retirer
+          </BoutonConfirmation>
+        </form>
+      )}
+    </>
   ) : monEquipe ? (
     <p className="flex flex-col gap-1 border-t border-line pt-[18px] text-[13px] leading-normal text-muted">
       <span>
@@ -716,6 +818,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         <Link href="/lol/coequipiers" className={`self-start text-[13px] ${lienDiscret}`}>
           Trouver des coéquipiers
         </Link>
+        {formulaireAgentLibre}
       </div>
     ) : (
       <div className="flex flex-col gap-4">
@@ -750,9 +853,6 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       </div>
     )
   ) : null;
-
-  const CHAMP =
-    "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
   return (
     <main className="bg-bg font-texte text-text">
@@ -1226,6 +1326,34 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 );
               })}
             </ul>
+          )}
+          {estEquipes && agentsEnAttente.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h3 className="text-mini text-muted uppercase tabular-nums">Agents libres · {agentsEnAttente.length}</h3>
+              <ul className="flex flex-wrap gap-2">
+                {agentsEnAttente.map((a) => (
+                  <li key={a.profile_id} className="panneau px-3 py-2 text-sm">
+                    {a.profile ? (
+                      <Link
+                        href={`/joueur/${a.profile.slug}`}
+                        className="font-semibold hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        {a.profile.pseudo}
+                      </Link>
+                    ) : (
+                      "Joueur"
+                    )}
+                    {a.role && ROLES.includes(a.role as Role) && (
+                      <span className="text-muted"> · {LABEL_ROLE[a.role as Role]}</span>
+                    )}
+                    {a.statut === "confirme" && <span className="text-accent"> · présent</span>}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted">
+                Regroupés en équipes de cinq au lancement du bracket, parmi ceux qui ont confirmé leur présence.
+              </p>
+            </div>
           )}
         </div>
       </section>

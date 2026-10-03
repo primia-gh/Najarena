@@ -112,6 +112,15 @@ export default function CguPage() {
             automatique, et un scrim sans partie retrouvée dans les 24 heures
             suivant l&apos;heure prévue est annulé.
           </p>
+          <p className="mt-2 text-muted">
+            Un joueur sans équipe peut s&apos;inscrire seul à un tournoi 5v5,
+            comme agent libre. Au lancement du bracket, les agents libres qui
+            ont confirmé leur présence sont regroupés en équipes de cinq, de
+            niveau aussi proche que possible, par ordre d&apos;inscription ;
+            ceux qui ne peuvent compléter une équipe ne jouent pas ce tournoi.
+            Le capitaine d&apos;une telle équipe est le joueur au meilleur
+            rating.
+          </p>
         </section>
 
         <section>

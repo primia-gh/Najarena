@@ -68,3 +68,31 @@ export async function confirmerMaPresence(formData: FormData) {
     `${page}?message=${encodeURIComponent(`Présence confirmée. Début du tournoi à ${heureParis(tournoi.debute_le)}.`)}`,
   );
 }
+
+// Check-in d'un agent libre (audit N23) : même fenêtre que les équipes.
+export async function confirmerAgentLibre(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const page = `/lol/tournois/${slug}`;
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { data: confirme, error } = await supabase.rpc("confirmer_agent_libre", { p_tournament_id: tournamentId });
+  if (error?.message.includes("COMPTE_SUSPENDU")) {
+    redirect(`${page}?erreur=${encodeURIComponent("Ton compte est suspendu : tu ne peux pas confirmer ta présence.")}`);
+  }
+  if (error?.message.includes("CHECKIN_FERME")) {
+    redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
+  }
+  if (!confirme) {
+    redirect(`${page}?erreur=${encodeURIComponent("Aucune inscription d'agent libre en attente de check-in.")}`);
+  }
+
+  redirect(
+    `${page}?message=${encodeURIComponent("Présence confirmée. Ton équipe sera formée au lancement du bracket : tu seras prévenu.")}`,
+  );
+}

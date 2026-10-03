@@ -3,13 +3,15 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { cloturerTournoi } from "@/lib/classement-actions";
-import { notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
+import { envoyerRappel, notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { echapperDiscord, echapperHtml } from "@/lib/echappement";
 import { prevenirMatchOuvert } from "@/lib/apres-verdict";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
+import { formerEquipes } from "@/lib/agents-libres";
+import { ROLES, type Role } from "@/lib/roles";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -19,7 +21,7 @@ async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createCl
 
   const { data: tournoi } = await supabase
     .from("tournaments")
-    .select("id, capacite, organisateur_id, statut")
+    .select("id, nom, slug, capacite, organisateur_id, statut, format")
     .eq("id", tournamentId)
     .maybeSingle();
 
@@ -93,6 +95,77 @@ export async function marquerAbsent(formData: FormData) {
   redirect(`/moi/organisation/${tournamentId}`);
 }
 
+// Agents libres (audit N23) : équipes de cinq équilibrées par rating et par
+// rôle (src/lib/agents-libres.ts), inscrites par la base, qui revérifie
+// tout (former_equipes_agents_libres). Chaque agent est prévenu, placé ou
+// non. Renvoie le nombre d'équipes formées, ou null en cas d'erreur.
+async function formerEquipesAgentsLibres(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tournoi: { id: string; nom: string; slug: string; capacite: number },
+): Promise<number | null> {
+  const [{ data: agents }, { count: inscrites }] = await Promise.all([
+    supabase
+      .from("agents_libres")
+      .select("profile_id, role, rating_a_inscription")
+      .eq("tournament_id", tournoi.id)
+      .eq("statut", "confirme")
+      .order("inscrit_le", { ascending: true }),
+    supabase
+      .from("registrations")
+      .select("id", { count: "exact", head: true })
+      .eq("tournament_id", tournoi.id)
+      .neq("statut", "retire"),
+  ]);
+  if (!agents || agents.length === 0) return 0;
+
+  const { equipes, restants } = formerEquipes(
+    agents.map((a) => ({
+      profileId: a.profile_id,
+      rating: a.rating_a_inscription,
+      role: ROLES.includes(a.role as Role) ? (a.role as Role) : null,
+    })),
+    tournoi.capacite - (inscrites ?? 0),
+  );
+  if (equipes.length > 0) {
+    const { error } = await supabase.rpc("former_equipes_agents_libres", {
+      p_tournament_id: tournoi.id,
+      p_equipes: equipes,
+    });
+    if (error) return null;
+  }
+
+  const lien = `${URL_SITE}/lol/tournois/${tournoi.slug}`;
+  const { data: profils } = await supabase
+    .from("profiles")
+    .select("id, pseudo")
+    .in("id", equipes.flat());
+  const pseudo = (id: string) => profils?.find((p) => p.id === id)?.pseudo ?? "un joueur";
+  await Promise.all([
+    ...equipes.flatMap((equipe) =>
+      equipe.map((id) =>
+        envoyerRappel(
+          id,
+          `Ton équipe est formée — ${tournoi.nom}`,
+          `Tu joues avec ${equipe
+            .filter((autre) => autre !== id)
+            .map(pseudo)
+            .join(", ")}. Capitaine : ${pseudo(equipe[0])}. Les Riot ID de tous sont dans la salle de match.`,
+          `${lien}#ton-match`,
+        ),
+      ),
+    ),
+    ...restants.map((id) =>
+      envoyerRappel(
+        id,
+        `Pas d'équipe cette fois — ${tournoi.nom}`,
+        "Il n'y avait pas assez d'agents libres pour former une équipe complète de plus (ou plus de place dans le bracket). Inscris-toi au prochain tournoi 5v5, ou cherche une équipe parmi les coéquipiers.",
+        `${URL_SITE}/lol/coequipiers`,
+      ),
+    ),
+  ]);
+  return equipes.length;
+}
+
 export async function genererBracket(formData: FormData) {
   const tournamentId = String(formData.get("tournament_id") ?? "");
 
@@ -108,6 +181,19 @@ export async function genererBracket(formData: FormData) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Le bracket a déjà été généré.")}`,
     );
+  }
+
+  // Tournoi 5v5 (audit N23) : les agents libres confirmés forment d'abord
+  // leurs équipes, inscrites comme les autres.
+  if (tournoi.format === "5v5") {
+    const formees = await formerEquipesAgentsLibres(supabase, tournoi);
+    if (formees === null) {
+      redirect(
+        `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+          "Impossible de former les équipes d'agents libres pour l'instant. Réessaie.",
+        )}`,
+      );
+    }
   }
 
   const { data: confirmes } = await supabase

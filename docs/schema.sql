@@ -5535,3 +5535,283 @@ end;
 $$;
 revoke execute on function public.annuler_scrim(uuid) from public, anon;
 grant execute on function public.annuler_scrim(uuid) to authenticated;
+
+-- ---------- Agents libres en 5v5 (2026-10-03, audit N23) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (« Je n'ai pas d'équipe » sur la page d'un tournoi 5v5).
+-- Un joueur sans équipe s'inscrit seul à un tournoi 5v5 (compte Riot
+-- vérifié dans la région) et confirme sa présence au check-in comme une
+-- équipe. Au lancement du bracket, l'organisateur forme avec eux des
+-- équipes de cinq (src/lib/agents-libres.ts : équilibre des ratings, rôles
+-- variés) ; la base vérifie chaque équipe et l'inscrit comme une autre,
+-- sous le nom « Agents libres N », capitaine = premier de la liste. Ces
+-- équipes n'ont pas de page : elles n'existent que le temps du tournoi.
+-- Les agents en trop (pas assez pour une équipe complète, ou plus de
+-- place) restent sans équipe. Un agent aligné entre-temps dans une vraie
+-- équipe quitte la liste.
+create table if not exists public.agents_libres (
+  tournament_id         uuid not null references public.tournaments(id) on delete cascade,
+  profile_id            uuid not null references public.profiles(id) on delete cascade,
+  role                  text check (role is null or role in ('top', 'jungle', 'mid', 'adc', 'support')),
+  statut                text not null default 'inscrit' check (statut in ('inscrit', 'confirme', 'place')),
+  registration_id       uuid references public.registrations(id) on delete set null,
+  rating_a_inscription  int,
+  inscrit_le            timestamptz not null default now(),
+  primary key (tournament_id, profile_id)
+);
+create index if not exists agents_libres_profile_id_idx on public.agents_libres (profile_id);
+create index if not exists agents_libres_registration_id_idx on public.agents_libres (registration_id);
+alter table public.agents_libres enable row level security;
+create policy "agents libres lisibles par tous" on public.agents_libres for select using (true);
+revoke insert, update, delete on public.agents_libres from anon, authenticated;
+
+create or replace function public.s_inscrire_agent_libre(p_tournament_id uuid, p_role text default null)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_tournoi record;
+  v_region text;
+  v_rating int;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, statut, capacite, format, nature, region, game_id, season_id into v_tournoi
+  from public.tournaments where id = p_tournament_id
+  for update;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_tournoi.format <> '5v5' or v_tournoi.nature <> 'tournoi' then
+    raise exception 'TOURNOI_EN_SOLO';
+  end if;
+  if v_tournoi.statut <> 'ouvert' then
+    raise exception 'INSCRIPTIONS_FERMEES';
+  end if;
+  if p_role is not null and p_role not in ('top', 'jungle', 'mid', 'adc', 'support') then
+    raise exception 'ROLE_INVALIDE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_joueur);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if v_region <> v_tournoi.region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  if exists (select 1 from public.alignements where tournament_id = p_tournament_id and profile_id = v_joueur) then
+    raise exception 'DEJA_DANS_UNE_EQUIPE';
+  end if;
+  if exists (select 1 from public.agents_libres where tournament_id = p_tournament_id and profile_id = v_joueur) then
+    raise exception 'DEJA_INSCRIT';
+  end if;
+  -- Pas plus d'agents que de places d'équipe restantes.
+  if (select count(*) from public.agents_libres where tournament_id = p_tournament_id and statut <> 'place') + 1
+     > (v_tournoi.capacite - (select count(*) from public.registrations
+                              where tournament_id = p_tournament_id and statut <> 'retire')) * 5 then
+    raise exception 'TOURNOI_COMPLET';
+  end if;
+
+  select round(r.rating)::int into v_rating
+  from public.ratings r
+  where r.profile_id = v_joueur and r.game_id = v_tournoi.game_id
+    and r.season_id = coalesce(
+      v_tournoi.season_id,
+      (select s.id from public.seasons s where s.game_id = v_tournoi.game_id and s.est_courante limit 1)
+    );
+
+  insert into public.agents_libres (tournament_id, profile_id, role, rating_a_inscription)
+  values (p_tournament_id, v_joueur, p_role, v_rating);
+  return true;
+end;
+$$;
+revoke execute on function public.s_inscrire_agent_libre(uuid, text) from public, anon;
+grant execute on function public.s_inscrire_agent_libre(uuid, text) to authenticated;
+
+-- Check-in d'un agent libre : même fenêtre que celui des équipes.
+create or replace function public.confirmer_agent_libre(p_tournament_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_statut public.tournament_status;
+  v_checkin timestamptz;
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select statut, checkin_ouvre_le into v_statut, v_checkin
+  from public.tournaments where id = p_tournament_id
+  for share;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if not (v_statut = 'checkin' or (v_statut = 'ouvert' and v_checkin <= now())) then
+    raise exception 'CHECKIN_FERME';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = auth.uid() and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  update public.agents_libres set statut = 'confirme'
+  where tournament_id = p_tournament_id and profile_id = auth.uid() and statut = 'inscrit';
+  return found;
+end;
+$$;
+revoke execute on function public.confirmer_agent_libre(uuid) from public, anon;
+grant execute on function public.confirmer_agent_libre(uuid) to authenticated;
+
+create or replace function public.quitter_agents_libres(p_tournament_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if not exists (select 1 from public.tournaments where id = p_tournament_id and statut in ('ouvert', 'checkin')) then
+    raise exception 'DESINSCRIPTION_FERMEE';
+  end if;
+  delete from public.agents_libres
+  where tournament_id = p_tournament_id and profile_id = auth.uid() and statut <> 'place';
+  return found;
+end;
+$$;
+revoke execute on function public.quitter_agents_libres(uuid) from public, anon;
+grant execute on function public.quitter_agents_libres(uuid) to authenticated;
+
+-- Formation des équipes par l'organisateur, au lancement du bracket :
+-- p_equipes = tableau JSON de listes de cinq profile_id (capitaine en
+-- tête), calculé par src/lib/agents-libres.ts. Renvoie le nombre d'équipes
+-- inscrites.
+create or replace function public.former_equipes_agents_libres(p_tournament_id uuid, p_equipes jsonb)
+returns int
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi record;
+  v_equipe jsonb;
+  v_joueurs uuid[];
+  v_numero int;
+  v_registration uuid;
+  v_formees int := 0;
+begin
+  select id, statut, capacite, organisateur_id into v_tournoi
+  from public.tournaments where id = p_tournament_id
+  for update;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_tournoi.organisateur_id is distinct from auth.uid() then
+    raise exception 'NON_ORGANISATEUR';
+  end if;
+  if v_tournoi.statut not in ('ouvert', 'checkin') then
+    raise exception 'FORMATION_FERMEE';
+  end if;
+  if jsonb_typeof(p_equipes) <> 'array' then
+    raise exception 'EQUIPES_INVALIDES';
+  end if;
+
+  select count(*) into v_numero
+  from public.registrations where tournament_id = p_tournament_id and team_id is null and equipe_nom is not null;
+
+  for v_equipe in select * from jsonb_array_elements(p_equipes) loop
+    select array_agg(distinct (j #>> '{}')::uuid) into v_joueurs from jsonb_array_elements(v_equipe) j;
+    if jsonb_array_length(v_equipe) <> 5 or cardinality(v_joueurs) <> 5 then
+      raise exception 'ALIGNEMENT_DE_CINQ';
+    end if;
+    if (select count(*) from public.agents_libres
+        where tournament_id = p_tournament_id and profile_id = any (v_joueurs) and statut = 'confirme') <> 5 then
+      raise exception 'AGENT_NON_CONFIRME';
+    end if;
+    if exists (select 1 from public.suspensions where profile_id = any (v_joueurs) and levee_le is null) then
+      raise exception 'ALIGNEMENT_SUSPENDU';
+    end if;
+    if (select count(*) from public.registrations
+        where tournament_id = p_tournament_id and statut <> 'retire') >= v_tournoi.capacite then
+      raise exception 'TOURNOI_COMPLET';
+    end if;
+
+    v_numero := v_numero + 1;
+    insert into public.registrations (tournament_id, profile_id, statut, confirme_le, equipe_nom, equipe_tag, rating_a_inscription)
+    values (
+      p_tournament_id, (v_equipe ->> 0)::uuid, 'confirme', now(), 'Agents libres ' || v_numero, 'AL' || v_numero,
+      (select round(avg(rating_a_inscription))::int from public.agents_libres
+       where tournament_id = p_tournament_id and profile_id = any (v_joueurs))
+    )
+    returning id into v_registration;
+    update public.agents_libres set statut = 'place', registration_id = v_registration
+    where tournament_id = p_tournament_id and profile_id = any (v_joueurs);
+    insert into public.alignements (tournament_id, profile_id, registration_id)
+    select p_tournament_id, j, v_registration from unnest(v_joueurs) j;
+    v_formees := v_formees + 1;
+  end loop;
+  return v_formees;
+end;
+$$;
+revoke execute on function public.former_equipes_agents_libres(uuid, jsonb) from public, anon;
+grant execute on function public.former_equipes_agents_libres(uuid, jsonb) to authenticated;
+
+-- Un agent aligné dans une vraie équipe quitte la liste des agents libres.
+create or replace function public.retirer_agent_aligne()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.agents_libres
+  where tournament_id = new.tournament_id and profile_id = new.profile_id and statut <> 'place';
+  return new;
+end;
+$$;
+revoke execute on function public.retirer_agent_aligne() from public, anon, authenticated;
+drop trigger if exists alignements_retirer_agent on public.alignements;
+create trigger alignements_retirer_agent
+  after insert on public.alignements
+  for each row execute function public.retirer_agent_aligne();
+
+-- Suspendu, ou sans compte Riot (délié, compte supprimé) : retiré des
+-- listes d'agents libres des tournois pas encore commencés.
+create or replace function public.retirer_agent_libre_indisponible()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_profil uuid;
+begin
+  if tg_op = 'DELETE' then
+    -- Compte Riot délié : seulement s'il ne reste aucun compte vérifié.
+    v_profil := old.profile_id;
+    if public.region_compte_verifie(v_profil) is not null then
+      return old;
+    end if;
+  else
+    v_profil := new.profile_id;
+    if new.levee_le is not null then
+      return new;
+    end if;
+  end if;
+  delete from public.agents_libres a
+  using public.tournaments t
+  where a.tournament_id = t.id and a.profile_id = v_profil
+    and a.statut <> 'place' and t.statut in ('ouvert', 'checkin');
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+revoke execute on function public.retirer_agent_libre_indisponible() from public, anon, authenticated;
+drop trigger if exists suspensions_retirer_agent_libre on public.suspensions;
+create trigger suspensions_retirer_agent_libre
+  after insert on public.suspensions
+  for each row execute function public.retirer_agent_libre_indisponible();
+drop trigger if exists game_accounts_retirer_agent_libre on public.game_accounts;
+create trigger game_accounts_retirer_agent_libre
+  after delete on public.game_accounts
+  for each row execute function public.retirer_agent_libre_indisponible();

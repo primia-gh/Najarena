@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "3 octobre",
+    titre: "Pas d'équipe ? Agent libre",
+    texte:
+      "Dans un tournoi 5v5, un joueur sans équipe peut s'inscrire seul, en précisant son rôle s'il le souhaite. Au lancement du bracket, les agents libres présents sont regroupés en équipes de cinq, de niveau proche et aux rôles variés. Le résultat se lit chez Riot comme pour toutes les équipes.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "3 octobre",
     titre: "Des scrims, vérifiés eux aussi",
     texte:
       "Un capitaine peut proposer un scrim à une autre équipe, depuis sa page : une date, Bo1 ou Bo3, ses cinq joueurs. Accepté, le scrim a sa salle de match et son résultat est lu chez Riot comme celui d'un tournoi. Il ne compte pas au classement, mais s'affiche sur la page des deux équipes : une activité réelle, avant même le premier tournoi.",

@@ -54,7 +54,8 @@ export default function ConfidentialitePage() {
             <li>
               Tournois 5v5 et scrims : les cinq joueurs alignés par chaque équipe, publics comme une inscription ;
               les statistiques de partie (champion, KDA, sbires, or) des dix joueurs d&apos;un match vérifié. Une
-              proposition de scrim n&apos;est visible que des deux capitaines ; un scrim accepté est public.
+              proposition de scrim n&apos;est visible que des deux capitaines ; un scrim accepté est public. La
+              liste des agents libres d&apos;un tournoi (pseudo, rôle choisi) est publique.
             </li>
             <li>
               Défis : qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement ; un défi

@@ -155,3 +155,71 @@ export async function seDesinscrire(formData: FormData) {
 
   redirect(`${page}?message=${encodeURIComponent("Tu es désinscrit : ta place est libérée.")}`);
 }
+
+// Agents libres (03/10/2026, audit N23) : un joueur sans équipe s'inscrit
+// seul à un tournoi 5v5 ; son équipe est formée au lancement du bracket.
+const MESSAGES_REFUS_AGENT: Record<string, string> = {
+  INSCRIPTIONS_FERMEES: "Les inscriptions sont fermées pour ce tournoi.",
+  TOURNOI_COMPLET: "Il n'y a plus de place pour des équipes d'agents libres dans ce tournoi.",
+  TOURNOI_INTROUVABLE: "Ce tournoi n'existe pas.",
+  TOURNOI_EN_SOLO: "Les agents libres ne concernent que les tournois 5v5.",
+  ROLE_INVALIDE: "Rôle inconnu.",
+  COMPTE_SUSPENDU: "Ton compte est suspendu : tu ne peux pas t'inscrire aux tournois.",
+  COMPTE_RIOT_REQUIS: "Lie et vérifie ton compte Riot avant de t'inscrire : c'est lui qui permet de retrouver tes résultats.",
+  REGION_DIFFERENTE: "Ce tournoi se joue sur une autre région que ton compte Riot vérifié.",
+  DEJA_DANS_UNE_EQUIPE: "Tu es déjà aligné dans une équipe de ce tournoi.",
+  DEJA_INSCRIT: "Tu es déjà inscrit comme agent libre.",
+};
+
+export async function inscrireAgentLibre(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const role = String(formData.get("role") ?? "");
+  const page = `/lol/tournois/${slug}`;
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { error } = await supabase.rpc("s_inscrire_agent_libre", {
+    p_tournament_id: tournamentId,
+    p_role: role || undefined,
+  });
+  if (error) {
+    const code = Object.keys(MESSAGES_REFUS_AGENT).find((c) => error.message.includes(c));
+    redirect(
+      `${page}?erreur=${encodeURIComponent(code ? MESSAGES_REFUS_AGENT[code] : "Impossible de t'inscrire pour l'instant.")}`,
+    );
+  }
+
+  redirect(
+    `${page}?message=${encodeURIComponent("Tu es inscrit comme agent libre. Confirme ta présence au check-in : ton équipe sera formée au lancement du bracket.")}`,
+  );
+}
+
+export async function quitterAgentsLibres(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const page = `/lol/tournois/${slug}`;
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { data: retire, error } = await supabase.rpc("quitter_agents_libres", { p_tournament_id: tournamentId });
+  if (error || !retire) {
+    redirect(
+      `${page}?erreur=${encodeURIComponent(
+        error?.message.includes("DESINSCRIPTION_FERMEE")
+          ? "Le tournoi a commencé : la désinscription n'est plus possible."
+          : "Aucune inscription d'agent libre à retirer.",
+      )}`,
+    );
+  }
+
+  redirect(`${page}?message=${encodeURIComponent("Tu n'es plus inscrit comme agent libre.")}`);
+}

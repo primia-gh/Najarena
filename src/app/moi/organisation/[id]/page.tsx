@@ -47,7 +47,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     supabase.auth.getUser(),
     supabase
       .from("tournaments")
-      .select("id, slug, nom, statut, capacite, region, debute_le, checkin_ouvre_le, organisateur_id")
+      .select("id, slug, nom, statut, capacite, region, debute_le, checkin_ouvre_le, organisateur_id, format")
       .eq("id", id)
       .maybeSingle(),
   ]);
@@ -62,7 +62,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     redirect("/moi");
   }
 
-  const [{ data: inscriptionsData }, { data: matchsData }] = await Promise.all([
+  const [{ data: inscriptionsData }, { data: matchsData }, { count: nbAgentsConfirmes }] = await Promise.all([
     supabase
       .from("registrations")
       .select("id, statut, profile_id, equipe_nom, equipe_tag, profile:profiles(pseudo, slug)")
@@ -76,6 +76,14 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       .eq("tournament_id", id)
       .order("tour", { ascending: true })
       .order("position", { ascending: true }),
+    // Agents libres confirmés (audit N23) : regroupés en équipes au lancement.
+    tournoi.format === "5v5"
+      ? supabase
+          .from("agents_libres")
+          .select("profile_id", { count: "exact", head: true })
+          .eq("tournament_id", id)
+          .eq("statut", "confirme")
+      : Promise.resolve({ count: 0 }),
   ]);
   const inscriptions = inscriptionsData ?? [];
   const matchs = matchsData ?? [];
@@ -117,6 +125,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
   const bracketGenere = matchs.length > 0;
   const nbConfirmes = inscriptions.filter((i) => i.statut === "confirme").length;
+  const equipesAgents = Math.floor((nbAgentsConfirmes ?? 0) / 5);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -274,13 +283,21 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
         {!bracketGenere ? (
           <div className={"mt-3 " + classeCarte("none")}>
             <p className="text-sm text-muted">
-              {nbConfirmes} joueur{nbConfirmes === 1 ? "" : "s"} confirmé
-              {nbConfirmes === 1 ? "" : "s"}. Le tirage se fait aléatoirement
-              entre les joueurs confirmés au moment de la génération.
+              {nbConfirmes} {tournoi.format === "5v5" ? "équipe" : "joueur"}
+              {nbConfirmes === 1 ? "" : "s"} confirmé{tournoi.format === "5v5" ? "e" : ""}
+              {nbConfirmes === 1 ? "" : "s"}. Têtes de série selon le rating à l&apos;inscription (le tirage au sort
+              ne départage que les égalités).
             </p>
+            {equipesAgents > 0 && (
+              <p className="mt-2 text-sm text-muted">
+                {nbAgentsConfirmes} agents libres confirmés : ils formeront {equipesAgents} équipe
+                {equipesAgents > 1 ? "s" : ""} de cinq au lancement du bracket, équilibrée
+                {equipesAgents > 1 ? "s" : ""} par rating et par rôle.
+              </p>
+            )}
             <form action={genererBracket} className="mt-3">
               <input type="hidden" name="tournament_id" value={tournoi.id} />
-              <Bouton disabled={nbConfirmes < 2} libelleEnCours="Génération…">
+              <Bouton disabled={nbConfirmes + equipesAgents < 2} libelleEnCours="Génération…">
                 Générer le bracket
               </Bouton>
             </form>
