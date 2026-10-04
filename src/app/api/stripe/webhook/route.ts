@@ -15,6 +15,27 @@ const cleSecrete = process.env.STRIPE_SECRET_KEY;
 const stripe = cleSecrete ? new Stripe(cleSecrete) : null;
 const secretWebhook = process.env.STRIPE_WEBHOOK_SECRET;
 
+type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
+
+function identifiant(objet: string | { id: string } | null | undefined): string | null {
+  if (!objet) return null;
+  return typeof objet === "string" ? objet : objet.id;
+}
+
+// État de l'abonnement (active, past_due, canceled…), gardé pour le
+// tableau de bord et la suppression de compte.
+async function suivreAbonnement(admin: ClientAdmin, profileId: string, abonnement: Stripe.Subscription) {
+  const clientId = identifiant(abonnement.customer);
+  if (!clientId) return;
+  await admin.from("abonnements_stripe").upsert({
+    profile_id: profileId,
+    client_stripe_id: clientId,
+    abonnement_stripe_id: abonnement.id,
+    statut: abonnement.status,
+    maj_le: new Date().toISOString(),
+  });
+}
+
 export async function POST(request: Request) {
   if (!stripe || !secretWebhook) {
     return NextResponse.json({ erreur: "Stripe pas encore activé." }, { status: 503 });
@@ -52,6 +73,18 @@ export async function POST(request: Request) {
           attribue_le: new Date().toISOString(),
         });
       }
+      // Identifiant client : ouvre le portail Stripe (gérer, résilier) et
+      // évite un second client Stripe à un nouvel abonnement.
+      const clientId = identifiant(session.customer);
+      if (profileId && clientId) {
+        await admin.from("abonnements_stripe").upsert({
+          profile_id: profileId,
+          client_stripe_id: clientId,
+          abonnement_stripe_id: identifiant(session.subscription),
+          statut: "active",
+          maj_le: new Date().toISOString(),
+        });
+      }
       break;
     }
 
@@ -59,6 +92,9 @@ export async function POST(request: Request) {
       const abonnement = evenement.data.object as Stripe.Subscription;
       const profileId = abonnement.metadata?.profile_id;
       const offre = abonnement.metadata?.offre as Offre | undefined;
+      if (profileId) {
+        await suivreAbonnement(admin, profileId, abonnement);
+      }
       if (profileId && offre && offre !== "gratuit") {
         if (abonnement.status === "active" || abonnement.status === "trialing") {
           await admin.from("comptes_offres").upsert({
@@ -80,6 +116,7 @@ export async function POST(request: Request) {
       const profileId = abonnement.metadata?.profile_id;
       if (profileId) {
         await admin.from("comptes_offres").delete().eq("profile_id", profileId);
+        await suivreAbonnement(admin, profileId, abonnement);
       }
       break;
     }

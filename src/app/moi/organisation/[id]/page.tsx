@@ -8,17 +8,22 @@ import {
   genererBracket,
   enregistrerResultat,
   resoudreLitige,
+  publierTournoi,
+  annulerTournoi,
 } from "@/lib/organisation-actions";
 import { LABEL_STATUT, COULEUR_STATUT, LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { classeCarte, accentDepuisCouleur } from "@/lib/ui";
 import Badge from "@/components/ui/Badge";
 import Bouton from "@/components/ui/Bouton";
+import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import SectionTitre from "@/components/ui/SectionTitre";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import { libelleEquipe } from "@/lib/cinq-contre-cinq";
+import DossierLitige, { lireSynthese } from "@/components/litige/DossierLitige";
 
 export const metadata: Metadata = {
   title: "Cockpit organisateur — Najarena",
@@ -27,12 +32,12 @@ export const metadata: Metadata = {
 
 interface CockpitPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
 export default async function CockpitPage({ params, searchParams }: CockpitPageProps) {
   const { id } = await params;
-  const { erreur } = await searchParams;
+  const { erreur, message } = await searchParams;
 
   const supabase = await createClient();
 
@@ -43,7 +48,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     supabase.auth.getUser(),
     supabase
       .from("tournaments")
-      .select("id, slug, nom, statut, capacite, region, debute_le, checkin_ouvre_le, organisateur_id")
+      .select("id, slug, nom, statut, capacite, region, debute_le, checkin_ouvre_le, organisateur_id, format")
       .eq("id", id)
       .maybeSingle(),
   ]);
@@ -58,10 +63,10 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     redirect("/moi");
   }
 
-  const [{ data: inscriptionsData }, { data: matchsData }] = await Promise.all([
+  const [{ data: inscriptionsData }, { data: matchsData }, { count: nbAgentsConfirmes }] = await Promise.all([
     supabase
       .from("registrations")
-      .select("id, statut, profile:profiles(pseudo, slug)")
+      .select("id, statut, profile_id, equipe_nom, equipe_tag, profile:profiles(pseudo, slug)")
       .eq("tournament_id", id)
       .order("inscrit_le", { ascending: true }),
     supabase
@@ -72,9 +77,23 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       .eq("tournament_id", id)
       .order("tour", { ascending: true })
       .order("position", { ascending: true }),
+    // Agents libres confirmés (audit N23) : regroupés en équipes au lancement.
+    tournoi.format === "5v5"
+      ? supabase
+          .from("agents_libres")
+          .select("profile_id", { count: "exact", head: true })
+          .eq("tournament_id", id)
+          .eq("statut", "confirme")
+      : Promise.resolve({ count: 0 }),
   ]);
   const inscriptions = inscriptionsData ?? [];
   const matchs = matchsData ?? [];
+  // Tournoi 5v5 (audit N21) : chaque capitaine inscrit représente son équipe.
+  const equipeParCapitaine = new Map(
+    inscriptions.filter((i) => i.equipe_nom).map((i) => [i.profile_id, libelleEquipe(i.equipe_tag, i.equipe_nom)]),
+  );
+  const nom = (profileId: string, pseudo: string | null | undefined) =>
+    equipeParCapitaine.get(profileId) ?? pseudo ?? "Joueur inconnu";
 
   const matchIds = matchs.map((m) => m.id);
 
@@ -97,6 +116,20 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
   const litiges = litigesData ?? [];
   const litigesOuverts = litiges.filter((l) => !l.resolution);
+  // Dossiers déjà préparés (audit N28).
+  const { data: dossiersData } =
+    litigesOuverts.length > 0
+      ? await supabase
+          .from("dossiers_litige")
+          .select("dispute_id, faits, synthese")
+          .in(
+            "dispute_id",
+            litigesOuverts.map((l) => l.id),
+          )
+      : { data: [] };
+  const dossierParLitige = new Map(
+    (dossiersData ?? []).map((d) => [d.dispute_id, { faits: d.faits, synthese: lireSynthese(d.synthese) }]),
+  );
 
   const rounds = new Map<number, typeof matchs>();
   for (const m of matchs) {
@@ -107,6 +140,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
   const bracketGenere = matchs.length > 0;
   const nbConfirmes = inscriptions.filter((i) => i.statut === "confirme").length;
+  const equipesAgents = Math.floor((nbAgentsConfirmes ?? 0) / 5);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -147,15 +181,42 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
         {tournoi.capacite} joueurs · {tournoi.region} · {formaterDate(tournoi.debute_le)}
       </div>
 
-      <Link
-        href={`/lol/tournois/${tournoi.slug}`}
-        className="mt-1 inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
-      >
-        Voir la page publique
-      </Link>
+      {tournoi.statut !== "brouillon" && (
+        <Link
+          href={`/lol/tournois/${tournoi.slug}`}
+          className="mt-1 inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
+        >
+          Voir la page publique
+        </Link>
+      )}
+
+      {/* Publier un brouillon, annuler avant le lancement (28/09/2026, audit M7). */}
+      {["brouillon", "ouvert", "checkin"].includes(tournoi.statut) && (
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          {tournoi.statut === "brouillon" && (
+            <form action={publierTournoi}>
+              <input type="hidden" name="tournament_id" value={tournoi.id} />
+              <Bouton libelleEnCours="Publication…">Publier le tournoi</Bouton>
+            </form>
+          )}
+          <form action={annulerTournoi}>
+            <input type="hidden" name="tournament_id" value={tournoi.id} />
+            <BoutonConfirmation
+              type="submit"
+              confirmation="Annuler ce tournoi ? Les inscrits seront prévenus. C'est définitif."
+              className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
+            >
+              Annuler le tournoi
+            </BoutonConfirmation>
+          </form>
+        </div>
+      )}
 
       {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
+        <p role="alert" className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
+      )}
+      {message && (
+        <p role="status" className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
       )}
       </Apparition>
 
@@ -173,32 +234,33 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
             {inscriptions.map((i) => (
               <li key={i.id} className={"flex items-center justify-between " + classeCarte("none")}>
                 <span className="text-sm font-medium text-text">
-                  {i.profile?.pseudo ?? "Joueur inconnu"}
+                  {nom(i.profile_id, i.profile?.pseudo)}
                 </span>
                 <div className="flex items-center gap-3">
                   <span className="font-texte tabular-nums text-mini text-muted uppercase">
                     {i.statut}
                   </span>
-                  {i.statut !== "confirme" && (
+                  {/* Un joueur qui s'est désinscrit ne se réinscrit que lui-même. */}
+                  {i.statut !== "confirme" && i.statut !== "retire" && (
                     <form action={confirmerInscription}>
                       <input type="hidden" name="registration_id" value={i.id} />
                       <input type="hidden" name="tournament_id" value={tournoi.id} />
                       <button
                         type="submit"
-                        aria-label={`Confirmer l'inscription de ${i.profile?.pseudo ?? "ce joueur"}`}
+                        aria-label={`Confirmer l'inscription de ${nom(i.profile_id, i.profile?.pseudo)}`}
                         className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-accent underline underline-offset-3"
                       >
                         Confirmer
                       </button>
                     </form>
                   )}
-                  {i.statut !== "absent" && (
+                  {i.statut !== "absent" && i.statut !== "retire" && (
                     <form action={marquerAbsent}>
                       <input type="hidden" name="registration_id" value={i.id} />
                       <input type="hidden" name="tournament_id" value={tournoi.id} />
                       <button
                         type="submit"
-                        aria-label={`Marquer ${i.profile?.pseudo ?? "ce joueur"} comme absent`}
+                        aria-label={`Marquer ${nom(i.profile_id, i.profile?.pseudo)} comme absent`}
                         className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
                       >
                         Absent
@@ -236,13 +298,21 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
         {!bracketGenere ? (
           <div className={"mt-3 " + classeCarte("none")}>
             <p className="text-sm text-muted">
-              {nbConfirmes} joueur{nbConfirmes === 1 ? "" : "s"} confirmé
-              {nbConfirmes === 1 ? "" : "s"}. Le tirage se fait aléatoirement
-              entre les joueurs confirmés au moment de la génération.
+              {nbConfirmes} {tournoi.format === "5v5" ? "équipe" : "joueur"}
+              {nbConfirmes === 1 ? "" : "s"} confirmé{tournoi.format === "5v5" ? "e" : ""}
+              {nbConfirmes === 1 ? "" : "s"}. Têtes de série selon le rating à l&apos;inscription (le tirage au sort
+              ne départage que les égalités).
             </p>
+            {equipesAgents > 0 && (
+              <p className="mt-2 text-sm text-muted">
+                {nbAgentsConfirmes} agents libres confirmés : ils formeront {equipesAgents} équipe
+                {equipesAgents > 1 ? "s" : ""} de cinq au lancement du bracket, équilibrée
+                {equipesAgents > 1 ? "s" : ""} par rating et par rôle.
+              </p>
+            )}
             <form action={genererBracket} className="mt-3">
               <input type="hidden" name="tournament_id" value={tournoi.id} />
-              <Bouton disabled={nbConfirmes < 2} libelleEnCours="Génération…">
+              <Bouton disabled={nbConfirmes + equipesAgents < 2} libelleEnCours="Génération…">
                 Générer le bracket
               </Bouton>
             </form>
@@ -277,7 +347,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                                 <span
                                   className={`text-sm ${p.est_gagnant ? "font-semibold text-text" : "text-text"}`}
                                 >
-                                  {p.profile?.pseudo ?? "Joueur inconnu"}
+                                  {nom(p.profile_id, p.profile?.pseudo)}
                                 </span>
                               </div>
                             ))}
@@ -315,7 +385,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                               <legend className="font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
                                 Déclarer le vainqueur —{" "}
                                 {participants
-                                  .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                  .map((p) => nom(p.profile_id, p.profile?.pseudo))
                                   .join(" vs ")}
                               </legend>
                               {participants.map((p) => (
@@ -330,7 +400,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                                     required
                                     className="accent-accent"
                                   />
-                                  {p.profile?.pseudo ?? "Joueur inconnu"}
+                                  {nom(p.profile_id, p.profile?.pseudo)}
                                 </label>
                               ))}
                               <input
@@ -338,7 +408,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                                 type="text"
                                 required
                                 aria-label={`Motif — ${participants
-                                  .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                  .map((p) => nom(p.profile_id, p.profile?.pseudo))
                                   .join(" vs ")}`}
                                 placeholder="Motif (obligatoire, affiché publiquement)"
                                 className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
@@ -346,7 +416,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                             </fieldset>
                             <Bouton
                               aria-label={`Enregistrer le résultat — ${participants
-                                .map((p) => p.profile?.pseudo ?? "Joueur inconnu")
+                                .map((p) => nom(p.profile_id, p.profile?.pseudo))
                                 .join(" vs ")}`}
                               libelleEnCours="Enregistrement…"
                               className="self-start"
@@ -401,6 +471,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                     Résoudre
                   </Bouton>
                 </form>
+                <DossierLitige disputeId={l.id} dossier={dossierParLitige.get(l.id) ?? null} depuis="cockpit" />
               </li>
             ))}
           </ul>

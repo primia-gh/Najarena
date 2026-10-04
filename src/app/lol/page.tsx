@@ -45,7 +45,7 @@ function IconeEtape({ chemin }: { chemin: keyof typeof ICONE_ETAPE }) {
 const PORTES = [
   {
     titre: "Je veux jouer",
-    texte: "Des tournois quotidiens en 1v1 (5v5 bientôt), ton classement qui progresse à chaque résultat vérifié.",
+    texte: "Des tournois quotidiens en 1v1, des tournois 5v5 entre équipes, l'arène pour un duel tout de suite contre un joueur de ton niveau.",
     cta: "Voir les tournois",
     href: "/lol/tournois",
   },
@@ -57,7 +57,7 @@ const PORTES = [
   },
   {
     titre: "J'organise un tournoi",
-    texte: "Check-in, bracket, verdicts — un cockpit qui fait le travail d'admin à ta place.",
+    texte: "Check-in, bracket, verdicts — un cockpit qui fait le travail d'admin à ta place. Et une page pour ta communauté ou ton serveur Discord.",
     cta: "Organiser un tournoi",
     href: "/organiser/nouveau",
   },
@@ -129,12 +129,15 @@ export default async function LolHubPage() {
               Ton niveau, <span className="text-accent">vérifié.</span>
             </h1>
             <p className="max-w-[560px] text-courant text-text-2">
-              Des tournois 1v1 quotidiens, le 5v5 arrive bientôt. Les résultats sont lus dans la donnée officielle
-              Riot — ton classement devient une preuve, pas une déclaration.
+              Des tournois 1v1 quotidiens et des tournois 5v5 entre équipes. Les résultats sont lus dans la donnée
+              officielle Riot — ton classement devient une preuve, pas une déclaration.
             </p>
           </Apparition>
           <Apparition delai={0.08} className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <BoutonLien href="/lol/tournois">Voir les tournois</BoutonLien>
+            <BoutonLien href="/lol/arene" variante="contour">
+              Duel tout de suite
+            </BoutonLien>
             <BoutonLien href="/lol/classement" variante="contour">
               Voir le classement
             </BoutonLien>
@@ -175,6 +178,13 @@ export default async function LolHubPage() {
               </li>
             ))}
           </ul>
+          <p className="text-sm text-muted">
+            Pas en lice ce soir ?{" "}
+            <Link href="/lol/pronostics" className="text-accent underline underline-offset-3">
+              Pronostique les demi-finales et les finales en cours
+            </Link>{" "}
+            — gratuit, sans mise ni gain.
+          </p>
         </div>
       </section>
 

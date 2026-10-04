@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { calibrationPct, arrondir, RD_INITIAL } from "@/lib/classement";
@@ -7,6 +7,7 @@ import { LABEL_NIVEAU, COULEUR_NIVEAU, formaterDate } from "@/lib/tournois";
 import { chargerOffre, LABEL_OFFRE, COULEUR_OFFRE } from "@/lib/offres";
 import Badge from "@/components/ui/Badge";
 import BoutonImprimer from "@/components/ui/BoutonImprimer";
+import { adresseActuelleProfil } from "@/lib/visites-profil";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -29,9 +30,15 @@ async function chargerCV(slug: string) {
     .from("profiles")
     .select("id, pseudo, slug, pays, created_at")
     .eq("slug", slug)
+    .is("supprime_le", null)
     .maybeSingle();
 
-  if (!profil) return null;
+  if (!profil) {
+    // Ancienne adresse d'un joueur qui a changé de pseudo.
+    const adresse = await adresseActuelleProfil(supabase, slug);
+    if (adresse) permanentRedirect(`/joueur/${adresse}/cv`);
+    return null;
+  }
 
   const [{ data: compteRiot }, { data: rating }, { data: participationsData }, infoOffre] =
     await Promise.all([
@@ -51,8 +58,10 @@ async function chargerCV(slug: string) {
         .maybeSingle(),
       supabase
         .from("match_participants")
-        .select("match_id, est_gagnant, match:matches(tournament:tournaments(nom))")
-        .eq("profile_id", profil.id),
+        .select("match_id, est_gagnant, match:matches!inner(tournament:tournaments!inner(nom, format))")
+        .eq("profile_id", profil.id)
+        // 1v1 seulement : un match 5v5 n'est pas un résultat individuel (audit N21).
+        .eq("match.tournament.format", "1v1"),
       chargerOffre(supabase, profil.id),
     ]);
 
@@ -120,11 +129,12 @@ export default async function CvPage({ params }: CvPageProps) {
             {profil.pseudo}
           </h1>
           <div className="mt-1 flex flex-wrap items-center gap-2 font-texte tabular-nums text-[0.8rem] text-muted print:text-black">
-            {compteRiot && (
+            {compteRiot?.verifie_le ? (
               <span>
-                {compteRiot.riot_game_name}#{compteRiot.riot_tag_line} · League of Legends · {compteRiot.region}
-                {compteRiot.verifie_le && " · Vérifié"}
+                {compteRiot.riot_game_name}#{compteRiot.riot_tag_line} · League of Legends · {compteRiot.region} · Vérifié
               </span>
+            ) : (
+              <span>League of Legends · compte Riot non vérifié</span>
             )}
             {profil.pays && <span>· {profil.pays}</span>}
           </div>

@@ -8,6 +8,7 @@
 import { Resend } from "resend";
 import webpush, { WebPushError } from "web-push";
 import { creerClientAdmin } from "@/lib/supabase/admin";
+import { decoderEntites, echapperDiscord, echapperHtml } from "@/lib/echappement";
 
 const cle = process.env.RESEND_API_KEY;
 const resend = cle ? new Resend(cle) : null;
@@ -33,18 +34,20 @@ const EXPEDITEUR = process.env.RESEND_FROM_EMAIL ?? "Najarena <onboarding@resend
 // inventé, seulement le vrai domaine une fois choisi.
 export const URL_SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
+// titre : texte brut (échappé ici) ; corps : HTML, dont les appelants
+// échappent chaque texte venant d'un utilisateur (echapperHtml, audit M5).
 function enveloppe(titre: string, corps: string): string {
   return `
     <div style="font-family:'JetBrains Mono',ui-monospace,monospace;max-width:480px;margin:0 auto;color:#12161d;">
       <p style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5b6672;margin:0 0 16px;">Najarena</p>
-      <h1 style="font-family:system-ui,sans-serif;font-size:20px;font-weight:800;margin:0 0 12px;">${titre}</h1>
+      <h1 style="font-family:system-ui,sans-serif;font-size:20px;font-weight:800;margin:0 0 12px;">${echapperHtml(titre)}</h1>
       <div style="font-family:system-ui,sans-serif;font-size:14px;line-height:1.6;color:#12161d;">${corps}</div>
     </div>
   `;
 }
 
 function texteBrut(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return decoderEntites(html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 }
 
 // Chaque appelant de notifierJoueur inclut toujours exactement un lien
@@ -53,7 +56,7 @@ function texteBrut(html: string): string {
 // sans avoir à faire passer une URL séparée dans chaque appel existant.
 function extraireLien(html: string): string {
   const trouve = html.match(/href="([^"]+)"/);
-  return trouve ? trouve[1] : URL_SITE;
+  return trouve ? decoderEntites(trouve[1]) : URL_SITE;
 }
 
 /**
@@ -192,9 +195,11 @@ export async function envoyerRappel(
   await Promise.all([
     // Lien sans texte : envoyerPush en fait la cible du clic, et le corps
     // de la notification reste la seule phrase utile.
-    envoyerPush(profileId, titre, `<p>${texte}</p><a href="${lien}"></a>`).catch(() => undefined),
+    envoyerPush(profileId, titre, `<p>${echapperHtml(texte)}</p><a href="${echapperHtml(lien)}"></a>`).catch(
+      () => undefined,
+    ),
     discordId
-      ? envoyerMessagePriveDiscord(discordId, `**${titre}**\n${texte}\n${lien}`)
+      ? envoyerMessagePriveDiscord(discordId, `**${echapperDiscord(titre)}**\n${echapperDiscord(texte)}\n${lien}`)
       : Promise.resolve(),
   ]);
 }

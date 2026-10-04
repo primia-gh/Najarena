@@ -1,0 +1,198 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { DetailsMatchRiot, ParticipantMatchRiot } from "@/lib/riot";
+import type { ChronologieRiot } from "@/lib/conditions-1v1";
+
+// L'API Riot est simulée : ces tests vérifient les critères de
+// rapprochement (docs/moteur-resultats.md §3) sans réseau.
+const parties = new Map<string, DetailsMatchRiot>();
+const idsParJoueur = new Map<string, string[]>();
+const chronologies = new Map<string, ChronologieRiot>();
+
+vi.mock("@/lib/riot", () => ({
+  trouverRegion: () => ({ code: "EUW", continent: "europe" }),
+  estEnPartie: vi.fn(async () => false),
+  recupererChronologieMatch: vi.fn(async (id: string) => {
+    const chronologie = chronologies.get(id);
+    if (!chronologie) throw new Error(`chronologie inconnue ${id}`);
+    return chronologie;
+  }),
+  recupererIdsMatchsRecents: vi.fn(async (puuid: string) => idsParJoueur.get(puuid) ?? []),
+  recupererDetailsMatch: vi.fn(async (id: string) => {
+    const partie = parties.get(id);
+    if (!partie) throw new Error(`partie inconnue ${id}`);
+    return partie;
+  }),
+}));
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/admin", () => ({ creerClientAdmin: vi.fn() }));
+vi.mock("@/lib/notifications", () => ({
+  envoyerRappel: vi.fn(),
+  notifierJoueur: vi.fn(),
+  notifierDiscord: vi.fn(),
+  URL_SITE: "http://localhost:3000",
+}));
+vi.mock("@/lib/classement-actions", () => ({ cloturerTournoi: vi.fn() }));
+
+const { trouverSerieCorrespondante } = await import("./rapprochement");
+const riot = await import("@/lib/riot");
+
+const OUVERTURE = new Date("2026-09-28T19:00:00Z");
+const MINUTE = 60_000;
+
+function joueur(puuid: string, win: boolean): ParticipantMatchRiot {
+  return {
+    puuid,
+    win,
+    championName: "Ahri",
+    kills: 1,
+    deaths: 0,
+    assists: 0,
+    totalMinionsKilled: 100,
+    neutralMinionsKilled: 0,
+    goldEarned: 3000,
+  };
+}
+
+function ajouterPartie(
+  id: string,
+  options: {
+    debutMinutes: number;
+    gagnant: "A" | "B";
+    dureeSecondes?: number;
+    queueId?: number;
+    autres?: number;
+  },
+) {
+  const participants = [joueur("A", options.gagnant === "A"), joueur("B", options.gagnant === "B")];
+  for (let i = 0; i < (options.autres ?? 0); i++) participants.push(joueur(`X${i}`, i % 2 === 0));
+  parties.set(id, {
+    info: {
+      gameStartTimestamp: OUVERTURE.getTime() + options.debutMinutes * MINUTE,
+      gameDuration: options.dureeSecondes ?? 900,
+      queueId: options.queueId ?? 0,
+      participants,
+    },
+  });
+  idsParJoueur.set("A", [id, ...(idsParJoueur.get("A") ?? [])]);
+}
+
+beforeEach(() => {
+  parties.clear();
+  idsParJoueur.clear();
+  chronologies.clear();
+  vi.mocked(riot.recupererDetailsMatch).mockClear();
+});
+
+// 1v1 classique (audit N5) : partie arrêtée après le premier sang, sans
+// vainqueur « officiel » (les deux quittent).
+function ajouterPartieClassique(id: string, debutMinutes: number, victime: 1 | 2) {
+  const a = { ...joueur("A", false), teamId: 100 };
+  const b = { ...joueur("B", false), teamId: 200 };
+  parties.set(id, {
+    info: { gameStartTimestamp: OUVERTURE.getTime() + debutMinutes * MINUTE, gameDuration: 190, queueId: 0, participants: [a, b] },
+  });
+  chronologies.set(id, {
+    info: {
+      participants: [
+        { participantId: 1, puuid: "A" },
+        { participantId: 2, puuid: "B" },
+      ],
+      frames: [
+        { timestamp: 0, participantFrames: { "1": { minionsKilled: 0 }, "2": { minionsKilled: 0 } }, events: [] },
+        {
+          timestamp: 180_000,
+          participantFrames: { "1": { minionsKilled: 20 }, "2": { minionsKilled: 18 } },
+          events: [{ type: "CHAMPION_KILL", timestamp: 170_000, killerId: victime === 1 ? 2 : 1, victimId: victime }],
+        },
+      ],
+    },
+  });
+  idsParJoueur.set("A", [id, ...(idsParJoueur.get("A") ?? [])]);
+}
+
+describe("trouverSerieCorrespondante — 1v1 classique", () => {
+  it("lit le vainqueur au premier sang, même sans Nexus détruit ni durée minimale", async () => {
+    ajouterPartieClassique("EUW1_c1", 4, 1);
+    const serie = await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true, new Map(), "classique");
+    expect(serie?.gagnantPuuid).toBe("B");
+  });
+
+  it("en mode Nexus, la même partie (sans vainqueur officiel) n'est pas retenue", async () => {
+    ajouterPartieClassique("EUW1_c2", 4, 1);
+    expect(await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true, new Map(), "nexus")).toBeNull();
+  });
+});
+
+describe("trouverSerieCorrespondante", () => {
+  it("Bo1 : retrouve la partie et son vainqueur", async () => {
+    ajouterPartie("EUW1_1", { debutMinutes: 5, gagnant: "B" });
+    const serie = await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true);
+    expect(serie?.gagnantPuuid).toBe("B");
+    expect(serie?.parties.map((p) => p.riotMatchId)).toEqual(["EUW1_1"]);
+  });
+
+  it("ignore un remake, une partie antérieure, une partie non personnalisée et une partie à dix", async () => {
+    ajouterPartie("remake", { debutMinutes: 5, gagnant: "A", dureeSecondes: 200 });
+    ajouterPartie("avant", { debutMinutes: -30, gagnant: "A" });
+    ajouterPartie("classee", { debutMinutes: 6, gagnant: "A", queueId: 420 });
+    ajouterPartie("a-dix", { debutMinutes: 7, gagnant: "A", autres: 8 });
+    expect(await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true)).toBeNull();
+  });
+
+  it("Bo3 : attend la manche décisive, puis rend les trois parties", async () => {
+    ajouterPartie("m1", { debutMinutes: 5, gagnant: "A" });
+    ajouterPartie("m2", { debutMinutes: 30, gagnant: "B" });
+    expect(await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 3, true)).toBeNull();
+
+    ajouterPartie("m3", { debutMinutes: 55, gagnant: "B" });
+    const serie = await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 3, true);
+    expect(serie?.gagnantPuuid).toBe("B");
+    expect(serie?.parties.map((p) => p.riotMatchId)).toEqual(["m1", "m2", "m3"]);
+  });
+
+  it("une partie déjà lue n'est pas redemandée à Riot pendant le même passage", async () => {
+    ajouterPartie("EUW1_1", { debutMinutes: 5, gagnant: "A" });
+    const cache = new Map();
+    await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true, cache);
+    await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true, cache);
+    expect(riot.recupererDetailsMatch).toHaveBeenCalledTimes(1);
+  });
+});
+
+// 5v5 (audit N21) : A et B sont les capitaines, chacun avec quatre
+// coéquipiers alignés.
+function ajouterPartie5v5(id: string, bleus: string[], rouges: string[], bleusGagnent: boolean) {
+  const participants = [
+    ...bleus.map((p) => ({ ...joueur(p, bleusGagnent), teamId: 100 })),
+    ...rouges.map((p) => ({ ...joueur(p, !bleusGagnent), teamId: 200 })),
+  ];
+  parties.set(id, {
+    info: { gameStartTimestamp: OUVERTURE.getTime() + 5 * MINUTE, gameDuration: 1500, queueId: 0, participants },
+  });
+  idsParJoueur.set("A", [id, ...(idsParJoueur.get("A") ?? [])]);
+}
+
+describe("trouverSerieCorrespondante — 5v5", () => {
+  const equipeA = ["A", "a2", "a3", "a4", "a5"];
+  const equipeB = ["B", "b2", "b3", "b4", "b5"];
+
+  it("retient la partie qui réunit les dix joueurs alignés, chaque équipe de son côté", async () => {
+    ajouterPartie5v5("EUW1_5v5", equipeB, equipeA, true);
+    const serie = await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, false, new Map(), "nexus", {
+      a: equipeA,
+      b: equipeB,
+    });
+    expect(serie?.gagnantPuuid).toBe("B");
+    expect(serie?.parties[0].participants).toHaveLength(10);
+  });
+
+  it("ignore une partie avec un remplaçant non inscrit", async () => {
+    ajouterPartie5v5("EUW1_remplacant", ["A", "a2", "a3", "a4", "x9"], equipeB, true);
+    expect(
+      await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, false, new Map(), "nexus", {
+        a: equipeA,
+        b: equipeB,
+      }),
+    ).toBeNull();
+  });
+});

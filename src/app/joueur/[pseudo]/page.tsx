@@ -1,7 +1,8 @@
-import { Fragment } from "react";
+import { cache, Fragment } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { after } from "next/server";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { calibrationPct, arrondir, RATING_INITIAL, RD_INITIAL } from "@/lib/classement";
@@ -11,8 +12,14 @@ import { mettreAJourBioProfile } from "@/lib/offres-actions";
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { demarrerConversation } from "@/lib/messagerie-actions";
 import { chargerMoyennes, genererRevue, type StatsMatch } from "@/lib/revue-match";
+import { demanderRevueIA } from "@/lib/revue-ia-actions";
+import { iaDisponible } from "@/lib/claude";
 import { JsonLd } from "@/lib/json-ld";
 import { chargerComplementsProfil } from "@/lib/profil-vitrine";
+import { adresseActuelleProfil, enregistrerVisite } from "@/lib/visites-profil";
+import { emettreCertificat } from "@/lib/profil-actions";
+import { lancerDefi } from "@/lib/defi-actions";
+import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { classeBoutonContour, classeBoutonPrincipal } from "@/lib/design";
 import BoutonLien from "@/components/design/BoutonLien";
@@ -49,9 +56,24 @@ const LABEL_MOTIF: Record<string, string> = {
 
 interface JoueurPageProps {
   params: Promise<{ pseudo: string }>;
+  searchParams?: Promise<{ revue?: string }>;
 }
 
-async function chargerJoueur(slug: string) {
+// Réponse à « Analyse détaillée » (audit N25, src/lib/revue-ia-actions.ts).
+const MESSAGES_REVUE_IA: Record<string, { texte: string; erreur: boolean }> = {
+  ok: { texte: "Analyse détaillée prête : elle est rangée sous le match.", erreur: false },
+  deja: { texte: "Ce match a déjà son analyse détaillée.", erreur: false },
+  offre: { texte: "L'analyse détaillée fait partie de l'offre Elite.", erreur: true },
+  "sans-stats": { texte: "Pas de statistiques Riot pour ce match : rien à analyser.", erreur: true },
+  limite: { texte: "Tu as atteint tes 10 demandes à l'IA des dernières 24 heures : réessaie demain.", erreur: true },
+  refus: { texte: "L'IA n'a pas pu rédiger cette analyse.", erreur: true },
+  invalide: { texte: "L'analyse reçue était incomplète : réessaie.", erreur: true },
+  indisponible: { texte: "L'analyse détaillée est indisponible pour l'instant.", erreur: true },
+};
+
+// cache : generateMetadata et la page partagent un seul chargement par
+// requête (audit M12 — tout était chargé deux fois, visite comprise).
+const chargerJoueur = cache(async (slug: string) => {
   const supabase = await createClient();
 
   // Le segment d'URL s'appelle "pseudo" (arborescence CLAUDE.md) mais
@@ -59,15 +81,22 @@ async function chargerJoueur(slug: string) {
   // l'URL, comme pour les tournois et les équipes.
   const { data: profil, error: erreurProfil } = await supabase
     .from("profiles")
-    .select("id, pseudo, slug, pays, created_at")
+    .select("id, pseudo, slug, pays, created_at, supprime_le")
     .eq("slug", slug)
     .maybeSingle();
 
   if (erreurProfil) {
     return { statut: "erreur" as const };
   }
+  // Compte supprimé (anonymisé) : ses matchs restent dans les brackets et
+  // le journal, mais il n'a plus de CV.
+  if (profil?.supprime_le) {
+    return { statut: "supprime" as const };
+  }
   if (!profil) {
-    return { statut: "introuvable" as const };
+    // Ancienne adresse d'un joueur qui a changé de pseudo.
+    const adresse = await adresseActuelleProfil(supabase, slug);
+    return adresse ? { statut: "deplace" as const, slug: adresse } : { statut: "introuvable" as const };
   }
 
   // Étage 1 : ne dépendent que de profil.id, indépendantes entre elles —
@@ -97,9 +126,12 @@ async function chargerJoueur(slug: string) {
     supabase
       .from("match_participants")
       .select(
-        "match_id, score, est_gagnant, match:matches(tour, tournament:tournaments(nom, slug))",
+        "match_id, score, est_gagnant, match:matches!inner(tour, tournament:tournaments!inner(nom, slug, format))",
       )
-      .eq("profile_id", profil.id),
+      .eq("profile_id", profil.id)
+      // Matchs 1v1 seulement : en 5v5 (audit N21), le capitaine représente
+      // son équipe, ce n'est pas un résultat individuel.
+      .eq("match.tournament.format", "1v1"),
     supabase.auth.getUser(),
     chargerOffre(supabase, profil.id),
     // Journal des points : public par conception (CLAUDE.md §4, policy
@@ -114,16 +146,8 @@ async function chargerJoueur(slug: string) {
   ]);
 
   const estProprietaire = visiteurData.user?.id === profil.id;
-
-  // Enregistrer la vue — jamais pour un visiteur anonyme, jamais pour le
-  // propriétaire qui regarde son propre profil (ce n'est pas une "vue").
-  if (visiteurData.user && !estProprietaire) {
-    await supabase.from("vues_profil").upsert({
-      profile_id: profil.id,
-      vu_par: visiteurData.user.id,
-      derniere_vue_le: new Date().toISOString(),
-    });
-  }
+  // Visite enregistrée par la page après son envoi (enregistrerVisite).
+  const visiteurId = visiteurData.user?.id ?? null;
 
   // Un visiteur organisateur peut suivre/contacter ce joueur — chargé
   // seulement pour un visiteur connecté qui n'est pas le propriétaire.
@@ -192,15 +216,19 @@ async function chargerJoueur(slug: string) {
   const peutRevue = estProprietaire && ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.elite;
   let statsParMatch = new Map<string, StatsMatch>();
   let moyennesVictoires: Awaited<ReturnType<typeof chargerMoyennes>>["victoires"] = null;
+  let revuesIA = new Map<string, { points: string[]; conseil: string }>();
   if (peutRevue && matchIds.length > 0) {
-    const [{ data: statsData }, moyennes] = await Promise.all([
+    const [{ data: statsData }, moyennes, { data: revuesData }] = await Promise.all([
       supabase
         .from("stats_match_joueur")
         .select("match_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne")
         .eq("profile_id", profil.id)
         .in("match_id", matchIds),
       chargerMoyennes(supabase, profil.id),
+      // Analyses détaillées déjà rédigées par l'IA (audit N25).
+      supabase.from("revues_match_ia").select("match_id, points, conseil").in("match_id", matchIds),
     ]);
+    revuesIA = new Map((revuesData ?? []).map((r) => [r.match_id, { points: r.points, conseil: r.conseil }]));
     statsParMatch = new Map(
       (statsData ?? []).map((s) => [
         s.match_id,
@@ -235,6 +263,7 @@ async function chargerJoueur(slug: string) {
         creeLe: verdict.cree_le,
         stats,
         revue: stats ? genererRevue(stats, moyennesVictoires) : null,
+        revueIA: revuesIA.get(p.match_id) ?? null,
       };
     })
     .filter((h): h is NonNullable<typeof h> => h !== null)
@@ -253,29 +282,71 @@ async function chargerJoueur(slug: string) {
     offreVisiteur,
     dejaSuivi,
     peutRevue,
+    visiteurId,
+    iaPossible: iaDisponible(),
   };
-}
+});
 
 export async function generateMetadata({ params }: JoueurPageProps): Promise<Metadata> {
   const { pseudo } = await params;
   const donnees = await chargerJoueur(pseudo);
 
+  if (donnees.statut === "deplace") {
+    permanentRedirect(`/joueur/${donnees.slug}`);
+  }
+  if (donnees.statut === "supprime") {
+    return { title: "Compte supprimé — Najarena", robots: { index: false, follow: true } };
+  }
   if (donnees.statut !== "ok") {
     return { title: "Profil introuvable — Najarena" };
   }
 
+  // Description propre à chaque joueur (audit M11) : rating, palier et
+  // matchs vérifiés, plutôt qu'une phrase identique pour tous.
+  const { profil, compteRiot, rating, historique } = donnees;
+  const complements = await chargerComplementsProfil(profil.id);
+  const matchsVerifies = historique.filter((h) => h.niveau !== "manuel").length;
+  const chiffres = rating
+    ? `rating ${arrondir(rating.rating)}${complements.palier ? ` (${complements.palier.nom})` : ""}, ${
+        rating.est_classe ? "classé" : `provisoire, confiance ${calibrationPct(rating.rd)} %`
+      }, ${matchsVerifies} match${matchsVerifies > 1 ? "s" : ""} vérifié${matchsVerifies > 1 ? "s" : ""}`
+    : "pas encore de match vérifié";
+
   return {
-    title: `${donnees.profil.pseudo} — Najarena`,
-    description: `Profil vérifié de ${donnees.profil.pseudo} sur Najarena. Résultats League of Legends lus dans la donnée officielle Riot.`,
+    title: `${profil.pseudo} — Najarena`,
+    description: `${compteRiot?.verifie_le ? "CV e-sport vérifié" : "CV e-sport"} de ${profil.pseudo} sur Najarena : ${chiffres}. Résultats League of Legends lus dans la donnée officielle Riot.`,
+    alternates: { canonical: `/joueur/${profil.slug}` },
+    openGraph: { title: `${profil.pseudo} — CV e-sport Najarena`, url: `/joueur/${profil.slug}`, type: "profile" },
   };
 }
 
-export default async function JoueurPage({ params }: JoueurPageProps) {
+export default async function JoueurPage({ params, searchParams }: JoueurPageProps) {
   const { pseudo } = await params;
+  const { revue: retourRevue } = (await searchParams) ?? {};
   const donnees = await chargerJoueur(pseudo);
 
+  if (donnees.statut === "deplace") {
+    permanentRedirect(`/joueur/${donnees.slug}`);
+  }
   if (donnees.statut === "introuvable") {
     notFound();
+  }
+
+  if (donnees.statut === "supprime") {
+    return (
+      <main className="flex-1 bg-bg px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
+        <Panneau className="flex flex-col gap-3 px-8 py-10">
+          <h1 className="font-titre text-3xl font-black uppercase">Compte supprimé</h1>
+          <p className="text-sm leading-relaxed text-text-2">
+            Ce joueur a supprimé son compte. Ses matchs restent dans les brackets et le journal public des
+            points, sous un pseudo anonyme : ils font partie de l&apos;historique de ses adversaires.
+          </p>
+          <Link href="/lol/classement" className="self-start text-sm text-muted underline underline-offset-3 hover:text-text">
+            Voir le classement
+          </Link>
+        </Panneau>
+      </main>
+    );
   }
 
   if (donnees.statut === "erreur") {
@@ -288,7 +359,13 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     );
   }
 
-  const { profil, compteRiot, rating, historique, evenementsPoints, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi, peutRevue } = donnees;
+  const { profil, compteRiot, rating, historique, evenementsPoints, infoOffre, estProprietaire, visiteurs, offreVisiteur, dejaSuivi, peutRevue, visiteurId, iaPossible } = donnees;
+  const messageRevue = estProprietaire && retourRevue ? MESSAGES_REVUE_IA[retourRevue] : undefined;
+
+  // Jamais pour un visiteur déconnecté ni pour le propriétaire lui-même.
+  if (visiteurId && !estProprietaire) {
+    after(() => enregistrerVisite(profil.id, visiteurId));
+  }
   const peutPersonnaliser = ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie;
   const visiteurEstOrganisateur = offreVisiteur === "organisateur";
   const pct = rating ? calibrationPct(rating.rd) : 0;
@@ -370,6 +447,22 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
   const moisAnnee = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "Europe/Paris" });
 
   const parcours = [
+    // Saisons terminées : palier et rang finals (audit N14).
+    ...complements.saisonsPassees.map((sp) => ({
+      cle: `saison-${sp.numero}`,
+      quand: `Fin de ${sp.nom}`,
+      titre: sp.palier ? `${sp.palier.nom} — ${arrondir(sp.rating)}` : `Non classé — ${arrondir(sp.rating)}`,
+      lien: "/lol/saisons",
+      detail: sp.rang ? `#${sp.rang} sur ${sp.classes} joueur${sp.classes > 1 ? "s" : ""} classé${sp.classes > 1 ? "s" : ""}` : "",
+    })),
+    // Tournois 5v5 joués avec une équipe (audit N21).
+    ...complements.tournoisEnEquipe.map((t) => ({
+      cle: `tournoi-equipe-${t.slug}`,
+      quand: formaterDate(t.debuteLe),
+      titre: `${t.nom} — ${t.resultat}`,
+      lien: `/lol/tournois/${t.slug}`,
+      detail: `En 5v5 avec ${t.equipe}`,
+    })),
     ...complements.equipes.map((e) => ({
       cle: `equipe-${e.slug}`,
       quand: e.depuis ? `Depuis ${moisAnnee.format(new Date(e.depuis))}` : "Équipe",
@@ -397,10 +490,13 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
     },
   ];
 
+  // Riot ID et région seulement une fois le compte vérifié (audit M9) : un
+  // Riot ID simplement saisi peut appartenir à quelqu'un d'autre.
+  const compteVerifie = compteRiot?.verifie_le ? compteRiot : null;
   const infos = [
-    compteRiot ? { cle: "Riot ID", valeur: `${compteRiot.riot_game_name}#${compteRiot.riot_tag_line}` } : null,
+    compteVerifie ? { cle: "Riot ID", valeur: `${compteVerifie.riot_game_name}#${compteVerifie.riot_tag_line}` } : null,
     complements.roleLibelle ? { cle: "Rôle", valeur: complements.roleLibelle } : null,
-    compteRiot ? { cle: "Région", valeur: compteRiot.region } : null,
+    compteVerifie ? { cle: "Région", valeur: compteVerifie.region } : null,
     profil.pays ? { cle: "Pays", valeur: profil.pays } : null,
     equipeActuelle ? { cle: "Équipe", valeur: equipeActuelle.nom } : null,
     { cle: "Membre depuis", valeur: moisAnnee.format(new Date(profil.created_at)) },
@@ -497,7 +593,9 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
               <a
                 href={infoOffre.lien_externe}
                 target="_blank"
-                rel="noopener noreferrer"
+                // Lien choisi par le joueur : pas de caution de Najarena
+                // aux yeux des moteurs de recherche (audit F2).
+                rel="nofollow ugc noopener noreferrer"
                 className="self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {infoOffre.lien_externe}
@@ -519,6 +617,14 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                     Exporter mon CV
                   </BoutonLien>
                 )}
+                {rating && (
+                  // Instantané daté et figé à envoyer (audit N9).
+                  <form action={emettreCertificat}>
+                    <BoutonEnvoi variante="contour" libelleEnCours="Émission…">
+                      Certificat daté
+                    </BoutonEnvoi>
+                  </form>
+                )}
                 {!compteRiot?.verifie_le ? (
                   <BoutonLien href="/lier-riot">Lier mon Riot ID</BoutonLien>
                 ) : peutPersonnaliser ? (
@@ -535,6 +641,40 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                   libelle="Partager le CV"
                   className={classeBoutonContour()}
                 />
+                {/* Défi direct (audit N16) : duel en une partie, lu chez Riot. */}
+                {compteVerifie &&
+                  (visiteurId ? (
+                    <details className="group">
+                      <summary className={`${SOMMAIRE} ${classeBoutonPrincipal()}`}>Défier</summary>
+                      <form
+                        action={lancerDefi}
+                        className="panneau mt-3 flex w-[min(360px,calc(100vw-3rem))] flex-col gap-3 p-4"
+                      >
+                        <input type="hidden" name="adversaire_id" value={profil.id} />
+                        <p className="text-sm leading-normal text-text-2">
+                          Un duel en une partie, résultat lu chez Riot. Il compte au classement si la partie est
+                          retrouvée — un défi classé par jour entre vous deux, les suivants en amical.
+                        </p>
+                        <label className="flex flex-col gap-2">
+                          <span className="text-mini text-muted uppercase">Comment on gagne</span>
+                          <select name="condition_victoire" defaultValue="nexus" className={CHAMP}>
+                            {CONDITIONS_VICTOIRE.map((c) => (
+                              <option key={c.valeur} value={c.valeur}>
+                                {c.libelle}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <BoutonEnvoi libelleEnCours="Envoi…" className="self-start">
+                          Envoyer le défi
+                        </BoutonEnvoi>
+                      </form>
+                    </details>
+                  ) : (
+                    <BoutonLien href={`/connexion?suite=${encodeURIComponent(`/joueur/${profil.slug}`)}`}>
+                      Défier
+                    </BoutonLien>
+                  ))}
                 {visiteurEstOrganisateur &&
                   (dejaSuivi ? (
                     <span className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold tracking-[2px] text-accent uppercase">
@@ -664,6 +804,7 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
             </Panneau>
 
             {/* Historique des matchs */}
+            <span id="historique" aria-hidden="true" className="-mb-8 block scroll-mt-28" />
             <Panneau className="flex flex-col gap-6 p-6 sm:p-8">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <LibelleSection as="h2">Historique des matchs</LibelleSection>
@@ -671,6 +812,11 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                   {matchsVerifies} match{matchsVerifies > 1 ? "s" : ""} vérifié{matchsVerifies > 1 ? "s" : ""}
                 </span>
               </div>
+              {messageRevue && (
+                <p role={messageRevue.erreur ? "alert" : "status"} className={`text-sm ${messageRevue.erreur ? "text-danger" : "text-accent"}`}>
+                  {messageRevue.texte}
+                </p>
+              )}
               {historique.length === 0 ? (
                 <p className="text-muted">Aucun résultat enregistré pour l&apos;instant.</p>
               ) : (
@@ -758,6 +904,33 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                                     ) : (
                                       <p className="text-muted">Pas encore assez de matchs pour comparer.</p>
                                     )}
+                                    {/* Analyse détaillée rédigée par l'IA (audit N25). */}
+                                    {h.revueIA ? (
+                                      <div className="mt-2 flex flex-col gap-1.5 border-t border-line pt-3">
+                                        <p className="text-mini text-muted uppercase">
+                                          Analyse détaillée — rédigée par IA à partir des seuls chiffres officiels
+                                        </p>
+                                        <ul className="flex list-disc flex-col gap-1 pl-5 text-text-2">
+                                          {h.revueIA.points.map((point) => (
+                                            <li key={point}>{point}</li>
+                                          ))}
+                                        </ul>
+                                        <p className="text-text">
+                                          <span className="font-semibold">Conseil : </span>
+                                          {h.revueIA.conseil}
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      iaPossible && (
+                                        <form action={demanderRevueIA} className="mt-2 border-t border-line pt-3">
+                                          <input type="hidden" name="match_id" value={h.matchId} />
+                                          <input type="hidden" name="slug" value={profil.slug} />
+                                          <BoutonEnvoi variante="contour" libelleEnCours="Analyse…" className="self-start">
+                                            Analyse détaillée (IA)
+                                          </BoutonEnvoi>
+                                        </form>
+                                      )
+                                    )}
                                   </div>
                                 </details>
                               </td>
@@ -781,7 +954,11 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                 <LibelleSection as="h2">Journal des points</LibelleSection>
                 <p className="text-sm text-muted">
                   Chaque variation de points est enregistrée avec le rating avant et après : publique, et jamais
-                  modifiée.
+                  modifiée — chaque ligne est scellée dans le{" "}
+                  <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
+                    registre des points
+                  </Link>
+                  , vérifiable par tous.
                 </p>
               </div>
               {evenementsPoints.length === 0 ? (
@@ -852,6 +1029,12 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                 <LibelleSection as="h2">Disponibilité</LibelleSection>
                 <BadgeChercheEquipe className="self-start" />
                 {complements.annonce.message && <p className="text-sm text-text-2">{complements.annonce.message}</p>}
+                {/* Objectif (audit N24) : une échéance à venir du calendrier. */}
+                {complements.annonce.objectif && complements.annonce.objectif.debut_le > complements.maintenantIso && (
+                  <p className="text-xs text-accent">
+                    Objectif : {complements.annonce.objectif.nom} ({formaterDate(complements.annonce.objectif.debut_le)})
+                  </p>
+                )}
                 <p className="text-xs text-faint">Annonce publiée le {formaterDate(complements.annonce.cree_le)}</p>
                 <BoutonLien href="/lol/coequipiers" variante="secondaire" className="self-start text-sm">
                   Voir les annonces
@@ -902,6 +1085,50 @@ export default async function JoueurPage({ params }: JoueurPageProps) {
                 ))}
               </ol>
             </Panneau>
+
+            {/* Comptes Riot déclarés (audit N15), dès qu'il y en a plus d'un. */}
+            {complements.comptesRiot.length > 1 && (
+              <Panneau className="flex flex-col gap-4 p-7">
+                <LibelleSection as="h2">Comptes Riot</LibelleSection>
+                <ul className="flex flex-col gap-3">
+                  {complements.comptesRiot.map((c) => (
+                    <li key={c.riotId} className="flex flex-col gap-0.5">
+                      <span className="text-sm font-semibold text-text tabular-nums">
+                        {c.riotId} <span className="font-normal text-muted">· {c.region}</span>
+                      </span>
+                      <span className="text-xs text-muted">
+                        {c.principal ? "Principal — inscrit aux tournois" : "Secondaire déclaré"} · vérifié le{" "}
+                        {formaterDate(c.verifieLe)}
+                        {c.matchsVerifies > 0 &&
+                          ` · ${c.matchsVerifies} match${c.matchsVerifies > 1 ? "s" : ""} vérifié${c.matchsVerifies > 1 ? "s" : ""}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted">
+                  Déclarés par le joueur et vérifiés par l&apos;icône de profil. Seul le compte principal joue les
+                  tournois.
+                </p>
+              </Panneau>
+            )}
+
+            {/* Fiche d'organisateur (audit N13) : le sérieux de ses tournois. */}
+            {complements.ficheOrganisateur && (
+              <Panneau className="flex flex-col gap-4 p-7">
+                <LibelleSection as="h2">Organisateur</LibelleSection>
+                <dl className="flex flex-col gap-3">
+                  {complements.ficheOrganisateur.map((ligne) => (
+                    <div key={ligne.libelle} className="flex flex-col gap-0.5">
+                      <dt className="text-[11px] tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
+                      <dd className="text-sm text-text tabular-nums">{ligne.valeur}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="text-xs text-muted">
+                  Calculé sur ses propres tournois publiés, hors tournois officiels, défis et scrims.
+                </p>
+              </Panneau>
+            )}
 
             {/* Face-à-face : adversaires affrontés au moins deux fois */}
             {rivalites.length > 0 && (

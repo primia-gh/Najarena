@@ -3,6 +3,7 @@
 // le navigateur (règle de sécurité non négociable, cf. CLAUDE.md §6).
 
 import { REGIONS as REGIONS_LOL } from "./regions";
+import type { ChronologieRiot } from "./conditions-1v1";
 
 export type Continent = "europe" | "americas" | "asia";
 
@@ -76,6 +77,30 @@ async function appelRiot<T>(url: string): Promise<T> {
   return reponse.json() as Promise<T>;
 }
 
+export type EtatCleRiot = "valide" | "absente" | "invalide" | "injoignable";
+
+/**
+ * Vérifie la clé API Riot par l'appel le plus léger qui l'exige (état de la
+ * plateforme EUW). La clé de développement expire toutes les 24 h
+ * (CLAUDE.md §2) : sans elle, plus aucun compte ne se lie et aucun résultat
+ * n'est lu. Surveillée avant chaque tournoi automatique
+ * (src/lib/tournois-auto/execution.ts).
+ */
+export async function verifierCleRiot(): Promise<EtatCleRiot> {
+  try {
+    await appelRiot<unknown>("https://euw1.api.riotgames.com/lol/status/v4/platform-data");
+    return "valide";
+  } catch (e) {
+    if (e instanceof ErreurRiot) {
+      if (e.code === "cle_absente") return "absente";
+      if (e.code === "cle_invalide") return "invalide";
+      // Quota atteint : la clé est refusée pour l'instant, mais valide.
+      if (e.code === "limite") return "valide";
+    }
+    return "injoignable";
+  }
+}
+
 export interface CompteRiot {
   puuid: string;
   gameName: string;
@@ -107,6 +132,8 @@ export async function recupererInvocateur(
 export interface ParticipantMatchRiot {
   puuid: string;
   win: boolean;
+  /** 100 ou 200 (conditions du 1v1 classique, src/lib/conditions-1v1.ts). */
+  teamId?: number;
   championName: string;
   kills: number;
   deaths: number;
@@ -126,13 +153,17 @@ export interface DetailsMatchRiot {
 }
 
 // match-v5 — historique de matchs (niveau 2, docs/moteur-resultats.md §3).
-// Routage continental, comme account-v1.
+// Routage continental, comme account-v1. `queue` filtre côté Riot (0 =
+// parties personnalisées) : les parties classées ou normales jouées entre-
+// temps ne coûtent plus une requête de détail chacune.
 export async function recupererIdsMatchsRecents(
   puuid: string,
   continent: Continent,
   depuisSecondes: number,
+  queue?: number,
 ): Promise<string[]> {
-  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?startTime=${depuisSecondes}&count=20`;
+  const filtreQueue = queue === undefined ? "" : `&queue=${queue}`;
+  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${encodeURIComponent(puuid)}/ids?startTime=${depuisSecondes}&count=20${filtreQueue}`;
   return appelRiot<string[]>(url);
 }
 
@@ -142,6 +173,51 @@ export async function recupererDetailsMatch(
 ): Promise<DetailsMatchRiot> {
   const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/${encodeURIComponent(matchId)}`;
   return appelRiot<DetailsMatchRiot>(url);
+}
+
+// match-v5 timeline — chronologie minute par minute d'une partie (morts,
+// tours, sbires). Sert au 1v1 classique (audit N5) : qui a rempli la
+// première condition de victoire.
+export async function recupererChronologieMatch(matchId: string, continent: Continent): Promise<ChronologieRiot> {
+  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/${encodeURIComponent(matchId)}/timeline`;
+  return appelRiot<ChronologieRiot>(url);
+}
+
+// spectator-v5 — partie en cours d'un joueur (routage plateforme). Sert de
+// garde-fou au forfait automatique (audit N4) : un joueur en partie à cet
+// instant n'est jamais déclaré forfait, même s'il a oublié de se dire prêt.
+export async function estEnPartie(puuid: string, plateforme: string): Promise<boolean> {
+  try {
+    await appelRiot<unknown>(
+      `https://${plateforme}.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${encodeURIComponent(puuid)}`,
+    );
+    return true;
+  } catch (e) {
+    if (e instanceof ErreurRiot && e.code === "introuvable") return false;
+    throw e;
+  }
+}
+
+// clash-v1 — tournois Clash à venir d'une région (routage plateforme).
+// Alimente le calendrier des échéances (audit N24) : les dates viennent de
+// Riot, jamais d'une saisie.
+export interface PhaseClashRiot {
+  id: number;
+  registrationTime: number; // ms epoch
+  startTime: number; // ms epoch
+  cancelled: boolean;
+}
+
+export interface TournoiClashRiot {
+  id: number;
+  themeId: number;
+  nameKey: string;
+  nameKeySecondary: string;
+  schedule: PhaseClashRiot[];
+}
+
+export async function recupererTournoisClash(plateforme: string): Promise<TournoiClashRiot[]> {
+  return appelRiot<TournoiClashRiot[]>(`https://${plateforme}.api.riotgames.com/lol/clash/v1/tournaments`);
 }
 
 // Data Dragon : CDN statique public, ni clé ni quota — sert uniquement à

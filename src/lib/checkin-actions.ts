@@ -35,20 +35,64 @@ export async function confirmerMaPresence(formData: FormData) {
     redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
   }
 
-  // RLS : un joueur ne peut modifier que sa propre inscription.
-  const { data: confirmee } = await supabase
-    .from("registrations")
-    .update({ statut: "confirme", confirme_le: new Date().toISOString() })
-    .eq("tournament_id", tournamentId)
-    .eq("profile_id", userData.user.id)
-    .eq("statut", "inscrit")
-    .select("id");
+  // Le joueur ne peut plus modifier son inscription directement (28/09/2026,
+  // audit E1 : il pouvait se confirmer à tout moment, changer sa tête de
+  // série ou de tournoi). La fonction confirmer_presence revérifie la
+  // fenêtre de check-in dans la base, sous verrou du tournoi : un check-in
+  // ne peut plus se glisser pendant la génération du bracket.
+  const { data: confirmee, error } = await supabase.rpc("confirmer_presence", {
+    p_tournament_id: tournamentId,
+  });
 
-  if (!confirmee?.length) {
+  if (error?.message.includes("COMPTE_SUSPENDU")) {
+    redirect(`${page}?erreur=${encodeURIComponent("Ton compte est suspendu : tu ne peux pas confirmer ta présence.")}`);
+  }
+
+  // Tournoi 5v5 (audit N21) : un joueur a quitté l'équipe ou a été suspendu
+  // depuis l'inscription.
+  if (error?.message.includes("ALIGNEMENT_INCOMPLET")) {
+    redirect(
+      `${page}?erreur=${encodeURIComponent("Ton alignement n'a plus cinq joueurs : complète-le avant de confirmer la présence de l'équipe.")}`,
+    );
+  }
+
+  if (error?.message.includes("CHECKIN_FERME")) {
+    redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
+  }
+
+  if (!confirmee) {
     redirect(`${page}?erreur=${encodeURIComponent("Aucune inscription en attente de check-in.")}`);
   }
 
   redirect(
     `${page}?message=${encodeURIComponent(`Présence confirmée. Début du tournoi à ${heureParis(tournoi.debute_le)}.`)}`,
+  );
+}
+
+// Check-in d'un agent libre (audit N23) : même fenêtre que les équipes.
+export async function confirmerAgentLibre(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const page = `/lol/tournois/${slug}`;
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { data: confirme, error } = await supabase.rpc("confirmer_agent_libre", { p_tournament_id: tournamentId });
+  if (error?.message.includes("COMPTE_SUSPENDU")) {
+    redirect(`${page}?erreur=${encodeURIComponent("Ton compte est suspendu : tu ne peux pas confirmer ta présence.")}`);
+  }
+  if (error?.message.includes("CHECKIN_FERME")) {
+    redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
+  }
+  if (!confirme) {
+    redirect(`${page}?erreur=${encodeURIComponent("Aucune inscription d'agent libre en attente de check-in.")}`);
+  }
+
+  redirect(
+    `${page}?message=${encodeURIComponent("Présence confirmée. Ton équipe sera formée au lancement du bracket : tu seras prévenu.")}`,
   );
 }

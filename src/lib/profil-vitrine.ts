@@ -1,6 +1,9 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { progressionPalier, type Palier } from "@/lib/classement";
 import { LABEL_ROLE, type Role } from "@/lib/roles";
+import { libelleEquipe, parcoursDansTournoi } from "@/lib/cinq-contre-cinq";
+import { lignesFiche } from "@/lib/fiche-organisateur";
 
 // Données d'affichage ajoutées par la refonte « Venin » du profil
 // (design-system/najarena/pages/profil.md) : classement national, palier,
@@ -15,6 +18,36 @@ export interface PointCourbe {
   le: string;
 }
 
+export interface SaisonPassee {
+  numero: number;
+  nom: string;
+  finLe: string;
+  rating: number;
+  /** Palier final, seulement si le joueur était classé (RD ≤ 150). */
+  palier: Palier | null;
+  rang: number | null;
+  classes: number;
+}
+
+/** Tournoi 5v5 terminé où le joueur était aligné (audit N21). */
+export interface TournoiEnEquipe {
+  nom: string;
+  slug: string;
+  debuteLe: string;
+  equipe: string;
+  resultat: string;
+}
+
+/** Compte Riot vérifié du joueur, principal ou secondaire déclaré (audit N15). */
+export interface CompteRiotDeclare {
+  riotId: string;
+  region: string;
+  principal: boolean;
+  verifieLe: string;
+  /** Matchs vérifiés joués sur ce compte (suivi depuis le 03/10/2026). */
+  matchsVerifies: number;
+}
+
 export interface EquipeJoueur {
   nom: string;
   slug: string;
@@ -23,7 +56,8 @@ export interface EquipeJoueur {
   role: string | null;
 }
 
-export async function chargerComplementsProfil(profilId: string) {
+// cache : partagé par generateMetadata et la page, le temps d'une requête.
+export const chargerComplementsProfil = cache(async (profilId: string) => {
   const supabase = await createClient();
 
   const [
@@ -36,7 +70,11 @@ export async function chargerComplementsProfil(profilId: string) {
   ] = await Promise.all([
     supabase.from("seasons").select("id, nom, numero").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
     supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
-    supabase.from("recherches_coequipiers").select("message, cree_le").eq("profile_id", profilId).maybeSingle(),
+    supabase
+      .from("recherches_coequipiers")
+      .select("message, cree_le, objectif:echeances(nom, debut_le)")
+      .eq("profile_id", profilId)
+      .maybeSingle(),
     supabase
       .from("game_accounts")
       .select("role_prefere")
@@ -130,6 +168,130 @@ export async function chargerComplementsProfil(profilId: string) {
 
   const role = (compte?.role_prefere ?? null) as Role | null;
 
+  // Saisons terminées (audit N14) : palier et rang finals, inscrits au
+  // parcours du CV. Une ligne de rating par saison ; les rangs se comptent
+  // parmi les classés de la même saison.
+  const { data: lignesSaisons } = await supabase
+    .from("ratings")
+    .select("rating, est_classe, season_id, saison:seasons(numero, nom, debut_le, fin_le, est_courante)")
+    .eq("profile_id", profilId)
+    .eq("game_id", 1);
+  const maintenant = Date.now();
+  const saisonsPassees: SaisonPassee[] = await Promise.all(
+    (lignesSaisons ?? [])
+      .filter((l) => l.saison && !l.saison.est_courante && new Date(l.saison.debut_le).getTime() <= maintenant)
+      .map(async (l) => {
+        let rang: number | null = null;
+        let classes = 0;
+        if (l.est_classe) {
+          const [{ count: devant }, { count: total }] = await Promise.all([
+            supabase
+              .from("ratings")
+              .select("*", { count: "exact", head: true })
+              .eq("game_id", 1)
+              .eq("season_id", l.season_id)
+              .eq("est_classe", true)
+              .gt("rating", l.rating),
+            supabase
+              .from("ratings")
+              .select("*", { count: "exact", head: true })
+              .eq("game_id", 1)
+              .eq("season_id", l.season_id)
+              .eq("est_classe", true),
+          ]);
+          rang = (devant ?? 0) + 1;
+          classes = total ?? 0;
+        }
+        return {
+          numero: l.saison!.numero,
+          nom: l.saison!.nom ?? `Saison ${l.saison!.numero}`,
+          finLe: l.saison!.fin_le,
+          rating: l.rating,
+          palier: l.est_classe ? progressionPalier(l.rating, paliers).palier : null,
+          rang,
+          classes,
+        };
+      }),
+  );
+  saisonsPassees.sort((a, b) => b.numero - a.numero);
+
+  // Comptes Riot déclarés (audit N15) : seuls les comptes vérifiés sont
+  // lisibles, avec le nombre de matchs vérifiés joués sur chacun.
+  const { data: comptesData } = await supabase
+    .from("game_accounts")
+    .select("puuid, riot_game_name, riot_tag_line, region, est_principal, verifie_le")
+    .eq("profile_id", profilId)
+    .eq("game_id", 1)
+    .not("verifie_le", "is", null);
+  const { data: statsComptes } =
+    (comptesData ?? []).length > 1
+      ? await supabase
+          .from("stats_match_joueur")
+          .select("puuid")
+          .eq("profile_id", profilId)
+          .in(
+            "puuid",
+            (comptesData ?? []).map((c) => c.puuid),
+          )
+      : { data: [] };
+  const comptesRiot: CompteRiotDeclare[] = (comptesData ?? [])
+    .map((c) => ({
+      riotId: `${c.riot_game_name}#${c.riot_tag_line}`,
+      region: c.region,
+      principal: c.est_principal,
+      verifieLe: c.verifie_le as string,
+      matchsVerifies: (statsComptes ?? []).filter((s) => s.puuid === c.puuid).length,
+    }))
+    .sort((a, b) => Number(b.principal) - Number(a.principal));
+
+  // Fiche publique d'organisateur (audit N13), s'il en a publié.
+  const { data: fiche } = await supabase.rpc("fiche_organisateur", { p_profile_id: profilId }).maybeSingle();
+
+  // Tournois 5v5 terminés où il était aligné (audit N21) : où son équipe
+  // s'est arrêtée, d'après le bracket (le capitaine y représente l'équipe).
+  const { data: alignes } = await supabase
+    .from("alignements")
+    .select(
+      "registration:registrations!inner(profile_id, equipe_nom, equipe_tag), tournament:tournaments!inner(id, nom, slug, statut, debute_le, capacite, nature)",
+    )
+    .eq("profile_id", profilId)
+    .eq("tournament.statut", "termine")
+    // Tournois seulement : les scrims (audit N22) restent sur la page d'équipe.
+    .eq("tournament.nature", "tournoi")
+    .order("aligne_le", { ascending: false })
+    .limit(10);
+  const capitaines = [...new Set((alignes ?? []).map((a) => a.registration.profile_id))];
+  const { data: matchsEquipes } =
+    capitaines.length > 0
+      ? await supabase
+          .from("match_participants")
+          .select(
+            "profile_id, est_gagnant, match:matches!inner(tour, tournament_id, match_verdicts(niveau, est_definitif))",
+          )
+          .in("profile_id", capitaines)
+          .in(
+            "match.tournament_id",
+            (alignes ?? []).map((a) => a.tournament.id),
+          )
+      : { data: [] };
+  const tournoisEnEquipe: TournoiEnEquipe[] = (alignes ?? []).map((a) => ({
+    nom: a.tournament.nom,
+    slug: a.tournament.slug,
+    debuteLe: a.tournament.debute_le,
+    equipe: libelleEquipe(a.registration.equipe_tag, a.registration.equipe_nom),
+    resultat: parcoursDansTournoi({
+      statut: a.tournament.statut,
+      capacite: a.tournament.capacite,
+      matchs: (matchsEquipes ?? [])
+        .filter((m) => m.profile_id === a.registration.profile_id && m.match.tournament_id === a.tournament.id)
+        .map((m) => ({
+          tour: m.match.tour,
+          estGagnant: m.est_gagnant,
+          verifie: m.match.match_verdicts.some((v) => v.est_definitif && v.niveau !== "manuel"),
+        })),
+    }).libelle,
+  }));
+
   return {
     saison,
     rangNational,
@@ -141,5 +303,11 @@ export async function chargerComplementsProfil(profilId: string) {
     equipes,
     roleLibelle: role ? LABEL_ROLE[role] : null,
     avatarUrl: profil?.avatar_url ?? null,
+    saisonsPassees,
+    tournoisEnEquipe,
+    ficheOrganisateur: fiche && fiche.tournois_publies > 0 ? lignesFiche(fiche) : null,
+    comptesRiot,
+    // Lu ici, pas pendant le rendu : sert à ne plus afficher un objectif passé.
+    maintenantIso: new Date().toISOString(),
   };
-}
+});

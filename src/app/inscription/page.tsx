@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { destinationInterne } from "@/lib/redirection";
 import { sInscrire, seConnecterAvecDiscord } from "@/lib/auth-actions";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
@@ -14,11 +15,13 @@ export const metadata: Metadata = {
 };
 
 interface InscriptionPageProps {
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; suite?: string }>;
 }
 
 export default async function InscriptionPage({ searchParams }: InscriptionPageProps) {
-  const { erreur } = await searchParams;
+  const { erreur, suite: suiteDemandee } = await searchParams;
+  // Page où revenir ensuite (lien de défi d'un ami, audit N18) : chemin du site seulement.
+  const suite = suiteDemandee ? destinationInterne(suiteDemandee, "") || null : null;
 
   return (
     <main className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -37,6 +40,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
       )}
 
       <form action={sInscrire} className="mt-6 flex flex-col gap-4">
+        {suite && <input type="hidden" name="suite" value={suite} />}
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
             Pseudo
@@ -73,7 +77,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             name="mot_de_passe"
             type="password"
             required
-            minLength={6}
+            minLength={8}
             autoComplete="new-password"
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
@@ -87,12 +91,16 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             className="mt-0.5 accent-accent"
           />
           <span>
-            J&apos;ai au moins 15 ans, ou j&apos;ai l&apos;autorisation de mon
-            représentant légal (voir les{" "}
+            J&apos;ai au moins 15 ans (ou l&apos;autorisation de mon représentant légal) et
+            j&apos;accepte les{" "}
             <Link href="/cgu" className="text-text underline underline-offset-3">
               CGU
             </Link>
-            ).
+            . Mes données sont traitées selon la{" "}
+            <Link href="/confidentialite" className="text-text underline underline-offset-3">
+              politique de confidentialité
+            </Link>
+            .
           </span>
         </label>
 
@@ -108,15 +116,20 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
       </div>
 
       <form action={seConnecterAvecDiscord} className="mt-6 flex flex-col gap-3">
+        {suite && <input type="hidden" name="suite" value={suite} />}
         <label className="flex items-start gap-2 text-sm text-muted">
           <input name="age_confirme" type="checkbox" required className="mt-0.5 accent-accent" />
           <span>
-            J&apos;ai au moins 15 ans, ou j&apos;ai l&apos;autorisation de mon
-            représentant légal (voir les{" "}
+            J&apos;ai au moins 15 ans (ou l&apos;autorisation de mon représentant légal) et
+            j&apos;accepte les{" "}
             <Link href="/cgu" className="text-text underline underline-offset-3">
               CGU
             </Link>
-            ).
+            . Mes données sont traitées selon la{" "}
+            <Link href="/confidentialite" className="text-text underline underline-offset-3">
+              politique de confidentialité
+            </Link>
+            .
           </span>
         </label>
         <Bouton variante="secondaire" libelleEnCours="Redirection…" className="w-full">
@@ -126,7 +139,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
 
       <p className="mt-6 text-sm text-muted">
         Déjà un compte ?{" "}
-        <Link href="/connexion" className="text-text underline underline-offset-3">
+        <Link href={suite ? `/connexion?suite=${encodeURIComponent(suite)}` : "/connexion"} className="text-text underline underline-offset-3">
           Se connecter
         </Link>
       </p>

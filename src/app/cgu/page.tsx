@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { DATE_CGU_LISIBLE } from "@/lib/cgu";
+import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
+import { DELAI_FORFAIT_MINUTES } from "@/lib/forfait";
 
 export const metadata: Metadata = {
   title: "Conditions générales d'utilisation — Najarena",
@@ -19,6 +22,7 @@ export default function CguPage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Conditions générales d&apos;utilisation
       </h1>
+      <p className="mt-2 text-sm text-muted">Version du {DATE_CGU_LISIBLE}.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
         <section>
@@ -62,7 +66,10 @@ export default function CguPage() {
             disponible, la possession d&apos;un compte Riot est vérifiée en
             demandant au joueur de modifier temporairement son icône de
             profil en jeu. Un Riot ID ne peut être lié qu&apos;à un seul
-            compte Najarena à la fois.
+            compte Najarena à la fois. Un joueur peut déclarer jusqu&apos;à
+            trois comptes Riot, vérifiés de la même façon et affichés sur
+            son profil ; seul son compte principal l&apos;inscrit aux
+            tournois, et il ne peut en changer pendant un tournoi en cours.
           </p>
         </section>
 
@@ -72,11 +79,74 @@ export default function CguPage() {
           </h2>
           <p className="mt-2 text-muted">
             Un tournoi affiche un statut public (ouvert, check-in, en cours,
-            terminé, annulé). Dès la première inscription, les règles du
+            terminé, annulé). S&apos;inscrire demande un compte Riot vérifié
+            dans la région du tournoi. Dès la première inscription, les règles du
             tournoi (capacité, format, dates) sont figées. Un joueur qui ne
             confirme pas sa présence lors du check-in peut être exclu du
             bracket par l&apos;organisateur. Un forfait ne rapporte aucun
             point à aucun des deux joueurs.
+          </p>
+          <p className="mt-2 text-muted">
+            Chaque joueur se déclare prêt dans la salle de match. Dès que
+            l&apos;un des deux l&apos;a fait, l&apos;autre dispose de{" "}
+            {DELAI_FORFAIT_MINUTES} minutes pour faire de même ; à défaut, il
+            perd le match par forfait. Aucun forfait n&apos;est prononcé
+            contre un joueur déjà en partie à ce moment-là.
+          </p>
+          <p className="mt-2 text-muted">
+            Un joueur peut en défier un autre, en une partie : le défi
+            accepté devient un duel arbitré par Najarena, dont le résultat
+            est lu de la même façon. Entre deux mêmes joueurs, un seul défi
+            par période de 24 heures compte au classement ; un défi sans
+            partie retrouvée dans les 24 heures est annulé. L&apos;arène
+            ouvre le même duel avec un adversaire choisi par Najarena : même
+            région, même règle de victoire, rating proche selon un écart
+            public ; une place dans la file expire après 30 minutes sans
+            adversaire.
+          </p>
+          <p className="mt-2 text-muted">
+            Les pronostics sont un jeu gratuit, sans mise ni gain d&apos;aucune
+            sorte : ils ne donnent droit qu&apos;à une place dans le
+            classement des pronostiqueurs. Ils portent sur les demi-finales et
+            les finales des tournois, ferment dès qu&apos;un joueur du match se
+            déclare prêt, et ne comptent que sur un résultat lu chez Riot. Les
+            joueurs d&apos;un tournoi et son organisateur ne pronostiquent pas
+            ses matchs.
+          </p>
+          <p className="mt-2 text-muted">
+            Un compte de l&apos;offre Organisateur peut créer jusqu&apos;à trois
+            communautés. Son fondateur est responsable de son nom, de sa
+            description et des tournois qu&apos;il y publie ; ces textes sont
+            soumis à la même modération que le reste du site. Rejoindre une
+            communauté est libre et gratuit ; son fondateur ou ses
+            administrateurs peuvent en retirer un membre. Le classement
+            interne d&apos;une communauté reprend le rating officiel de ses
+            membres, sans jamais le modifier. Un serveur Discord n&apos;est lié
+            à une communauté que par un membre autorisé à gérer ce serveur.
+          </p>
+          <p className="mt-2 text-muted">
+            Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq
+            de ses membres, lui compris, chacun titulaire d&apos;un compte
+            Riot vérifié dans la région du tournoi ; un joueur ne joue que
+            pour une équipe par tournoi. Le capitaine représente
+            l&apos;équipe pour le check-in, la déclaration « prêt », la
+            reconnaissance de défaite et les litiges. Un résultat n&apos;est
+            retenu que si les dix joueurs inscrits ont joué la partie, chaque
+            équipe de son côté. Les tournois 5v5 ne modifient pas le
+            classement individuel. Les mêmes règles valent pour un scrim,
+            match d&apos;entraînement proposé par un capitaine à une autre
+            équipe et accepté par la sienne : il n&apos;y a pas de forfait
+            automatique, et un scrim sans partie retrouvée dans les 24 heures
+            suivant l&apos;heure prévue est annulé.
+          </p>
+          <p className="mt-2 text-muted">
+            Un joueur sans équipe peut s&apos;inscrire seul à un tournoi 5v5,
+            comme agent libre. Au lancement du bracket, les agents libres qui
+            ont confirmé leur présence sont regroupés en équipes de cinq, de
+            niveau aussi proche que possible, par ordre d&apos;inscription ;
+            ceux qui ne peuvent compléter une équipe ne jouent pas ce tournoi.
+            Le capitaine d&apos;une telle équipe est le joueur au meilleur
+            rating.
           </p>
         </section>
 
@@ -97,6 +167,15 @@ export default function CguPage() {
             clôture de chaque tournoi. Chaque variation de points est
             journalisée publiquement et de façon permanente.
           </p>
+          <p className="mt-2 text-muted">
+            Seuls les tournois classés rapportent des points : les tournois
+            officiels de Najarena, et les tournois d&apos;organisateurs qui
+            réunissent au moins {JOUEURS_MIN_TOURNOI_CLASSE} joueurs au
+            départ, publiés au moins {PREAVIS_TOURNOI_CLASSE_HEURES} h avant
+            leur début, sans leur organisateur dans le bracket et non
+            déclarés amicaux. Ces critères sont affichés sur la page de
+            chaque tournoi.
+          </p>
         </section>
 
         <section>
@@ -108,7 +187,11 @@ export default function CguPage() {
             s&apos;inscrit avec loyauté, et à ne pas tenter de manipuler un
             résultat ou un classement. Najarena se réserve le droit de
             suspendre un compte en cas de manquement manifeste, après examen
-            par un organisateur ou un administrateur.
+            par un administrateur. Le motif est communiqué au joueur par
+            e-mail ; il peut contester la décision à l&apos;adresse indiquée
+            dans les mentions légales. Un compte suspendu ne peut plus se
+            connecter ni s&apos;inscrire aux tournois ; ses résultats déjà
+            enregistrés restent affichés.
           </p>
         </section>
 

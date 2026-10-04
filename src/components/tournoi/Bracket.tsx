@@ -75,6 +75,10 @@ export interface ParticipantCase {
   /** null : pas de score (forfait, décision sans partie jouée). */
   score: number | null;
   estGagnant: boolean | null;
+  /** Chances estimées avant le match, en % (match pas encore décidé). */
+  chances?: number | null;
+  /** Lien du nom (par défaut, le CV du joueur) : page de l'équipe en 5v5. */
+  lien?: string | null;
 }
 
 export type EtatMatch = "direct" | "verdict" | "litige" | "attente" | "a_venir";
@@ -86,11 +90,13 @@ interface CaseMatchProps {
   motif?: string | null;
   /** Le visiteur connecté joue ce match : liseré vert (pages/tournoi.md). */
   monMatch: boolean;
+  /** Victoire vérifiée d'un joueur donné perdant : ses chances, en %. */
+  exploit?: number | null;
   /** Messages et formulaire sous la case (litige, attente d'organisateur). */
   children?: ReactNode;
 }
 
-export function CaseMatch({ participants, etat, niveau, motif, monMatch, children }: CaseMatchProps) {
+export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit, children }: CaseMatchProps) {
   const bordure =
     etat === "litige"
       ? "border-danger/60"
@@ -118,9 +124,9 @@ export function CaseMatch({ participants, etat, niveau, motif, monMatch, childre
                     p.estGagnant ? "font-semibold text-text" : p.estGagnant === false ? "text-faint" : "text-text-2"
                   }`}
                 >
-                  {p.slug ? (
+                  {p.lien || p.slug ? (
                     <Link
-                      href={`/joueur/${p.slug}`}
+                      href={p.lien ?? `/joueur/${p.slug}`}
                       className="hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     >
                       {p.pseudo}
@@ -130,11 +136,17 @@ export function CaseMatch({ participants, etat, niveau, motif, monMatch, childre
                   )}
                   {p.estGagnant && <span className="sr-only"> (vainqueur)</span>}
                 </span>
-                <span
-                  className={`text-sm font-bold tabular-nums ${p.estGagnant ? "text-accent" : "text-faint"}`}
-                >
-                  {p.score ?? "—"}
-                </span>
+                {etat !== "verdict" && p.chances != null ? (
+                  <span className="text-mini text-muted tabular-nums" title="Chances estimées avant le match (Glicko-2)">
+                    {p.chances} %<span className="sr-only"> de chances estimées</span>
+                  </span>
+                ) : (
+                  <span
+                    className={`text-sm font-bold tabular-nums ${p.estGagnant ? "text-accent" : "text-faint"}`}
+                  >
+                    {p.score ?? "—"}
+                  </span>
+                )}
               </>
             ) : (
               <span className="text-[13px] tracking-[1px] text-faint">
@@ -143,6 +155,15 @@ export function CaseMatch({ participants, etat, niveau, motif, monMatch, childre
             )}
           </div>
         ))}
+
+        {exploit != null && (
+          <span
+            className="absolute -top-2 left-2 bg-bg px-1.5 text-mini leading-none font-semibold text-accent uppercase"
+            title={`Victoire vérifiée d'un joueur qui n'avait que ${exploit} % de chances selon les ratings`}
+          >
+            Exploit<span className="sr-only"> : {exploit} % de chances estimées avant le match</span>
+          </span>
+        )}
 
         {/* Étiquette posée sur le bord haut de la case (maquette). */}
         <span className="absolute -top-2 right-2 bg-bg px-1.5 leading-none">

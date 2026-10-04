@@ -1,8 +1,9 @@
 # Najarena
 
-Plateforme de tournois League of Legends en 1v1 quotidien. Les résultats
-sont lus dans la donnée officielle Riot plutôt que déclarés par les
-joueurs — voir `CLAUDE.md` à la racine pour le contexte complet du produit.
+Plateforme de tournois League of Legends : tournois 1v1 quotidiens, équipes
+et recherche de coéquipiers pour le 5v5. Les résultats sont lus dans la
+donnée officielle Riot plutôt que déclarés par les joueurs — voir
+`CLAUDE.md` à la racine pour le contexte complet du produit.
 
 ## Lancer en local
 
@@ -16,7 +17,21 @@ npm test
 ```
 
 Lance la suite de tests automatisés (logique pure : Glicko-2, placement
-de bracket, classement) — à faire passer avant tout déploiement.
+de bracket, classement, séries Bo3/Bo5, règles de pseudo, échappement des
+e-mails, images de partage…) — à faire passer avant tout déploiement.
+`APERCU_IMAGES=<dossier> npm test` enregistre en plus les images de
+partage générées, pour les regarder.
+
+```bash
+npm run test:base
+```
+
+Rejoue `docs/schema.sql` sur une base PostgreSQL de test (serveur
+PostgreSQL 15+ et `psql` nécessaires, connexion par `PGHOST`/`PGPORT`/
+`PGUSER`/`PGPASSWORD`), puis essaie chaque règle d'accès et chaque fonction
+de la base comme le ferait un visiteur, un organisateur ou le serveur
+(`tests/sql/`). Les deux suites tournent aussi automatiquement sur GitHub à
+chaque envoi de code (`.github/workflows/verifications.yml`).
 
 Nécessite un fichier `.env.local` (non committé, voir `.gitignore`) —
 demander les valeurs à qui a déployé le projet, ou suivre la liste
@@ -47,8 +62,9 @@ ci-dessous pour les créer soi-même.
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | notifications e-mail (inscription, résultat, litige) |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` | suivi d'erreurs Sentry |
 | `DISCORD_WEBHOOK_URL` | annonces sur un serveur Discord (nouveau tournoi, vainqueur) |
-| `DISCORD_PUBLIC_KEY`, `DISCORD_APPLICATION_ID`, `DISCORD_BOT_TOKEN` | bot Discord interactif (`/classement`, `/tournois`) — lancer `npm run discord:commandes` une fois configurées |
-| `ANTHROPIC_API_KEY` | assistant IA de configuration de tournoi sur `/organiser/nouveau` (console.anthropic.com — compte payant à l'usage) |
+| `DISCORD_PUBLIC_KEY`, `DISCORD_APPLICATION_ID`, `DISCORD_BOT_TOKEN` | bot Discord interactif (`/classement`, `/tournois`, `/communaute`, `/lier`, `/organiser`) — lancer `npm run discord:commandes` une fois configurées, puis à chaque ajout de commande |
+| `ANTHROPIC_API_KEY` | textes rédigés par l'IA : assistant de configuration de tournoi, analyse détaillée d'un match, dossier de litige, recherche de joueurs (console.anthropic.com — compte payant à l'usage) |
+| `CASH_PRIZES_ACTIFS` | cash prizes sponsorisés (`1` pour les allumer) — **à laisser vide** tant que le statut juridique, des CGU relues et les règles Riot sur les tournois dotés ne sont pas réglés |
 
 La **connexion via Discord (OAuth)** ne se configure pas ici : Client ID/Secret se renseignent directement dans le tableau de bord Supabase (Authentication → Providers → Discord). Détails des trois volets dans les commentaires de `.env.local`.
 
@@ -56,12 +72,14 @@ La **connexion via Discord (OAuth)** ne se configure pas ici : Client ID/Secret 
 
 1. Renseigner toutes les variables ci-dessus dans Project Settings → Environment Variables.
 2. Mettre à jour, côté tableau de bord Supabase (Authentication → URL Configuration), le **Site URL** et les **Redirect URLs** avec le vrai domaine — sans ça, les e-mails de confirmation et de réinitialisation de mot de passe Supabase continuent de pointer vers `localhost`.
-3. **Tâches planifiées (`vercel.json`)** : le plan Hobby (gratuit) refuse de déployer toute tâche planifiée plus fréquente qu'une fois par jour — c'est pour ça que la recherche automatique de résultats (`/api/cron/recherche-resultats`) est réglée sur une fois par jour par défaut. Ça reste fiable (aucun résultat n'est jamais inventé, voir le commentaire dans le fichier), juste plus lent. Passer au plan Pro pour retrouver une cadence proche de la cible du produit (`docs/moteur-resultats.md` §6) et resserrer le réglage dans `vercel.json`.
+3. **Tâches planifiées** : les tournois automatiques et la recherche de résultats sont appelés **toutes les 5 minutes par la base** (pg_cron, bloc `[supabase-uniquement]` de `docs/schema.sql`), car le plan Hobby de Vercel refuse toute tâche plus fréquente qu'une fois par jour. `vercel.json` ne garde que les tâches mensuelles (inactivité, changement de saison) et un passage quotidien de secours de la recherche de résultats.
 4. `npm run build` en local doit passer sans erreur avant de déployer — c'est exactement ce que Vercel exécute.
 
 ## Documentation du projet
 
 - `CLAUDE.md` — contexte produit complet (à lire avant toute intervention)
-- `docs/schema.sql` — schéma de base de données
+- `docs/schema.sql` — schéma de base de données ; chaque évolution y est ajoutée à la fin, en section datée « À appliquer sur la base AVANT la mise en ligne du code du même commit »
+- `docs/mise-en-ligne-2026-09-28.md` — ordre de mise en ligne des correctifs de l'audit du 27/09/2026 (base d'abord, code ensuite)
+- `tests/sql/` — scénarios d'accès et de fonctions de la base (`npm run test:base`)
 - `docs/moteur-resultats.md` — logique des verdicts et du rapprochement niveau 2
-- `docs/direction-artistique.html` — référence visuelle jouable
+- `design-system/najarena/MASTER.md` — direction artistique en vigueur (`docs/direction-artistique.html` décrit l'ancienne, obsolète)

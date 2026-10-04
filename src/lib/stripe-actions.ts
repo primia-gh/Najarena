@@ -9,6 +9,7 @@
 import { redirect } from "next/navigation";
 import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
+import { creerClientAdmin } from "@/lib/supabase/admin";
 import { URL_SITE } from "@/lib/notifications";
 import type { Offre } from "@/lib/offres";
 
@@ -47,6 +48,10 @@ export async function demarrerAbonnement(formData: FormData) {
     redirect(`/connexion?next=${encodeURIComponent("/tarifs")}`);
   }
 
+  // Client Stripe déjà connu (ancien abonnement) : réutilisé, pour que
+  // factures et moyens de paiement restent au même endroit.
+  const clientExistant = await clientStripe(userData.user.id);
+
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: prixId, quantity: 1 }],
@@ -56,7 +61,7 @@ export async function demarrerAbonnement(formData: FormData) {
     // paiement initial ; sans ça, ces événements ne sauraient pas à quel
     // compte Najarena ils correspondent.
     client_reference_id: userData.user.id,
-    customer_email: userData.user.email ?? undefined,
+    ...(clientExistant ? { customer: clientExistant } : { customer_email: userData.user.email ?? undefined }),
     success_url: `${URL_SITE}/moi?message=${encodeURIComponent("Abonnement en cours de confirmation.")}`,
     cancel_url: `${URL_SITE}/tarifs`,
     metadata: { profile_id: userData.user.id, offre },
@@ -68,4 +73,51 @@ export async function demarrerAbonnement(formData: FormData) {
   }
 
   redirect(session.url);
+}
+
+async function clientStripe(profileId: string): Promise<string | null> {
+  const admin = creerClientAdmin();
+  if (!admin) return null;
+  const { data } = await admin
+    .from("abonnements_stripe")
+    .select("client_stripe_id")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  return data?.client_stripe_id ?? null;
+}
+
+// Portail client Stripe (28/09/2026) : moyen de paiement, factures,
+// changement d'offre et résiliation, sans passer par un e-mail. Le contenu
+// du portail se règle dans le tableau de bord Stripe (Settings > Billing >
+// Customer portal).
+export async function ouvrirPortailAbonnement() {
+  if (!stripe) {
+    redirect(`/moi?erreur=${encodeURIComponent("Le paiement n'est pas encore activé.")}`);
+  }
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const clientId = await clientStripe(userData.user.id);
+  if (!clientId) {
+    redirect(`/moi?erreur=${encodeURIComponent("Aucun abonnement Stripe n'est rattaché à ton compte.")}`);
+  }
+
+  let url: string | null = null;
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: clientId,
+      return_url: `${URL_SITE}/moi`,
+    });
+    url = session.url;
+  } catch {
+    url = null;
+  }
+  if (!url) {
+    redirect(`/moi?erreur=${encodeURIComponent("Le portail d'abonnement est indisponible pour l'instant.")}`);
+  }
+  redirect(url);
 }

@@ -32,7 +32,7 @@ en_attente ──[les 2 joueurs présents]──> en_cours
                                             │
               ┌─────────────────────────────┼──────────────────────┐
               ▼                             ▼                      ▼
-      partie trouvée              aucune partie (T+25min)     abandon déclaré
+      partie trouvée          aucune partie (T+60 min en Bo1)   abandon déclaré
               │                             │                      │
               ▼                             ▼                      ▼
       verdict niveau 2/3              statut: litige          statut: forfait
@@ -42,19 +42,38 @@ en_attente ──[les 2 joueurs présents]──> en_cours
 
 ### Déclenchement de la recherche
 
-Le worker interroge les deux joueurs à T+8, T+12, T+18 et T+25 minutes après l'ouverture du match. Pas de recherche avant T+8 : l'historique Riot n'est pas immédiat, et interroger trop tôt consomme du quota pour rien.
+La tâche de recherche passe toutes les 5 minutes (pg_cron). Pas de recherche avant T+8 : l'historique Riot n'est pas immédiat, et interroger trop tôt consomme du quota pour rien. Seules les parties personnalisées sont demandées à Riot (filtre `queue=0`), et une partie déjà lue pendant un passage n'est pas redemandée.
+
+Sans résultat, le match passe en `litige` après **30 + 30 × Best-of minutes** : 60 min en Bo1, 120 en Bo3, 180 en Bo5 (il faut créer la partie, la jouer jusqu'au Nexus, puis attendre que Riot publie l'historique). L'organisateur est prévenu, les joueurs aussi. **La recherche continue ensuite pendant 24 h**, environ toutes les 30 minutes : une partie retrouvée plus tard (historique lent, clé Riot renouvelée) résout le litige et compte au classement. *(Jusqu'au 28/09/2026 : litige à T+25 min, puis plus aucune recherche.)*
+
+Logique pure (séries, calendrier) : `src/lib/serie.ts` ; orchestration : `src/lib/rapprochement.ts`.
+
+### Défaite reconnue
+
+Un joueur peut reconnaître sa défaite depuis le bracket (`reconnaitre_defaite`). Match en cours : la recherche Riot a encore 20 minutes ; si la partie est retrouvée, le verdict est de niveau 2 et compte ; sinon la tâche tranche au niveau 1 (manuel, hors classement) avec le motif public « Défaite reconnue par … ». Match déjà en litige : tranché tout de suite, au niveau 1. La parole du perdant ne compte jamais au classement ; elle évite seulement qu'un tournoi reste bloqué en attendant un organisateur.
+
+### Forfait automatique
+
+Chaque joueur se déclare prêt dans la salle de match (`declarer_pret`, colonne `match_participants.pret_le`) ; l'adversaire est prévenu (push et message privé Discord). Dès que l'un des deux l'est, l'autre a **15 minutes** pour faire de même, sinon la tâche de recherche le déclare forfait (`appliquer_forfait_absence`) : verdict de niveau 1 (manuel, hors classement), motif public, match au statut `forfait`, aucun point pour personne. Garde-fous : la partie Riot est cherchée d'abord (si elle est retrouvée, elle décide) ; jamais de forfait si l'un des deux joueurs est en partie chez Riot à cet instant (spectator-v5), ni si on ne peut pas le vérifier ; seulement pour un match en cours, sans défaite reconnue. Logique pure : `src/lib/forfait.ts`.
+
+### Ouverture du match suivant
+
+Un match passe `en_cours` dès que ses deux joueurs sont connus (`avancer_vainqueur`). Le verdict qui qualifie le second joueur — partie retrouvée, défaite reconnue ou verdict de l'organisateur — envoie aux deux un rappel push et un message privé Discord avec le lien de la salle de match (`prevenirMatchOuvert`, `src/lib/apres-verdict.ts`). Le délai avant litige court à partir de cette ouverture (`demarre_le`).
 
 ### Critères de rapprochement (niveau 2)
 
-Une partie de l'historique est retenue si **les quatre** conditions sont vraies :
+Une partie de l'historique est retenue si **toutes** ces conditions sont vraies :
 
-1. les `puuid` des deux joueurs y figurent ;
+1. les `puuid` des deux joueurs y figurent, dans des camps opposés ;
 2. son horodatage de début est postérieur à l'ouverture du match ;
-3. le mode de jeu correspond au format annoncé ;
-4. sa durée dépasse le seuil de remake.
+3. c'est une partie personnalisée (`queueId` 0), à deux joueurs exactement pour un tournoi 1v1 ;
+4. sa durée dépasse le seuil de remake (5 minutes).
 
-Si plusieurs parties correspondent, on retient la plus ancienne postérieure à l'ouverture.
-Si aucune ne correspond à T+25, le match passe en `litige`.
+**1v1 classique** (`tournaments.condition_victoire = 'classique'`, audit N5, 28/09/2026) : les critères 1 à 3 s'appliquent, mais le vainqueur n'est pas celui de la partie — c'est le premier qui obtient le premier sang, détruit la première tour ou atteint 100 sbires, lu dans la chronologie de la partie (match-v5 timeline, `src/lib/conditions-1v1.ts`). La durée minimale ne s'applique pas (un premier sang à 2 minutes est une vraie victoire). Les sbires ne figurent dans la chronologie qu'une fois par minute : si deux conditions remplies par des joueurs différents tombent dans la même minute, l'ordre est impossible à établir et la partie n'est pas retenue — l'organisateur tranche. Aucune condition remplie : partie non retenue.
+
+**5v5** (`tournaments.format = '5v5'`, audit N21, 03/10/2026) : dans le bracket, chaque équipe est représentée par son capitaine ; les critères 1 à 4 s'appliquent aux deux capitaines, et la partie doit en plus compter **dix joueurs, dont les cinq joueurs alignés de chaque équipe** (table `alignements`, figée au lancement du bracket), tous du même côté, les deux équipes face à face (`src/lib/cinq-contre-cinq.ts`). Un remplaçant non inscrit ou un joueur passé dans l'autre camp : partie non retenue, l'organisateur tranche. Les statistiques des dix joueurs sont enregistrées ; elles n'entrent pas dans les moyennes du 1v1.
+
+Les parties retenues sont rejouées dans l'ordre chronologique : en Bo1 la première décide, en Bo3 / Bo5 la série s'arrête dès qu'un joueur atteint 2 / 3 victoires. Une série inachevée (1-1) n'est jamais tranchée par déduction. Le verdict garde les identifiants Riot de toutes les manches (`riot_match_id`, séparés par des virgules) ; les statistiques enregistrées sont celles de la manche décisive.
 
 ---
 
@@ -72,7 +91,30 @@ Si aucune ne correspond à T+25, le match passe en `litige`.
 5. Écrire en une transaction : mise à jour de `ratings` + insertion dans `rating_events`.
 
 ### Garde d'idempotence
-Avant l'étape 5, vérifier qu'aucune ligne `rating_events` n'existe déjà pour ce couple (tournoi, joueur). Si oui, abandonner sans erreur.
+Avant l'étape 5, vérifier qu'aucune ligne `rating_events` n'existe déjà pour ce couple (tournoi, joueur). Si oui, abandonner sans erreur. Depuis le 28/09/2026, une contrainte d'unicité sur (tournoi, joueur) rend le double crédit impossible même en cas d'exécutions simultanées.
+
+### État de départ périmé et reprise
+`cloturer_rating_joueur` verrouille la ligne `ratings` du joueur et refuse d'écrire si son rating ou son RD ne correspondent plus à l'état de départ utilisé pour le calcul (un autre tournoi du même joueur clôturé entre-temps) : `ETAT_DE_DEPART_PERIME`. Le tournoi reste alors « en cours » et la tâche des tournois automatiques (toutes les 5 minutes) reprend la clôture de tout tournoi dont la finale est jouée. À la reprise, un joueur déjà crédité sert d'adversaire avec son état d'avant tournoi, lu dans le journal.
+
+### Tournoi classé
+
+Seul un tournoi **classé** écrit des points (audit E12 / N12, 28/09/2026) : un tournoi officiel (quotidien automatique), ou un tournoi d'organisateur qui remplit tous ces critères publics — au moins 8 joueurs au départ du bracket, publié au moins 24 h avant son début (`publie_le`, posée par la base à l'ouverture des inscriptions), sans son organisateur dans le bracket, pas déclaré amical. La clôture demande la décision à la base (`figer_classement_tournoi`) une fois la finale jouée ; elle est alors écrite dans `tournaments.classe` et ne change plus. Un tournoi non classé est clôturé sans aucune écriture dans `ratings` ni `rating_events`, et `cloturer_rating_joueur` refuse tout tournoi non classé (`TOURNOI_NON_CLASSE`). La page du tournoi affiche chaque critère (`src/lib/tournoi-classe.ts`, mêmes seuils).
+
+### Tournois 5v5
+
+Un tournoi 5v5 n'écrit jamais de points (contrainte `tournaments_5v5_hors_classement` : `compte_pour_classement` est faux) : le rating Glicko-2 mesure un joueur seul. Sa clôture se fait comme celle d'un tournoi non classé. Ses résultats vérifiés vont au palmarès de l'équipe (page `/equipe/[slug]`) et au parcours du CV de chaque joueur aligné.
+
+### Scrims entre équipes
+
+Un scrim accepté (audit N22, 03/10/2026) devient un mini-tournoi 5v5 à deux équipes (`tournaments.nature = 'scrim'`), arbitré par le premier administrateur. Son match s'ouvre à l'heure prévue (`demarre_le`) : la recherche Riot ne commence que 8 minutes après, et ne retient que les parties commencées après cette heure, avec les dix joueurs alignés. Pas de forfait automatique (c'est un entraînement), pas d'annonce Discord. Sans partie retrouvée, les capitaines sont relancés, puis le scrim est annulé 25 h après l'heure prévue, sans verdict. Jamais classé.
+
+### Défis entre joueurs
+
+Un défi accepté (audit N16 / N18, 02/10/2026) devient un mini-tournoi à deux (`tournaments.nature = 'defi'`) : un seul match, ouvert dès l'acceptation, arbitré par le premier administrateur (jamais l'un des deux joueurs). Il suit exactement le cycle d'un match de tournoi (prêt, forfait, recherche Riot, défaite reconnue) et sa clôture est une période de notation Glicko-2 d'un match. Classé sauf s'il est le deuxième défi classé de la même paire en 24 h (joué en amical, décidé à l'acceptation), en plus des plafonds habituels. Sans partie retrouvée, le passage en litige ne prévient pas l'arbitre : les joueurs sont relancés, puis le duel est annulé 25 h après son ouverture, sans verdict ni point.
+
+### Chances estimées et exploits
+
+Avant un match, la page du tournoi affiche les chances de chaque joueur, calculées par Glicko-2 à partir des ratings **au début du tournoi** (journal du tournoi s'il est clôturé, sinon rating actuel de la saison, sinon 1500 / 350) : `probabiliteVictoire` (`src/lib/glicko2.ts`), qui tient compte de l'incertitude des deux joueurs. Une victoire **vérifiée** (niveau 2 ou 3) d'un joueur qui avait moins de 35 % de chances est marquée « Exploit ». Ce sont des estimations affichées comme telles : elles n'entrent jamais dans le calcul du classement.
 
 ### Joueur inactif
 Tâche mensuelle : pour tout joueur sans match depuis 30 jours, augmenter le RD selon la formule Glicko-2, **sans toucher au rating**. Un joueur absent devient incertain, il ne devient pas mauvais.
@@ -104,7 +146,7 @@ Appliqués au moment du calcul, avant la mise à jour Glicko-2.
 
 | Tâche | Fréquence | Rôle |
 |---|---|---|
-| Recherche de résultats | 1 min | Traite la file des matchs en cours |
+| Recherche de résultats | 5 min (pg_cron) | Traite les matchs en cours, et ceux en litige depuis moins de 24 h |
 | Ouverture du check-in | 1 min | Passe les tournois en `checkin` |
 | Génération de bracket | 1 min | À la fermeture du check-in, byes inclus |
 | Clôture de tournoi | 1 min | Déclenche le calcul du classement |

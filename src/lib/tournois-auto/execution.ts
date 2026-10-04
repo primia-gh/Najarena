@@ -12,18 +12,26 @@
 //   joueur ne reçoit jamais deux fois le même rappel.
 
 import { creerClientAdmin } from "@/lib/supabase/admin";
-import { construireBracket, melanger } from "@/lib/bracket-construction";
-import { envoyerRappel, notifierDiscord, URL_SITE } from "@/lib/notifications";
+import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
+import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { cloturerTournoi } from "@/lib/classement-actions";
+import { verifierCleRiot } from "@/lib/riot";
 import {
   capaciteEffective,
   CRENEAUX,
+  ajouterJours,
   heureParis,
   jourLisibleParis,
+  jourParis,
   nomTournoi,
   slugTournoi,
   trouverCreneau,
 } from "./creneaux";
 import { planifier, type Action, type TournoiSuivi, type TypeRappel } from "./planification";
+import { echapperDiscord } from "@/lib/echappement";
+import { doitPublierEmpreinte } from "@/lib/registre";
+import { lundiDeLaSemaine, messageRecap } from "@/lib/recap-semaine";
+import { chargerRecapSemaine } from "@/lib/recap-semaine-serveur";
 
 type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
 
@@ -72,7 +80,168 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     }
   }
 
+  try {
+    resultats.push(...(await reprendreCloturesEnAttente(admin)));
+  } catch (erreur) {
+    resultats.push(`reprise des clôtures : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
+  try {
+    resultats.push(...(await surveillerCleRiot(admin, tournois, maintenant)));
+  } catch (erreur) {
+    resultats.push(`contrôle de la clé Riot : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
+  try {
+    resultats.push(...(await publierEmpreinteRegistre(admin, maintenant)));
+  } catch (erreur) {
+    resultats.push(`empreinte du registre : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
+  try {
+    resultats.push(...(await publierRecapSemaine(admin, maintenant)));
+  } catch (erreur) {
+    resultats.push(`récap de la semaine : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
   return { simulation, actions, resultats };
+}
+
+// Récap de la semaine (28/09/2026, audit N17) : le lundi à partir de
+// 10 h (heure de Paris), la semaine précédente est racontée sur Discord,
+// une seule fois (ligne de recaps_semaine) — jamais une semaine vide.
+async function publierRecapSemaine(admin: ClientAdmin, maintenant: Date): Promise<string[]> {
+  const lundi = lundiDeLaSemaine(maintenant);
+  if (jourParis(maintenant) !== lundi || heureParis(maintenant.toISOString()) < "10:00") return [];
+  const semaine = ajouterJours(lundi, -7);
+
+  const { data: deja } = await admin.from("recaps_semaine").select("semaine").eq("semaine", semaine).maybeSingle();
+  if (deja) return [];
+
+  const { recap, joueurs } = await chargerRecapSemaine(admin, semaine);
+  const { data: inseree } = await admin
+    .from("recaps_semaine")
+    .insert({ semaine, annonce: recap !== null })
+    .select("semaine")
+    .maybeSingle();
+  if (!inseree || !recap) return inseree ? [`récap de la semaine du ${semaine} : semaine vide, rien publié`] : [];
+
+  const nom = (id: string) => {
+    const j = joueurs.get(id);
+    return j && !j.supprime ? `**${echapperDiscord(j.pseudo)}**` : "un compte supprimé";
+  };
+  await notifierDiscord(messageRecap(recap, nom, `${URL_SITE}/lol/semaine/${semaine}`));
+  return [`récap de la semaine du ${semaine} : publié`];
+}
+
+// Empreinte du soir (28/09/2026, audit N8) : la dernière empreinte du
+// registre des points est publiée sur Discord, une fois par jour après
+// 23 h 45 (heure de Paris) et seulement si le registre a changé. Publiée
+// hors de Najarena et datée par Discord, elle permet à n'importe qui de
+// prouver plus tard que le registre n'a pas été retouché (page /registre).
+async function publierEmpreinteRegistre(admin: ClientAdmin, maintenant: Date): Promise<string[]> {
+  const jour = jourParis(maintenant);
+  const [{ data: dejaPubliee }, { data: derniere }, { data: precedente }] = await Promise.all([
+    admin.from("empreintes_publiees").select("jour").eq("jour", jour).maybeSingle(),
+    admin.from("rating_events").select("numero, empreinte").order("numero", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("empreintes_publiees").select("numero").order("jour", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
+  if (
+    !derniere ||
+    !doitPublierEmpreinte(heureParis(maintenant.toISOString()), Boolean(dejaPubliee), derniere.numero, precedente?.numero ?? null)
+  ) {
+    return [];
+  }
+
+  // Une seule publication par jour, même si deux passages se chevauchent :
+  // la ligne du jour est la clé.
+  const { data: inseree } = await admin
+    .from("empreintes_publiees")
+    .insert({ jour, numero: derniere.numero, empreinte: derniere.empreinte })
+    .select("jour")
+    .maybeSingle();
+  if (!inseree) return [];
+
+  await notifierDiscord(
+    `🔏 Registre des points au ${jour.split("-").reverse().join("/")} : ${derniere.numero} ligne${derniere.numero > 1 ? "s" : ""}, dernière empreinte \`${derniere.empreinte}\`. Retoucher une seule ligne passée changerait cette empreinte. Vérifier : ${URL_SITE}/registre`,
+  );
+  return [`empreinte du registre publiée (${derniere.numero} lignes)`];
+}
+
+// Contrôle de la clé Riot dans les heures qui précèdent chaque tournoi
+// automatique (28/09/2026, audit E13). La clé de développement expire
+// toutes les 24 h : un soir où elle a expiré, aucun résultat n'est lu et
+// tout part en litige. L'organisateur est prévenu une fois par tournoi
+// (ligne « cle_riot_invalide » de rappels_tournoi). Le tournoi a lieu
+// quand même : la recherche des résultats continue 24 h, une clé
+// renouvelée dans la soirée les retrouve encore.
+const FENETRE_CONTROLE_CLE_HEURES = 6;
+
+async function surveillerCleRiot(
+  admin: ClientAdmin,
+  tournois: TournoiSuivi[],
+  maintenant: Date,
+): Promise<string[]> {
+  const proches = tournois.filter((t) => {
+    if (t.creneau_auto === null || (t.statut !== "ouvert" && t.statut !== "checkin")) return false;
+    const avantDebut = new Date(t.debute_le).getTime() - maintenant.getTime();
+    return avantDebut > 0 && avantDebut <= FENETRE_CONTROLE_CLE_HEURES * 3_600_000;
+  });
+  if (proches.length === 0) return [];
+
+  const etat = await verifierCleRiot();
+  // « injoignable » : panne réseau passagère, on ne donne pas l'alerte.
+  if (etat === "valide" || etat === "injoignable") return [];
+
+  const resultats: string[] = [];
+  for (const tournoi of proches) {
+    const { error: dejaPrevenu } = await admin
+      .from("rappels_tournoi")
+      .insert({ tournament_id: tournoi.id, type: "cle_riot_invalide" });
+    if (dejaPrevenu) continue;
+
+    const { data: t } = await admin
+      .from("tournaments")
+      .select("nom, slug, debute_le, organisateur_id")
+      .eq("id", tournoi.id)
+      .maybeSingle();
+    if (!t) continue;
+
+    await notifierJoueur(
+      t.organisateur_id,
+      `Clé Riot ${etat === "absente" ? "absente" : "expirée"} — ${t.nom}`,
+      "La clé de l'API Riot doit être renouvelée",
+      `<p>La clé de l'API Riot est ${etat === "absente" ? "absente de la configuration du serveur" : "expirée ou refusée"} : aucun compte ne peut être lié et aucun résultat ne peut être lu automatiquement.</p>
+       <p>Renouvelle-la sur developer.riotgames.com, puis remplace RIOT_API_KEY dans les variables d'environnement de Vercel avant ${heureParis(t.debute_le)}.</p>
+       <p>Sans nouvelle clé, le tournoi a lieu quand même : ses résultats seront retrouvés dès que la clé sera remplacée (la recherche continue 24 h), ou tranchés à la main.</p>
+       <p><a href="${URL_SITE}/lol/tournois/${t.slug}">Voir le tournoi</a></p>`,
+    );
+    resultats.push(`alerte clé Riot (${etat}) ${t.slug} : envoyée`);
+  }
+  return resultats;
+}
+
+// Tournois (automatiques ou d'organisateur) dont la finale est jouée mais
+// qui ne sont pas « terminés » : leur clôture — le calcul Glicko-2 — a
+// échoué ou a été interrompue (docs/schema.sql, ETAT_DE_DEPART_PERIME).
+// Jusqu'au 28/09/2026, rien ne la relançait : les joueurs restaient sans
+// leurs points. Relancer est sans danger, la base refuse tout double crédit.
+// Une finale gagnée par forfait automatique (audit N4) est jouée elle aussi.
+async function reprendreCloturesEnAttente(admin: ClientAdmin): Promise<string[]> {
+  const { data: finales } = await admin
+    .from("matches")
+    .select("tournament_id, tournament:tournaments!inner(slug, statut)")
+    .is("match_suivant_id", null)
+    .in("statut", ["termine", "forfait"])
+    .eq("tournament.statut", "en_cours");
+
+  const resultats: string[] = [];
+  for (const finale of finales ?? []) {
+    await cloturerTournoi(finale.tournament_id);
+    resultats.push(`clôture reprise ${finale.tournament?.slug ?? finale.tournament_id}`);
+  }
+  return resultats;
 }
 
 async function chargerTournoisSuivis(admin: ClientAdmin, maintenant: Date): Promise<TournoiSuivi[] | null> {
@@ -185,6 +354,7 @@ async function creer(
         checkin_ouvre_le: checkinOuvreLe,
         statut: "ouvert",
         creneau_auto: creneau.cle,
+        condition_victoire: creneau.conditionVictoire,
       },
       { onConflict: "slug", ignoreDuplicates: true },
     )
@@ -203,7 +373,7 @@ async function reserverRappel(admin: ClientAdmin, tournoiId: string, type: TypeR
 async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel): Promise<string> {
   const { data: t } = await admin
     .from("tournaments")
-    .select("nom, slug, debute_le, checkin_ouvre_le, capacite")
+    .select("nom, slug, debute_le, checkin_ouvre_le, capacite, creneau_auto")
     .eq("id", tournoiId)
     .maybeSingle();
   if (!t) return `rappel ${type} (${tournoiId}) : tournoi introuvable`;
@@ -221,8 +391,14 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
       .select("id", { count: "exact", head: true })
       .eq("tournament_id", tournoiId)
       .neq("statut", "retire");
+    // Le nombre d'inscrits n'est annoncé publiquement qu'une fois le
+    // minimum atteint : « 0/16 inscrits » chaque jour sur le salon affiche
+    // le vide plutôt qu'une invitation (audit du 27/09/2026, M13).
+    const minimum = trouverCreneau(t.creneau_auto)?.minimumJoueurs ?? MINIMUM_PAR_DEFAUT;
+    const inscrits = count ?? 0;
+    const affluence = inscrits >= minimum ? `, ${inscrits}/${t.capacite} inscrits` : "";
     await notifierDiscord(
-      `📣 Aujourd'hui à ${heure} : **${t.nom}** — tournoi 1v1 ouvert à tous, ${count ?? 0}/${t.capacite} inscrits. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
+      `📣 Aujourd'hui à ${heure} : **${echapperDiscord(t.nom)}** — tournoi 1v1 ouvert à tous${affluence}. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
     );
     return `annonce ${t.slug} : envoyée`;
   }
@@ -247,7 +423,7 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
         ),
       ),
     );
-    await notifierDiscord(`✅ Check-in ouvert : **${t.nom}** commence à ${heure}. Inscrits, confirmez votre présence.\n${lien}`);
+    await notifierDiscord(`✅ Check-in ouvert : **${echapperDiscord(t.nom)}** commence à ${heure}. Inscrits, confirmez votre présence.\n${lien}`);
   } else {
     await Promise.all(
       joueurs.map((id) =>
@@ -285,7 +461,7 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
 
   const { data: inscriptions } = await admin
     .from("registrations")
-    .select("profile_id, statut, inscrit_le, confirme_le")
+    .select("profile_id, statut, inscrit_le, confirme_le, rating_a_inscription")
     .eq("tournament_id", tournoiId);
 
   // Premiers arrivés, premiers servis : si le bracket est plein, les
@@ -314,9 +490,10 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
           ),
         ),
     );
-    await notifierDiscord(
-      `❌ **${t.nom}** annulé — ${confirmes.length} joueur(s) confirmé(s), ${minimum} minimum.${prochain}`,
-    );
+    // Pas d'annonce publique d'une annulation faute de joueurs (audit du
+    // 27/09/2026, M13) : un message quotidien « annulé — 0 joueur » sur le
+    // salon est le signal le plus décourageant possible pour un nouveau
+    // venu. Seuls les inscrits sont prévenus, en privé (ci-dessus).
     return `démarrage ${t.slug} : annulé (${confirmes.length}/${minimum} confirmés)`;
   }
 
@@ -334,7 +511,11 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
     .eq("tournament_id", tournoiId)
     .eq("statut", "inscrit");
 
-  const retenus = confirmes.slice(0, t.capacite).map((c) => c.profile_id);
+  // Les premiers à avoir fait leur check-in ont leur place ; parmi eux, les
+  // têtes de série suivent le rating à l'inscription.
+  const retenus = ordonnerParRating(
+    confirmes.slice(0, t.capacite).map((c) => ({ profileId: c.profile_id, rating: c.rating_a_inscription })),
+  );
   const surplus = confirmes.slice(t.capacite).map((c) => c.profile_id);
 
   // Bracket à la taille des présents (voir capaciteEffective).
@@ -344,7 +525,7 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
   }
 
   let byesEchoues = 0;
-  const { ok } = await construireBracket(admin, tournoiId, capacite, melanger(retenus), async (matchId, gagnantId) => {
+  const { ok } = await construireBracket(admin, tournoiId, capacite, retenus, async (matchId, gagnantId) => {
     const { error } = await admin.rpc("enregistrer_bye_automatique", {
       p_match_id: matchId,
       p_gagnant_id: gagnantId,
@@ -381,7 +562,7 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
       ),
     ),
   ]);
-  await notifierDiscord(`⚔️ **${t.nom}** commence — ${retenus.length} joueurs.\n${lien}`);
+  await notifierDiscord(`⚔️ **${echapperDiscord(t.nom)}** commence — ${retenus.length} joueurs.\n${lien}`);
 
   return `démarrage ${t.slug} : ${retenus.length} joueurs, bracket de ${capacite}${
     ok && byesEchoues === 0 ? "" : " (INCOMPLET — organisateur prévenu)"
@@ -389,8 +570,13 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
 }
 
 async function annulerRetard(admin: ClientAdmin, tournoiId: string): Promise<string> {
-  const { data: t } = await admin.from("tournaments").select("nom, slug, debute_le").eq("id", tournoiId).maybeSingle();
+  const { data: t } = await admin
+    .from("tournaments")
+    .select("nom, slug, debute_le, creneau_auto, organisateur_id")
+    .eq("id", tournoiId)
+    .maybeSingle();
   if (!t) return `annulation (${tournoiId}) : tournoi introuvable`;
+  const automatique = t.creneau_auto !== null;
 
   const { data: annule } = await admin
     .from("tournaments")
@@ -406,12 +592,23 @@ async function annulerRetard(admin: ClientAdmin, tournoiId: string): Promise<str
     .eq("tournament_id", tournoiId)
     .in("statut", ["inscrit", "confirme"]);
 
-  const texte = `Le tournoi du ${jourLisibleParis(t.debute_le)} n'a pas pu démarrer à l'heure (incident technique) : il est annulé.`;
+  const texte = automatique
+    ? `Le tournoi du ${jourLisibleParis(t.debute_le)} n'a pas pu démarrer à l'heure (incident technique) : il est annulé.`
+    : `Le tournoi du ${jourLisibleParis(t.debute_le)} n'a pas été lancé par son organisateur dans les 2 heures suivant l'heure prévue : il est annulé.`;
   await Promise.all(
     (inscriptions ?? []).map((i) =>
       envoyerRappel(i.profile_id, `Tournoi annulé — ${t.nom}`, texte, `${URL_SITE}/lol/tournois/${t.slug}`),
     ),
   );
-  await notifierDiscord(`❌ **${t.nom}** annulé — incident technique au démarrage.`);
-  return `annulation ${t.slug} : faite (démarrage manqué)`;
+  if (automatique) {
+    await notifierDiscord(`❌ **${echapperDiscord(t.nom)}** annulé — incident technique au démarrage.`);
+  } else {
+    await envoyerRappel(
+      t.organisateur_id,
+      `Tournoi annulé automatiquement — ${t.nom}`,
+      "Ton tournoi n'a pas été lancé dans les 2 heures suivant l'heure prévue : il a été annulé et les inscrits ont été prévenus.",
+      `${URL_SITE}/moi/organisation/${tournoiId}`,
+    );
+  }
+  return `annulation ${t.slug} : faite (${automatique ? "démarrage manqué" : "jamais lancé par l'organisateur"})`;
 }

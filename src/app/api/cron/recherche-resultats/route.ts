@@ -20,6 +20,10 @@ import { traiterRechercheResultats } from "@/lib/rapprochement";
 // pour qu'un tournoi du soir avance le soir même. Le passage quotidien de
 // vercel.json reste en secours.
 // Même mécanisme d'authentification que les autres routes /api/cron/*.
+// Durée maximale d'une fonction sur le plan gratuit de Vercel : les séries
+// Best-of et la recherche après litige demandent plus d'appels Riot.
+export const maxDuration = 60;
+
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {

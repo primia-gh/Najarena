@@ -6,6 +6,9 @@ import { slugifier } from "@/lib/slug";
 import { notifierDiscord, URL_SITE } from "@/lib/notifications";
 import { formaterDate } from "@/lib/tournois";
 import { chargerOffre } from "@/lib/offres";
+import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
+import { echapperDiscord } from "@/lib/echappement";
+import { messageModeration } from "@/lib/moderation";
 
 const CAPACITES = [4, 8, 16, 32, 64] as const;
 const CAPACITE_ETENDUE = 128;
@@ -25,6 +28,17 @@ export async function creerTournoi(formData: FormData) {
   const debuteLeBrut = String(formData.get("debute_le") ?? "");
   const checkinOuvreLeBrut = String(formData.get("checkin_ouvre_le") ?? "");
   const publier = formData.get("statut_initial") === "ouvert";
+  // Tournoi amical (audit N12) : aucun point de classement en jeu, choix
+  // figé à la création comme les autres réglages.
+  const amical = formData.get("amical") === "oui";
+  // Format (audit N21) : 5v5 = inscription par équipe, toujours jusqu'au
+  // Nexus et hors classement individuel (la base l'exige aussi).
+  const format = formData.get("format") === "5v5" ? "5v5" : "1v1";
+  // Condition de victoire (audit N5) : Nexus par défaut, 1v1 classique au choix.
+  const condition = format === "1v1" && formData.get("condition_victoire") === "classique" ? "classique" : "nexus";
+  // Communauté (audit N30) : la base vérifie que l'organisateur en est le
+  // fondateur ou un administrateur.
+  const communauteId = String(formData.get("communaute_id") ?? "");
 
   if (nom.length < 3 || nom.length > 60) {
     redirect(
@@ -54,10 +68,12 @@ export async function creerTournoi(formData: FormData) {
     redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Choisis une région.")}`);
   }
 
-  const debuteLe = new Date(debuteLeBrut);
-  const checkinOuvreLe = new Date(checkinOuvreLeBrut);
+  // Heures saisies = heure de Paris (le serveur tourne en UTC : lues telles
+  // quelles, « 20:00 » devenait un tournoi à 22h00 l'été).
+  const debuteLe = instantDepuisSaisieParis(debuteLeBrut);
+  const checkinOuvreLe = instantDepuisSaisieParis(checkinOuvreLeBrut);
 
-  if (Number.isNaN(debuteLe.getTime()) || Number.isNaN(checkinOuvreLe.getTime())) {
+  if (!debuteLe || !checkinOuvreLe) {
     redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Dates invalides.")}`);
   }
 
@@ -97,24 +113,31 @@ export async function creerTournoi(formData: FormData) {
     organisateur_id: userData.user.id,
     slug,
     nom,
-    format: "1v1",
+    format,
     capacite,
     best_of: bestOf,
     region,
     debute_le: debuteLe.toISOString(),
     checkin_ouvre_le: checkinOuvreLe.toISOString(),
     statut: publier ? "ouvert" : "brouillon",
+    compte_pour_classement: format === "1v1" && !amical,
+    condition_victoire: condition,
+    communaute_id: /^[0-9a-f-]{36}$/.test(communauteId) ? communauteId : null,
   });
 
   if (error) {
     redirect(
-      `/organiser/nouveau?erreur=${encodeURIComponent("Impossible de créer le tournoi pour l'instant.")}`,
+      `/organiser/nouveau?erreur=${encodeURIComponent(
+        error.message.includes("COMMUNAUTE_INTERDITE")
+          ? "Seuls le fondateur et les administrateurs publient des tournois dans cette communauté."
+          : (messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant."),
+      )}`,
     );
   }
 
   if (publier) {
     await notifierDiscord(
-      `📣 Nouveau tournoi ouvert — **${nom}** (${capacite} joueurs, ${region}), débute le ${formaterDate(debuteLe.toISOString())}.\n${URL_SITE}/lol/tournois/${slug}`,
+      `📣 Nouveau tournoi ${format} ouvert — **${echapperDiscord(nom)}** (${capacite} ${format === "5v5" ? "équipes" : "joueurs"}, ${region}), débute le ${formaterDate(debuteLe.toISOString())}.\n${URL_SITE}/lol/tournois/${slug}`,
     );
     redirect(`/lol/tournois/${slug}`);
   }

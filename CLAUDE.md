@@ -15,6 +15,30 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 12/09/2026 : les équipes/5v5 étaient prévues en Phase 3 (§9) ; leur construction a été avancée en V1 sur décision du porteur du projet, en parallèle du reste plutôt qu'après l'obtention de la clé Riot production.*
 
+*Mise à jour du 03/10/2026 (audit N21) : **tournois 5v5** — format choisi à la création. Le capitaine inscrit son équipe avec cinq membres aux comptes Riot vérifiés (`s_inscrire_equipe`, table `alignements`, un joueur par équipe et par tournoi), fait le check-in et représente l'équipe dans le bracket (`match_participants.profile_id` = capitaine). Résultat retenu seulement si les dix joueurs alignés sont dans la partie, chaque équipe de son côté. Hors classement individuel ; palmarès sur la page d'équipe, parcours sur le CV.*
+
+*Mise à jour du 03/10/2026 (audit N22) : **scrims vérifiés** — un capitaine propose un match d'entraînement à une autre équipe depuis sa page (date, Bo1/Bo3, cinq joueurs) ; accepté avec les cinq joueurs adverses, il devient un mini-tournoi 5v5 à deux (`tournaments.nature = 'scrim'`, `proposer_scrim` / `repondre_scrim` / `annuler_scrim`), arbitré par le premier administrateur, lu chez Riot comme un match de tournoi, sans forfait automatique, annulé sans partie retrouvée 24 h après l'heure prévue. Jamais classé ; résultat sur la page des deux équipes.*
+
+*Mise à jour du 03/10/2026 (audit N23) : **agents libres** — dans un tournoi 5v5, un joueur sans équipe s'inscrit seul (`s_inscrire_agent_libre`, rôle facultatif) et fait son check-in ; au lancement du bracket, les agents confirmés sont regroupés en équipes de cinq équilibrées par rating et par rôle (`src/lib/agents-libres.ts`), inscrites par la base sous le nom « Agents libres N » (`former_equipes_agents_libres`, pas de page d'équipe). Premiers inscrits servis en premier ; les agents en trop sont prévenus.*
+
+*Mise à jour du 03/10/2026 (audit N24) : **échéances (Nexus Tour, Clash)** — table `echeances` : Clash lu dans l'API Riot (clash-v1) par la tâche des tournois automatiques, quatre fois par jour (`src/lib/echeances-serveur.ts`) ; Nexus Tour et autres saisis dans `/admin#echeances` avec un lien officiel obligatoire. Jamais une date inventée. Une annonce « cherche une équipe » peut viser une échéance à venir (`recherches_coequipiers.objectif_id`), affichée sur `/lol/coequipiers` et sur le CV.*
+
+*Mise à jour du 03/10/2026 (audit N25, N28, N29) : **textes rédigés par l'IA**, tous via `src/lib/claude.ts` (SDK `@anthropic-ai/sdk`, modèle fixé par la constante `MODELE_IA`, effort `low`, réponse JSON contrainte par schéma puis revérifiée, repli `fallbacks: "default"`), à la demande, dans la limite de 10 demandes par 24 h (`reserver_appel_assistant_ia`) : analyse détaillée d'un match (offre Elite, chiffres Riot seuls, table `revues_match_ia`), dossier de litige (faits rassemblés par le serveur + synthèse, **ne désigne jamais de vainqueur**, table `dossiers_litige`, lisible par l'organisateur et les admins), recherche de joueurs en langage naturel (offre Organisateur, l'IA ne produit que des filtres). Toute saisie d'un utilisateur est passée à l'IA entre balises, comme une donnée.*
+
+*Mise à jour du 03/10/2026 (audit N13) : **fiche publique de l'organisateur** — `fiche_organisateur` (base) : tournois publiés, menés à terme, annulés ; part des matchs lus chez Riot ; litiges tranchés et délai médian. Sur ses seuls tournois (hors officiels, défis, scrims, brouillons). Bloc « Organisateur » du CV, résumé sous « Organisé par » d'un tournoi (`src/lib/fiche-organisateur.ts`, pas de pourcentage sous 5 matchs).*
+
+*Mise à jour du 03/10/2026 (audit N15) : **comptes Riot secondaires déclarés** — jusqu'à 3 comptes par joueur (`lier_compte_riot(..., p_principal)`), vérifiés par l'icône, affichés sur le CV (bloc « Comptes Riot »). Seul le principal inscrit aux tournois et sert à lire les résultats ; en changer (`definir_compte_principal`) ou en lier un nouveau comme principal est refusé pendant un tournoi pas encore terminé (`engage_en_tournoi`). Chaque match vérifié garde le compte qui l'a joué (`stats_match_joueur.puuid`).*
+
+*Mise à jour du 03/10/2026 (audit N19) : **arène 1v1** — `/lol/arene` : un joueur entre dans la file de sa région (`rejoindre_arene`, table `file_arene`) ; il est apparié à un joueur de même région et même règle de victoire si l'écart de rating ≤ 100 + moitié du plus grand RD + 20 par minute d'attente, 500 au plus (`ecart_arene`, `src/lib/arene.ts`). Le duel est un défi accepté d'office (`creer_duel`, nommé « Arène A contre B »), mêmes règles de classement. Appariement aussi à chaque passage de la tâche des tournois automatiques (`apparier_arene`) ; place expirée après 30 minutes.*
+
+*Mise à jour du 03/10/2026 (audit N20) : **pronostics gratuits** — vainqueur des demi-finales (1 point) et des finales (2 points) des tournois (`nature = 'tournoi'`), depuis la page du tournoi (`#pronostics`, fonction `pronostiquer`, table `pronostics`). Fermé dès qu'un joueur du match est prêt ou 10 minutes après l'ouverture du match ; les joueurs du tournoi et l'organisateur ne pronostiquent pas. Compté seulement sur un verdict lu chez Riot (forfait, verdict manuel = annulé). Classement par saison sur `/lol/pronostics` (`classement_pronostics`). **Aucune mise, aucun gain** — ne jamais y attacher de récompense (ce serait un jeu d'argent).*
+
+*Mise à jour du 03/10/2026 (audit N30) : **espaces communauté** — `/communautes`, `/communaute/[slug]`, `/communaute/nouvelle` : tables `communautes` et `membres_communaute`, `tournaments.communaute_id`. Créées par l'offre Organisateur (3 au plus, `creer_communaute`), rejointes librement ; fondateur / administrateurs / membres. Classement interne = rating officiel des membres classés, jamais un rating à part. Serveur Discord lié par un code de 30 minutes saisi avec `/lier` par un membre qui peut gérer le serveur (`lier_serveur_discord`, rôle service) ; commandes `/communaute` et `/organiser` (lien pré-rempli vers `/organiser/nouveau`, le bot n'écrit jamais de tournoi). Commandes à réenregistrer : `npm run discord:commandes`.*
+
+*Mise à jour du 03/10/2026 (audit N31) : **widgets et API publique** — widgets HTML autonomes sans script (`/widget/bracket/[slug]`, `/widget/top10`, `/widget/joueur/[pseudo]`, `?fond=transparent` pour OBS, rafraîchis toutes les 60 s), seules pages intégrables dans un autre site (`frame-ancestors *` dans `next.config.ts`) ; API JSON en lecture seule `/api/public/v1/{classement, joueurs/[pseudo], tournois/[slug]}` (CORS ouvert, cache CDN 1 min, client anonyme). Données communes : `src/lib/donnees-publiques.ts` (pas de rating avant l'entrée au classement, `verifie` faux pour un verdict manuel). Mode d'emploi : `/developpeurs`. Exclus du proxy de session.*
+
+*Mise à jour du 03/10/2026 (audit N32) : **cash prizes sponsorisés, désactivés** — tables `dotations` et `versements_dotation`, tout réservé aux administrateurs (`enregistrer_dotation` avant la fin des inscriptions d'un tournoi 1v1, `preparer_versements` lit les gagnants dans le bracket — un rang tranché à la main est « à vérifier » —, `noter_versement`). Aucun argent ne transite par le site. Rien n'est affiché tant que `CASH_PRIZES_ACTIFS` n'est pas à `1` (`src/lib/dotations.ts`) : à n'allumer qu'après le statut juridique (audit E11), des CGU relues et la vérification des règles Riot sur les tournois dotés. Inscription toujours gratuite.*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -66,7 +90,13 @@ Règles calibrées par simulation (`docs/sim.py`) :
 
 Anti-abus : 3 victoires max contre le même adversaire par 24 h, forfait = zéro point des deux côtés, verdict manuel ignoré dans le calcul.
 
+*Mise à jour du 02/10/2026 (audit N16 / N18) : **défis entre joueurs** — bouton « Défier » du CV, défis dans `/moi`, lien d'invitation `/defi/[code]`. Un défi accepté devient un duel en une partie (`tournaments.nature = 'defi'`, capacité 2), arbitré par le premier administrateur, avec la même salle de match et la même lecture Riot ; classé sauf le deuxième défi d'une même paire en 24 h (joué en amical), annulé sans partie retrouvée en 24 h. Toutes les règles en base (`lancer_defi`, `creer_duel`…). Les listes publiques de tournois, le plan du site et les statistiques excluent les défis (filtre `nature = 'tournoi'`).*
+
+*Mise à jour du 28/09/2026 (audit E12 / N12) : seul un **tournoi classé** écrit des points — tournoi officiel (quotidien automatique), ou tournoi d'organisateur avec au moins 8 joueurs au départ, publié au moins 24 h avant son début, sans son organisateur dans le bracket et pas déclaré amical. La base fige la décision à la clôture (`figer_classement_tournoi`, colonne `tournaments.classe`) et `cloturer_rating_joueur` refuse tout tournoi non classé. Seuils : `src/lib/tournoi-classe.ts` et `criteres_tournoi_classe` (les deux à changer ensemble). Règle proposée par l'audit, à valider par le porteur du projet.*
+
 **Chaque variation de points est journalisée** dans `rating_events`, avec le rating avant et après. Ce journal est public et ne se modifie jamais.
+
+*Mise à jour du 28/09/2026 (audit N8) : le journal est **scellé** — chaque ligne porte l'empreinte SHA-256 de son contenu et de la ligne précédente, la base refuse toute modification ou suppression, l'empreinte du jour part chaque soir sur Discord. Page publique `/registre`, vérification indépendante `scripts/verifier-registre.mjs`. Ne jamais changer la formule du contenu scellé (elle invaliderait toute la chaîne).*
 
 ---
 
@@ -90,6 +120,10 @@ Schéma de base de données : `docs/schema.sql`.
 4. **Toute opération d'attribution de points est idempotente.** Une relance ne doit jamais créditer deux fois.
 5. RLS activé sur toutes les tables contenant des données utilisateur.
 
+*Mise à jour du 28/09/2026 (audit du 27/09) : les règles métier — inscription et check-in, réglages de tournoi figés, équipes, messagerie, profils, pseudos, suspension, stockage des logos, limites d'usage — sont appliquées **par la base** (triggers de contrôle, fonctions `security definer`, droits par colonne), pas seulement par les pages : une action serveur peut être appelée sans la page, et l'API Supabase sans le site. Toute nouvelle règle s'écrit aussi en base, avec un scénario dans `tests/sql/` (`npm run test:base`, rejoué par la CI à chaque envoi). Tout texte saisi par un utilisateur est échappé avant d'entrer dans un e-mail (`echapperHtml`) ou un message Discord (`echapperDiscord`), `src/lib/echappement.ts`.*
+
+*Mise à jour du 02/10/2026 (audit N27) : **modération automatique en base** — tout texte saisi (pseudo, équipe, tag, rôle, nom de tournoi, annonce, bio, message privé, motif de litige) passe par `analyser_texte` (insultes, haine, menaces, arnaques, liens, usurpation « Najarena/admin/modo/Riot »), avec déguisements défaits (accents, chiffres, lettres séparées ou répétées). Noms : refus ; textes publics : refus sauf usurpation ; messages et motifs : haine et arnaques refusées, insultes/menaces/liens relus par un administrateur (`/admin#moderation`, un message relu n'est remis qu'après validation). Liste des termes : table `moderation_termes`, lisible par personne, complétée par SQL. Messages d'erreur : `src/lib/moderation.ts`. Un nouveau champ de texte libre = un nouveau déclencheur de modération.*
+
 ---
 
 ## 7. Direction artistique
@@ -104,7 +138,7 @@ Schéma de base de données : `docs/schema.sql`.
 - Composants : `src/components/design/` (BoutonLien, BoutonEnvoi, badges, PastilleResultat, ChiffreRating, IndicateurConfiance, Panneau, ReperesVisee, LibelleSection, NumeroFiligrane, Tableau, Icone, Logo). Les consulter avant d'écrire un bouton, un badge ou une carte.
 - Accueil : composants propres dans `src/components/vitrine/` (ouverture, boucles, affiches générées, cartes « EXEMPLE », top 10), animations dans `vitrine.module.css`. Barre de navigation `components/design/Navbar.tsx` et `components/Footer.tsx` partagés par tout le site ; lien « Aller au contenu » dans le layout.
 - Profil joueur : affichage refait, chargement d'origine (`chargerJoueur`) inchangé ; données d'affichage ajoutées (rang national, palier, courbe de saison, équipes, annonce, rôle) dans `lib/profil-vitrine.ts`, composants dans `src/components/profil/` (courbe, bouton Partager). « Partager le CV » partage le lien public du profil ; l'export imprimable `/cv` reste réservé à l'offre Elite.
-- Page tournoi et tournoi d'exemple : mêmes blocs dans `src/components/tournoi/` (en-tête d'affiche, onglets-ancres avec état actif, bracket à connecteurs, déroulement, essentiel du règlement). `chargerTournoi` et les conditions d'inscription / de litige inchangés ; lecture ajoutée dans `lib/tournoi-vitrine.ts`. Règlement affiché = règles réellement appliquées (CGU, §3-§4), pas celles de la maquette (« retard de 15 min = forfait » n'existe pas). Pas de bloc « Récompenses » (aucune en base).
+- Page tournoi et tournoi d'exemple : mêmes blocs dans `src/components/tournoi/` (en-tête d'affiche, onglets-ancres avec état actif, bracket à connecteurs, déroulement, essentiel du règlement). `chargerTournoi` et les conditions d'inscription / de litige inchangés ; lecture ajoutée dans `lib/tournoi-vitrine.ts`. Règlement affiché = règles réellement appliquées (CGU, §3-§4), pas celles de la maquette (son « retard de 15 min = forfait » est devenu, le 28/09/2026, « pas prêt 15 min après son adversaire = forfait » : bouton « Je suis prêt » de la salle de match, `src/lib/forfait.ts`, appliqué par la base via `appliquer_forfait_absence`, jamais contre un joueur déjà en partie chez Riot). Pas de bloc « Récompenses » (aucune en base).
 - Bouton « Pause » (bandeau de l'accueil) : fige toutes les animations du site (`html[data-animations="pause"]`, `lib/pause-animations.ts`) — exigence WCAG 2.2.2 pour tout contenu qui bouge seul plus de 5 s.
 - Charte vivante : `/charte` (tous les composants rendus en vrai ; absente du site en ligne, visible en local et en prévisualisation).
 - Typographie : Big Shoulders (titres, chiffres clés, MAJUSCULES) + Chakra Petch (texte, libellés, boutons). Tout chiffre de preuve (rating, RD, delta, horodatage) en `tabular-nums`.
@@ -130,23 +164,33 @@ Schéma de base de données : `docs/schema.sql`.
 /                          accueil (animation d'ouverture du logo, boucles « comment ça marche »)
 /lol                       hub du jeu
 /lol/tournois              liste + filtres
-/lol/tournois/[slug]       page tournoi
+/lol/tournois/[slug]       page tournoi (salle de match `#ton-match`, fichier agenda `/agenda`)
 /lol/tournois/demo         tournoi d'exemple (données statiques, jamais en base)
 /lol/classement            leaderboard
+/lol/saisons               saisons : dates, jours restants, classements finaux archivés
+/lol/semaine/[lundi]       récap de la semaine (publié aussi sur Discord le lundi)
+/registre                  registre des points scellé (preuve publique, export, vérification)
 /lol/coequipiers           recherche de coéquipiers (5v5)
+/lol/arene                 arène 1v1 : file d'attente, duel contre un joueur de son niveau
+/lol/pronostics            pronostics gratuits : matchs ouverts, classement des pronostiqueurs
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
+/certificat/[code]         certificat de niveau daté et figé, émis depuis le CV (non indexé)
+/defi/[code]               lien « Invite ton rival » : un ami s'inscrit, lie son Riot ID et relève le défi (non indexé)
 /equipe/[slug]             page publique d'équipe
 /equipe/nouvelle           création d'équipe
+/communautes               espaces communauté (serveur Discord, association) ; /communaute/[slug], /communaute/nouvelle
 /organiser/nouveau         création de tournoi
-/moi                       tableau de bord joueur
+/moi                       tableau de bord joueur (bandeau « ton match », gérer mon abonnement)
+/moi/profil                pseudo, pays, visites anonymes, suppression du compte
 /moi/organisation/[id]     cockpit de tournoi
-/connexion /inscription /lier-riot
+/connexion /inscription /lier-riot /mot-de-passe-oublie /nouveau-mot-de-passe
 /admin                     modération, litiges
 /comment-ca-marche         guide éditorial (verdict, Glicko-2, indice de confiance)
 /faq                       questions de confiance, dépliées par défaut (gratuité, affiliation Riot, délais, IA)
 /journal                   journal de bord public (docs/journal réel, voir src/lib/journal.ts)
 /note-du-fondateur         positionnement produit, en 1ère personne
 /charte                    charte graphique vivante (interne, absente du site en ligne)
+/developpeurs              widgets intégrables (/widget/...) et API publique en lecture seule (/api/public/v1/...)
 ```
 
 Le segment de jeu (`/lol/...`) est obligatoire dès maintenant : sans lui, l'ajout d'un second jeu imposerait une migration d'URL et une perte de référencement.
@@ -186,6 +230,8 @@ La précision du classement dépend du **nombre de matchs par joueur**, pas du n
 - Les montants de rating sont des `numeric`, jamais des flottants côté application.
 - Toute écriture liée au classement passe par une transaction unique.
 - Un commit par unité fonctionnelle, message en français.
+- Évolution de la base : ajoutée à la fin de `docs/schema.sql`, en section datée « À appliquer sur la base AVANT la mise en ligne du code du même commit ». La base se met à jour avant le code (exemple : `docs/mise-en-ligne-2026-09-28.md`).
+- Règlement du 1v1 (carte, mode, étapes d'un match) : `src/lib/reglement.ts`, lu par tous les écrans. Règles de pseudo : `src/lib/pseudo.ts` (mêmes règles en base). CGU modifiées : changer `VERSION_CGU` (`src/lib/cgu.ts`), enregistrée avec le consentement de chaque compte.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -1,4 +1,5 @@
 import type { Database } from "@/lib/supabase/types";
+import { FUSEAU_PARIS } from "@/lib/tournois-auto/creneaux";
 
 export type Statut = Database["public"]["Enums"]["tournament_status"];
 
@@ -51,11 +52,17 @@ export const COULEUR_NIVEAU: Record<NiveauVerdict, string> = {
   manuel: "text-muted",
 };
 
+// Heure de Paris explicite : le serveur (Vercel) tourne en UTC. Sans fuseau,
+// le Daily de 21h00 s'affichait « 19:00 » partout sauf sur l'accueil
+// (audit du 27/09/2026, E5).
+const FORMAT_DATE = new Intl.DateTimeFormat("fr-FR", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: FUSEAU_PARIS,
+});
+
 export function formaterDate(iso: string) {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
+  return FORMAT_DATE.format(new Date(iso));
 }

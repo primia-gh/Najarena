@@ -4,12 +4,18 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { slugifier } from "@/lib/slug";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
-import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
+import { estLogoEquipeValide, TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { chargerOffre, ORDRE_OFFRE } from "@/lib/offres";
 import type { TablesUpdate } from "@/lib/supabase/types";
+import { messageModeration } from "@/lib/moderation";
 
 // 2 à 5 lettres/chiffres, convention standard des tags d'équipe esport.
 const TAG_REGEX = /^[A-Za-z0-9]{2,5}$/;
+
+// Départ refusé par la base (audit N21) : aligné dans un tournoi 5v5 dont le
+// check-in ou les matchs ont commencé.
+const MESSAGE_ALIGNE_EN_TOURNOI =
+  "Ce joueur est aligné dans un tournoi 5v5 en check-in ou en cours : il pourra quitter l'équipe à la fin du tournoi.";
 
 export async function creerEquipe(formData: FormData) {
   const supabase = await createClient();
@@ -46,7 +52,7 @@ export async function creerEquipe(formData: FormData) {
 
   if (error || !equipe) {
     redirect(
-      `/equipe/nouvelle?erreur=${encodeURIComponent("Impossible de créer l'équipe pour l'instant.")}`,
+      `/equipe/nouvelle?erreur=${encodeURIComponent(messageModeration(error?.message) ?? "Impossible de créer l'équipe pour l'instant.")}`,
     );
   }
 
@@ -151,11 +157,21 @@ export async function accepterInvitation(formData: FormData) {
 
   const teamId = String(formData.get("team_id") ?? "");
 
-  await supabase
+  // La base refuse l'acceptation si l'équipe a déjà 5 joueurs (déclencheur
+  // controle_membre_equipe, docs/schema.sql) — jusqu'ici, rien ne limitait
+  // l'effectif une fois les invitations envoyées.
+  const { error } = await supabase
     .from("team_members")
     .update({ accepte_le: new Date().toISOString() })
     .eq("team_id", teamId)
     .eq("profile_id", userData.user.id);
+
+  if (error) {
+    const message = error.message.includes("EQUIPE_COMPLETE")
+      ? `Cette équipe est déjà complète (${TAILLE_MAX_EQUIPE} joueurs).`
+      : "Impossible d'accepter cette invitation pour l'instant.";
+    redirect(`/moi?erreur=${encodeURIComponent(message)}`);
+  }
 
   redirect("/moi");
 }
@@ -172,11 +188,16 @@ export async function refuserInvitation(formData: FormData) {
   // Même action pour "refuser une invitation" et "quitter l'équipe" — dans
   // les deux cas, le joueur retire sa propre ligne. La policy RLS "membre
   // quitte ou capitaine retire" l'autorise.
-  await supabase
+  const { error } = await supabase
     .from("team_members")
     .delete()
     .eq("team_id", teamId)
     .eq("profile_id", userData.user.id);
+
+  // Aligné dans un tournoi 5v5 en check-in ou en cours (audit N21).
+  if (error?.message.includes("ALIGNE_EN_TOURNOI")) {
+    redirect(`/moi?erreur=${encodeURIComponent(MESSAGE_ALIGNE_EN_TOURNOI)}`);
+  }
 
   redirect("/moi");
 }
@@ -209,6 +230,14 @@ export async function mettreAJourEquipe(formData: FormData) {
   if (peutBranding) {
     const logoUrl = String(formData.get("logo_url") ?? "").trim();
     const couleurAccent = String(formData.get("couleur_accent") ?? "").trim();
+    // Uniquement une image déposée dans l'espace de l'équipe (audit M6) ;
+    // la base applique la même règle.
+    if (logoUrl && !estLogoEquipeValide(logoUrl, teamId)) {
+      redirect(`/equipe/${slug}?erreur=${encodeURIComponent("Logo refusé : dépose-le avec le bouton d'envoi, sans adresse extérieure.")}`);
+    }
+    if (couleurAccent && !/^#[0-9a-fA-F]{6}$/.test(couleurAccent)) {
+      redirect(`/equipe/${slug}?erreur=${encodeURIComponent("Couleur d'accent invalide (format #RRGGBB).")}`);
+    }
     misesAJour.logo_url = logoUrl || null;
     misesAJour.couleur_accent = couleurAccent || null;
   }
@@ -220,7 +249,9 @@ export async function mettreAJourEquipe(formData: FormData) {
     .eq("capitaine_id", userData.user.id);
 
   if (error) {
-    redirect(`/equipe/${slug}?erreur=${encodeURIComponent("Impossible de mettre à jour l'équipe pour l'instant.")}`);
+    redirect(
+      `/equipe/${slug}?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Impossible de mettre à jour l'équipe pour l'instant.")}`,
+    );
   }
 
   redirect(`/equipe/${slug}?message=${encodeURIComponent("Équipe mise à jour.")}`);
@@ -237,7 +268,11 @@ export async function retirerMembre(formData: FormData) {
   const profileId = String(formData.get("profile_id") ?? "");
   const slug = String(formData.get("slug") ?? "");
 
-  await supabase.from("team_members").delete().eq("team_id", teamId).eq("profile_id", profileId);
+  const { error } = await supabase.from("team_members").delete().eq("team_id", teamId).eq("profile_id", profileId);
+
+  if (error?.message.includes("ALIGNE_EN_TOURNOI")) {
+    redirect(`/equipe/${slug}?erreur=${encodeURIComponent(MESSAGE_ALIGNE_EN_TOURNOI)}`);
+  }
 
   redirect(`/equipe/${slug}`);
 }

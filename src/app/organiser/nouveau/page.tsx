@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
+import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
+import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { chargerOffre } from "@/lib/offres";
 import { AssistantOrganisateur } from "@/components/AssistantOrganisateur";
 import { classeCarte } from "@/lib/ui";
@@ -20,13 +22,26 @@ const CAPACITES = [4, 8, 16, 32, 64];
 const CAPACITE_ETENDUE = 128;
 
 interface OrganiserNouveauPageProps {
-  searchParams: Promise<{ erreur?: string }>;
+  // Pré-remplissage (commande /organiser du bot Discord, page d'une
+  // communauté) : simples valeurs par défaut, toutes revérifiées à l'envoi.
+  searchParams: Promise<{
+    erreur?: string;
+    nom?: string;
+    debut?: string;
+    checkin?: string;
+    capacite?: string;
+    region?: string;
+    communaute?: string;
+  }>;
 }
+
+const DATE_SAISIE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 export default async function OrganiserNouveauPage({
   searchParams,
 }: OrganiserNouveauPageProps) {
-  const { erreur } = await searchParams;
+  const { erreur, nom: nomPropose, debut, checkin, capacite: capacitePropose, region: regionProposee, communaute } =
+    await searchParams;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -34,8 +49,20 @@ export default async function OrganiserNouveauPage({
     redirect("/connexion");
   }
 
-  const { offre } = await chargerOffre(supabase, userData.user.id);
+  const [{ offre }, { data: communautesData }] = await Promise.all([
+    chargerOffre(supabase, userData.user.id),
+    // Communautés où il peut publier (audit N30) : fondateur ou administrateur.
+    supabase
+      .from("membres_communaute")
+      .select("communaute:communautes(id, slug, nom)")
+      .eq("profile_id", userData.user.id)
+      .in("role", ["proprietaire", "admin"]),
+  ]);
   const estOrganisateurPremium = offre === "organisateur";
+  const mesCommunautes = (communautesData ?? []).flatMap((m) => (m.communaute ? [m.communaute] : []));
+  const communauteParDefaut = mesCommunautes.find((c) => c.slug === communaute)?.id ?? "";
+  const capaciteParDefaut = CAPACITES.includes(Number(capacitePropose)) ? String(Number(capacitePropose)) : "8";
+  const regionParDefaut = REGIONS.some((r) => r.code === regionProposee) ? (regionProposee ?? "") : "";
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -91,9 +118,23 @@ export default async function OrganiserNouveauPage({
             minLength={3}
             maxLength={60}
             placeholder="Ex. Tournoi du jeudi soir"
+            defaultValue={nomPropose?.slice(0, 60) ?? ""}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
+
+        {/* Format (audit N21) : en 5v5, les capitaines inscrivent leur équipe. */}
+        <fieldset className="flex flex-col gap-2">
+          <legend className="font-texte text-mini font-medium text-muted uppercase">Format</legend>
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input type="radio" name="format" value="1v1" defaultChecked className="accent-accent" />
+            1v1 — chaque joueur s&apos;inscrit lui-même
+          </label>
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input type="radio" name="format" value="5v5" className="accent-accent" />
+            5v5 — le capitaine inscrit son équipe de cinq (hors classement individuel)
+          </label>
+        </fieldset>
 
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
@@ -103,18 +144,19 @@ export default async function OrganiserNouveauPage({
             id="capacite"
             name="capacite"
             required
-            defaultValue="8"
+            defaultValue={capaciteParDefaut}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             {CAPACITES.map((c) => (
               <option key={c} value={c}>
-                {c} joueurs
+                {c} places
               </option>
             ))}
             {estOrganisateurPremium && (
-              <option value={CAPACITE_ETENDUE}>{CAPACITE_ETENDUE} joueurs — Organisateur</option>
+              <option value={CAPACITE_ETENDUE}>{CAPACITE_ETENDUE} places — Organisateur</option>
             )}
           </select>
+          <span className="text-xs text-muted">Une place = un joueur en 1v1, une équipe de cinq en 5v5.</span>
         </label>
 
         {estOrganisateurPremium && (
@@ -135,6 +177,29 @@ export default async function OrganiserNouveauPage({
           </label>
         )}
 
+        {/* Condition de victoire (audit N5), lue dans la donnée Riot de la partie. */}
+        <label className="flex flex-col gap-1">
+          <span className="font-texte text-mini font-medium text-muted uppercase">
+            Comment on gagne une partie
+          </span>
+          <select
+            id="condition_victoire"
+            name="condition_victoire"
+            defaultValue="nexus"
+            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            {CONDITIONS_VICTOIRE.map((c) => (
+              <option key={c.valeur} value={c.valeur}>
+                {c.libelle}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted">
+            Dans les deux cas, le vainqueur est lu automatiquement dans la donnée Riot de la partie. En 5v5, la
+            partie se joue toujours jusqu&apos;au Nexus.
+          </span>
+        </label>
+
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
             Région
@@ -143,7 +208,7 @@ export default async function OrganiserNouveauPage({
             id="region"
             name="region"
             required
-            defaultValue=""
+            defaultValue={regionParDefaut}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <option value="" disabled>
@@ -159,29 +224,50 @@ export default async function OrganiserNouveauPage({
 
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
-            Ouverture du check-in
+            Ouverture du check-in (heure de Paris)
           </span>
           <input
             id="checkin_ouvre_le"
             name="checkin_ouvre_le"
             type="datetime-local"
             required
+            defaultValue={checkin && DATE_SAISIE.test(checkin) ? checkin : undefined}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
 
         <label className="flex flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
-            Début du tournoi
+            Début du tournoi (heure de Paris)
           </span>
           <input
             id="debute_le"
             name="debute_le"
             type="datetime-local"
             required
+            defaultValue={debut && DATE_SAISIE.test(debut) ? debut : undefined}
             className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           />
         </label>
+
+        {mesCommunautes.length > 0 && (
+          <label className="flex flex-col gap-1">
+            <span className="font-texte text-mini font-medium text-muted uppercase">Communauté</span>
+            <select
+              name="communaute_id"
+              defaultValue={communauteParDefaut}
+              className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <option value="">Aucune</option>
+              {mesCommunautes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nom}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-muted">Le tournoi apparaîtra aussi sur la page de la communauté.</span>
+          </label>
+        )}
 
         <fieldset className="flex flex-col gap-2">
           <legend className="font-texte text-mini font-medium text-muted uppercase">
@@ -200,6 +286,24 @@ export default async function OrganiserNouveauPage({
           <label className="flex items-center gap-2 text-sm text-text">
             <input type="radio" name="statut_initial" value="brouillon" className="accent-accent" />
             Garder en brouillon (non visible publiquement)
+          </label>
+        </fieldset>
+
+        {/* Tournoi classé (audit N12) : mêmes critères que la base, lib/tournoi-classe.ts. */}
+        <fieldset className="flex flex-col gap-2">
+          <legend className="font-texte text-mini font-medium text-muted uppercase">Classement</legend>
+          <p className="text-sm leading-normal text-muted">
+            Ton tournoi comptera au classement s&apos;il est publié au moins {PREAVIS_TOURNOI_CLASSE_HEURES} h avant
+            son début, si au moins {JOUEURS_MIN_TOURNOI_CLASSE} joueurs prennent le départ et si tu ne joues pas
+            dedans. Sinon, il se joue normalement, sans points. Un tournoi 5v5 ne compte jamais au classement
+            individuel.{" "}
+            <Link href="/comment-ca-marche#tournois-classes" className="text-text underline underline-offset-3">
+              Pourquoi
+            </Link>
+          </p>
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input type="checkbox" name="amical" value="oui" className="accent-accent" />
+            Tournoi amical : aucun point de classement en jeu
           </label>
         </fieldset>
 

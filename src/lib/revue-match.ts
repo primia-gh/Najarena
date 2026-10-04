@@ -46,8 +46,11 @@ export async function chargerMoyennes(
 ): Promise<{ victoires: Moyennes | null; defaites: Moyennes | null }> {
   const { data } = await supabase
     .from("stats_match_joueur")
-    .select("kills, deaths, assists, cs, or_gagne, gagne")
-    .eq("profile_id", profileId);
+    .select("kills, deaths, assists, cs, or_gagne, gagne, match:matches!inner(tournament:tournaments!inner(format))")
+    .eq("profile_id", profileId)
+    // Moyennes du 1v1 : une partie 5v5 sur la Faille (audit N21) ne se
+    // compare pas à un duel sur l'Abîme hurlant.
+    .eq("match.tournament.format", "1v1");
 
   const lignes = data ?? [];
   const victoires = lignes.filter((l) => l.gagne);

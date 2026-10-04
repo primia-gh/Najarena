@@ -92,6 +92,12 @@ interface Options {
   saisons?: unknown[];
   /** Rotation : ratings de la saison courante. */
   ratings?: unknown[];
+  /** Clôture reprise : lignes du journal déjà écrites pour ce tournoi. */
+  dejaCredites?: unknown[];
+  /** Décision de la base sur les critères « tournoi classé » (vrai par défaut). */
+  classe?: boolean;
+  /** La base ne répond pas à figer_classement_tournoi. */
+  erreurClassement?: boolean;
 }
 
 const TOUS = ["u1", "u2", "u3", "u4"];
@@ -124,6 +130,7 @@ function installer(o: Options = {}, avecAdmin = true) {
       );
     }
     if (a.table === "ratings") return ok(o.ratings ?? []);
+    if (a.table === "rating_events") return ok(o.dejaCredites ?? []);
     return ok(null);
   };
 
@@ -136,6 +143,14 @@ function installer(o: Options = {}, avecAdmin = true) {
       ? ({
           from: (table: string) => new Requete(table, repondre, journalAdmin),
           rpc: (nom: string, params: Record<string, unknown>) => {
+            if (nom === "figer_classement_tournoi") {
+              chrono.push("classement");
+              return Promise.resolve(
+                o.erreurClassement
+                  ? { data: null, error: { message: "boum" } }
+                  : { data: o.classe ?? true, error: null },
+              );
+            }
             rpcs.push({ nom, params });
             chrono.push(`rpc:${String(params.p_profile_id)}`);
             const echec = (o.joueursEnEchec ?? []).includes(String(params.p_profile_id));
@@ -190,6 +205,41 @@ describe("cloturerTournoi", () => {
     expect(rpcs).toHaveLength(0);
   });
 
+  it("un tournoi que la base déclare non classé (critères publics) est clôturé sans rating", async () => {
+    installer({ classe: false });
+    await cloturerTournoi("T1");
+
+    expect(chrono).toContain("classement");
+    expect(misesAJourStatut(journalAdmin)).toHaveLength(1);
+    expect(rpcs).toHaveLength(0);
+  });
+
+  it("critères de classement illisibles : rien n'est tranché, le tournoi reste ouvert", async () => {
+    installer({ erreurClassement: true });
+    const erreur = vi.spyOn(console, "error").mockImplementation(() => {});
+    await cloturerTournoi("T1");
+
+    expect(misesAJourStatut(journalAdmin)).toHaveLength(0);
+    expect(rpcs).toHaveLength(0);
+    expect(erreur).toHaveBeenCalled();
+    erreur.mockRestore();
+  });
+
+  it("la décision « classé » est figée avant l'écriture du premier rating", async () => {
+    installer();
+    await cloturerTournoi("T1");
+
+    expect(chrono.indexOf("classement")).toBeGreaterThanOrEqual(0);
+    expect(chrono.indexOf("classement")).toBeLessThan(chrono.findIndex((e) => e.startsWith("rpc:")));
+  });
+
+  it("sans saison courante, la décision n'est jamais figée (aucun point ne peut être écrit)", async () => {
+    installer({ tournoi: { season_id: null }, saisonCourante: null });
+    await cloturerTournoi("T1");
+
+    expect(chrono).not.toContain("classement");
+  });
+
   it("rattache à la saison courante un tournoi sans season_id, et l'utilise pour les ratings", async () => {
     installer({ tournoi: { season_id: null }, saisonCourante: "SCOURANTE" });
     await cloturerTournoi("T1");
@@ -230,6 +280,24 @@ describe("cloturerTournoi", () => {
     expect(Number(rpcDe("u1").p_rating_apres)).toBeGreaterThan(1500);
     expect(Number(rpcDe("u2").p_rating_apres)).toBeLessThan(1500);
     expect(Number(rpcDe("u1").p_rating_apres)).toBeGreaterThan(Number(rpcDe("u3").p_rating_apres));
+  });
+
+  it("clôture reprise : un joueur déjà crédité sert d'adversaire avec son état d'avant tournoi (journal), pas son rating actuel", async () => {
+    installer();
+    await cloturerTournoi("T1");
+    const u2Normal = rpcDe("u2").p_rating_apres;
+
+    rpcs = [];
+    installer({
+      // u1 a déjà reçu ses points lors de la première tentative : son rating
+      // actuel inclut ce tournoi, son état de départ est dans le journal.
+      ratings: [{ profile_id: "u1", rating: 1720.4, rd: 290.1, volatilite: 0.06, matchs_joues: 2 }],
+      dejaCredites: [{ profile_id: "u1", rating_avant: 1500, rd_avant: 350 }],
+    });
+    await cloturerTournoi("T1");
+
+    expect(rpcDe("u2").p_rating_apres).toBe(u2Normal);
+    expect(rpcDe("u1")).toMatchObject({ p_rating_avant: 1500, p_rd_avant: 350 });
   });
 
   it("un verdict manuel (niveau 1) et un forfait ne rapportent aucun point", async () => {

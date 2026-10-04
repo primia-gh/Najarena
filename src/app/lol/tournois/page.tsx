@@ -21,7 +21,7 @@ import Apparition from "@/components/design/Apparition";
 export const metadata: Metadata = {
   title: "Tournois LoL — Najarena",
   description:
-    "Tous les tournois League of Legends en 1v1 sur Najarena : à venir, en cours et terminés. Résultats lus dans la donnée officielle Riot.",
+    "Tous les tournois League of Legends en 1v1 et en 5v5 sur Najarena : à venir, en cours et terminés. Résultats lus dans la donnée officielle Riot.",
 };
 
 interface TournoisPageProps {
@@ -43,6 +43,8 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
     .from("tournaments")
     .select("id, slug, nom, format, capacite, region, statut, debute_le")
     .eq("game_id", 1)
+    // Défis entre joueurs (audit N16) : pas des tournois à rejoindre.
+    .eq("nature", "tournoi")
     .in("statut", STATUTS_PUBLICS)
     .order("debute_le", { ascending: true })
     .limit(50);
@@ -52,7 +54,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
 
   const [{ data, error }, { data: regionsData }] = await Promise.all([
     requete,
-    supabase.from("tournaments").select("region").eq("game_id", 1).in("statut", STATUTS_PUBLICS),
+    supabase.from("tournaments").select("region").eq("game_id", 1).eq("nature", "tournoi").in("statut", STATUTS_PUBLICS),
   ]);
 
   const tournois: Array<{
@@ -172,7 +174,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
                     </Badge>
                   </div>
                   <div className="mt-2 font-texte tabular-nums text-[0.72rem] text-muted">
-                    {t.format} · {t.capacite} joueurs · {t.region} ·{" "}
+                    {t.format} · {t.capacite} {t.format === "5v5" ? "équipes" : "joueurs"} · {t.region} ·{" "}
                     {formaterDate(t.debute_le)}
                   </div>
                 </Link>

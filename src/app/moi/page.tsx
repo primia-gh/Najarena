@@ -16,6 +16,10 @@ import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import { estPseudoAutomatique } from "@/lib/pseudo";
+import { ouvrirPortailAbonnement } from "@/lib/stripe-actions";
+import { chargerMesDefis } from "@/lib/defis-serveur";
+import SectionDefis from "@/components/defis/SectionDefis";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
@@ -23,11 +27,11 @@ export const metadata: Metadata = {
 };
 
 interface MoiPageProps {
-  searchParams: Promise<{ message?: string }>;
+  searchParams: Promise<{ message?: string; erreur?: string }>;
 }
 
 export default async function MoiPage({ searchParams }: MoiPageProps) {
-  const { message } = await searchParams;
+  const { message, erreur } = await searchParams;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -49,6 +53,9 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     { data: affiliationsData },
     { data: equipesCapitaineData },
     infoOffre,
+    { data: matchsEnCoursData },
+    { data: abonnement },
+    mesDefis,
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -64,7 +71,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     supabase
       .from("registrations")
       .select(
-        "id, statut, inscrit_le, tournament:tournaments(slug, nom, statut, debute_le, region, format)",
+        "id, statut, inscrit_le, tournament:tournaments(slug, nom, statut, debute_le, region, format, nature)",
       )
       .eq("profile_id", utilisateur.id)
       .order("inscrit_le", { ascending: false }),
@@ -72,6 +79,8 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       .from("tournaments")
       .select("id, slug, nom, statut, debute_le, region, format")
       .eq("organisateur_id", utilisateur.id)
+      // Défis arbitrés (administrateurs) : pas des tournois organisés.
+      .eq("nature", "tournoi")
       .order("cree_le", { ascending: false }),
     supabase
       .from("team_members")
@@ -83,9 +92,25 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       .eq("capitaine_id", utilisateur.id)
       .order("cree_le", { ascending: false }),
     chargerOffre(supabase, utilisateur.id),
+    // Match à jouer (ou en attente d'adversaire) dans un tournoi en cours :
+    // le premier écran utile un soir de tournoi (28/09/2026, audit N2).
+    supabase
+      .from("match_participants")
+      .select("match:matches!inner(id, statut, tournament:tournaments!inner(nom, slug, statut))")
+      .eq("profile_id", utilisateur.id)
+      .in("match.statut", ["en_attente", "en_cours", "litige"])
+      .eq("match.tournament.statut", "en_cours"),
+    // Abonnement Stripe : ouvre le portail (moyen de paiement, factures,
+    // résiliation).
+    supabase.rpc("mon_abonnement_stripe").maybeSingle(),
+    // Défis reçus, envoyés, liens d'invitation et duels (audit N16, N18).
+    chargerMesDefis(supabase, utilisateur.id),
   ]);
+  const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
-  const inscriptions = inscriptionsData ?? [];
+  // Les duels (défis) ont leur propre section, les scrims sont sur la page
+  // de l'équipe (audit N22).
+  const inscriptions = (inscriptionsData ?? []).filter((i) => i.tournament?.nature === "tournoi");
   const tournoisOrganises = tournoisOrganisesData ?? [];
 
   const affiliations = affiliationsData ?? [];
@@ -100,8 +125,45 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille">
+      {erreur && (
+        <p role="alert" className="mb-6 rounded-bouton border border-danger/40 bg-danger/10 px-3 py-2.5 text-sm text-danger">
+          {erreur}
+        </p>
+      )}
       {message && (
         <p className={"mb-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
+      )}
+
+      {matchsEnCours.map(({ match }) => (
+        <Link
+          key={match!.id}
+          href={`/lol/tournois/${match!.tournament!.slug}#ton-match`}
+          className={"mb-6 flex flex-wrap items-center justify-between gap-3 " + classeCarte("atteste", true)}
+        >
+          <span className="flex min-w-0 flex-col">
+            <span className="text-mini text-accent uppercase">
+              {match!.statut === "en_attente" ? "Prochain match" : "Ton match est ouvert"}
+            </span>
+            <span className="font-titre text-lg font-extrabold uppercase text-text">{match!.tournament!.nom}</span>
+          </span>
+          <span className="text-sm text-text-2 underline underline-offset-3">Adversaire, Riot ID et règles →</span>
+        </Link>
+      ))}
+
+      {profil && estPseudoAutomatique(profil.pseudo) && (
+        <Link
+          href="/moi/profil"
+          className={"mb-6 flex flex-wrap items-center justify-between gap-3 " + classeCarte("atteste", true)}
+        >
+          <span className="flex min-w-0 flex-col">
+            <span className="text-mini text-accent uppercase">Choisis ton pseudo</span>
+            <span className="text-sm text-text-2">
+              « {profil.pseudo} » est un pseudo automatique : c&apos;est lui qui s&apos;affiche sur ton CV et dans
+              les brackets.
+            </span>
+          </span>
+          <span className="text-sm text-text-2 underline underline-offset-3">Choisir mon pseudo →</span>
+        </Link>
       )}
 
       <Apparition>
@@ -135,6 +197,22 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           >
             Voir mon profil public
           </Link>
+        )}
+        <Link
+          href="/moi/profil"
+          className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
+        >
+          Modifier mon profil
+        </Link>
+        {abonnement && (
+          <form action={ouvrirPortailAbonnement} className="inline">
+            <button
+              type="submit"
+              className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
+            >
+              Gérer mon abonnement
+            </button>
+          </form>
         )}
         <Link
           href="/moi/messages"
@@ -221,6 +299,10 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
           <PushOptIn />
         </div>
       </section>
+      </Apparition>
+
+      <Apparition delai={0.14}>
+        <SectionDefis defis={mesDefis} />
       </Apparition>
 
       <Apparition delai={0.16}>

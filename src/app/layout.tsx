@@ -39,6 +39,8 @@ export const metadata: Metadata = {
     locale: "fr_FR",
     type: "website",
   },
+  // Grande image d'aperçu sur X (images générées : opengraph-image.tsx).
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

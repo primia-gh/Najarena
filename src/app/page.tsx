@@ -152,6 +152,7 @@ const AFFICHES_COMPLEMENT = [
   {
     cle: "organiser",
     nom: "Ton tournoi",
+    // 1v1 ou 5v5 (audit N21).
     format: "1v1 · 5v5",
     etiquette: "À toi de jouer",
     info: "Check-in, bracket et résultats gérés pour toi",

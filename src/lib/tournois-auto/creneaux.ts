@@ -8,6 +8,8 @@
 // d'entasser tout le monde sur un seul tournoi : ajouter un créneau =
 // ajouter une ligne à CRENEAUX, rien d'autre.
 
+import type { ConditionVictoire } from "@/lib/conditions-1v1";
+
 export const FUSEAU_PARIS = "Europe/Paris";
 
 export interface Creneau {
@@ -26,6 +28,9 @@ export interface Creneau {
   // En dessous, le tournoi est annulé à l'heure du début : un bracket à
   // 2 ou 3 joueurs n'est pas un tournoi.
   minimumJoueurs: number;
+  // Comment on gagne une partie (src/lib/conditions-1v1.ts) : destruction
+  // du Nexus, ou 1v1 classique (premier sang, première tour, 100 sbires).
+  conditionVictoire: ConditionVictoire;
 }
 
 export const CRENEAUX: readonly Creneau[] = [
@@ -38,6 +43,7 @@ export const CRENEAUX: readonly Creneau[] = [
     bestOf: 1,
     region: "EUW",
     minimumJoueurs: 4,
+    conditionVictoire: "nexus",
   },
 ];
 
@@ -100,6 +106,25 @@ export function instantParis(jour: string, heure: string): Date {
   // tomber de l'autre côté d'un changement d'heure que le premier essai.
   const essai = naif - decalageParisMinutes(new Date(naif)) * 60000;
   return new Date(naif - decalageParisMinutes(new Date(essai)) * 60000);
+}
+
+/**
+ * Instant réel d'une saisie de formulaire « 2026-09-30T20:00 » (champ
+ * datetime-local), lue en heure de Paris. Le navigateur envoie cette valeur
+ * sans fuseau : lue telle quelle par le serveur (Vercel, en UTC), elle
+ * était décalée d'une à deux heures (audit du 27/09/2026, E5). Null si la
+ * saisie n'est pas une date réelle (31 février, format inconnu…).
+ */
+export function instantDepuisSaisieParis(saisie: string): Date | null {
+  const morceaux = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(saisie.trim());
+  if (!morceaux) return null;
+  const [, jour, heure] = morceaux;
+  const [h, min] = heure.split(":").map(Number);
+  if (h > 23 || min > 59) return null;
+  const instant = instantParis(jour, heure);
+  // Une date impossible (« 2026-02-31 ») glisse au mois suivant : refusée.
+  if (Number.isNaN(instant.getTime()) || jourParis(instant) !== jour) return null;
+  return instant;
 }
 
 /** Jour calendaire à Paris (« 2026-09-24 ») d'un instant donné. */

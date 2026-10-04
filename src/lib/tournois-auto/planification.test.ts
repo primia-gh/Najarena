@@ -11,6 +11,7 @@ const CRENEAU: Creneau = {
   bestOf: 1,
   region: "EUW",
   minimumJoueurs: 4,
+  conditionVictoire: "nexus",
 };
 
 // 24/09/2026 (heure d'été) : début 21:00 Paris = 19:00 UTC, check-in
@@ -149,6 +150,12 @@ describe("check-in et rappels", () => {
     const organisateur = tournoi({ creneau_auto: null });
     const actions = planifier(new Date("2026-09-24T19:30:00Z"), [organisateur, existant25], [CRENEAU]);
     expect(actions).toEqual([{ type: "ouvrir_checkin", tournoiId: "t1" }]);
+  });
+
+  it("tournoi d'organisateur jamais lancé 2 h après l'heure : annulé", () => {
+    const organisateur = tournoi({ creneau_auto: null, statut: "checkin", rappels: ["checkin_ouvert", "dernier_appel"] });
+    const actions = planifier(new Date("2026-09-24T21:05:00Z"), [organisateur, existant25], [CRENEAU]);
+    expect(actions).toEqual([{ type: "annuler_retard", tournoiId: "t1" }]);
   });
 
   it("brouillon, en cours, terminé ou annulé : jamais touché", () => {

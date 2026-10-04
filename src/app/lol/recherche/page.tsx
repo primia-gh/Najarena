@@ -15,6 +15,9 @@ import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import { iaDisponible } from "@/lib/claude";
+import { rechercherEnLangageNaturel } from "@/lib/recherche-ia-actions";
 
 export const metadata: Metadata = {
   title: "Recherche de joueurs — Najarena",
@@ -27,13 +30,28 @@ interface RecherchePageProps {
     region?: string;
     palier_min?: string;
     disponible?: string;
+    rating_min?: string;
+    demande?: string;
+    ignores?: string;
     erreur?: string;
     message?: string;
   }>;
 }
 
 export default async function RecherchePage({ searchParams }: RecherchePageProps) {
-  const { role, region, palier_min: palierMinNom, disponible, erreur, message } = await searchParams;
+  const {
+    role,
+    region,
+    palier_min: palierMinNom,
+    disponible,
+    rating_min: ratingMinBrut,
+    demande,
+    ignores,
+    erreur,
+    message,
+  } = await searchParams;
+  // Rating minimum précis (recherche en langage naturel, audit N29).
+  const ratingMin = ratingMinBrut && /^\d{1,4}$/.test(ratingMinBrut) ? Number(ratingMinBrut) : null;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -95,6 +113,11 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
       const rating = ratingsParJoueur.get(c.profile_id);
       return rating !== undefined && rating >= palierMin.ratingMin;
     })
+    .filter((c) => {
+      if (ratingMin === null) return true;
+      const rating = ratingsParJoueur.get(c.profile_id);
+      return rating !== undefined && rating >= ratingMin;
+    })
     .map((c) => {
       const rating = ratingsParJoueur.get(c.profile_id);
       const { palier, progression } = rating !== undefined ? progressionPalier(rating, paliers) : { palier: null, progression: 0 };
@@ -138,6 +161,48 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
           <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
         )}
 
+        {iaDisponible() && (
+          <Apparition delai={0.08}>
+            <form action={rechercherEnLangageNaturel} className={"mt-6 flex flex-col gap-2 " + classeCarte("none")}>
+              <label className="flex flex-col gap-1">
+                <span className="font-texte text-mini font-medium text-muted uppercase">
+                  Décris le joueur que tu cherches
+                </span>
+                <textarea
+                  name="demande"
+                  rows={2}
+                  maxLength={300}
+                  defaultValue={demande ?? ""}
+                  placeholder="Ex. « un mid EUW au-dessus de 1 700 qui cherche une équipe »"
+                  className="min-h-11 resize-none rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                />
+              </label>
+              <BoutonEnvoi libelleEnCours="Traduction…" className="self-start">
+                Rechercher
+              </BoutonEnvoi>
+              <p className="text-xs text-muted">
+                L&apos;IA traduit ta demande en filtres (rôle, région, rating, disponibilité) ; la recherche ne porte
+                que sur des comptes Riot vérifiés. Ce que Najarena ne sait pas n&apos;est jamais deviné.
+              </p>
+            </form>
+          </Apparition>
+        )}
+
+        {demande && (
+          <p className="mt-4 text-sm text-muted">
+            Ta demande : « {demande} » →{" "}
+            {[
+              role && ROLES.includes(role as Role) ? LABEL_ROLE[role as Role] : null,
+              region || null,
+              ratingMin ? `rating ${ratingMin} et plus` : null,
+              disponible === "1" ? "cherche une équipe" : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "aucun filtre"}
+            {ignores && <span className="block text-xs">Non pris en compte (donnée absente) : {ignores}</span>}
+          </p>
+        )}
+
         <Apparition delai={0.1}>
           <form className="mt-6 flex flex-wrap gap-3">
             <select
@@ -176,6 +241,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                 </option>
               ))}
             </select>
+            {ratingMin !== null && <input type="hidden" name="rating_min" value={ratingMin} />}
             <label className="flex items-center gap-2 rounded-[3px] border border-line bg-surface px-3 py-2 text-sm text-text">
               <input type="checkbox" name="disponible" value="1" defaultChecked={disponible === "1"} className="accent-accent" />
               Disponible pour une équipe

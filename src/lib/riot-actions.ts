@@ -12,6 +12,10 @@ import {
   type InvocateurRiot,
 } from "@/lib/riot";
 import { ROLES, type Role } from "@/lib/roles";
+import { cookies } from "next/headers";
+import { destinationInterne } from "@/lib/redirection";
+import { COOKIE_SUITE, DUREE_COOKIE_SUITE_SECONDES } from "@/lib/suite";
+import { URL_SITE } from "@/lib/notifications";
 
 const ICONE_MIN = 1;
 const ICONE_MAX = 28; // icônes de niveau classiques, stables sur tout patch/région
@@ -27,14 +31,15 @@ function tirerIconeCible(iconeActuelle: number): number {
 export async function lierRiotId(formData: FormData) {
   const riotId = String(formData.get("riot_id") ?? "").trim();
   const regionCode = String(formData.get("region") ?? "");
+  // Compte secondaire déclaré (audit N15) : affiché sur le CV, mais ni
+  // inscription ni lecture des résultats.
+  const principal = formData.get("principal") !== "non";
 
   const region = trouverRegion(regionCode);
   const [gameName, tagLine] = riotId.split("#").map((s) => s.trim());
 
   if (!region || !gameName || !tagLine) {
-    redirect(
-      `/lier-riot?erreur=${encodeURIComponent("Format attendu : Pseudo#Tag, avec une région valide.")}`,
-    );
+    redirect(`/lier-riot?erreur=${encodeURIComponent("Format attendu : Pseudo#Tag, avec une région valide.")}`);
   }
 
   const supabase = await createClient();
@@ -54,23 +59,57 @@ export async function lierRiotId(formData: FormData) {
 
   const cible = tirerIconeCible(invocateur.profileIconId);
 
+  // Écriture réservée au serveur (audit du 27/09/2026, C2) : appelable
+  // depuis le navigateur, lier_compte_riot laissait le joueur choisir lui-
+  // même le puuid, le nom affiché et l'icône-défi — donc « vérifier » un
+  // compte Riot qui n'était pas le sien en indiquant l'icône déjà portée.
+  // Ici, puuid et Riot ID viennent de la réponse Riot, l'icône-défi est
+  // tirée par le serveur (toujours différente de l'icône actuelle), et le
+  // profil vient de la session.
+  const admin = creerClientAdmin();
+  if (!admin) {
+    redirect(
+      `/lier-riot?erreur=${encodeURIComponent(
+        "La liaison n'est pas encore activée côté serveur (SUPABASE_SERVICE_ROLE_KEY manquante).",
+      )}`,
+    );
+  }
+
   // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
   // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
   // l'id depuis un slug.
-  const { error } = await supabase.rpc("lier_compte_riot", {
+  const { error } = await admin.rpc("lier_compte_riot", {
+    p_profile_id: userData.user.id,
     p_game_id: 1,
     p_puuid: compte.puuid,
     p_riot_game_name: compte.gameName,
     p_riot_tag_line: compte.tagLine,
     p_region: region.code,
     p_defi_icone_id: cible,
+    p_principal: principal,
   });
 
   if (error) {
     const message = error.message.includes("RIOT_ACCOUNT_TAKEN")
       ? "Ce compte Riot est déjà lié à un autre profil Najarena."
-      : "Impossible d'enregistrer ce compte pour l'instant.";
+      : error.message.includes("INSCRIT_A_UN_TOURNOI")
+        ? "Tu joues un tournoi pas encore terminé avec ton compte actuel : déclare ce compte comme secondaire, ou attends la fin du tournoi pour en changer."
+        : error.message.includes("TROP_DE_COMPTES")
+          ? "Trois comptes Riot au plus par joueur : retire un compte secondaire d'abord."
+          : "Impossible d'enregistrer ce compte pour l'instant.";
     redirect(`/lier-riot?erreur=${encodeURIComponent(message)}`);
+  }
+
+  // Page où revenir une fois le compte vérifié (lien de défi, audit N18).
+  const suite = destinationInterne(String(formData.get("suite") ?? "") || null, "");
+  if (suite) {
+    (await cookies()).set(COOKIE_SUITE, suite, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: URL_SITE.startsWith("https://"),
+      maxAge: DUREE_COOKIE_SUITE_SECONDES,
+      path: "/",
+    });
   }
 
   redirect("/lier-riot");
@@ -87,7 +126,7 @@ export async function verifierRiotId(formData: FormData) {
 
   const { data: compte } = await supabase
     .from("game_accounts")
-    .select("region, defi_icone_id")
+    .select("region, defi_icone_id, est_principal")
     .eq("puuid", puuid)
     .eq("profile_id", userData.user.id)
     .maybeSingle();
@@ -98,9 +137,7 @@ export async function verifierRiotId(formData: FormData) {
 
   const region = trouverRegion(compte.region);
   if (!region) {
-    redirect(
-      `/lier-riot?erreur=${encodeURIComponent("Région inconnue, relie ton compte à nouveau.")}`,
-    );
+    redirect(`/lier-riot?erreur=${encodeURIComponent("Région inconnue, relie ton compte à nouveau.")}`);
   }
 
   let invocateur: InvocateurRiot;
@@ -138,6 +175,17 @@ export async function verifierRiotId(formData: FormData) {
     .eq("puuid", puuid)
     .eq("profile_id", userData.user.id);
 
+  // Compte secondaire : retour à la liste des comptes.
+  if (!compte.est_principal) {
+    redirect(`/lier-riot?message=${encodeURIComponent("Compte secondaire vérifié : il apparaît sur ton CV.")}`);
+  }
+
+  const magasin = await cookies();
+  const suite = destinationInterne(magasin.get(COOKIE_SUITE)?.value ?? null, "");
+  if (suite) {
+    magasin.delete(COOKIE_SUITE);
+    redirect(suite);
+  }
   redirect("/moi");
 }
 
@@ -170,4 +218,67 @@ export async function mettreAJourRolePrefere(formData: FormData) {
     .eq("est_principal", true);
 
   redirect("/moi?message=" + encodeURIComponent("Rôle mis à jour."));
+}
+
+// Délier son compte Riot (28/09/2026, audit M9) : erreur de saisie,
+// vérification jamais terminée, changement de compte. La base refuse tant
+// que le joueur est inscrit à un tournoi pas encore terminé
+// (delier_compte_riot, docs/schema.sql).
+export async function delierCompteRiot() {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { error } = await supabase.rpc("delier_compte_riot", { p_game_id: 1 });
+  if (error) {
+    const message = error.message.includes("INSCRIT_A_UN_TOURNOI")
+      ? "Tu es inscrit à un tournoi pas encore terminé : ton compte Riot sert à lire tes résultats. Désinscris-toi ou attends la fin du tournoi."
+      : "Impossible de délier ton compte pour l'instant. Réessaie dans un instant.";
+    redirect(`/lier-riot?erreur=${encodeURIComponent(message)}`);
+  }
+
+  redirect(`/lier-riot?message=${encodeURIComponent("Compte Riot délié : tu peux en lier un autre.")}`);
+}
+
+// Comptes secondaires déclarés (03/10/2026, audit N15) : un compte vérifié
+// devient le principal (refusé pendant un tournoi pas encore terminé), ou
+// un compte secondaire est retiré. Règles appliquées par la base.
+export async function definirComptePrincipal(formData: FormData) {
+  const puuid = String(formData.get("puuid") ?? "");
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { error } = await supabase.rpc("definir_compte_principal", { p_game_id: 1, p_puuid: puuid });
+  if (error) {
+    const message = error.message.includes("INSCRIT_A_UN_TOURNOI")
+      ? "Tu joues un tournoi pas encore terminé : ses résultats sont lus sur ton compte actuel. Change de compte principal après la fin du tournoi."
+      : error.message.includes("COMPTE_NON_VERIFIE")
+        ? "Vérifie d'abord ce compte (icône de profil)."
+        : "Impossible de changer de compte principal pour l'instant.";
+    redirect(`/lier-riot?erreur=${encodeURIComponent(message)}`);
+  }
+  redirect(
+    `/lier-riot?message=${encodeURIComponent("Compte principal changé : c'est lui qui t'inscrit désormais aux tournois.")}`,
+  );
+}
+
+export async function delierCompteSecondaire(formData: FormData) {
+  const puuid = String(formData.get("puuid") ?? "");
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const { data: retire } = await supabase.rpc("delier_compte_secondaire", { p_game_id: 1, p_puuid: puuid });
+  redirect(
+    retire
+      ? `/lier-riot?message=${encodeURIComponent("Compte secondaire retiré.")}`
+      : `/lier-riot?erreur=${encodeURIComponent("Aucun compte secondaire à retirer.")}`,
+  );
 }
