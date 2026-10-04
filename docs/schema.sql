@@ -7007,3 +7007,14 @@ end;
 $$;
 revoke execute on function public.noter_versement(uuid, uuid, text, text) from public, anon;
 grant execute on function public.noter_versement(uuid, uuid, text, text) to authenticated;
+
+-- ---------- Durcissement : chemin de recherche des fonctions de calcul (2026-10-04) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (aucun code n'en dépend : simple durcissement). Le conseiller de
+-- sécurité de Supabase signalait deux fonctions de calcul sans chemin de
+-- recherche fixé (function_search_path_mutable) : l'écart toléré de
+-- l'arène et les points d'un pronostic. Elles n'utilisent que des
+-- fonctions intégrées de Postgres ; on fixe tout de même leur chemin,
+-- comme pour toutes les autres fonctions du schéma.
+alter function public.ecart_arene(numeric, numeric, numeric) set search_path = public;
+alter function public.points_pronostic(smallint, integer) set search_path = public;

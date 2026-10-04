@@ -1,5 +1,12 @@
 # Mise en ligne des correctifs de l'audit du 27/09/2026
 
+> **Statut au 04/10/2026** : base de production relancée et mise à jour
+> (sections 1 à 36), puis vérifiée élément par élément contre ce dépôt —
+> fonctions, colonnes, contraintes, index, règles d'accès, droits,
+> déclencheurs, stockage des logos : identiques. Reste à faire côté
+> porteur du projet : le secret des tâches planifiées (§ 2 bis) et les
+> réglages des §§ 3 et 4.
+
 Branche : `claude/nice-faraday-nsoe9q`. Ce document dit **dans quel ordre**
 mettre en ligne ces changements. L'ordre compte : le code s'appuie sur des
 fonctions et des règles de la base qui n'existent pas encore en production.
@@ -68,7 +75,7 @@ tâches pg_cron. Une divergence se traite avant d'appliquer la suite.
 Toute la migration est **la fin de `docs/schema.sql`, à partir de la ligne
 « Liaison Riot réservée au serveur (2026-09-28, audit C2) »** (ligne 1448
 aujourd'hui) jusqu'à la dernière ligne. Elle s'applique d'un seul bloc, dans
-une transaction, et contient 35 sections, dans cet ordre :
+une transaction, et contient 36 sections, dans cet ordre :
 
 1. Liaison Riot réservée au serveur (C2)
 2. Règles appliquées par la base (E1, M1 à M4)
@@ -125,6 +132,8 @@ une transaction, et contient 35 sections, dans cet ordre :
 
 35. Cash prizes sponsorisés (N32) — tables créées mais fonction éteinte :
     ne pas définir `CASH_PRIZES_ACTIFS` sur l'hébergeur
+36. Durcissement : chemin de recherche des deux fonctions de calcul
+    (signalé par le conseiller de sécurité après la section 35)
 
 Les widgets et l'API publique (N31) n'ajoutent rien à la base : ils lisent
 avec la clé publique, comme un visiteur déconnecté.
@@ -133,11 +142,32 @@ La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).
 
 Le même bloc est rejoué à chaque envoi de code sur une base PostgreSQL de
-test par `npm run test:base` (527 vérifications, toutes au vert au
+test par `npm run test:base` (528 vérifications, toutes au vert au
 03/10/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
 
 Après application : lancer les conseillers de sécurité et de performance
 de Supabase (Advisors) et comparer avec l'état d'avant.
+
+Coller le fichier dans l'éditeur SQL depuis Windows ajoute un retour
+chariot (caractère invisible) à chaque fin de ligne, y compris dans le
+texte des fonctions. Le 04/10/2026, ils ont été retirés après coup,
+chaque fonction concernée étant réécrite à partir de sa propre
+définition :
+`execute replace(pg_get_functiondef(oid), chr(13), '')` pour chaque
+fonction de `public` dont le texte contient `chr(13)`. À refaire après
+toute migration collée de la même façon.
+
+## 2 bis. Secret des tâches planifiées (porteur du projet)
+
+Les deux tâches pg_cron (toutes les 5 minutes) appellent le site avec le
+secret rangé dans le coffre-fort Supabase. Il manquait au 04/10/2026 :
+sans lui, les tournois automatiques et la recherche de résultats ne
+tournent pas. Dans l'éditeur SQL de Supabase, avec la valeur de
+`CRON_SECRET` définie sur Vercel :
+
+```sql
+select vault.create_secret('<valeur de CRON_SECRET sur Vercel>', 'najarena_cron_secret');
+```
 
 ## 3. Réglages Supabase (porteur du projet)
 

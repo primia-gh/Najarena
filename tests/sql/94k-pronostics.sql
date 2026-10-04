@@ -123,3 +123,8 @@ select verifie('Classement : Quin 2 points (finale juste, demi fausse), Pia 1 po
    from public.classement_pronostics()
    where slug in ('pia951', 'quin951')));
 reset role;
+
+select verifie('Fonctions de calcul (arène, pronostics) : chemin de recherche fixé',
+  (select count(*) = 2 from pg_proc
+   where proname in ('ecart_arene', 'points_pronostic') and pronamespace = 'public'::regnamespace
+     and proconfig @> array['search_path=public']));
