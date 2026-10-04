@@ -13,6 +13,7 @@ import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import IndicateurConfiance from "@/components/design/IndicateurConfiance";
 import BoutonCopier from "@/components/design/BoutonCopier";
+import QrCode from "@/components/design/QrCode";
 
 // Certificat de niveau vérifiable (28/09/2026, audit N9) : instantané daté,
 // figé par la base et adossé au registre des points scellé. Page non
@@ -185,6 +186,26 @@ export default async function CertificatPage({ params, searchParams }: Certifica
               )}
             </Panneau>
           </div>
+        </Apparition>
+
+        {/* QR code (audit N9) : à imprimer sur un CV papier ou à montrer. */}
+        <Apparition delai={0.16}>
+          <Panneau as="section" className="mt-4 flex flex-wrap items-center gap-6 px-6 py-6">
+            <QrCode texte={lien} libelle={`QR code du certificat de ${c.pseudo}`} />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <LibelleSection as="h2">Vérifier ce certificat</LibelleSection>
+              <p className="text-sm text-text-2">
+                Scanne ce code ou ouvre le lien : la page vient de Najarena, avec sa date d&apos;émission. Une capture
+                d&apos;écran peut être retouchée, cette page non.
+              </p>
+              <code className="text-xs break-all text-muted">{lien}</code>
+              <BoutonCopier
+                texte={lien}
+                libelle="Copier le lien"
+                className="inline-flex min-h-11 items-center self-start text-mini font-semibold text-accent uppercase underline underline-offset-3"
+              />
+            </div>
+          </Panneau>
         </Apparition>
       </div>
     </main>

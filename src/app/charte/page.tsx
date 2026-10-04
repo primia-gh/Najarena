@@ -7,6 +7,7 @@ import { BadgeChercheEquipe, BadgeEnDirect, BadgeVerdict, BadgeVerifie } from "@
 import PastilleResultat from "@/components/design/PastilleResultat";
 import ChiffreRating from "@/components/design/ChiffreRating";
 import IndicateurConfiance from "@/components/design/IndicateurConfiance";
+import QrCode from "@/components/design/QrCode";
 import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import NumeroFiligrane from "@/components/design/NumeroFiligrane";
@@ -195,6 +196,7 @@ export default function PageCharte() {
               <PastilleResultat resultat="V" />
               <PastilleResultat resultat="D" />
             </div>
+            <QrCode texte="https://najarena.vercel.app/certificat/exemple" taille={120} libelle="QR code d'exemple" />
           </div>
         </Bloc>
 
