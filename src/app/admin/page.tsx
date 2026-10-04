@@ -49,14 +49,18 @@ interface AdminPageProps {
 
 // Signaux à examiner sur 30 jours (audit N11) : lecture des données
 // publiques, calcul dans src/lib/signaux.ts. Jamais d'action automatique.
+// Les défis (et duels de l'arène) comptent au classement : leurs matchs
+// entrent dans les face-à-face et les groupes fermés, pas dans les
+// signaux propres à un tournoi d'organisateur.
 async function chargerSignaux(supabase: Awaited<ReturnType<typeof createClient>>) {
   const depuis = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const [{ data: tournoisRecents }, { data: variationsRecentes }] = await Promise.all([
+  // Les tournois 5v5 (audit N21) ne touchent pas au rating individuel.
+  const natures = ["tournoi", "defi"];
+  const [{ data: tournoisRecents }, { data: variationsRecentes }, { data: matchsRecents }] = await Promise.all([
     supabase
       .from("tournaments")
-      .select("id, nom, slug, organisateur_id, statut")
-      .eq("nature", "tournoi")
-      // Les tournois 5v5 (audit N21) ne touchent pas au rating individuel.
+      .select("id, nom, slug, organisateur_id, statut, nature")
+      .in("nature", natures)
       .eq("format", "1v1")
       .gte("debute_le", depuis),
     supabase
@@ -64,22 +68,26 @@ async function chargerSignaux(supabase: Awaited<ReturnType<typeof createClient>>
       .select("profile_id, tournament_id, rating_avant, rating_apres")
       .eq("motif", "tournoi")
       .gte("cree_le", depuis),
+    // Filtre par jointure plutôt que par liste d'identifiants : les duels
+    // de l'arène peuvent se compter par centaines sur 30 jours.
+    supabase
+      .from("matches")
+      .select(
+        "tournament_id, tournament:tournaments!inner(nature, format, debute_le), match_participants(profile_id, est_gagnant), match_verdicts(niveau, est_definitif)",
+      )
+      .in("tournament.nature", natures)
+      .eq("tournament.format", "1v1")
+      .gte("tournament.debute_le", depuis),
   ]);
-  const idsTournois = (tournoisRecents ?? []).map((t) => t.id);
-  const { data: matchsRecents } =
-    idsTournois.length > 0
-      ? await supabase
-          .from("matches")
-          .select("tournament_id, match_participants(profile_id, est_gagnant), match_verdicts(niveau, est_definitif)")
-          .in("tournament_id", idsTournois)
-      : { data: [] };
   const signaux = detecterSignaux(
     (matchsRecents ?? []).map((m) => ({
       tournoiId: m.tournament_id,
       joueurs: m.match_participants.map((p) => ({ id: p.profile_id, gagnant: p.est_gagnant })),
       verifie: m.match_verdicts.some((v) => v.est_definitif && v.niveau !== "manuel"),
     })),
-    (tournoisRecents ?? []).map((t) => ({ id: t.id, organisateurId: t.organisateur_id, statut: t.statut })),
+    (tournoisRecents ?? [])
+      .filter((t) => t.nature === "tournoi")
+      .map((t) => ({ id: t.id, organisateurId: t.organisateur_id, statut: t.statut })),
     (variationsRecentes ?? []).map((v) => ({
       profileId: v.profile_id,
       tournoiId: v.tournament_id,
@@ -91,6 +99,7 @@ async function chargerSignaux(supabase: Awaited<ReturnType<typeof createClient>>
     ...signaux.paires.flatMap((p) => [p.a, p.b]),
     ...signaux.organisateursJoueurs.map((o) => o.organisateurId),
     ...signaux.hausses.map((h) => h.profileId),
+    ...signaux.groupesFermes.flatMap((g) => g.joueurs),
   ]);
   const { data: profilsSignales } =
     idsSignales.size > 0
@@ -231,7 +240,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     signaux.paires.length +
       signaux.organisateursJoueurs.length +
       signaux.hausses.length +
-      signaux.petitsTournois.length ===
+      signaux.petitsTournois.length +
+      signaux.groupesFermes.length ===
     0;
 
   const litiges = litigesData ?? [];
@@ -694,6 +704,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   +{Math.round(h.apres - h.avant)} ({Math.round(h.avant)} → {Math.round(h.apres)})
                 </span>{" "}
                 sur {lienTournoi(h.tournoiId)}.
+              </li>
+            ))}
+            {signaux.groupesFermes.map((g) => (
+              <li key={`groupe-${g.joueurs.join("-")}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Groupe fermé</span> —{" "}
+                {g.joueurs.map((j, i) => (
+                  <span key={j}>
+                    {i > 0 ? ", " : ""}
+                    {lienJoueur(j)}
+                  </span>
+                ))}{" "}
+                : <span className="tabular-nums">{g.matchsInternes}</span> matchs vérifiés entre eux (
+                <span className="tabular-nums">{Math.round(g.part * 100)} %</span> de leurs matchs).
               </li>
             ))}
             {signaux.petitsTournois.map((t) => (
