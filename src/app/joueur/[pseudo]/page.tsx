@@ -922,12 +922,19 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                                       </div>
                                     ) : (
                                       iaPossible && (
-                                        <form action={demanderRevueIA} className="mt-2 border-t border-line pt-3">
+                                        <form
+                                          action={demanderRevueIA}
+                                          className="mt-2 flex flex-col gap-2 border-t border-line pt-3"
+                                        >
                                           <input type="hidden" name="match_id" value={h.matchId} />
                                           <input type="hidden" name="slug" value={profil.slug} />
                                           <BoutonEnvoi variante="contour" libelleEnCours="Analyse…" className="self-start">
                                             Analyse détaillée (IA)
                                           </BoutonEnvoi>
+                                          <p className="text-xs text-muted">
+                                            Tes parties vérifiées des 7 derniers jours sont analysées automatiquement,
+                                            quelques minutes après le résultat.
+                                          </p>
                                         </form>
                                       )
                                     )}

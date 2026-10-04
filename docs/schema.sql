@@ -7403,3 +7403,66 @@ drop trigger if exists controle_agent_reserve on public.agents_libres;
 create trigger controle_agent_reserve
   before insert on public.agents_libres
   for each row execute function public.controler_agent_reserve();
+
+-- ---------- Revue de match rédigée automatiquement (2026-10-04, audit N25) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Offre Elite (et Organisateur) : l'analyse détaillée d'une partie vérifiée
+-- est rédigée sans attendre un clic, par la tâche de recherche des
+-- résultats, quelques-unes à chaque passage. Seulement les parties
+-- vérifiées depuis 7 jours au plus (pas de rattrapage de tout
+-- l'historique : le bouton reste là pour les plus anciennes), et 10 revues
+-- au plus par joueur et par 24 h, demandes manuelles comprises.
+
+-- Une analyse refusée ou invalide n'est retentée qu'une fois, une heure
+-- plus tard : jamais en boucle à chaque passage.
+create table if not exists public.echecs_revue_ia (
+  match_id    uuid not null references public.matches(id) on delete cascade,
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  essais      smallint not null default 1,
+  dernier_le  timestamptz not null default now(),
+  primary key (match_id, profile_id)
+);
+create index if not exists echecs_revue_ia_profile_idx on public.echecs_revue_ia (profile_id);
+alter table public.echecs_revue_ia enable row level security;
+revoke all on public.echecs_revue_ia from anon, authenticated;
+
+create or replace function public.noter_echec_revue(p_match_id uuid, p_profile_id uuid)
+returns void
+language sql
+security definer set search_path = public
+as $$
+  insert into public.echecs_revue_ia (match_id, profile_id) values (p_match_id, p_profile_id)
+  on conflict (match_id, profile_id) do update set essais = echecs_revue_ia.essais + 1, dernier_le = now();
+$$;
+revoke all on function public.noter_echec_revue(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.noter_echec_revue(uuid, uuid) to service_role;
+
+create or replace function public.revues_a_rediger(p_limite integer)
+returns table (match_id uuid, profile_id uuid)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with candidats as (
+    select s.match_id, s.profile_id, v.cree_le,
+           row_number() over (partition by s.profile_id order by v.cree_le, s.match_id) as rang
+    from public.stats_match_joueur s
+    join public.match_verdicts v on v.match_id = s.match_id and v.est_definitif and v.niveau <> 'manuel'
+    join public.comptes_offres o on o.profile_id = s.profile_id and o.offre in ('elite', 'organisateur')
+    join public.profiles p on p.id = s.profile_id and p.supprime_le is null
+    where v.cree_le > now() - interval '7 days'
+      and not exists (select 1 from public.revues_match_ia r where r.match_id = s.match_id and r.profile_id = s.profile_id)
+      and not exists (select 1 from public.suspensions x where x.profile_id = s.profile_id and x.levee_le is null)
+      and not exists (select 1 from public.echecs_revue_ia e
+                      where e.match_id = s.match_id and e.profile_id = s.profile_id
+                        and (e.essais >= 2 or e.dernier_le > now() - interval '1 hour'))
+  )
+  select c.match_id, c.profile_id
+  from candidats c
+  where c.rang + (select count(*) from public.revues_match_ia r
+                  where r.profile_id = c.profile_id and r.cree_le > now() - interval '24 hours') <= 10
+  order by c.cree_le, c.match_id
+  limit greatest(0, least(coalesce(p_limite, 0), 20));
+$$;
+revoke all on function public.revues_a_rediger(integer) from public, anon, authenticated;
+grant execute on function public.revues_a_rediger(integer) to service_role;

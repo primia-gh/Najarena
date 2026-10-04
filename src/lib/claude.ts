@@ -35,22 +35,27 @@ interface DemandeJson<T> {
   schema: Record<string, unknown>;
   /** Revérifie la réponse (types, longueurs, valeurs permises) ; null si invalide. */
   valider: (donnees: unknown) => T | null;
+  /** Délai maximal de l'appel, en millisecondes (tâches planifiées à durée bornée). */
+  delaiMs?: number;
 }
 
-export async function demanderJson<T>({ systeme, contenu, schema, valider }: DemandeJson<T>): Promise<ResultatIA<T>> {
+export async function demanderJson<T>({ systeme, contenu, schema, valider, delaiMs }: DemandeJson<T>): Promise<ResultatIA<T>> {
   const anthropic = clientAnthropic();
   if (!anthropic) return { ok: false, raison: "indisponible" };
 
   try {
-    const reponse = await anthropic.beta.messages.create({
-      model: MODELE_IA,
-      max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: { effort: "low", format: { type: "json_schema", schema } },
-      system: systeme,
-      messages: [{ role: "user", content: contenu }],
-    });
+    const reponse = await anthropic.beta.messages.create(
+      {
+        model: MODELE_IA,
+        max_tokens: 16000,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        output_config: { effort: "low", format: { type: "json_schema", schema } },
+        system: systeme,
+        messages: [{ role: "user", content: contenu }],
+      },
+      delaiMs ? { timeout: delaiMs, maxRetries: 0 } : undefined,
+    );
 
     if (reponse.stop_reason === "refusal") return { ok: false, raison: "refus" };
     if (reponse.stop_reason !== "end_turn") return { ok: false, raison: "invalide" };

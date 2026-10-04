@@ -223,10 +223,10 @@ export default function ConfidentialitePage() {
             </li>
             <li>
               <strong className="text-text">Anthropic</strong> (États-Unis) — uniquement quand une
-              fonction d&apos;IA est utilisée, à la demande d&apos;un membre : le texte saisi dans
-              l&apos;assistant de création de tournoi ou dans la recherche de joueurs ; les
-              statistiques Riot d&apos;un match (champion, KDA, sbires, or, durée) pour son analyse
-              détaillée ; les faits d&apos;un litige (pseudos, Riot ID, horaires, parties Riot
+              fonction d&apos;IA est utilisée : le texte saisi dans l&apos;assistant de création de
+              tournoi ou dans la recherche de joueurs ; les statistiques Riot d&apos;un match
+              (champion, KDA, sbires, or, durée) pour son analyse détaillée, demandée par le joueur
+              ou rédigée automatiquement après chaque partie vérifiée d&apos;un abonné Elite ; les faits d&apos;un litige (pseudos, Riot ID, horaires, parties Riot
               retrouvées, motif du litige) pour son dossier. Ni e-mail, ni mot de passe, ni moyen
               de paiement ne lui sont envoyés, et l&apos;IA n&apos;écrit aucun résultat.
             </li>

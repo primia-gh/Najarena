@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { traiterRechercheResultats } from "@/lib/rapprochement";
+import { creerClientAdmin } from "@/lib/supabase/admin";
+import { redigerRevuesAutomatiques } from "@/lib/revue-ia-serveur";
 
 // Tâche planifiée (docs/moteur-resultats.md §6 — "Recherche de résultats",
 // cadence cible 1 min). Vercel Cron ne descend pas sous 1 min même sur le
@@ -25,6 +27,7 @@ import { traiterRechercheResultats } from "@/lib/rapprochement";
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
+  const debut = Date.now();
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return NextResponse.json(
@@ -39,5 +42,11 @@ export async function GET(request: Request) {
   }
 
   const resultat = await traiterRechercheResultats();
-  return NextResponse.json(resultat);
+
+  // Analyses détaillées automatiques de l'offre Elite (audit N25), dans le
+  // temps qui reste : aucune n'est commencée au-delà de 45 s (limite de la
+  // fonction : 60 s). Une panne de l'IA ne fait jamais échouer la tâche.
+  const admin = creerClientAdmin();
+  const revues = admin ? await redigerRevuesAutomatiques(admin, debut + 45_000).catch(() => null) : null;
+  return NextResponse.json({ ...resultat, revues });
 }

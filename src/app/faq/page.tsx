@@ -60,7 +60,7 @@ const QUESTIONS = [
   {
     question: "L'intelligence artificielle peut-elle toucher à mon classement ?",
     reponse:
-      "Non. L'IA n'écrit jamais de résultat ni de point : elle rédige seulement des textes d'aide, à la demande, à partir de données déjà vérifiées. Quatre usages, disponibles quand ils sont activés : l'assistant de création de tournoi (l'organisateur valide avant de créer), l'analyse détaillée d'un match (offre Elite, à partir des seuls chiffres Riot du match, en plus de la revue par règles), le dossier de litige (il rassemble les faits pour l'organisateur et ne désigne jamais de vainqueur : la décision reste humaine) et la recherche de joueurs en langage naturel (offre Organisateur : l'IA traduit la demande en filtres, la recherche ne porte que sur des comptes vérifiés).",
+      "Non. L'IA n'écrit jamais de résultat ni de point : elle rédige seulement des textes d'aide, à la demande (ou, pour l'analyse des parties d'un abonné Elite, automatiquement après chaque partie vérifiée), à partir de données déjà vérifiées. Quatre usages, disponibles quand ils sont activés : l'assistant de création de tournoi (l'organisateur valide avant de créer), l'analyse détaillée d'un match (offre Elite, à partir des seuls chiffres Riot du match, en plus de la revue par règles), le dossier de litige (il rassemble les faits pour l'organisateur et ne désigne jamais de vainqueur : la décision reste humaine) et la recherche de joueurs en langage naturel (offre Organisateur : l'IA traduit la demande en filtres, la recherche ne porte que sur des comptes vérifiés).",
   },
   {
     question: "Les pronostics, c'est des paris ?",

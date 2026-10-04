@@ -504,6 +504,42 @@ export type Database = {
           },
         ]
       }
+      echecs_revue_ia: {
+        Row: {
+          dernier_le: string
+          essais: number
+          match_id: string
+          profile_id: string
+        }
+        Insert: {
+          dernier_le?: string
+          essais?: number
+          match_id: string
+          profile_id: string
+        }
+        Update: {
+          dernier_le?: string
+          essais?: number
+          match_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "echecs_revue_ia_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "echecs_revue_ia_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       verifications_ecole: {
         Row: {
           code_empreinte: string
@@ -2360,6 +2396,8 @@ export type Database = {
       lier_serveur_discord: { Args: { p_code: string; p_guild_id: string }; Returns: string }
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
       definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
+      revues_a_rediger: { Args: { p_limite: number }; Returns: { match_id: string; profile_id: string }[] }
+      noter_echec_revue: { Args: { p_match_id: string; p_profile_id: string }; Returns: undefined }
       preparer_verification_ecole: {
         Args: { p_code: string; p_communaute_id: string; p_email: string; p_profile_id: string }
         Returns: string
