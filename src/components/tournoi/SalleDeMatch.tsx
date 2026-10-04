@@ -8,6 +8,8 @@ import { heureParis } from "@/lib/tournois-auto/creneaux";
 import { formaterDate } from "@/lib/tournois";
 import { DELAI_FORFAIT_MINUTES, limiteForfait } from "@/lib/forfait";
 import type { ConditionVictoire } from "@/lib/conditions-1v1";
+import { debutChrono } from "@/lib/chrono-match";
+import ChronoMatch from "@/components/tournoi/ChronoMatch";
 
 // Salle de match (28/09/2026, audit E9 / N1 / N2) : ce dont un joueur a
 // besoin pour jouer son match sans chercher — son adversaire, son Riot ID à
@@ -81,6 +83,9 @@ function EtatPret({
       <span className="text-muted">pas encore prêt</span>
     );
 
+  // Chronomètre (audit N1) : il part quand les deux sont prêts.
+  const departChrono = debutChrono(pret);
+
   return (
     <div className="flex flex-col gap-3 border-t border-line pt-4">
       <p className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
@@ -91,6 +96,7 @@ function EtatPret({
           {adversaire} : {statut(pret.adversaire)}
         </span>
       </p>
+      {departChrono && <ChronoMatch depuis={departChrono} />}
       {equipe ? (
         <p className={`text-sm ${pret.adversaire && !pret.moi ? "text-danger" : "text-text-2"}`}>
           {pret.moi && pret.adversaire
