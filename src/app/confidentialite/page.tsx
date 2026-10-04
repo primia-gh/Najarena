@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { cashPrizesActifs } from "@/lib/dotations";
 
 export const metadata: Metadata = {
   title: "Politique de confidentialité — Najarena",
@@ -206,6 +207,16 @@ export default function ConfidentialitePage() {
               coordonnées bancaires sont saisies directement chez Stripe et ne passent jamais
               par Najarena.
             </li>
+            {/* Cash prizes (audit N32) : seulement une fois activés. */}
+            {cashPrizesActifs() && (
+              <li>
+                <strong className="text-text">Stripe (versement des cash prizes)</strong> — uniquement si
+                tu gagnes une dotation et en demandes le versement : ton identifiant Najarena, ton e-mail et
+                ton pays de résidence lui sont transmis, et Stripe vérifie lui-même ton identité et tes
+                coordonnées bancaires. Najarena ne garde que l&apos;identifiant de ton compte Stripe et
+                l&apos;état de la vérification.
+              </li>
+            )}
             <li>
               <strong className="text-text">Resend</strong> — envoi des e-mails de notification
               liés à ton activité (invitation d&apos;équipe, inscription confirmée, résultat,

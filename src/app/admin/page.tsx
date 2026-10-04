@@ -13,6 +13,7 @@ import {
   retirerEcheance,
   suspendreCompte,
   traiterSignalement,
+  verserParStripe,
 } from "@/lib/admin-actions";
 import { LIBELLE_RAISON } from "@/lib/moderation";
 import { attribuerOffreAdmin } from "@/lib/offres-actions";
@@ -206,7 +207,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     ? await supabase
         .from("dotations")
         .select(
-          "tournament_id, sponsor_nom, repartition, statut, tournament:tournaments(nom, slug, statut), versements_dotation(profile_id, rang, montant_centimes, a_verifier, statut, reference, profile:profiles(pseudo))",
+          "tournament_id, sponsor_nom, repartition, statut, tournament:tournaments(nom, slug, statut), versements_dotation(profile_id, rang, montant_centimes, a_verifier, statut, reference, transfert_stripe_id, profile:profiles(pseudo, compte_versement:comptes_versement(verifie)))",
         )
         .order("cree_le", { ascending: false })
         .limit(30)
@@ -519,8 +520,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <p className="mt-1 max-w-2xl text-sm text-muted">
             Désactivés. À n&apos;allumer (variable CASH_PRIZES_ACTIFS=1 sur l&apos;hébergeur) qu&apos;après le statut
             juridique de l&apos;éditeur, des CGU relues par un juriste et la vérification des règles Riot sur les
-            tournois dotés. Le site ne fait transiter aucun argent : il affiche la dotation, désigne les gagnants
-            d&apos;après le bracket et garde la trace des versements faits hors du site.
+            tournois dotés. Une fois allumés : la dotation s&apos;affiche, les gagnants sont désignés d&apos;après le
+            bracket, chacun fait vérifier son identité par Stripe, puis le gain est versé par Stripe depuis le solde
+            alimenté par le sponsor (ou hors du site, avec sa référence).
           </p>
         ) : (
           <>
@@ -585,34 +587,67 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       )}
                     </div>
                     {d.versements_dotation.map((v) => (
-                      <form
-                        key={v.profile_id}
-                        action={noterVersement}
-                        className="flex flex-wrap items-center gap-2 border-t border-line pt-2 text-sm"
-                      >
-                        <input type="hidden" name="tournament_id" value={d.tournament_id} />
-                        <input type="hidden" name="profile_id" value={v.profile_id} />
+                      <div key={v.profile_id} className="flex flex-col gap-2 border-t border-line pt-2 text-sm">
                         <span className="min-w-48">
                           {LIBELLE_RANG[v.rang] ?? `Rang ${v.rang}`} : {v.profile?.pseudo ?? "Joueur"} ·{" "}
                           <span className="tabular-nums">{formaterEuros(v.montant_centimes)}</span>
                           {v.a_verifier && <span className="text-danger"> · décidé à la main, à vérifier</span>}
+                          {/* Identité vérifiée par Stripe (audit N32). */}
+                          {v.statut === "a_verser" && (
+                            <span className="text-muted">
+                              {" "}
+                              · identité{" "}
+                              {v.profile?.compte_versement?.verifie ? "vérifiée par Stripe" : "pas encore vérifiée par Stripe"}
+                            </span>
+                          )}
                         </span>
-                        <select name="statut" defaultValue={v.statut} className={CHAMP_ADMIN}>
-                          <option value="a_verser">À verser</option>
-                          <option value="verse">Versé</option>
-                          <option value="refuse">Refusé</option>
-                        </select>
-                        <input
-                          name="reference"
-                          defaultValue={v.reference ?? ""}
-                          placeholder="Référence du virement"
-                          maxLength={120}
-                          className={CHAMP_ADMIN}
-                        />
-                        <button type="submit" className="inline-flex min-h-11 items-center text-mini text-accent underline underline-offset-3">
-                          Noter
-                        </button>
-                      </form>
+                        {v.transfert_stripe_id ? (
+                          <span className="text-mini text-accent uppercase">
+                            Versé par Stripe · <span className="tabular-nums normal-case">{v.transfert_stripe_id}</span>
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                            {v.statut === "a_verser" && v.profile?.compte_versement?.verifie && (
+                              <form action={verserParStripe} className="flex flex-wrap items-center gap-3">
+                                <input type="hidden" name="tournament_id" value={d.tournament_id} />
+                                <input type="hidden" name="profile_id" value={v.profile_id} />
+                                {v.a_verifier && (
+                                  <label className="flex items-center gap-2 text-xs text-text">
+                                    <input type="checkbox" name="rang_verifie" value="oui" required className="accent-accent" />
+                                    Rang vérifié
+                                  </label>
+                                )}
+                                <BoutonConfirmation
+                                  type="submit"
+                                  confirmation={`Verser ${formaterEuros(v.montant_centimes)} à ${v.profile?.pseudo ?? "ce joueur"} par Stripe ?`}
+                                  className="inline-flex min-h-11 items-center text-mini font-semibold text-accent underline underline-offset-3"
+                                >
+                                  Verser par Stripe
+                                </BoutonConfirmation>
+                              </form>
+                            )}
+                            <form action={noterVersement} className="flex flex-wrap items-center gap-2">
+                              <input type="hidden" name="tournament_id" value={d.tournament_id} />
+                              <input type="hidden" name="profile_id" value={v.profile_id} />
+                              <select name="statut" defaultValue={v.statut} className={CHAMP_ADMIN}>
+                                <option value="a_verser">À verser</option>
+                                <option value="verse">Versé</option>
+                                <option value="refuse">Refusé</option>
+                              </select>
+                              <input
+                                name="reference"
+                                defaultValue={v.reference ?? ""}
+                                placeholder="Référence du virement"
+                                maxLength={120}
+                                className={CHAMP_ADMIN}
+                              />
+                              <button type="submit" className="inline-flex min-h-11 items-center text-mini text-accent underline underline-offset-3">
+                                Noter
+                              </button>
+                            </form>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </li>
                 ))}

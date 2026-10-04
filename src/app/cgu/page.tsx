@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { DATE_CGU_LISIBLE } from "@/lib/cgu";
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 import { DELAI_FORFAIT_MINUTES } from "@/lib/forfait";
+import { cashPrizesActifs } from "@/lib/dotations";
 
 export const metadata: Metadata = {
   title: "Conditions générales d'utilisation — Najarena",
@@ -113,6 +114,20 @@ export default function CguPage() {
             joueurs d&apos;un tournoi et son organisateur ne pronostiquent pas
             ses matchs.
           </p>
+          {/* Cash prizes (audit N32) : seulement une fois activés (changer
+              alors VERSION_CGU, src/lib/cgu.ts). */}
+          {cashPrizesActifs() && (
+            <p className="mt-2 text-muted">
+              Certains tournois sont dotés par un sponsor ; l&apos;inscription
+              reste gratuite. Les gagnants sont désignés d&apos;après le
+              bracket ; un rang décidé à la main est vérifié par un
+              administrateur avant tout versement. Le gain est versé par
+              Stripe, après vérification par Stripe de l&apos;identité du
+              gagnant (personne majeure) et de ses coordonnées bancaires :
+              tant qu&apos;elle n&apos;est pas faite, il ne peut pas être
+              versé.
+            </p>
+          )}
           <p className="mt-2 text-muted">
             Un compte de l&apos;offre Organisateur peut créer jusqu&apos;à trois
             communautés. Son fondateur est responsable de son nom, de sa

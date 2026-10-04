@@ -3,7 +3,9 @@
 // changer à chaque modification des CGU. 02/10/2026 : tournois classés,
 // forfait automatique, conditions de victoire du 1v1, défis entre joueurs
 // (version jamais mise en ligne). 03/10/2026 : tournois 5v5. 04/10/2026 :
-// écoles et tournois réservés aux membres d'une communauté.
+// écoles et tournois réservés aux membres d'une communauté. Allumer les
+// cash prizes (CASH_PRIZES_ACTIFS) ajoute un paragraphe aux CGU : changer
+// alors cette version.
 export const VERSION_CGU = "2026-10-04";
 export const DATE_CGU_LISIBLE = "4 octobre 2026";
 

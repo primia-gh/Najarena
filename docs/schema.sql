@@ -7466,3 +7466,176 @@ as $$
 $$;
 revoke all on function public.revues_a_rediger(integer) from public, anon, authenticated;
 grant execute on function public.revues_a_rediger(integer) to service_role;
+
+-- ---------- Versement des cash prizes par Stripe Connect (2026-10-04, audit N32) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Toujours éteint tant que CASH_PRIZES_ACTIFS n'est pas à « 1 ». Un gagnant
+-- ouvre un compte de versement chez Stripe (Connect Express) : c'est Stripe
+-- qui vérifie son identité et ses coordonnées bancaires, sur ses propres
+-- pages ; la base ne garde que l'identifiant du compte et l'état de la
+-- vérification. Un administrateur déclenche ensuite le virement depuis le
+-- solde Najarena (alimenté par le sponsor) : un seul virement par gain,
+-- jamais vers un compte non vérifié, jamais pour un rang décidé à la main
+-- sans vérification explicite.
+create table if not exists public.comptes_versement (
+  profile_id        uuid primary key references public.profiles(id) on delete cascade,
+  stripe_compte_id  text not null unique check (stripe_compte_id ~ '^acct_[A-Za-z0-9]{6,60}$'),
+  verifie           boolean not null default false,
+  verifie_le        timestamptz,
+  cree_le           timestamptz not null default now(),
+  maj_le            timestamptz not null default now()
+);
+alter table public.comptes_versement enable row level security;
+create policy "le gagnant et les administrateurs lisent le compte de versement" on public.comptes_versement
+  for select using (
+    profile_id = (select auth.uid())
+    or exists (select 1 from public.admins where profile_id = (select auth.uid()))
+  );
+revoke all on public.comptes_versement from anon, authenticated;
+-- L'identifiant Stripe reste côté serveur.
+grant select (profile_id, verifie, verifie_le, cree_le) on public.comptes_versement to authenticated;
+
+alter table public.versements_dotation add column if not exists transfert_stripe_id text;
+
+-- Compte ouvert par le serveur pour un gagnant qui a un gain à recevoir.
+-- Rend l'identifiant déjà enregistré s'il existe (un seul compte par joueur).
+create or replace function public.ouvrir_compte_versement(p_profile_id uuid, p_stripe_compte_id text)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_existant text;
+begin
+  select stripe_compte_id into v_existant from public.comptes_versement where profile_id = p_profile_id;
+  if found then
+    return v_existant;
+  end if;
+  if not exists (select 1 from public.versements_dotation where profile_id = p_profile_id and statut = 'a_verser') then
+    raise exception 'AUCUN_GAIN';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = p_profile_id and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  insert into public.comptes_versement (profile_id, stripe_compte_id) values (p_profile_id, p_stripe_compte_id);
+  return p_stripe_compte_id;
+end;
+$$;
+revoke all on function public.ouvrir_compte_versement(uuid, text) from public, anon, authenticated;
+grant execute on function public.ouvrir_compte_versement(uuid, text) to service_role;
+
+-- État lu chez Stripe (retour de la vérification, ou webhook account.updated).
+create or replace function public.maj_compte_versement(p_stripe_compte_id text, p_verifie boolean)
+returns boolean
+language sql
+security definer set search_path = public
+as $$
+  update public.comptes_versement
+  set verifie = p_verifie,
+      verifie_le = case when p_verifie then coalesce(verifie_le, now()) else null end,
+      maj_le = now()
+  where stripe_compte_id = p_stripe_compte_id
+  returning true;
+$$;
+revoke all on function public.maj_compte_versement(text, boolean) from public, anon, authenticated;
+grant execute on function public.maj_compte_versement(text, boolean) to service_role;
+
+-- Avant un virement (administrateur) : montant et compte, si tout est en
+-- règle. Ne change rien : le serveur note le virement une fois fait.
+create or replace function public.preparer_virement(p_tournament_id uuid, p_profile_id uuid, p_rang_verifie boolean)
+returns table (montant_centimes integer, stripe_compte_id text)
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_versement record;
+  v_compte record;
+begin
+  perform public.exiger_admin();
+  select vd.* into v_versement
+  from public.versements_dotation vd
+  join public.dotations d on d.tournament_id = vd.tournament_id and d.statut = 'validee'
+  where vd.tournament_id = p_tournament_id and vd.profile_id = p_profile_id;
+  if not found then
+    raise exception 'VERSEMENT_INTROUVABLE';
+  end if;
+  if v_versement.statut <> 'a_verser' then
+    raise exception 'VERSEMENT_DEJA_TRAITE';
+  end if;
+  -- Rang décidé par un verdict manuel : l'administrateur l'a vérifié.
+  if v_versement.a_verifier and not coalesce(p_rang_verifie, false) then
+    raise exception 'RANG_A_VERIFIER';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = p_profile_id and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  select * into v_compte from public.comptes_versement where profile_id = p_profile_id;
+  if not found or not v_compte.verifie then
+    raise exception 'IDENTITE_NON_VERIFIEE';
+  end if;
+  montant_centimes := v_versement.montant_centimes;
+  stripe_compte_id := v_compte.stripe_compte_id;
+  return next;
+end;
+$$;
+revoke execute on function public.preparer_virement(uuid, uuid, boolean) from public, anon;
+grant execute on function public.preparer_virement(uuid, uuid, boolean) to authenticated;
+
+-- Virement fait chez Stripe : noté une fois (une relance avec le même
+-- virement ne change rien, un autre virement est refusé).
+create or replace function public.noter_virement(p_tournament_id uuid, p_profile_id uuid, p_transfert_id text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_versement record;
+begin
+  if coalesce(p_transfert_id, '') !~ '^tr_[A-Za-z0-9]{6,60}$' then
+    raise exception 'VIREMENT_INVALIDE';
+  end if;
+  select * into v_versement from public.versements_dotation
+  where tournament_id = p_tournament_id and profile_id = p_profile_id
+  for update;
+  if not found then
+    raise exception 'VERSEMENT_INTROUVABLE';
+  end if;
+  if v_versement.statut = 'verse' then
+    if v_versement.transfert_stripe_id = p_transfert_id then
+      return false;
+    end if;
+    raise exception 'VERSEMENT_DEJA_TRAITE';
+  end if;
+  update public.versements_dotation
+  set statut = 'verse', transfert_stripe_id = p_transfert_id, reference = p_transfert_id, maj_le = now()
+  where tournament_id = p_tournament_id and profile_id = p_profile_id;
+  return true;
+end;
+$$;
+revoke all on function public.noter_virement(uuid, uuid, text) from public, anon, authenticated;
+grant execute on function public.noter_virement(uuid, uuid, text) to service_role;
+
+-- Un gain versé par Stripe ne se modifie plus à la main : le repasser
+-- « à verser » permettrait un second virement.
+create or replace function public.noter_versement(p_tournament_id uuid, p_profile_id uuid, p_statut text, p_reference text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  perform public.exiger_admin();
+  if p_statut not in ('a_verser', 'verse', 'refuse') then
+    raise exception 'STATUT_INVALIDE';
+  end if;
+  if exists (select 1 from public.versements_dotation
+             where tournament_id = p_tournament_id and profile_id = p_profile_id and transfert_stripe_id is not null) then
+    raise exception 'VIREMENT_STRIPE_FAIT';
+  end if;
+  update public.versements_dotation
+  set statut = p_statut, reference = nullif(btrim(coalesce(p_reference, '')), ''), maj_le = now()
+  where tournament_id = p_tournament_id and profile_id = p_profile_id;
+  return found;
+end;
+$$;
+revoke execute on function public.noter_versement(uuid, uuid, text, text) from public, anon;
+grant execute on function public.noter_versement(uuid, uuid, text, text) to authenticated;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { cashPrizesActifs } from "@/lib/dotations";
 import { seDeconnecter } from "@/lib/auth-actions";
 import { mettreAJourRolePrefere } from "@/lib/riot-actions";
 import { ROLES, LABEL_ROLE } from "@/lib/roles";
@@ -220,6 +221,15 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
         >
           Messages
         </Link>
+        {/* Cash prizes (audit N32), seulement une fois activés. */}
+        {cashPrizesActifs() && (
+          <Link
+            href="/moi/gains"
+            className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
+          >
+            Mes gains
+          </Link>
+        )}
         {infoOffre.offre === "organisateur" && (
           <>
             <Link

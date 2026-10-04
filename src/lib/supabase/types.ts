@@ -352,6 +352,41 @@ export type Database = {
           },
         ]
       }
+      comptes_versement: {
+        Row: {
+          cree_le: string
+          maj_le: string
+          profile_id: string
+          stripe_compte_id: string
+          verifie: boolean
+          verifie_le: string | null
+        }
+        Insert: {
+          cree_le?: string
+          maj_le?: string
+          profile_id: string
+          stripe_compte_id: string
+          verifie?: boolean
+          verifie_le?: string | null
+        }
+        Update: {
+          cree_le?: string
+          maj_le?: string
+          profile_id?: string
+          stripe_compte_id?: string
+          verifie?: boolean
+          verifie_le?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comptes_versement_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       versements_dotation: {
         Row: {
           a_verifier: boolean
@@ -362,6 +397,7 @@ export type Database = {
           reference: string | null
           statut: string
           tournament_id: string
+          transfert_stripe_id: string | null
         }
         Insert: {
           a_verifier?: boolean
@@ -372,6 +408,7 @@ export type Database = {
           reference?: string | null
           statut?: string
           tournament_id: string
+          transfert_stripe_id?: string | null
         }
         Update: {
           a_verifier?: boolean
@@ -382,6 +419,7 @@ export type Database = {
           reference?: string | null
           statut?: string
           tournament_id?: string
+          transfert_stripe_id?: string | null
         }
         Relationships: [
           {
@@ -2421,6 +2459,13 @@ export type Database = {
       }
       annuler_dotation: { Args: { p_tournament_id: string }; Returns: boolean }
       preparer_versements: { Args: { p_tournament_id: string }; Returns: number }
+      ouvrir_compte_versement: { Args: { p_profile_id: string; p_stripe_compte_id: string }; Returns: string }
+      maj_compte_versement: { Args: { p_stripe_compte_id: string; p_verifie: boolean }; Returns: boolean }
+      preparer_virement: {
+        Args: { p_profile_id: string; p_rang_verifie: boolean; p_tournament_id: string }
+        Returns: { montant_centimes: number; stripe_compte_id: string }[]
+      }
+      noter_virement: { Args: { p_profile_id: string; p_tournament_id: string; p_transfert_id: string }; Returns: boolean }
       noter_versement: {
         Args: { p_profile_id: string; p_reference: string; p_statut: string; p_tournament_id: string }
         Returns: boolean
