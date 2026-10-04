@@ -6,6 +6,16 @@
 > déclencheurs, stockage des logos : identiques. Reste à faire côté
 > porteur du projet : le secret des tâches planifiées (§ 2 bis) et les
 > réglages des §§ 3 et 4.
+>
+> **Section 37 (04/10/2026, écoles et tournois réservés aux membres)** :
+> pas encore appliquée en production. Même méthode qu'au § 2 : coller dans
+> l'éditeur SQL de Supabase la fin de `docs/schema.sql` à partir de la
+> ligne « Ligues écoles et universités, tournois réservés aux membres
+> (2026-10-04… » jusqu'à la dernière ligne, retirer les retours chariot,
+> puis seulement fusionner le code (il lit des colonnes que la section
+> crée). Le code de vérification d'une adresse d'école part par e-mail :
+> `RESEND_API_KEY` et `RESEND_FROM_EMAIL` (domaine vérifié chez Resend)
+> doivent être définies sur Vercel.
 
 Branche : `claude/nice-faraday-nsoe9q`. Ce document dit **dans quel ordre**
 mettre en ligne ces changements. L'ordre compte : le code s'appuie sur des
@@ -134,6 +144,9 @@ une transaction, et contient 36 sections, dans cet ordre :
     ne pas définir `CASH_PRIZES_ACTIFS` sur l'hébergeur
 36. Durcissement : chemin de recherche des deux fonctions de calcul
     (signalé par le conseiller de sécurité après la section 35)
+37. Ligues écoles et universités, tournois réservés aux membres d'une
+    communauté (04/10/2026) — à appliquer à part, les sections 1 à 36
+    étant déjà en production (voir l'encadré en tête)
 
 Les widgets et l'API publique (N31) n'ajoutent rien à la base : ils lisent
 avec la clé publique, comme un visiteur déconnecté.
@@ -142,8 +155,8 @@ La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).
 
 Le même bloc est rejoué à chaque envoi de code sur une base PostgreSQL de
-test par `npm run test:base` (528 vérifications, toutes au vert au
-03/10/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
+test par `npm run test:base` (592 vérifications, toutes au vert au
+04/10/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
 
 Après application : lancer les conseillers de sécurité et de performance
 de Supabase (Advisors) et comparer avec l'état d'avant.

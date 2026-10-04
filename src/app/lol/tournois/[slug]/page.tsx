@@ -70,6 +70,7 @@ import {
 import { chargerPronosticsTournoi } from "@/lib/pronostics-serveur";
 import { pronostiquer } from "@/lib/pronostic-actions";
 import { cashPrizesActifs, formaterEuros, LIBELLE_RANG } from "@/lib/dotations";
+import { publicReserve, typeCommunaute } from "@/lib/ecoles";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
@@ -105,7 +106,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, communaute:communautes(slug, nom)",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, communaute:communautes(id, slug, nom, type)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -200,6 +201,7 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: profilsAlignesData },
     { data: comptesDuMatchData },
     mesEquipes,
+    { data: monAdhesion },
   ] = await Promise.all([
     profileIds.length > 0
       ? (() => {
@@ -266,6 +268,16 @@ const chargerTournoi = cache(async (slug: string) => {
     userData.user && tournoi.format === "5v5"
       ? chargerEquipesCapitaine(supabase, userData.user.id, tournoi.game_id, tournoi.region)
       : Promise.resolve([]),
+    // Tournoi réservé aux membres de sa communauté (04/10/2026) : le
+    // visiteur en est-il membre (vérifié, pour une école) ?
+    userData.user && tournoi.reserve_membres && tournoi.communaute
+      ? supabase
+          .from("membres_communaute")
+          .select("verifie_le")
+          .eq("communaute_id", tournoi.communaute.id)
+          .eq("profile_id", userData.user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
@@ -320,6 +332,11 @@ const chargerTournoi = cache(async (slug: string) => {
     mesEquipes,
     agentsLibres: agentsLibresData ?? [],
     resumeOrganisateur: ficheOrganisateur ? resumeFiche(ficheOrganisateur) : null,
+    // Même règle que la base (eligible_tournoi_reserve), pour l'affichage.
+    eligibleReserve:
+      !tournoi.reserve_membres ||
+      (monAdhesion !== null &&
+        (typeCommunaute(tournoi.communaute?.type) !== "ecole" || monAdhesion.verifie_le !== null)),
   };
 });
 
@@ -417,6 +434,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     mesEquipes,
     agentsLibres,
     resumeOrganisateur,
+    eligibleReserve,
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
@@ -703,11 +721,31 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const monInscriptionEquipe = estEquipes ? inscriptionActuelle : undefined;
   const equipeInscrite = monInscriptionEquipe && utilisateur ? equipeDe(utilisateur.id) : undefined;
   const equipeCapitaine = equipeInscrite ? mesEquipes.find((e) => e.slug === equipeInscrite.slug) : undefined;
+  // Tournoi réservé aux membres de sa communauté (04/10/2026) : à qui il
+  // est ouvert, et comment en faire partie.
+  const reserve = tournoi.reserve_membres ? tournoi.communaute : null;
+  const avisReserve = reserve ? (
+    <div className="flex flex-col gap-3">
+      <p className="text-[13px] leading-normal text-muted">
+        Tournoi réservé aux {publicReserve(reserve)}.
+      </p>
+      <BoutonLien
+        href={`/communaute/${reserve.slug}${typeCommunaute(reserve.type) === "ecole" ? "#ecole" : ""}`}
+        className="w-full"
+      >
+        {typeCommunaute(reserve.type) === "ecole" ? "Vérifier mon adresse d'école" : "Rejoindre la communauté"}
+      </BoutonLien>
+    </div>
+  ) : tournoi.reserve_membres ? (
+    <p className="text-[13px] leading-normal text-muted">
+      Tournoi réservé aux membres d&apos;une communauté qui n&apos;existe plus : les inscriptions sont closes.
+    </p>
+  ) : null;
   // Agents libres (audit N23) : ceux qui attendent encore une équipe.
   const agentsEnAttente = agentsLibres.filter((a) => a.statut !== "place");
   const monAgent = utilisateur ? agentsEnAttente.find((a) => a.profile_id === utilisateur.id) : undefined;
   const formulaireAgentLibre =
-    statut === "ouvert" && utilisateur ? (
+    statut === "ouvert" && utilisateur && eligibleReserve ? (
       compteRiotValide ? (
         <form action={inscrireAgentLibre} className="flex flex-col gap-2 border-t border-line pt-[18px]">
           <input type="hidden" name="tournament_id" value={tournoi.id} />
@@ -859,6 +897,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       <BoutonLien href="/connexion" className="w-full">
         Se connecter pour inscrire ton équipe
       </BoutonLien>
+    ) : !eligibleReserve ? (
+      avisReserve
     ) : mesEquipes.length === 0 ? (
       <div className="flex flex-col gap-3">
         <p className="text-[13px] leading-normal text-muted">
@@ -934,6 +974,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                     : ""}
               {complements.estQuotidien ? " · Tournoi quotidien" : ""}
               {condition === "classique" ? " · 1v1 classique" : ""}
+              {tournoi.reserve_membres ? " · Réservé aux membres" : ""}
             </span>
           </>
         }
@@ -1054,7 +1095,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 <span className="font-bold text-muted uppercase">Complet</span>
               </p>
             ) : statut === "ouvert" ? (
-              utilisateur && !compteRiotValide ? (
+              utilisateur && !eligibleReserve ? (
+                avisReserve
+              ) : utilisateur && !compteRiotValide ? (
                 <div className="flex flex-col gap-3">
                   <p className="text-[13px] leading-normal text-muted">
                     {monCompteRiot?.verifie_le

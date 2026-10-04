@@ -10,6 +10,20 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "4 octobre",
+    titre: "La ligue des écoles",
+    texte:
+      "L'association de ton école ou de ton université indique le domaine des adresses de l'établissement : ses membres reçoivent un code sur leur adresse d'école et deviennent membres vérifiés. Les écoles sont classées par la moyenne des cinq meilleurs ratings officiels de leurs membres vérifiés — rien de recalculé. Najarena ne garde que le domaine de l'adresse, jamais l'adresse elle-même.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "4 octobre",
+    titre: "Des tournois réservés aux membres",
+    texte:
+      "Une communauté peut réserver un tournoi à ses membres — et une école, à ses membres vérifiés. Le choix est figé à la publication, et la base refuse toute autre inscription, en 5v5 pour chacun des cinq joueurs.",
+    tags: ["Fonctionnalité"],
+  },
+  {
     date: "3 octobre",
     titre: "Tes résultats sur ton site et ton stream",
     texte:

@@ -10,6 +10,7 @@ const LIENS = [
   { href: "/comment-ca-marche", label: "Comment ça marche" },
   { href: "/faq", label: "FAQ" },
   { href: "/communautes", label: "Communautés" },
+  { href: "/lol/ecoles", label: "Ligue des écoles" },
   { href: "/lol/pronostics", label: "Pronostics" },
   { href: "/developpeurs", label: "Widgets et API" },
   { href: "/journal", label: "Journal de bord" },

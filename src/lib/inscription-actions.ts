@@ -20,6 +20,9 @@ const MESSAGES_REFUS: Record<string, string> = {
   REGION_DIFFERENTE: "Ce tournoi se joue sur une autre région que ton compte Riot vérifié.",
   COMPTE_SUSPENDU: "Ton compte est suspendu : tu ne peux pas t'inscrire aux tournois.",
   TOURNOI_PAR_EQUIPES: "Ce tournoi se joue en équipe : c'est le capitaine qui inscrit son équipe.",
+  // Tournoi réservé aux membres d'une communauté (04/10/2026).
+  RESERVE_MEMBRES:
+    "Ce tournoi est réservé aux membres de sa communauté (aux membres vérifiés, pour une école) : rejoins-la depuis sa page avant de t'inscrire.",
 };
 
 // Tournois 5v5 (03/10/2026, audit N21) : refus de s_inscrire_equipe et de
@@ -42,6 +45,8 @@ const MESSAGES_REFUS_EQUIPE: Record<string, string> = {
   COMPTE_SUSPENDU: "Ton compte est suspendu : tu ne peux pas inscrire ton équipe.",
   ALIGNEMENT_FIGE: "Le bracket est lancé : l'alignement ne change plus.",
   EQUIPE_NON_INSCRITE: "Ton équipe n'est pas inscrite à ce tournoi.",
+  RESERVE_MEMBRES:
+    "Ce tournoi est réservé aux membres de sa communauté (aux membres vérifiés, pour une école) : chacun des cinq joueurs doit en faire partie.",
 };
 
 function lireJoueurs(formData: FormData): string[] {
@@ -169,6 +174,8 @@ const MESSAGES_REFUS_AGENT: Record<string, string> = {
   REGION_DIFFERENTE: "Ce tournoi se joue sur une autre région que ton compte Riot vérifié.",
   DEJA_DANS_UNE_EQUIPE: "Tu es déjà aligné dans une équipe de ce tournoi.",
   DEJA_INSCRIT: "Tu es déjà inscrit comme agent libre.",
+  RESERVE_MEMBRES:
+    "Ce tournoi est réservé aux membres de sa communauté (aux membres vérifiés, pour une école) : rejoins-la depuis sa page avant de t'inscrire.",
 };
 
 export async function inscrireAgentLibre(formData: FormData) {

@@ -408,12 +408,14 @@ export type Database = {
           cree_le: string
           description: string | null
           discord_guild_id: string | null
+          domaines_email: string[]
           game_id: number
           id: string
           lien_discord: string | null
           nom: string
           proprietaire_id: string
           slug: string
+          type: string
         }
         Insert: {
           code_liaison?: string | null
@@ -422,12 +424,14 @@ export type Database = {
           cree_le?: string
           description?: string | null
           discord_guild_id?: string | null
+          domaines_email?: string[]
           game_id?: number
           id?: string
           lien_discord?: string | null
           nom: string
           proprietaire_id: string
           slug: string
+          type?: string
         }
         Update: {
           code_liaison?: string | null
@@ -436,12 +440,14 @@ export type Database = {
           cree_le?: string
           description?: string | null
           discord_guild_id?: string | null
+          domaines_email?: string[]
           game_id?: number
           id?: string
           lien_discord?: string | null
           nom?: string
           proprietaire_id?: string
           slug?: string
+          type?: string
         }
         Relationships: [
           {
@@ -456,21 +462,30 @@ export type Database = {
       membres_communaute: {
         Row: {
           communaute_id: string
+          domaine: string | null
+          email_empreinte: string | null
           profile_id: string
           rejoint_le: string
           role: string
+          verifie_le: string | null
         }
         Insert: {
           communaute_id: string
+          domaine?: string | null
+          email_empreinte?: string | null
           profile_id: string
           rejoint_le?: string
           role?: string
+          verifie_le?: string | null
         }
         Update: {
           communaute_id?: string
+          domaine?: string | null
+          email_empreinte?: string | null
           profile_id?: string
           rejoint_le?: string
           role?: string
+          verifie_le?: string | null
         }
         Relationships: [
           {
@@ -482,6 +497,57 @@ export type Database = {
           },
           {
             foreignKeyName: "membres_communaute_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verifications_ecole: {
+        Row: {
+          code_empreinte: string
+          communaute_id: string
+          domaine: string
+          email_empreinte: string
+          envois: number
+          essais: number
+          expire_le: string
+          premier_envoi_le: string
+          profile_id: string
+        }
+        Insert: {
+          code_empreinte: string
+          communaute_id: string
+          domaine: string
+          email_empreinte: string
+          envois?: number
+          essais?: number
+          expire_le: string
+          premier_envoi_le?: string
+          profile_id: string
+        }
+        Update: {
+          code_empreinte?: string
+          communaute_id?: string
+          domaine?: string
+          email_empreinte?: string
+          envois?: number
+          essais?: number
+          expire_le?: string
+          premier_envoi_le?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verifications_ecole_communaute_id_fkey"
+            columns: ["communaute_id"]
+            isOneToOne: false
+            referencedRelation: "communautes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verifications_ecole_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1984,6 +2050,7 @@ export type Database = {
           rating_max: number | null
           rating_min: number | null
           region: string
+          reserve_membres: boolean
           season_id: string | null
           slug: string
           statut: Database["public"]["Enums"]["tournament_status"]
@@ -2013,6 +2080,7 @@ export type Database = {
           rating_max?: number | null
           rating_min?: number | null
           region: string
+          reserve_membres?: boolean
           season_id?: string | null
           slug: string
           statut?: Database["public"]["Enums"]["tournament_status"]
@@ -2042,6 +2110,7 @@ export type Database = {
           rating_max?: number | null
           rating_min?: number | null
           region?: string
+          reserve_membres?: boolean
           season_id?: string | null
           slug?: string
           statut?: Database["public"]["Enums"]["tournament_status"]
@@ -2290,6 +2359,24 @@ export type Database = {
       code_liaison_discord: { Args: { p_communaute_id: string }; Returns: string }
       lier_serveur_discord: { Args: { p_code: string; p_guild_id: string }; Returns: string }
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
+      definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
+      preparer_verification_ecole: {
+        Args: { p_code: string; p_communaute_id: string; p_email: string; p_profile_id: string }
+        Returns: string
+      }
+      confirmer_verification_ecole: { Args: { p_code: string; p_communaute_id: string }; Returns: boolean }
+      classement_ecoles: {
+        Args: never
+        Returns: {
+          classes: number
+          communaute_id: string
+          couleur: string
+          moyenne_top5: number | null
+          nom: string
+          slug: string
+          verifies: number
+        }[]
+      }
       enregistrer_dotation: {
         Args: { p_repartition: number[]; p_sponsor_lien: string; p_sponsor_nom: string; p_tournament_id: string }
         Returns: boolean

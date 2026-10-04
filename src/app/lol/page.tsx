@@ -183,7 +183,11 @@ export default async function LolHubPage() {
             <Link href="/lol/pronostics" className="text-accent underline underline-offset-3">
               Pronostique les demi-finales et les finales en cours
             </Link>{" "}
-            — gratuit, sans mise ni gain.
+            — gratuit, sans mise ni gain. Étudiant ? Fais monter ton école dans la{" "}
+            <Link href="/lol/ecoles" className="text-accent underline underline-offset-3">
+              ligue des écoles
+            </Link>
+            .
           </p>
         </div>
       </section>

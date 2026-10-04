@@ -19,7 +19,7 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour : 28 septembre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour : 4 octobre 2026.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
         <section>
@@ -76,6 +76,12 @@ export default function ConfidentialitePage() {
               Communautés : la liste des membres d&apos;une communauté (pseudo, rôle, date d&apos;arrivée) est publique,
               comme son classement interne (rating officiel des membres classés). Pour un serveur Discord lié, seul son
               identifiant technique est conservé, pas la liste de ses membres.
+            </li>
+            <li>
+              Écoles : pour être membre vérifié d&apos;une école, tu saisis ton adresse de l&apos;établissement ; un
+              code y est envoyé. Najarena ne garde que le domaine de l&apos;adresse et une empreinte calculée à partir
+              d&apos;elle (qui sert seulement à empêcher qu&apos;une même adresse vérifie deux comptes), jamais
+              l&apos;adresse elle-même. Le badge « vérifié » de la liste des membres est public.
             </li>
             <li>
               Pronostics : ton choix pour chaque match n&apos;est visible que de toi ; seule la répartition des
@@ -203,8 +209,8 @@ export default function ConfidentialitePage() {
             <li>
               <strong className="text-text">Resend</strong> — envoi des e-mails de notification
               liés à ton activité (invitation d&apos;équipe, inscription confirmée, résultat,
-              litige, message reçu) : ton adresse e-mail et le contenu de la notification lui
-              sont transmis.
+              litige, message reçu) et du code de vérification d&apos;une adresse d&apos;école :
+              l&apos;adresse e-mail et le contenu du message lui sont transmis.
             </li>
             <li>
               <strong className="text-text">Vercel Web Analytics et Speed Insights</strong> —
@@ -282,6 +288,7 @@ export default function ConfidentialitePage() {
             <li>Abonnements aux notifications : jusqu&apos;à leur désactivation, ou dès que ton navigateur les révoque.</li>
             <li>Tentatives de connexion échouées (adresse e-mail et adresse IP, protection contre les essais de mots de passe) : 24 heures.</li>
             <li>Demandes à l&apos;assistant de création de tournoi : la date de chaque demande seulement, 7 jours (limite de 10 demandes par jour).</li>
+            <li>Vérification d&apos;une adresse d&apos;école : la demande en attente (domaine, empreinte de l&apos;adresse et du code) est effacée dès la vérification, ou au plus tard 24 heures après l&apos;expiration du code ; une fois vérifié, le domaine et l&apos;empreinte restent tant que tu es membre de l&apos;école.</li>
           </ul>
         </section>
 

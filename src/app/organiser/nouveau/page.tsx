@@ -269,6 +269,21 @@ export default async function OrganiserNouveauPage({
           </label>
         )}
 
+        {/* Tournoi réservé aux membres (04/10/2026) : contrôlé par la base à
+            chaque inscription, figé à la publication. */}
+        {mesCommunautes.length > 0 && (
+          <label className="flex items-start gap-2 text-sm text-text">
+            <input type="checkbox" name="reserve_membres" value="oui" className="mt-1 accent-accent" />
+            <span>
+              Réservé aux membres de la communauté choisie
+              <span className="block text-xs text-muted">
+                Pour une école, aux seuls membres à l&apos;adresse d&apos;établissement vérifiée. En 5v5, chacun des
+                cinq joueurs doit en faire partie. Sans communauté choisie, le tournoi reste ouvert à tous.
+              </span>
+            </span>
+          </label>
+        )}
+
         <fieldset className="flex flex-col gap-2">
           <legend className="font-texte text-mini font-medium text-muted uppercase">
             Statut initial

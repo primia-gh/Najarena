@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { classeBoutonContour } from "@/lib/design";
 import { arrondir, trouverPalier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { formaterDate, LABEL_STATUT, type StatutPublic } from "@/lib/tournois";
@@ -12,6 +13,8 @@ import {
   LIBELLE_ROLE_COMMUNAUTE,
   roleCommunaute,
 } from "@/lib/communautes";
+import { libelleDomaines, typeCommunaute, DOMAINES_ECOLE_MAX, DUREE_CODE_ECOLE_MINUTES } from "@/lib/ecoles";
+import { confirmerCodeEcole, definirEcole, demanderCodeEcole } from "@/lib/ecole-actions";
 import {
   delierServeurDiscord,
   modifierCommunaute,
@@ -32,7 +35,8 @@ import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 
 // Espace communauté (03/10/2026, audit N30) : la page d'un serveur Discord
 // ou d'une association — ses tournois, le classement interne de ses membres
-// (leur rating officiel, jamais un rating à part) et ses membres.
+// (leur rating officiel, jamais un rating à part) et ses membres. Une école
+// (04/10/2026) y ajoute la vérification des adresses de l'établissement.
 
 const CHAMP =
   "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -42,7 +46,9 @@ const chargerCommunaute = cache(async (slug: string) => {
   const supabase = await createClient();
   const { data: communaute } = await supabase
     .from("communautes")
-    .select("id, slug, nom, description, couleur, lien_discord, discord_guild_id, proprietaire_id, cree_le")
+    .select(
+      "id, slug, nom, description, couleur, lien_discord, discord_guild_id, proprietaire_id, cree_le, type, domaines_email",
+    )
     .eq("slug", slug)
     .maybeSingle();
   if (!communaute) return null;
@@ -52,13 +58,13 @@ const chargerCommunaute = cache(async (slug: string) => {
       supabase.auth.getUser(),
       supabase
         .from("membres_communaute")
-        .select("profile_id, role, rejoint_le, profile:profiles(pseudo, slug, supprime_le)")
+        .select("profile_id, role, rejoint_le, verifie_le, profile:profiles(pseudo, slug, supprime_le)")
         .eq("communaute_id", communaute.id)
         .order("rejoint_le", { ascending: true })
         .limit(500),
       supabase
         .from("tournaments")
-        .select("slug, nom, statut, debute_le, format, capacite, region")
+        .select("slug, nom, statut, debute_le, format, capacite, region, reserve_membres")
         .eq("communaute_id", communaute.id)
         .eq("nature", "tournoi")
         .neq("statut", "brouillon")
@@ -76,6 +82,7 @@ const chargerCommunaute = cache(async (slug: string) => {
             role: roleCommunaute(m.role) ?? "membre",
             pseudo: m.profile.pseudo,
             slug: m.profile.slug,
+            verifieLe: m.verifie_le,
           },
         ]
       : [],
@@ -107,7 +114,7 @@ const chargerCommunaute = cache(async (slug: string) => {
 
 interface CommunautePageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ erreur?: string; message?: string; code?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; code?: string; verification?: string }>;
 }
 
 export async function generateMetadata({ params }: CommunautePageProps): Promise<Metadata> {
@@ -116,7 +123,7 @@ export async function generateMetadata({ params }: CommunautePageProps): Promise
   if (!donnees) return { title: "Communauté introuvable — Najarena" };
   const { communaute, membres } = donnees;
   return {
-    title: `${communaute.nom} — Communauté Najarena`,
+    title: `${communaute.nom} — ${typeCommunaute(communaute.type) === "ecole" ? "École" : "Communauté"} Najarena`,
     description:
       communaute.description?.slice(0, 160) ??
       `${communaute.nom} sur Najarena : ${membres.length} membre${membres.length > 1 ? "s" : ""}, tournois League of Legends et classement interne vérifié.`,
@@ -126,13 +133,17 @@ export async function generateMetadata({ params }: CommunautePageProps): Promise
 
 export default async function CommunautePage({ params, searchParams }: CommunautePageProps) {
   const { slug } = await params;
-  const { erreur, message, code } = await searchParams;
+  const { erreur, message, code, verification } = await searchParams;
   const donnees = await chargerCommunaute(slug);
   if (!donnees) notFound();
   const { communaute, moi, membres, tournois, ratings, paliers } = donnees;
 
-  const monRole = moi ? (membres.find((m) => m.profileId === moi)?.role ?? null) : null;
+  const moiMembre = moi ? membres.find((m) => m.profileId === moi) : undefined;
+  const monRole = moiMembre?.role ?? null;
   const gere = monRole === "proprietaire" || monRole === "admin";
+  // École (04/10/2026) : ses membres prouvent leur adresse d'établissement.
+  const estEcole = typeCommunaute(communaute.type) === "ecole";
+  const verifies = new Set(membres.filter((m) => m.verifieLe).map((m) => m.profileId));
   const { classes, nonClasses } = classementInterne(membres, ratings);
   const enCours = tournois.filter((t) => t.statut === "ouvert" || t.statut === "checkin" || t.statut === "en_cours");
   const passes = tournois.filter((t) => t.statut === "termine" || t.statut === "annule");
@@ -155,7 +166,7 @@ export default async function CommunautePage({ params, searchParams }: Communaut
             ← Communautés
           </Link>
           <div className="mt-6 border-l-4 pl-5" style={{ borderColor: communaute.couleur }}>
-            <p className="text-mini text-muted uppercase">Communauté</p>
+            <p className="text-mini text-muted uppercase">{estEcole ? "École · université" : "Communauté"}</p>
             <h1 className="font-titre text-section font-black tracking-[1px] uppercase hyphens-auto [overflow-wrap:anywhere]">
               {communaute.nom}
             </h1>
@@ -163,10 +174,20 @@ export default async function CommunautePage({ params, searchParams }: Communaut
               <p className="mt-3 max-w-2xl text-courant whitespace-pre-line text-text-2">{communaute.description}</p>
             )}
             <p className="mt-3 text-sm text-muted tabular-nums">
-              {membres.length} membre{membres.length > 1 ? "s" : ""} · {tournois.length} tournoi
+              {membres.length} membre{membres.length > 1 ? "s" : ""}
+              {estEcole ? ` dont ${verifies.size} vérifié${verifies.size > 1 ? "s" : ""}` : ""} · {tournois.length}{" "}
+              tournoi
               {tournois.length > 1 ? "s" : ""}
               {communaute.discord_guild_id ? " · serveur Discord lié" : ""}
             </p>
+            {estEcole && (
+              <p className="mt-1 text-sm text-muted">
+                Adresses de l&apos;établissement : {libelleDomaines(communaute.domaines_email)} ·{" "}
+                <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
+                  Ligue des écoles
+                </Link>
+              </p>
+            )}
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
             {!moi ? (
@@ -221,6 +242,85 @@ export default async function CommunautePage({ params, searchParams }: Communaut
           </p>
         )}
 
+        {estEcole && (
+          <section id="ecole" className="flex scroll-mt-28 flex-col gap-4 *:max-w-xl">
+            <LibelleSection as="h2">Membres vérifiés</LibelleSection>
+            <p className="text-sm text-muted">
+              Un membre vérifié a prouvé qu&apos;il possède une adresse de l&apos;établissement (
+              {libelleDomaines(communaute.domaines_email)}, sous-domaines compris) : il compte dans la{" "}
+              <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
+                ligue des écoles
+              </Link>{" "}
+              et peut jouer les tournois réservés de l&apos;école. Najarena ne garde que le domaine de l&apos;adresse,
+              jamais l&apos;adresse elle-même.
+            </p>
+            {moiMembre?.verifieLe ? (
+              <Panneau className="p-5">
+                <p className="text-sm text-text-2">
+                  <span className="text-accent">✓</span> Ton adresse d&apos;établissement est vérifiée : tu comptes
+                  pour l&apos;école.
+                </p>
+              </Panneau>
+            ) : moiMembre ? (
+              <Panneau className="flex flex-col gap-5 p-5">
+                {verification === "envoyee" && (
+                  <form action={confirmerCodeEcole} className="flex flex-col gap-3">
+                    {champsCommunaute}
+                    <label className="flex flex-col gap-1">
+                      <span className="text-mini text-muted uppercase">Code reçu par e-mail</span>
+                      <input
+                        name="code"
+                        required
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        pattern="[0-9 ]{6,7}"
+                        maxLength={7}
+                        placeholder="123456"
+                        className={`${CHAMP} tabular-nums`}
+                      />
+                    </label>
+                    <BoutonEnvoi libelleEnCours="Vérification…" className="self-start">
+                      Valider le code
+                    </BoutonEnvoi>
+                  </form>
+                )}
+                <form action={demanderCodeEcole} className="flex flex-col gap-3">
+                  {champsCommunaute}
+                  <label className="flex flex-col gap-1">
+                    <span className="text-mini text-muted uppercase">Ton adresse de l&apos;établissement</span>
+                    <input
+                      type="email"
+                      name="email"
+                      required
+                      maxLength={200}
+                      autoComplete="email"
+                      placeholder={`prenom.nom@${communaute.domaines_email[0] ?? "univ-exemple.fr"}`}
+                      className={CHAMP}
+                    />
+                  </label>
+                  <BoutonEnvoi
+                    variante={verification === "envoyee" ? "contour" : "principal"}
+                    libelleEnCours="Envoi…"
+                    className="self-start"
+                  >
+                    {verification === "envoyee" ? "Renvoyer un code" : "Recevoir un code"}
+                  </BoutonEnvoi>
+                  <p className="text-xs text-muted">
+                    Code à 6 chiffres, valable {DUREE_CODE_ECOLE_MINUTES} minutes. Une adresse ne vérifie qu&apos;un
+                    seul compte.
+                  </p>
+                </form>
+              </Panneau>
+            ) : (
+              <Panneau className="p-5">
+                <p className="text-sm text-muted">
+                  Rejoins l&apos;école, puis vérifie ton adresse de l&apos;établissement depuis cette page.
+                </p>
+              </Panneau>
+            )}
+          </section>
+        )}
+
         <section className="flex flex-col gap-4">
           <LibelleSection as="h2">Tournois</LibelleSection>
           {tournois.length === 0 ? (
@@ -240,6 +340,7 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                     </Link>
                     <span className="text-sm text-muted tabular-nums">
                       {t.format} · {t.capacite} places · {t.region} · {formaterDate(t.debute_le)} ·{" "}
+                      {t.reserve_membres ? "réservé aux membres · " : ""}
                       <span className={t.statut === "termine" || t.statut === "annule" ? "" : "text-accent"}>
                         {LABEL_STATUT[t.statut as StatutPublic] ?? t.statut}
                       </span>
@@ -281,6 +382,11 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                         <Link href={`/joueur/${m.slug}`} className="hover:text-accent">
                           {m.pseudo}
                         </Link>
+                        {estEcole && verifies.has(m.profileId) && (
+                          <span className="ml-2 text-accent" title="Adresse de l'établissement vérifiée">
+                            ✓<span className="sr-only"> membre vérifié</span>
+                          </span>
+                        )}
                       </td>
                       <td style={{ color: palier ? COULEUR_PALIER[palier.nom.toLowerCase()] : undefined }}>
                         {palier?.nom ?? "—"}
@@ -310,6 +416,11 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                   </Link>
                   {m.role !== "membre" && (
                     <span className="text-mini text-muted uppercase">{LIBELLE_ROLE_COMMUNAUTE[m.role]}</span>
+                  )}
+                  {estEcole && m.verifieLe && (
+                    <span className="text-mini text-muted uppercase" title="Adresse de l'établissement vérifiée">
+                      <span className="text-accent">✓</span> Vérifié
+                    </span>
                   )}
                   {monRole === "proprietaire" && m.role !== "proprietaire" && (
                     <form action={nommerAdminCommunaute}>
@@ -420,6 +531,49 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                     </form>
                   </>
                 )}
+              </Panneau>
+            )}
+
+            {monRole === "proprietaire" && (
+              <Panneau className="flex flex-col gap-3 p-5">
+                <p className="text-mini text-muted uppercase">École ou université</p>
+                <p className="text-sm text-text-2">
+                  {estEcole
+                    ? "Les membres vérifient leur adresse sur ces domaines. Un membre vérifié sur un domaine que tu retires perd sa vérification."
+                    : "Ta communauté représente un établissement ? Indique le domaine des adresses de ses étudiants (exemple : etu.univ-exemple.fr). Elle devient une école : ses membres vérifient leur adresse, elle entre dans la ligue des écoles et ses tournois réservés n'acceptent que les membres vérifiés. Ce choix est définitif."}
+                </p>
+                <form action={definirEcole} className="flex flex-col gap-3">
+                  {champsCommunaute}
+                  <label className="flex flex-col gap-1">
+                    <span className="text-mini text-muted uppercase">
+                      Domaines des adresses ({DOMAINES_ECOLE_MAX} au plus, séparés par des virgules)
+                    </span>
+                    <input
+                      name="domaines"
+                      required
+                      maxLength={520}
+                      defaultValue={communaute.domaines_email.join(", ")}
+                      placeholder="etu.univ-exemple.fr, univ-exemple.fr"
+                      className={CHAMP}
+                    />
+                  </label>
+                  {estEcole ? (
+                    <BoutonEnvoi variante="contour" libelleEnCours="Enregistrement…" className="self-start">
+                      Enregistrer les domaines
+                    </BoutonEnvoi>
+                  ) : (
+                    <BoutonConfirmation
+                      confirmation={`Faire de « ${communaute.nom} » une école ? Ce choix est définitif.`}
+                      className={`${classeBoutonContour()} self-start`}
+                    >
+                      Faire de la communauté une école
+                    </BoutonConfirmation>
+                  )}
+                </form>
+                <p className="text-xs text-muted">
+                  Les messageries grand public (Gmail, Outlook, Orange…) sont refusées : n&apos;importe qui y ouvre une
+                  adresse.
+                </p>
               </Panneau>
             )}
           </section>

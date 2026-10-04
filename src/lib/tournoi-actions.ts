@@ -38,7 +38,12 @@ export async function creerTournoi(formData: FormData) {
   const condition = format === "1v1" && formData.get("condition_victoire") === "classique" ? "classique" : "nexus";
   // Communauté (audit N30) : la base vérifie que l'organisateur en est le
   // fondateur ou un administrateur.
-  const communauteId = String(formData.get("communaute_id") ?? "");
+  const communauteSaisie = String(formData.get("communaute_id") ?? "");
+  const communauteId = /^[0-9a-f-]{36}$/.test(communauteSaisie) ? communauteSaisie : null;
+  // Tournoi réservé aux membres de la communauté (04/10/2026, hubs FACEIT) :
+  // aux membres vérifiés pour une école. Contrôlé par la base à chaque
+  // inscription, et figé à la publication.
+  const reserveMembres = communauteId !== null && formData.get("reserve_membres") === "oui";
 
   if (nom.length < 3 || nom.length > 60) {
     redirect(
@@ -122,7 +127,8 @@ export async function creerTournoi(formData: FormData) {
     statut: publier ? "ouvert" : "brouillon",
     compte_pour_classement: format === "1v1" && !amical,
     condition_victoire: condition,
-    communaute_id: /^[0-9a-f-]{36}$/.test(communauteId) ? communauteId : null,
+    communaute_id: communauteId,
+    reserve_membres: reserveMembres,
   });
 
   if (error) {
@@ -130,7 +136,9 @@ export async function creerTournoi(formData: FormData) {
       `/organiser/nouveau?erreur=${encodeURIComponent(
         error.message.includes("COMMUNAUTE_INTERDITE")
           ? "Seuls le fondateur et les administrateurs publient des tournois dans cette communauté."
-          : (messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant."),
+          : error.message.includes("RESERVE_SANS_COMMUNAUTE")
+            ? "Choisis la communauté dont les membres pourront s'inscrire."
+            : (messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant."),
       )}`,
     );
   }

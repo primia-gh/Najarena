@@ -241,3 +241,36 @@ export async function notifierJoueur(
     })(),
   ]);
 }
+
+/**
+ * Code de vérification d'une adresse d'école (ligues écoles, 04/10/2026).
+ * Contrairement aux autres notifications, l'action en dépend : renvoie
+ * faux si l'e-mail n'a pas pu partir (Resend absent ou en panne), pour que
+ * le joueur le sache au lieu d'attendre un code qui n'arrivera pas.
+ */
+export async function envoyerCodeEcole(
+  email: string,
+  nomEcole: string,
+  code: string,
+  dureeMinutes: number,
+  lien: string,
+): Promise<boolean> {
+  if (!resend) return false;
+  try {
+    const { error } = await resend.emails.send({
+      from: EXPEDITEUR,
+      to: email,
+      subject: "Vérifie ton adresse d'école sur Najarena",
+      html: enveloppe(
+        "Ton code de vérification",
+        `<p>Voici ton code pour être membre vérifié de <strong>${echapperHtml(nomEcole)}</strong> sur Najarena :</p>
+         <p style="font-size:28px;font-weight:800;letter-spacing:.2em;margin:16px 0;">${echapperHtml(code)}</p>
+         <p>Il vaut ${dureeMinutes} minutes. Saisis-le sur <a href="${echapperHtml(lien)}">la page de l'école</a>.</p>
+         <p style="color:#5b6672;">Tu n'as rien demandé ? Ignore cet e-mail : sans ce code, personne ne peut utiliser ton adresse.</p>`,
+      ),
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}

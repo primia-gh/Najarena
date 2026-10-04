@@ -125,6 +125,20 @@ export default function CguPage() {
             à une communauté que par un membre autorisé à gérer ce serveur.
           </p>
           <p className="mt-2 text-muted">
+            Le fondateur d&apos;une communauté peut en faire une école en
+            indiquant le domaine des adresses e-mail de l&apos;établissement
+            (jamais une messagerie grand public) ; ce choix est définitif. Un
+            membre devient membre vérifié en recevant un code sur son adresse
+            de l&apos;établissement : une adresse ne vérifie qu&apos;un seul
+            compte, et utiliser celle d&apos;un autre est interdit. Le
+            classement des écoles fait la moyenne des cinq meilleurs ratings
+            officiels de leurs membres vérifiés. Un tournoi publié dans une
+            communauté peut être réservé à ses membres (à ses membres
+            vérifiés, pour une école) : ce choix est figé à la publication, et
+            toute autre inscription est refusée, en 5v5 pour chacun des cinq
+            joueurs.
+          </p>
+          <p className="mt-2 text-muted">
             Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq
             de ses membres, lui compris, chacun titulaire d&apos;un compte
             Riot vérifié dans la région du tournoi ; un joueur ne joue que

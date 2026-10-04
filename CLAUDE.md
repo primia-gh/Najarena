@@ -39,6 +39,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 03/10/2026 (audit N32) : **cash prizes sponsorisés, désactivés** — tables `dotations` et `versements_dotation`, tout réservé aux administrateurs (`enregistrer_dotation` avant la fin des inscriptions d'un tournoi 1v1, `preparer_versements` lit les gagnants dans le bracket — un rang tranché à la main est « à vérifier » —, `noter_versement`). Aucun argent ne transite par le site. Rien n'est affiché tant que `CASH_PRIZES_ACTIFS` n'est pas à `1` (`src/lib/dotations.ts`) : à n'allumer qu'après le statut juridique (audit E11), des CGU relues et la vérification des règles Riot sur les tournois dotés. Inscription toujours gratuite.*
 
+*Mise à jour du 04/10/2026 (analyse concurrentielle de l'audit : Battlefy, hubs FACEIT) : **écoles et tournois réservés aux membres** — le fondateur d'une communauté en fait une école en indiquant 1 à 5 domaines d'adresses de l'établissement (`definir_ecole`, jamais une messagerie grand public, définitif). Un membre reçoit un code à 6 chiffres sur son adresse d'école : tiré par le serveur (`preparer_verification_ecole`, rôle service, 3 envois par heure par compte comme par adresse, 15 minutes), saisi sur la page (`confirmer_verification_ecole`, 5 essais). La base ne garde que le domaine et une empreinte de l'adresse (une adresse = un compte), jamais l'adresse. Ligue des écoles `/lol/ecoles` (`classement_ecoles`) : moyenne des 5 meilleurs ratings officiels des membres vérifiés et classés, rien de recalculé. Un tournoi d'une communauté peut être réservé à ses membres (`tournaments.reserve_membres`, vérifiés pour une école), figé à la publication, contrôlé par la base à chaque inscription : solo, chacun des cinq joueurs alignés, agent libre (`eligible_tournoi_reserve`). Affichage : `src/lib/ecoles.ts`, actions `src/lib/ecole-actions.ts`.*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -173,12 +175,13 @@ Schéma de base de données : `docs/schema.sql`.
 /lol/coequipiers           recherche de coéquipiers (5v5)
 /lol/arene                 arène 1v1 : file d'attente, duel contre un joueur de son niveau
 /lol/pronostics            pronostics gratuits : matchs ouverts, classement des pronostiqueurs
+/lol/ecoles                ligue des écoles : écoles classées par la moyenne des 5 meilleurs membres vérifiés
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
 /certificat/[code]         certificat de niveau daté et figé, émis depuis le CV (non indexé)
 /defi/[code]               lien « Invite ton rival » : un ami s'inscrit, lie son Riot ID et relève le défi (non indexé)
 /equipe/[slug]             page publique d'équipe
 /equipe/nouvelle           création d'équipe
-/communautes               espaces communauté (serveur Discord, association) ; /communaute/[slug], /communaute/nouvelle
+/communautes               espaces communauté (serveur Discord, association, école) ; /communaute/[slug], /communaute/nouvelle
 /organiser/nouveau         création de tournoi
 /moi                       tableau de bord joueur (bandeau « ton match », gérer mon abonnement)
 /moi/profil                pseudo, pays, visites anonymes, suppression du compte

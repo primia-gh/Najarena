@@ -7018,3 +7018,388 @@ grant execute on function public.noter_versement(uuid, uuid, text, text) to auth
 -- comme pour toutes les autres fonctions du schéma.
 alter function public.ecart_arene(numeric, numeric, numeric) set search_path = public;
 alter function public.points_pronostic(smallint, integer) set search_path = public;
+
+-- ---------- Ligues écoles et universités, tournois réservés aux membres (2026-10-04, analyse concurrentielle de l'audit) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Reprise de Battlefy (ligues scolaires) et des « hubs » de FACEIT.
+-- - Une communauté devient « école » quand son fondateur indique le ou les
+--   noms de domaine des adresses de l'établissement (etu.univ-x.fr…),
+--   jamais une messagerie grand public.
+-- - Un membre prouve qu'il en fait partie avec un code envoyé à son adresse
+--   d'école. On ne garde que le domaine et une empreinte de l'adresse
+--   (une même adresse ne vérifie pas deux comptes), jamais l'adresse.
+-- - Classement inter-écoles : moyenne des 5 meilleurs ratings officiels
+--   des étudiants vérifiés et classés ; rien n'est recalculé.
+-- - Un tournoi d'une communauté peut être réservé à ses membres (à ses
+--   étudiants vérifiés pour une école) ; choix figé à la publication.
+--   Contrôlé à l'inscription, quelle qu'en soit la porte : solo, équipe
+--   (chacun des cinq joueurs), agent libre.
+alter table public.communautes
+  add column if not exists type text not null default 'communaute' check (type in ('communaute', 'ecole'));
+alter table public.communautes
+  add column if not exists domaines_email text[] not null default '{}' check (cardinality(domaines_email) <= 5);
+grant select (type, domaines_email) on public.communautes to anon, authenticated;
+
+alter table public.membres_communaute add column if not exists verifie_le timestamptz;
+alter table public.membres_communaute add column if not exists domaine text;
+alter table public.membres_communaute add column if not exists email_empreinte text;
+-- Le domaine et l'empreinte restent privés.
+revoke select on public.membres_communaute from anon, authenticated;
+grant select (communaute_id, profile_id, role, rejoint_le, verifie_le) on public.membres_communaute to anon, authenticated;
+create unique index if not exists membres_communaute_email_unique
+  on public.membres_communaute (communaute_id, email_empreinte) where email_empreinte is not null;
+
+create table if not exists public.verifications_ecole (
+  communaute_id     uuid not null references public.communautes(id) on delete cascade,
+  profile_id        uuid not null references public.profiles(id) on delete cascade,
+  email_empreinte   text not null,
+  domaine           text not null,
+  code_empreinte    text not null,
+  expire_le         timestamptz not null,
+  essais            smallint not null default 0,
+  envois            smallint not null default 1,
+  premier_envoi_le  timestamptz not null default now(),
+  primary key (communaute_id, profile_id)
+);
+create index if not exists verifications_ecole_profile_idx on public.verifications_ecole (profile_id);
+alter table public.verifications_ecole enable row level security;
+revoke all on public.verifications_ecole from anon, authenticated;
+
+-- Messageries grand public : n'importe qui y ouvre une adresse.
+create or replace function public.domaine_grand_public(p_domaine text)
+returns boolean
+language sql
+immutable
+set search_path = public
+as $$
+  select p_domaine ~ '^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|icloud|me|mac|aol|gmx|proton|protonmail|pm|laposte|orange|wanadoo|free|sfr|neuf|bbox|numericable|yandex|mail|zoho|tutanota|tuta|hey|fastmail|mailo|caramail|aliceadsl|club-internet)\.[a-z.]+$';
+$$;
+
+-- Le fondateur fait de sa communauté une école (ou change ses domaines).
+-- Les membres vérifiés avec un domaine retiré perdent leur vérification.
+create or replace function public.definir_ecole(p_communaute_id uuid, p_domaines text[])
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_domaines text[];
+  v_domaine text;
+begin
+  if coalesce(public.role_communaute(p_communaute_id, auth.uid()), '') <> 'proprietaire' then
+    raise exception 'GESTION_RESERVEE';
+  end if;
+  select coalesce(array_agg(distinct d order by d), '{}') into v_domaines
+  from (select lower(btrim(ltrim(btrim(x), '@'))) as d from unnest(p_domaines) x) y
+  where d <> '';
+  if cardinality(v_domaines) < 1 or cardinality(v_domaines) > 5 then
+    raise exception 'DOMAINES_ECOLE';
+  end if;
+  foreach v_domaine in array v_domaines loop
+    if char_length(v_domaine) > 100
+       or v_domaine !~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$' then
+      raise exception 'DOMAINE_INVALIDE';
+    end if;
+    if public.domaine_grand_public(v_domaine) then
+      raise exception 'DOMAINE_GRAND_PUBLIC';
+    end if;
+    -- Les mots du domaine, pas le domaine lui-même : la modération refuse
+    -- d'office tout ce qui ressemble à un lien.
+    if coalesce(public.analyser_texte(translate(v_domaine, '.-', '  '), 'nom'), '') like 'refus:%' then
+      raise exception 'NOM_INTERDIT';
+    end if;
+  end loop;
+
+  update public.communautes set type = 'ecole', domaines_email = v_domaines where id = p_communaute_id;
+  update public.membres_communaute m
+  set verifie_le = null, domaine = null, email_empreinte = null
+  where m.communaute_id = p_communaute_id and m.domaine is not null
+    and not exists (select 1 from unnest(v_domaines) d where m.domaine = d or m.domaine like '%.' || d);
+  delete from public.verifications_ecole where communaute_id = p_communaute_id;
+  return true;
+end;
+$$;
+revoke execute on function public.definir_ecole(uuid, text[]) from public, anon;
+grant execute on function public.definir_ecole(uuid, text[]) to authenticated;
+
+-- Préparation d'un code (serveur seulement : c'est lui qui tire le code et
+-- l'envoie par e-mail ; un client qui choisirait son code se vérifierait
+-- sans posséder l'adresse). 3 envois par heure et par compte comme par
+-- adresse, code valable 15 minutes.
+create or replace function public.preparer_verification_ecole(
+  p_profile_id uuid, p_communaute_id uuid, p_email text, p_code text
+)
+returns text -- domaine de l'adresse
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_communaute record;
+  v_email text := lower(btrim(coalesce(p_email, '')));
+  v_domaine text;
+  v_empreinte text;
+  v_attente record;
+begin
+  -- Une demande abandonnée n'est pas gardée : effacée 24 h après
+  -- l'expiration de son code.
+  delete from public.verifications_ecole where expire_le < now() - interval '24 hours';
+
+  select id, type, domaines_email into v_communaute from public.communautes where id = p_communaute_id;
+  if not found or v_communaute.type <> 'ecole' then
+    raise exception 'PAS_UNE_ECOLE';
+  end if;
+  if not exists (select 1 from public.membres_communaute where communaute_id = p_communaute_id and profile_id = p_profile_id) then
+    raise exception 'NON_MEMBRE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = p_profile_id and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if char_length(v_email) > 200 or v_email !~ '^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$' then
+    raise exception 'EMAIL_INVALIDE';
+  end if;
+  v_domaine := split_part(v_email, '@', 2);
+  if not exists (select 1 from unnest(v_communaute.domaines_email) d where v_domaine = d or v_domaine like '%.' || d) then
+    raise exception 'DOMAINE_NON_ACCEPTE';
+  end if;
+  if coalesce(p_code, '') !~ '^[0-9]{6}$' then
+    raise exception 'CODE_INVALIDE';
+  end if;
+  v_empreinte := encode(sha256(convert_to(p_communaute_id::text || ':' || v_email, 'UTF8')), 'hex');
+  if exists (select 1 from public.membres_communaute
+             where communaute_id = p_communaute_id and email_empreinte = v_empreinte and profile_id <> p_profile_id) then
+    raise exception 'EMAIL_DEJA_UTILISE';
+  end if;
+
+  select * into v_attente from public.verifications_ecole
+  where communaute_id = p_communaute_id and profile_id = p_profile_id
+  for update;
+  if found and v_attente.premier_envoi_le > now() - interval '1 hour' and v_attente.envois >= 3 then
+    raise exception 'TROP_DE_CODES';
+  end if;
+  -- Une même adresse ne reçoit pas plus de 3 codes par heure, quel que soit
+  -- le compte qui les demande : personne ne bombarde la boîte d'un autre.
+  if (select coalesce(sum(v.envois), 0) from public.verifications_ecole v
+      where v.communaute_id = p_communaute_id and v.email_empreinte = v_empreinte
+        and v.premier_envoi_le > now() - interval '1 hour') >= 3 then
+    raise exception 'TROP_DE_CODES';
+  end if;
+
+  insert into public.verifications_ecole (communaute_id, profile_id, email_empreinte, domaine, code_empreinte, expire_le)
+  values (
+    p_communaute_id, p_profile_id, v_empreinte, v_domaine,
+    encode(sha256(convert_to(p_profile_id::text || ':' || p_code, 'UTF8')), 'hex'),
+    now() + interval '15 minutes'
+  )
+  on conflict (communaute_id, profile_id) do update set
+    email_empreinte = excluded.email_empreinte,
+    domaine = excluded.domaine,
+    code_empreinte = excluded.code_empreinte,
+    expire_le = excluded.expire_le,
+    essais = 0,
+    envois = case when verifications_ecole.premier_envoi_le > now() - interval '1 hour'
+                  then verifications_ecole.envois + 1 else 1 end,
+    premier_envoi_le = case when verifications_ecole.premier_envoi_le > now() - interval '1 hour'
+                            then verifications_ecole.premier_envoi_le else now() end;
+  return v_domaine;
+end;
+$$;
+revoke all on function public.preparer_verification_ecole(uuid, uuid, text, text) from public, anon, authenticated;
+grant execute on function public.preparer_verification_ecole(uuid, uuid, text, text) to service_role;
+
+-- Le membre saisit le code reçu : 5 essais par code. Un code faux renvoie
+-- faux (l'essai est compté), sans annuler la vérification en attente.
+create or replace function public.confirmer_verification_ecole(p_communaute_id uuid, p_code text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_attente record;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select * into v_attente from public.verifications_ecole
+  where communaute_id = p_communaute_id and profile_id = v_moi
+  for update;
+  if not found then
+    raise exception 'AUCUNE_VERIFICATION';
+  end if;
+  if v_attente.expire_le < now() then
+    raise exception 'CODE_EXPIRE';
+  end if;
+  if v_attente.essais >= 5 then
+    raise exception 'TROP_D_ESSAIS';
+  end if;
+  if v_attente.code_empreinte
+     <> encode(sha256(convert_to(v_moi::text || ':' || btrim(coalesce(p_code, '')), 'UTF8')), 'hex') then
+    update public.verifications_ecole set essais = essais + 1
+    where communaute_id = p_communaute_id and profile_id = v_moi;
+    return false;
+  end if;
+  if exists (select 1 from public.membres_communaute
+             where communaute_id = p_communaute_id and email_empreinte = v_attente.email_empreinte
+               and profile_id <> v_moi) then
+    raise exception 'EMAIL_DEJA_UTILISE';
+  end if;
+
+  update public.membres_communaute
+  set verifie_le = now(), domaine = v_attente.domaine, email_empreinte = v_attente.email_empreinte
+  where communaute_id = p_communaute_id and profile_id = v_moi;
+  if not found then
+    raise exception 'NON_MEMBRE';
+  end if;
+  delete from public.verifications_ecole where communaute_id = p_communaute_id and profile_id = v_moi;
+  return true;
+end;
+$$;
+revoke execute on function public.confirmer_verification_ecole(uuid, text) from public, anon;
+grant execute on function public.confirmer_verification_ecole(uuid, text) to authenticated;
+
+-- Classement inter-écoles (public) : écoles avec au moins 5 étudiants
+-- vérifiés et classés d'abord, par moyenne de leurs 5 meilleurs ratings.
+create or replace function public.classement_ecoles()
+returns table (
+  communaute_id uuid, slug text, nom text, couleur text,
+  verifies integer, classes integer, moyenne_top5 numeric
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with verifies as (
+    select m.communaute_id, m.profile_id
+    from public.membres_communaute m
+    join public.communautes c on c.id = m.communaute_id and c.type = 'ecole'
+    join public.profiles p on p.id = m.profile_id and p.supprime_le is null
+    where m.verifie_le is not null
+  ),
+  classes as (
+    select v.communaute_id, r.rating,
+           row_number() over (partition by v.communaute_id order by r.rating desc) as rang
+    from verifies v
+    join public.ratings r on r.profile_id = v.profile_id and r.game_id = 1 and r.est_classe
+    join public.seasons s on s.id = r.season_id and s.est_courante
+  )
+  select c.id, c.slug, c.nom, c.couleur,
+         (select count(*)::integer from verifies v where v.communaute_id = c.id),
+         (select count(*)::integer from classes k where k.communaute_id = c.id),
+         (select round(avg(k.rating), 2) from classes k
+          where k.communaute_id = c.id and k.rang <= 5 having count(*) = 5)
+  from public.communautes c
+  where c.type = 'ecole'
+  order by 7 desc nulls last, 5 desc, c.nom;
+$$;
+grant execute on function public.classement_ecoles() to anon, authenticated;
+
+-- Tournois réservés aux membres d'une communauté.
+alter table public.tournaments add column if not exists reserve_membres boolean not null default false;
+
+create or replace function public.controler_reserve_membres()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.reserve_membres and new.communaute_id is null
+     and (tg_op = 'INSERT' or new.reserve_membres is distinct from old.reserve_membres) then
+    raise exception 'RESERVE_SANS_COMMUNAUTE';
+  end if;
+  if tg_op = 'UPDATE' and current_user = 'authenticated' and old.statut <> 'brouillon'
+     and (new.reserve_membres is distinct from old.reserve_membres
+          or (new.reserve_membres and new.communaute_id is distinct from old.communaute_id)) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_reserve_membres() from public, anon, authenticated;
+drop trigger if exists controle_reserve_membres on public.tournaments;
+create trigger controle_reserve_membres
+  before insert or update of reserve_membres, communaute_id on public.tournaments
+  for each row execute function public.controler_reserve_membres();
+
+-- Vrai si le joueur peut s'inscrire (tournoi ouvert à tous, ou membre de
+-- la communauté — étudiant vérifié pour une école). Un tournoi réservé
+-- dont la communauté a disparu n'accepte plus personne.
+create or replace function public.eligible_tournoi_reserve(p_tournament_id uuid, p_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select case
+    when not t.reserve_membres then true
+    when t.communaute_id is null then false
+    else exists (
+      select 1 from public.membres_communaute m
+      join public.communautes c on c.id = m.communaute_id
+      where m.communaute_id = t.communaute_id and m.profile_id = p_profile_id
+        and (c.type <> 'ecole' or m.verifie_le is not null)
+    )
+  end
+  from public.tournaments t where t.id = p_tournament_id;
+$$;
+revoke all on function public.eligible_tournoi_reserve(uuid, uuid) from public, anon, authenticated;
+
+-- Inscription individuelle (1v1) ; une inscription d'équipe est contrôlée
+-- joueur par joueur, à l'alignement.
+create or replace function public.controler_inscription_reservee()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.equipe_nom is null and new.statut in ('inscrit', 'confirme')
+     and (tg_op = 'INSERT' or old.statut = 'retire')
+     and not coalesce(public.eligible_tournoi_reserve(new.tournament_id, new.profile_id), true) then
+    raise exception 'RESERVE_MEMBRES';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_inscription_reservee() from public, anon, authenticated;
+drop trigger if exists controle_inscription_reservee on public.registrations;
+create trigger controle_inscription_reservee
+  before insert or update of statut on public.registrations
+  for each row execute function public.controler_inscription_reservee();
+
+-- Les cinq joueurs d'une équipe (les équipes d'agents libres, sans page
+-- d'équipe, ont été contrôlées à l'inscription de chaque agent).
+create or replace function public.controler_alignement_reserve()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (select 1 from public.registrations r where r.id = new.registration_id and r.team_id is not null)
+     and not coalesce(public.eligible_tournoi_reserve(new.tournament_id, new.profile_id), true) then
+    raise exception 'RESERVE_MEMBRES';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_alignement_reserve() from public, anon, authenticated;
+drop trigger if exists controle_alignement_reserve on public.alignements;
+create trigger controle_alignement_reserve
+  before insert on public.alignements
+  for each row execute function public.controler_alignement_reserve();
+
+create or replace function public.controler_agent_reserve()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if not coalesce(public.eligible_tournoi_reserve(new.tournament_id, new.profile_id), true) then
+    raise exception 'RESERVE_MEMBRES';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_agent_reserve() from public, anon, authenticated;
+drop trigger if exists controle_agent_reserve on public.agents_libres;
+create trigger controle_agent_reserve
+  before insert on public.agents_libres
+  for each row execute function public.controler_agent_reserve();

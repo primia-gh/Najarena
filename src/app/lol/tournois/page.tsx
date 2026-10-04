@@ -41,7 +41,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
   // indépendantes l'une de l'autre, lancées en parallèle plutôt qu'en série.
   let requete = supabase
     .from("tournaments")
-    .select("id, slug, nom, format, capacite, region, statut, debute_le")
+    .select("id, slug, nom, format, capacite, region, statut, debute_le, reserve_membres")
     .eq("game_id", 1)
     // Défis entre joueurs (audit N16) : pas des tournois à rejoindre.
     .eq("nature", "tournoi")
@@ -66,6 +66,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
     region: string;
     statut: Statut;
     debute_le: string;
+    reserve_membres: boolean;
   }> = data ?? [];
   const erreurConnexion = Boolean(error);
   const regions = Array.from(new Set((regionsData ?? []).map((r) => r.region))).sort();
@@ -176,6 +177,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
                   <div className="mt-2 font-texte tabular-nums text-[0.72rem] text-muted">
                     {t.format} · {t.capacite} {t.format === "5v5" ? "équipes" : "joueurs"} · {t.region} ·{" "}
                     {formaterDate(t.debute_le)}
+                    {t.reserve_membres ? " · Réservé aux membres d'une communauté" : ""}
                   </div>
                 </Link>
               </li>
