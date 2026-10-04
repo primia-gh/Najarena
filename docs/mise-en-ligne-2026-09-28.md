@@ -7,10 +7,11 @@
 > porteur du projet : le secret des tâches planifiées (§ 2 bis) et les
 > réglages des §§ 3 et 4.
 >
-> **Sections 37 à 39 (04/10/2026)** — écoles et tournois réservés aux
+> **Sections 37 à 40 (04/10/2026)** — écoles et tournois réservés aux
 > membres (37), analyse détaillée automatique de l'offre Elite (38),
-> versement des cash prizes par Stripe Connect, toujours éteint (39) :
-> pas encore appliquées en production. Même méthode qu'au § 2 : coller
+> versement des cash prizes par Stripe Connect, toujours éteint (39),
+> scrims calés sur une échéance (40) : pas encore appliquées en
+> production. Même méthode qu'au § 2 : coller
 > dans l'éditeur SQL de Supabase la fin de `docs/schema.sql` à partir de
 > la ligne « Ligues écoles et universités, tournois réservés aux membres
 > (2026-10-04… » jusqu'à la dernière ligne, retirer les retours chariot,
@@ -157,6 +158,8 @@ une transaction, et contient 36 sections, dans cet ordre :
     créer un point d'écoute « Connect » (événement `account.updated`) et
     renseigner son secret dans `STRIPE_CONNECT_WEBHOOK_SECRET`, alimenter
     le solde Stripe avec l'argent du sponsor, changer `VERSION_CGU`
+40. Scrims calés sur une échéance (N24) — remplace `proposer_scrim` par
+    sa nouvelle signature (échéance facultative)
 
 Les widgets et l'API publique (N31) n'ajoutent rien à la base : ils lisent
 avec la clé publique, comme un visiteur déconnecté.
@@ -165,7 +168,7 @@ La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).
 
 Le même bloc est rejoué à chaque envoi de code sur une base PostgreSQL de
-test par `npm run test:base` (628 vérifications, toutes au vert au
+test par `npm run test:base` (636 vérifications, toutes au vert au
 04/10/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
 
 Après application : lancer les conseillers de sécurité et de performance

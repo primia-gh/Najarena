@@ -88,7 +88,7 @@ const chargerEquipe = cache(async (slug: string) => {
       ? supabase
           .from("scrims")
           .select(
-            "id, prevu_le, best_of, statut, region, tournament_id, equipe_a_id, equipe_b_id, equipe_a:teams!scrims_equipe_a_id_fkey(nom, tag, slug), equipe_b:teams!scrims_equipe_b_id_fkey(nom, tag, slug)",
+            "id, prevu_le, best_of, statut, region, tournament_id, equipe_a_id, equipe_b_id, equipe_a:teams!scrims_equipe_a_id_fkey(nom, tag, slug), equipe_b:teams!scrims_equipe_b_id_fkey(nom, tag, slug), objectif:echeances(nom)",
           )
           .or(`equipe_a_id.eq.${equipe.id},equipe_b_id.eq.${equipe.id}`)
           .in("statut", ["propose", "accepte"])
@@ -108,6 +108,15 @@ const chargerEquipe = cache(async (slug: string) => {
     ? await chargerEquipesCapitaine(supabase, userData.user.id, equipe.game_id, regionVisiteur)
     : [];
   const maintenant = new Date();
+  // Échéances à venir qu'un scrim peut préparer (audit N24).
+  const { data: echeancesData } = equipesVisiteur.some((e) => e.id !== equipe.id)
+    ? await supabase
+        .from("echeances")
+        .select("id, nom, region, debut_le")
+        .gt("debut_le", maintenant.toISOString())
+        .order("debut_le", { ascending: true })
+        .limit(12)
+    : { data: [] };
   const propositions = (propositionsData ?? []).filter((p) => p.statut === "propose" && new Date(p.prevu_le) > maintenant);
   const scrimParTournoi = new Map(
     (propositionsData ?? []).filter((p) => p.tournament_id).map((p) => [p.tournament_id as string, p.id]),
@@ -138,6 +147,7 @@ const chargerEquipe = cache(async (slug: string) => {
     membresAlignables: equipesVisiteur.find((e) => e.id === equipe.id)?.membres ?? [],
     // Autres équipes du visiteur, depuis lesquelles proposer un scrim.
     equipesPourProposer: equipesVisiteur.filter((e) => e.id !== equipe.id),
+    echeances: (echeancesData ?? []).filter((e) => !e.region || e.region === regionVisiteur),
   };
 });
 
@@ -192,6 +202,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
     propositionsEnvoyees,
     membresAlignables,
     equipesPourProposer,
+    echeances,
   } = donnees;
   const CHAMP_SCRIM =
     "min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -389,7 +400,8 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                     "Une équipe"
                   )}{" "}
                   propose un scrim le <span className="tabular-nums">{formaterDate(p.prevu_le)}</span> (heure de
-                  Paris), en Bo{p.best_of}, sur {p.region}.
+                  Paris), en Bo{p.best_of}, sur {p.region}
+                  {p.objectif ? ` — préparation de ${p.objectif.nom}` : ""}.
                 </p>
                 {membresAlignables.length >= TAILLE_ALIGNEMENT ? (
                   <form action={repondreScrim} className="flex flex-col gap-3">
@@ -436,6 +448,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 <span className="text-sm text-text">
                   Contre {p.equipe_b ? libelleEquipe(p.equipe_b.tag, p.equipe_b.nom) : "une équipe"} ·{" "}
                   <span className="tabular-nums">{formaterDate(p.prevu_le)}</span> · Bo{p.best_of} ·{" "}
+                  {p.objectif ? `préparation de ${p.objectif.nom} · ` : ""}
                   <span className="text-muted">{LIBELLE_ETAT_SCRIM.propose}</span>
                 </span>
                 <form action={annulerScrim}>
@@ -473,6 +486,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                   </span>
                   <Link href={`/lol/tournois/${sc.slug}`} className="text-xs text-muted tabular-nums hover:underline">
                     {formaterDate(sc.prevuLe)}
+                    {sc.objectif ? ` · préparation de ${sc.objectif}` : ""}
                   </Link>
                 </span>
                 <span className="flex items-center gap-3">
@@ -540,6 +554,22 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                           <option value="3">Best-of-3</option>
                         </select>
                       </label>
+                      {/* Échéance préparée (audit N24) : Clash, étape du Nexus Tour… */}
+                      {echeances.length > 0 && (
+                        <label className="flex flex-col gap-1">
+                          <span className="font-texte text-mini font-medium text-muted uppercase">
+                            Prépare une échéance (facultatif)
+                          </span>
+                          <select name="objectif_id" defaultValue="" className={CHAMP_SCRIM}>
+                            <option value="">Aucune</option>
+                            {echeances.map((ec) => (
+                              <option key={ec.id} value={ec.id}>
+                                {ec.nom} — {formaterDate(ec.debut_le)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
                       <ChoixAlignement
                         region={regionVisiteur}
                         capitaineId={visiteurId ?? ""}

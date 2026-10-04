@@ -106,7 +106,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, communaute:communautes(id, slug, nom, type)",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, communaute:communautes(id, slug, nom, type), objectif:echeances(nom)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -968,7 +968,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               {estDefi
                 ? " · Défi en une partie"
                 : estScrim
-                  ? " · Scrim (entraînement)"
+                  ? ` · Scrim (entraînement)${tournoi.objectif ? ` — préparation de ${tournoi.objectif.nom}` : ""}`
                   : complements.typeBracket
                     ? ` · ${complements.typeBracket}`
                     : ""}

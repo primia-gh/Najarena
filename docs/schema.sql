@@ -7639,3 +7639,118 @@ end;
 $$;
 revoke execute on function public.noter_versement(uuid, uuid, text, text) from public, anon;
 grant execute on function public.noter_versement(uuid, uuid, text, text) to authenticated;
+
+-- ---------- Scrims calés sur une échéance (2026-10-04, audit N24) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Un scrim peut préparer une échéance à venir (Clash, étape du Nexus
+-- Tour…) : choisie à la proposition, reportée sur le scrim une fois
+-- accepté, affichée sur la page des deux équipes et du scrim.
+alter table public.scrims add column if not exists objectif_id uuid references public.echeances(id) on delete set null;
+create index if not exists scrims_objectif_id_idx on public.scrims (objectif_id);
+alter table public.tournaments add column if not exists objectif_id uuid references public.echeances(id) on delete set null;
+create index if not exists tournaments_objectif_id_idx on public.tournaments (objectif_id);
+alter table public.tournaments drop constraint if exists tournaments_objectif_scrim;
+alter table public.tournaments add constraint tournaments_objectif_scrim
+  check (objectif_id is null or nature = 'scrim');
+
+-- Nouvelle signature (objectif facultatif) : l'ancienne est retirée.
+drop function if exists public.proposer_scrim(uuid, uuid, timestamptz, smallint, uuid[]);
+create or replace function public.proposer_scrim(
+  p_equipe_id uuid, p_adversaire_id uuid, p_prevu_le timestamptz, p_best_of smallint, p_joueurs uuid[],
+  p_objectif_id uuid default null
+)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_capitaine uuid := auth.uid();
+  v_equipe record;
+  v_adverse record;
+  v_region text;
+  v_joueurs uuid[];
+  v_id uuid;
+begin
+  if v_capitaine is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, capitaine_id, game_id into v_equipe from public.teams where id = p_equipe_id;
+  if not found or v_equipe.capitaine_id <> v_capitaine then
+    raise exception 'CAPITAINE_REQUIS';
+  end if;
+  select id, game_id into v_adverse from public.teams where id = p_adversaire_id;
+  if not found then
+    raise exception 'EQUIPE_INTROUVABLE';
+  end if;
+  if v_adverse.id = v_equipe.id then
+    raise exception 'SCRIM_CONTRE_SOI';
+  end if;
+  if v_adverse.game_id <> v_equipe.game_id then
+    raise exception 'EQUIPE_AUTRE_JEU';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_capitaine and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if p_prevu_le is null or p_prevu_le < now() + interval '15 minutes' or p_prevu_le > now() + interval '30 days' then
+    raise exception 'DATE_SCRIM_INVALIDE';
+  end if;
+  if p_best_of is null or p_best_of not in (1, 3) then
+    raise exception 'FORMAT_INVALIDE';
+  end if;
+
+  v_region := public.region_compte_verifie(v_capitaine);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  v_joueurs := public.verifier_alignement(p_equipe_id, v_capitaine, p_joueurs, v_region, v_equipe.game_id);
+  -- Préparation d'une échéance (audit N24) : à venir, dans la région du
+  -- scrim (ou toutes régions), et le scrim se joue avant elle.
+  if p_objectif_id is not null and not exists (
+    select 1 from public.echeances e
+    where e.id = p_objectif_id and e.debut_le > now() and p_prevu_le <= e.debut_le
+      and (e.region is null or e.region = v_region)
+  ) then
+    raise exception 'OBJECTIF_INVALIDE';
+  end if;
+
+  if exists (
+    select 1 from public.scrims
+    where statut = 'propose' and prevu_le > now()
+      and ((equipe_a_id = p_equipe_id and equipe_b_id = p_adversaire_id)
+        or (equipe_a_id = p_adversaire_id and equipe_b_id = p_equipe_id))
+  ) then
+    raise exception 'SCRIM_DEJA_PROPOSE';
+  end if;
+  if (select count(*) from public.scrims
+      where equipe_a_id = p_equipe_id and statut = 'propose' and prevu_le > now()) >= 3 then
+    raise exception 'TROP_DE_SCRIMS';
+  end if;
+
+  insert into public.scrims (equipe_a_id, equipe_b_id, propose_par, joueurs_a, region, prevu_le, best_of, objectif_id)
+  values (p_equipe_id, p_adversaire_id, v_capitaine, v_joueurs, v_region, p_prevu_le, p_best_of, p_objectif_id)
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke execute on function public.proposer_scrim(uuid, uuid, timestamptz, smallint, uuid[], uuid) from public, anon;
+grant execute on function public.proposer_scrim(uuid, uuid, timestamptz, smallint, uuid[], uuid) to authenticated;
+
+-- Scrim accepté : son match porte l'échéance préparée.
+create or replace function public.reporter_objectif_scrim()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.tournament_id is not null and new.objectif_id is not null then
+    update public.tournaments set objectif_id = new.objectif_id
+    where id = new.tournament_id and objectif_id is null;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.reporter_objectif_scrim() from public, anon, authenticated;
+drop trigger if exists scrims_objectif on public.scrims;
+create trigger scrims_objectif
+  after update of tournament_id on public.scrims
+  for each row execute function public.reporter_objectif_scrim();

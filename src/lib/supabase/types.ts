@@ -1811,6 +1811,7 @@ export type Database = {
           equipe_b_id: string
           id: string
           joueurs_a: string[]
+          objectif_id: string | null
           prevu_le: string
           propose_par: string | null
           region: string
@@ -1825,6 +1826,7 @@ export type Database = {
           equipe_b_id: string
           id?: string
           joueurs_a: string[]
+          objectif_id?: string | null
           prevu_le: string
           propose_par?: string | null
           region: string
@@ -1839,6 +1841,7 @@ export type Database = {
           equipe_b_id?: string
           id?: string
           joueurs_a?: string[]
+          objectif_id?: string | null
           prevu_le?: string
           propose_par?: string | null
           region?: string
@@ -1847,6 +1850,13 @@ export type Database = {
           tournament_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "scrims_objectif_id_fkey"
+            columns: ["objectif_id"]
+            isOneToOne: false
+            referencedRelation: "echeances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "scrims_equipe_a_id_fkey"
             columns: ["equipe_a_id"]
@@ -2119,6 +2129,7 @@ export type Database = {
           logo_url: string | null
           nature: string
           nom: string
+          objectif_id: string | null
           organisateur_id: string
           publie_le: string | null
           rating_max: number | null
@@ -2149,6 +2160,7 @@ export type Database = {
           logo_url?: string | null
           nature?: string
           nom: string
+          objectif_id?: string | null
           organisateur_id: string
           publie_le?: string | null
           rating_max?: number | null
@@ -2179,6 +2191,7 @@ export type Database = {
           logo_url?: string | null
           nature?: string
           nom?: string
+          objectif_id?: string | null
           organisateur_id?: string
           publie_le?: string | null
           rating_max?: number | null
@@ -2192,6 +2205,13 @@ export type Database = {
           verrouille_le?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tournaments_objectif_id_fkey"
+            columns: ["objectif_id"]
+            isOneToOne: false
+            referencedRelation: "echeances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tournaments_communaute_id_fkey"
             columns: ["communaute_id"]
@@ -2538,6 +2558,7 @@ export type Database = {
           p_best_of: number
           p_equipe_id: string
           p_joueurs: string[]
+          p_objectif_id?: string
           p_prevu_le: string
         }
         Returns: string
