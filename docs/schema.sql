@@ -7895,3 +7895,355 @@ as $$
   group by s.paire;
 $$;
 grant execute on function public.reperes_build(text, text, uuid) to anon, authenticated;
+
+-- ---------- Bilan du joueur, étape 2 : parties classées sur accord (2026-10-05) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Le joueur qui le demande fait aussi analyser ses parties classées (Solo/Duo
+-- et Flexible) : le serveur les lit chez Riot par petits lots, sans jamais
+-- gêner la lecture des résultats de tournoi (src/lib/analyse-classees-serveur.ts,
+-- tâche planifiée /api/cron/analyse-classees). Deux mondes séparés : une partie
+-- classée ne touche jamais le classement Najarena — aucune fonction de points
+-- ne lit ces tables. Privé : chaque joueur ne lit que ses propres parties ;
+-- les autres n'en voient que des moyennes, jamais en dessous de 5 joueurs
+-- (10 pour une position « mieux que N % »), sans le joueur qui demande.
+-- Retirer son accord efface toutes ses parties classées et son rang.
+
+create table if not exists public.analyse_reglages (
+  profile_id        uuid primary key references public.profiles(id) on delete cascade,
+  classees          boolean not null default false,
+  classees_depuis   timestamptz,
+  bilan_hebdo       boolean not null default false,
+  derniere_synchro  timestamptz,
+  palier            text check (palier in ('IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER')),
+  division          text check (division in ('I', 'II', 'III', 'IV')),
+  points_ligue      smallint check (points_ligue >= 0),
+  rang_lu_le        timestamptz,
+  maj_le            timestamptz not null default now()
+);
+alter table public.analyse_reglages enable row level security;
+drop policy if exists "chacun lit ses reglages d'analyse" on public.analyse_reglages;
+create policy "chacun lit ses reglages d'analyse" on public.analyse_reglages
+  for select using (profile_id = (select auth.uid()));
+revoke all on public.analyse_reglages from anon, authenticated;
+grant select on public.analyse_reglages to authenticated;
+
+create table if not exists public.parties_classees (
+  id                 bigint generated always as identity primary key,
+  profile_id         uuid not null references public.profiles(id) on delete cascade,
+  riot_match_id      text not null check (riot_match_id ~ '^[A-Z0-9]{2,6}_[0-9]{1,20}$'),
+  puuid              text not null,
+  region             text not null,
+  etat               text not null default 'a_lire' check (etat in ('a_lire', 'lue', 'complete', 'ignoree')),
+  cree_le            timestamptz not null default now(),
+  -- Fiche de la partie (match-v5).
+  file               smallint check (file in (420, 440)),
+  joue_le            timestamptz,
+  duree_secondes     integer check (duree_secondes > 0),
+  patch              text check (patch ~ '^[0-9]{1,2}\.[0-9]{1,2}$'),
+  palier             text check (palier in ('IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER')),
+  gagne              boolean,
+  equipe             smallint check (equipe in (100, 200)),
+  champion           text,
+  champion_id        integer,
+  poste              text check (poste in ('TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY')),
+  kills              smallint check (kills >= 0),
+  deaths             smallint check (deaths >= 0),
+  assists            smallint check (assists >= 0),
+  cs                 integer check (cs >= 0),
+  or_gagne           integer check (or_gagne >= 0),
+  degats_champions   integer,
+  score_vision       smallint,
+  part_kills         numeric(4, 3) check (part_kills between 0 and 1),
+  part_degats        numeric(4, 3) check (part_degats between 0 and 1),
+  sbires_10          smallint,
+  premier_sang       boolean,
+  objets             integer[] check (cardinality(objets) <= 6),
+  rune_principale    integer,
+  style_secondaire   integer,
+  sorts              integer[] check (cardinality(sorts) <= 2),
+  -- Chronologie (match-v5 timeline) : écart d'or avec le vis-à-vis à 15
+  -- minutes, morts avant 10 minutes, et chaque mort (seconde, position sur
+  -- la carte en coordonnées Riot).
+  ecart_or_15        integer,
+  morts_avant_10     smallint check (morts_avant_10 >= 0),
+  morts_secondes     integer[],
+  morts_x            integer[],
+  morts_y            integer[],
+  unique (profile_id, riot_match_id),
+  constraint parties_classees_morts_completes
+    check (cardinality(morts_secondes) = cardinality(morts_x) and cardinality(morts_x) = cardinality(morts_y)),
+  constraint parties_classees_fiche_lue
+    check (etat not in ('lue', 'complete')
+           or (file is not null and joue_le is not null and duree_secondes is not null and gagne is not null and champion is not null))
+);
+create index if not exists parties_classees_profil_idx on public.parties_classees (profile_id, joue_le desc);
+create index if not exists parties_classees_a_traiter_idx on public.parties_classees (cree_le) where etat in ('a_lire', 'lue');
+create index if not exists parties_classees_reperes_idx on public.parties_classees (palier, poste) where etat in ('lue', 'complete');
+alter table public.parties_classees enable row level security;
+drop policy if exists "chacun lit ses parties classees" on public.parties_classees;
+create policy "chacun lit ses parties classees" on public.parties_classees
+  for select using (profile_id = (select auth.uid()));
+-- Écriture : le serveur seul (service_role), et seulement avec l'accord du joueur.
+revoke all on public.parties_classees from anon, authenticated;
+grant select on public.parties_classees to authenticated;
+
+-- Jamais une partie classée sans accord en cours, même par le serveur.
+create or replace function public.controler_accord_classees()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if not exists (select 1 from public.analyse_reglages where profile_id = new.profile_id and classees) then
+    raise exception 'ANALYSE_NON_ACTIVEE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_accord_classees() from public, anon, authenticated;
+drop trigger if exists controle_accord_classees on public.parties_classees;
+create trigger controle_accord_classees
+  before insert on public.parties_classees
+  for each row execute function public.controler_accord_classees();
+
+-- 100 parties classées au plus par joueur : les plus anciennes s'effacent.
+create or replace function public.limiter_parties_classees()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.parties_classees p
+  where p.profile_id = new.profile_id
+    and p.id not in (
+      select id from public.parties_classees
+      where profile_id = new.profile_id
+      order by coalesce(joue_le, cree_le) desc, id desc
+      limit 100
+    );
+  return null;
+end;
+$$;
+revoke execute on function public.limiter_parties_classees() from public, anon, authenticated;
+drop trigger if exists limite_parties_classees on public.parties_classees;
+create trigger limite_parties_classees
+  after insert on public.parties_classees
+  for each row execute function public.limiter_parties_classees();
+
+-- Indicateurs de chaque partie classée lue : mêmes formules que
+-- indicateurs_partie (section 41), plus ceux de la chronologie. Droits du
+-- lecteur : chacun n'y voit que ses parties.
+create or replace view public.indicateurs_classees with (security_invoker = true) as
+select
+  p.id, p.profile_id, p.riot_match_id, p.file, p.palier, p.champion, p.champion_id, p.poste, p.gagne,
+  p.joue_le, p.patch, p.duree_secondes, p.equipe, p.kills, p.deaths, p.assists,
+  round((p.kills + p.assists)::numeric / greatest(p.deaths, 1), 2) as kda,
+  round(p.cs / nullif(p.duree_secondes / 60.0, 0), 2) as sbires_min,
+  round(p.or_gagne / nullif(p.duree_secondes / 60.0, 0), 1) as or_min,
+  round(p.degats_champions / nullif(p.duree_secondes / 60.0, 0), 1) as degats_min,
+  round(p.deaths / nullif(p.duree_secondes / 600.0, 0), 2) as morts_10min,
+  round(p.score_vision / nullif(p.duree_secondes / 60.0, 0), 2) as vision_min,
+  p.part_kills, p.part_degats,
+  case when p.duree_secondes >= 600 then p.sbires_10 end as sbires_10,
+  case when p.premier_sang is null then null when p.premier_sang then 1 else 0 end as premier_sang,
+  case when p.duree_secondes >= 960 then p.ecart_or_15 end as ecart_or_15,
+  case when p.duree_secondes >= 600 then p.morts_avant_10 end as morts_avant_10,
+  p.objets, p.rune_principale, p.style_secondaire, p.sorts,
+  p.morts_secondes, p.morts_x, p.morts_y
+from public.parties_classees p
+where p.etat in ('lue', 'complete');
+revoke all on public.indicateurs_classees from anon, authenticated;
+grant select on public.indicateurs_classees to authenticated;
+
+-- Le joueur règle lui-même son analyse : parties classées (compte Riot
+-- principal vérifié) et bilan de la semaine sur Discord (offre Elite,
+-- Discord lié). Retirer l'accord efface ses parties classées et son rang.
+create or replace function public.regler_analyse(p_classees boolean, p_bilan_hebdo boolean)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if p_classees and not exists (
+    select 1 from public.game_accounts
+    where profile_id = v_moi and game_id = 1 and est_principal and verifie_le is not null
+  ) then
+    raise exception 'COMPTE_RIOT_NON_VERIFIE';
+  end if;
+  if p_bilan_hebdo then
+    if not exists (select 1 from public.comptes_offres where profile_id = v_moi and offre in ('elite', 'organisateur')) then
+      raise exception 'OFFRE_ELITE_REQUISE';
+    end if;
+    if not exists (select 1 from public.profiles where id = v_moi and discord_id is not null) then
+      raise exception 'DISCORD_NON_LIE';
+    end if;
+  end if;
+
+  insert into public.analyse_reglages as r (profile_id, classees, classees_depuis, bilan_hebdo)
+  values (v_moi, p_classees, case when p_classees then now() end, p_bilan_hebdo)
+  on conflict (profile_id) do update set
+    classees = excluded.classees,
+    classees_depuis = case when excluded.classees then coalesce(r.classees_depuis, now()) end,
+    bilan_hebdo = excluded.bilan_hebdo,
+    derniere_synchro = case when excluded.classees then r.derniere_synchro end,
+    palier = case when excluded.classees then r.palier end,
+    division = case when excluded.classees then r.division end,
+    points_ligue = case when excluded.classees then r.points_ligue end,
+    rang_lu_le = case when excluded.classees then r.rang_lu_le end,
+    maj_le = now();
+
+  if not p_classees then
+    delete from public.parties_classees where profile_id = v_moi;
+  end if;
+end;
+$$;
+revoke execute on function public.regler_analyse(boolean, boolean) from public, anon;
+grant execute on function public.regler_analyse(boolean, boolean) to authenticated;
+
+-- Repères des parties classées d'un palier et d'un poste (nuls : tous) :
+-- moyennes des vainqueurs et des perdants, sans le joueur qui demande, et
+-- seulement à partir de 5 joueurs différents.
+create or replace function public.reperes_classees(p_palier text default null, p_poste text default null)
+returns table (
+  indicateur text, parties integer, joueurs integer,
+  moyenne_gagnants numeric, ecart_gagnants numeric,
+  moyenne_perdants numeric, ecart_perdants numeric
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select x.indicateur,
+         count(*)::integer,
+         count(distinct i.profile_id)::integer,
+         round(avg(x.valeur) filter (where i.gagne), 3),
+         round(stddev_samp(x.valeur) filter (where i.gagne), 3),
+         round(avg(x.valeur) filter (where not i.gagne), 3),
+         round(stddev_samp(x.valeur) filter (where not i.gagne), 3)
+  from public.indicateurs_classees i
+  cross join lateral (values
+    ('kda', i.kda), ('sbires_min', i.sbires_min), ('or_min', i.or_min), ('degats_min', i.degats_min),
+    ('morts_10min', i.morts_10min), ('vision_min', i.vision_min), ('part_kills', i.part_kills),
+    ('part_degats', i.part_degats), ('sbires_10', i.sbires_10::numeric), ('premier_sang', i.premier_sang::numeric),
+    ('ecart_or_15', i.ecart_or_15::numeric), ('morts_avant_10', i.morts_avant_10::numeric)
+  ) as x(indicateur, valeur)
+  where (p_palier is null or i.palier = p_palier)
+    and (p_poste is null or i.poste = p_poste)
+    and i.profile_id is distinct from (select auth.uid())
+    and x.valeur is not null
+  group by x.indicateur
+  having count(distinct i.profile_id) >= 5
+  order by x.indicateur;
+$$;
+revoke execute on function public.reperes_classees(text, text) from public, anon;
+grant execute on function public.reperes_classees(text, text) to authenticated;
+
+-- Position du joueur qui demande parmi les autres joueurs d'un palier et
+-- d'un poste : pour chaque indicateur, combien ont une moyenne plus basse
+-- (5 parties au moins chacun, 10 autres joueurs au moins).
+create or replace function public.percentiles_classees(p_palier text default null, p_poste text default null)
+returns table (indicateur text, joueurs integer, en_dessous integer, egaux integer)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with moyennes as (
+    select i.profile_id, x.indicateur, avg(x.valeur) as moyenne
+    from public.indicateurs_classees i
+    cross join lateral (values
+      ('sbires_min', i.sbires_min), ('degats_min', i.degats_min), ('morts_10min', i.morts_10min),
+      ('vision_min', i.vision_min), ('part_kills', i.part_kills), ('sbires_10', i.sbires_10::numeric),
+      ('ecart_or_15', i.ecart_or_15::numeric), ('morts_avant_10', i.morts_avant_10::numeric)
+    ) as x(indicateur, valeur)
+    where (p_palier is null or i.palier = p_palier)
+      and (p_poste is null or i.poste = p_poste)
+      and x.valeur is not null
+    group by i.profile_id, x.indicateur
+    having count(*) >= 5
+  ),
+  moi as (
+    select indicateur, moyenne from moyennes where profile_id = (select auth.uid())
+  )
+  select m.indicateur,
+         count(*)::integer,
+         (count(*) filter (where a.moyenne < m.moyenne))::integer,
+         (count(*) filter (where a.moyenne = m.moyenne))::integer
+  from moi m
+  join moyennes a on a.indicateur = m.indicateur and a.profile_id <> (select auth.uid())
+  group by m.indicateur
+  having count(*) >= 10
+  order by m.indicateur;
+$$;
+revoke execute on function public.percentiles_classees(text, text) from public, anon;
+grant execute on function public.percentiles_classees(text, text) to authenticated;
+
+-- Build de référence d'un champion en classée : objets, rune principale et
+-- sorts des autres joueurs, avec parties et victoires, seulement à partir
+-- de 10 parties et 5 joueurs différents (sinon la seule ligne « total »).
+create or replace function public.reperes_build_classees(p_champion text)
+returns table (genre text, valeur text, parties integer, victoires integer)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with p as (
+    select * from public.indicateurs_classees
+    where champion = p_champion and profile_id is distinct from (select auth.uid())
+  ),
+  assez as (
+    select count(*) >= 10 and count(distinct profile_id) >= 5 as ok from p
+  )
+  select 'total', null::text, count(*)::integer, (count(*) filter (where gagne))::integer from p
+  union all
+  select 'objet', u.objet::text, count(*)::integer, (count(*) filter (where p.gagne))::integer
+  from p cross join lateral (select distinct o as objet from unnest(p.objets) o where o > 0) u
+  where (select ok from assez)
+  group by u.objet
+  union all
+  select 'rune', p.rune_principale::text, count(*)::integer, (count(*) filter (where p.gagne))::integer
+  from p where p.rune_principale is not null and (select ok from assez)
+  group by p.rune_principale
+  union all
+  select 'sorts', s.paire, count(*)::integer, (count(*) filter (where s.gagne))::integer
+  from (select p.gagne, array_to_string(array(select x from unnest(p.sorts) x order by x), ',') as paire
+        from p where cardinality(p.sorts) = 2) s
+  where (select ok from assez)
+  group by s.paire;
+$$;
+revoke execute on function public.reperes_build_classees(text) from public, anon;
+grant execute on function public.reperes_build_classees(text) to authenticated;
+
+-- Bilan de la semaine envoyé sur Discord : une fois par joueur et par
+-- semaine (lundi de la semaine racontée). Écrit par le serveur seul.
+create table if not exists public.bilans_hebdo (
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  semaine     date not null check (extract(isodow from semaine) = 1),
+  envoye_le   timestamptz not null default now(),
+  primary key (profile_id, semaine)
+);
+alter table public.bilans_hebdo enable row level security;
+revoke all on public.bilans_hebdo from anon, authenticated;
+
+-- [supabase-uniquement:debut] (pg_cron et pg_net n'existent que sur Supabase)
+-- Lecture des parties classées toutes les 5 minutes, décalée de 2 minutes
+-- sur la recherche des résultats de tournoi : jamais les deux en même temps.
+select cron.schedule(
+  'najarena-analyse-classees',
+  '2-59/5 * * * *',
+  $$
+  select net.http_get(
+    url := 'https://najarena.vercel.app/api/cron/analyse-classees',
+    headers := jsonb_build_object(
+      'Authorization',
+      'Bearer ' || coalesce((select decrypted_secret from vault.decrypted_secrets where name = 'najarena_cron_secret'), '')
+    ),
+    timeout_milliseconds := 60000
+  );
+  $$
+);
+-- [supabase-uniquement:fin]

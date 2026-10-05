@@ -352,6 +352,207 @@ export type Database = {
           },
         ]
       }
+      analyse_reglages: {
+        Row: {
+          bilan_hebdo: boolean
+          classees: boolean
+          classees_depuis: string | null
+          derniere_synchro: string | null
+          division: string | null
+          maj_le: string
+          palier: string | null
+          points_ligue: number | null
+          profile_id: string
+          rang_lu_le: string | null
+        }
+        Insert: {
+          bilan_hebdo?: boolean
+          classees?: boolean
+          classees_depuis?: string | null
+          derniere_synchro?: string | null
+          division?: string | null
+          maj_le?: string
+          palier?: string | null
+          points_ligue?: number | null
+          profile_id: string
+          rang_lu_le?: string | null
+        }
+        Update: {
+          bilan_hebdo?: boolean
+          classees?: boolean
+          classees_depuis?: string | null
+          derniere_synchro?: string | null
+          division?: string | null
+          maj_le?: string
+          palier?: string | null
+          points_ligue?: number | null
+          profile_id?: string
+          rang_lu_le?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyse_reglages_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parties_classees: {
+        Row: {
+          assists: number | null
+          champion: string | null
+          champion_id: number | null
+          cree_le: string
+          cs: number | null
+          deaths: number | null
+          degats_champions: number | null
+          duree_secondes: number | null
+          ecart_or_15: number | null
+          equipe: number | null
+          etat: string
+          file: number | null
+          gagne: boolean | null
+          id: number
+          joue_le: string | null
+          kills: number | null
+          morts_avant_10: number | null
+          morts_secondes: number[] | null
+          morts_x: number[] | null
+          morts_y: number[] | null
+          objets: number[] | null
+          or_gagne: number | null
+          palier: string | null
+          part_degats: number | null
+          part_kills: number | null
+          patch: string | null
+          poste: string | null
+          premier_sang: boolean | null
+          profile_id: string
+          puuid: string
+          region: string
+          riot_match_id: string
+          rune_principale: number | null
+          sbires_10: number | null
+          score_vision: number | null
+          sorts: number[] | null
+          style_secondaire: number | null
+        }
+        Insert: {
+          assists?: number | null
+          champion?: string | null
+          champion_id?: number | null
+          cree_le?: string
+          cs?: number | null
+          deaths?: number | null
+          degats_champions?: number | null
+          duree_secondes?: number | null
+          ecart_or_15?: number | null
+          equipe?: number | null
+          etat?: string
+          file?: number | null
+          gagne?: boolean | null
+          id?: never
+          joue_le?: string | null
+          kills?: number | null
+          morts_avant_10?: number | null
+          morts_secondes?: number[] | null
+          morts_x?: number[] | null
+          morts_y?: number[] | null
+          objets?: number[] | null
+          or_gagne?: number | null
+          palier?: string | null
+          part_degats?: number | null
+          part_kills?: number | null
+          patch?: string | null
+          poste?: string | null
+          premier_sang?: boolean | null
+          profile_id: string
+          puuid: string
+          region: string
+          riot_match_id: string
+          rune_principale?: number | null
+          sbires_10?: number | null
+          score_vision?: number | null
+          sorts?: number[] | null
+          style_secondaire?: number | null
+        }
+        Update: {
+          assists?: number | null
+          champion?: string | null
+          champion_id?: number | null
+          cree_le?: string
+          cs?: number | null
+          deaths?: number | null
+          degats_champions?: number | null
+          duree_secondes?: number | null
+          ecart_or_15?: number | null
+          equipe?: number | null
+          etat?: string
+          file?: number | null
+          gagne?: boolean | null
+          id?: never
+          joue_le?: string | null
+          kills?: number | null
+          morts_avant_10?: number | null
+          morts_secondes?: number[] | null
+          morts_x?: number[] | null
+          morts_y?: number[] | null
+          objets?: number[] | null
+          or_gagne?: number | null
+          palier?: string | null
+          part_degats?: number | null
+          part_kills?: number | null
+          patch?: string | null
+          poste?: string | null
+          premier_sang?: boolean | null
+          profile_id?: string
+          puuid?: string
+          region?: string
+          riot_match_id?: string
+          rune_principale?: number | null
+          sbires_10?: number | null
+          score_vision?: number | null
+          sorts?: number[] | null
+          style_secondaire?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parties_classees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bilans_hebdo: {
+        Row: {
+          envoye_le: string
+          profile_id: string
+          semaine: string
+        }
+        Insert: {
+          envoye_le?: string
+          profile_id: string
+          semaine: string
+        }
+        Update: {
+          envoye_le?: string
+          profile_id?: string
+          semaine?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bilans_hebdo_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comptes_versement: {
         Row: {
           cree_le: string
@@ -2406,6 +2607,46 @@ export type Database = {
       }
     }
     Views: {
+      indicateurs_classees: {
+        Row: {
+          assists: number
+          champion: string
+          champion_id: number | null
+          deaths: number
+          degats_min: number | null
+          duree_secondes: number
+          ecart_or_15: number | null
+          equipe: number | null
+          file: number
+          gagne: boolean
+          id: number
+          joue_le: string
+          kda: number
+          kills: number
+          morts_10min: number | null
+          morts_avant_10: number | null
+          morts_secondes: number[] | null
+          morts_x: number[] | null
+          morts_y: number[] | null
+          objets: number[] | null
+          or_min: number | null
+          palier: string | null
+          part_degats: number | null
+          part_kills: number | null
+          patch: string | null
+          poste: string | null
+          premier_sang: number | null
+          profile_id: string
+          riot_match_id: string
+          rune_principale: number | null
+          sbires_10: number | null
+          sbires_min: number | null
+          sorts: number[] | null
+          style_secondaire: number | null
+          vision_min: number | null
+        }
+        Relationships: []
+      }
       indicateurs_partie: {
         Row: {
           assists: number
@@ -2587,6 +2828,27 @@ export type Database = {
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
       definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
       revues_a_rediger: { Args: { p_limite: number }; Returns: { match_id: string; profile_id: string }[] }
+      regler_analyse: { Args: { p_bilan_hebdo: boolean; p_classees: boolean }; Returns: undefined }
+      reperes_classees: {
+        Args: { p_palier?: string; p_poste?: string }
+        Returns: {
+          ecart_gagnants: number | null
+          ecart_perdants: number | null
+          indicateur: string
+          joueurs: number
+          moyenne_gagnants: number | null
+          moyenne_perdants: number | null
+          parties: number
+        }[]
+      }
+      percentiles_classees: {
+        Args: { p_palier?: string; p_poste?: string }
+        Returns: { egaux: number; en_dessous: number; indicateur: string; joueurs: number }[]
+      }
+      reperes_build_classees: {
+        Args: { p_champion: string }
+        Returns: { genre: string; parties: number; valeur: string | null; victoires: number }[]
+      }
       reperes_bilan: {
         Args: { p_format: string; p_poste?: string; p_sauf?: string }
         Returns: {
