@@ -25,6 +25,9 @@ import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import SectionTitre from "@/components/ui/SectionTitre";
+import Alerte from "@/components/design/Alerte";
+import Icone from "@/components/design/Icone";
+import LibelleSection from "@/components/design/LibelleSection";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
@@ -267,29 +270,236 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const signalements = signalementsData ?? [];
   const offresParCompte = await chargerOffres(supabase, comptes.map((c) => c.id));
 
+  // Revue visuelle du 05/10/2026 : ce qui attend une décision (textes à
+  // relire, litiges ouverts, signaux) passe en tête, avec un bandeau de
+  // compteurs qui mène à chaque rubrique ; les outils viennent ensuite, le
+  // suivi (derniers inscrits, litiges résolus) à la fin. Actions inchangées.
+  const nbSignaux =
+    signaux.paires.length +
+    signaux.organisateursJoueurs.length +
+    signaux.hausses.length +
+    signaux.petitsTournois.length +
+    signaux.groupesFermes.length;
+  const aTraiter = [
+    { href: "#moderation", libelle: "Textes à relire", valeur: signalements.length },
+    { href: "#litiges", libelle: "Litiges ouverts", valeur: litigesOuverts.length },
+    { href: "#signaux", libelle: "Signaux (30 jours)", valeur: nbSignaux },
+  ];
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille">
-      <Apparition>
-      <Link
-        href="/moi"
-        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-      >
-        ← Mon compte
-      </Link>
+      <Apparition className="flex flex-col gap-8 border-b border-line pb-10">
+        <Link
+          href="/moi"
+          className="inline-flex min-h-11 items-center gap-2 self-start font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+        >
+          <Icone nom="fleche-gauche" taille={14} />
+          Mon compte
+        </Link>
+        <div>
+          <LibelleSection>Modération · litiges · outils</LibelleSection>
+          <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Administration</h1>
+        </div>
+        <nav aria-label="À traiter" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {aTraiter.map((t) => (
+            <a
+              key={t.href}
+              href={t.href}
+              className={`panneau flex items-end justify-between gap-4 p-5 transition-colors duration-200 hover:border-[rgba(245,245,244,0.25)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent ${
+                t.valeur > 0 ? "border-l-2 border-l-danger" : ""
+              }`}
+            >
+              <span className="flex flex-col gap-2">
+                <span className="font-texte text-mini font-medium text-faint uppercase">{t.libelle}</span>
+                <span
+                  className={`font-titre text-5xl leading-none font-black tabular-nums ${t.valeur > 0 ? "text-danger" : "text-text"}`}
+                >
+                  {t.valeur}
+                </span>
+              </span>
+              <span className="text-sm text-muted">{t.valeur > 0 ? "À traiter →" : "Rien à traiter"}</span>
+            </a>
+          ))}
+        </nav>
+        {(erreur || message) && (
+          <div className="flex max-w-2xl flex-col gap-3">
+            {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+            {message && <Alerte type="succes">{message}</Alerte>}
+          </div>
+        )}
+      </Apparition>
 
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-        Administration
-      </h1>
-      <p className="mt-1 font-texte tabular-nums text-[0.72rem] text-muted">Modération · Litiges</p>
+      <Apparition delai={0.13}>
+      <section id="moderation" className="mt-10 scroll-mt-28" aria-labelledby="titre-moderation">
+        <SectionTitre>
+          <span id="titre-moderation">Textes à relire ({signalements.length})</span>
+        </SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Retenus par la modération automatique : insulte, menace ou lien dans un message privé (pas encore remis
+          à son destinataire) ou un motif de litige. Les propos haineux et les arnaques sont refusés d&apos;office.
+        </p>
+        {signalements.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">Rien à relire.</p>
+        ) : (
+          <ul className="mt-3 flex max-w-3xl flex-col gap-2">
+            {signalements.map((s) => (
+              <li key={s.id} className={"flex flex-col gap-2 " + classeCarte("sceau")}>
+                <span className="text-mini text-muted uppercase">
+                  {s.contexte === "message" ? "Message privé" : "Motif de litige"} ·{" "}
+                  {LIBELLE_RAISON[s.raison] ?? s.raison} · {s.auteur ? s.auteur.pseudo : "Compte supprimé"} ·{" "}
+                  <span className="tabular-nums">{formaterDate(s.cree_le)}</span>
+                </span>
+                <p className="text-sm text-text [overflow-wrap:anywhere]">« {s.extrait} »</p>
+                <div className="flex flex-wrap gap-4">
+                  <form action={traiterSignalement}>
+                    <input type="hidden" name="signalement_id" value={s.id} />
+                    <input type="hidden" name="decision" value="valider" />
+                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-accent underline underline-offset-3">
+                      {s.contexte === "message" ? "Valider et remettre" : "Valider"}
+                    </button>
+                  </form>
+                  <form action={traiterSignalement}>
+                    <input type="hidden" name="signalement_id" value={s.id} />
+                    <input type="hidden" name="decision" value="rejeter" />
+                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-danger underline underline-offset-3">
+                      Rejeter
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      </Apparition>
 
-      {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
-      )}
-      {message && (
-        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
-      )}
+      <Apparition delai={0.2}>
+      <section id="litiges" className="mt-10 scroll-mt-28">
+        <SectionTitre>Litiges ouverts ({litigesOuverts.length})</SectionTitre>
+
+        {erreurLitiges ? (
+          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-danger"}>
+            Impossible de charger les litiges pour l&apos;instant.
+          </p>
+        ) : litigesOuverts.length === 0 ? (
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-muted"}>
+            Aucun litige ouvert.
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-3">
+            {litigesOuverts.map((l) => (
+              <li key={l.id} className={classeCarte("sceau")}>
+                {l.match?.tournament && (
+                  <Link
+                    href={`/lol/tournois/${l.match.tournament.slug}`}
+                    className="font-texte tabular-nums text-mini text-muted uppercase hover:text-text"
+                  >
+                    {l.match.tournament.nom} · Tour {l.match.tour}
+                  </Link>
+                )}
+                <p className="mt-1 text-sm text-text">
+                  Ouvert par{" "}
+                  <span className="font-medium">{l.ouvert_par?.pseudo ?? "un joueur"}</span> le{" "}
+                  {formaterDate(l.cree_le)}
+                </p>
+                <p className="mt-1 text-sm text-muted">{l.motif}</p>
+                <form action={resoudreLitigeAdmin} className="mt-3 flex flex-col gap-2">
+                  <input type="hidden" name="dispute_id" value={l.id} />
+                  <label>
+                    <span className="sr-only">
+                      Résolution du litige
+                      {l.match?.tournament
+                        ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}`
+                        : ""}
+                    </span>
+                    <input
+                      name="resolution"
+                      type="text"
+                      required
+                      placeholder="Résolution (obligatoire)"
+                      className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    />
+                  </label>
+                  <Bouton
+                    aria-label={`Résoudre le litige${l.match?.tournament ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}` : ""}`}
+                    libelleEnCours="Résolution…"
+                    className="self-start"
+                  >
+                    Résoudre
+                  </Bouton>
+                </form>
+                <DossierLitige disputeId={l.id} dossier={dossierParLitige.get(l.id) ?? null} depuis="admin" />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      </Apparition>
+
+      <Apparition delai={0.14}>
+      <section id="signaux" className="mt-10 scroll-mt-28" aria-labelledby="titre-signaux">
+        <SectionTitre>
+          <span id="titre-signaux">Signaux à examiner (30 jours)</span>
+        </SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Des schémas qui peuvent trahir une entente pour gonfler un classement. Ce sont des signaux, pas des preuves :
+          à regarder avant toute décision. Rien n&apos;est fait automatiquement.
+        </p>
+        {aucunSignal ? (
+          <p className="mt-3 text-sm text-muted">Rien à signaler.</p>
+        ) : (
+          <ul className="mt-3 flex max-w-3xl flex-col gap-2 text-sm text-text-2">
+            {signaux.paires.map((p) => (
+              <li key={`paire-${p.a}-${p.b}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Face-à-face répétés</span> — {lienJoueur(p.a)}{" "}
+                et {lienJoueur(p.b)} : <span className="tabular-nums">{p.matchs}</span> matchs (
+                <span className="tabular-nums">
+                  {p.victoiresA}–{p.victoiresB}
+                </span>
+                ).
+              </li>
+            ))}
+            {signaux.organisateursJoueurs.map((o) => (
+              <li key={`orga-${o.tournoiId}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Organisateur joueur</span> —{" "}
+                {lienJoueur(o.organisateurId)} joue dans son propre tournoi {lienTournoi(o.tournoiId)}.
+              </li>
+            ))}
+            {signaux.hausses.map((h) => (
+              <li key={`hausse-${h.profileId}-${h.tournoiId}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Hausse forte</span> —{" "}
+                {lienJoueur(h.profileId)} :{" "}
+                <span className="tabular-nums">
+                  +{Math.round(h.apres - h.avant)} ({Math.round(h.avant)} → {Math.round(h.apres)})
+                </span>{" "}
+                sur {lienTournoi(h.tournoiId)}.
+              </li>
+            ))}
+            {signaux.groupesFermes.map((g) => (
+              <li key={`groupe-${g.joueurs.join("-")}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Groupe fermé</span> —{" "}
+                {g.joueurs.map((j, i) => (
+                  <span key={j}>
+                    {i > 0 ? ", " : ""}
+                    {lienJoueur(j)}
+                  </span>
+                ))}{" "}
+                : <span className="tabular-nums">{g.matchsInternes}</span> matchs vérifiés entre eux (
+                <span className="tabular-nums">{Math.round(g.part * 100)} %</span> de leurs matchs).
+              </li>
+            ))}
+            {signaux.petitsTournois.map((t) => (
+              <li key={`petit-${t.tournoiId}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Très petit tournoi classé</span> —{" "}
+                {lienTournoi(t.tournoiId)} : <span className="tabular-nums">{t.joueurs}</span> joueurs, compte au
+                classement.
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       </Apparition>
 
       <Apparition delai={0.1}>
@@ -658,114 +868,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </section>
       </Apparition>
 
-      <Apparition delai={0.13}>
-      <section id="moderation" className="mt-10 scroll-mt-28" aria-labelledby="titre-moderation">
-        <SectionTitre>
-          <span id="titre-moderation">Textes à relire ({signalements.length})</span>
-        </SectionTitre>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Retenus par la modération automatique : insulte, menace ou lien dans un message privé (pas encore remis
-          à son destinataire) ou un motif de litige. Les propos haineux et les arnaques sont refusés d&apos;office.
-        </p>
-        {signalements.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Rien à relire.</p>
-        ) : (
-          <ul className="mt-3 flex max-w-3xl flex-col gap-2">
-            {signalements.map((s) => (
-              <li key={s.id} className={"flex flex-col gap-2 " + classeCarte("sceau")}>
-                <span className="text-mini text-muted uppercase">
-                  {s.contexte === "message" ? "Message privé" : "Motif de litige"} ·{" "}
-                  {LIBELLE_RAISON[s.raison] ?? s.raison} · {s.auteur ? s.auteur.pseudo : "Compte supprimé"} ·{" "}
-                  <span className="tabular-nums">{formaterDate(s.cree_le)}</span>
-                </span>
-                <p className="text-sm text-text [overflow-wrap:anywhere]">« {s.extrait} »</p>
-                <div className="flex flex-wrap gap-4">
-                  <form action={traiterSignalement}>
-                    <input type="hidden" name="signalement_id" value={s.id} />
-                    <input type="hidden" name="decision" value="valider" />
-                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-accent underline underline-offset-3">
-                      {s.contexte === "message" ? "Valider et remettre" : "Valider"}
-                    </button>
-                  </form>
-                  <form action={traiterSignalement}>
-                    <input type="hidden" name="signalement_id" value={s.id} />
-                    <input type="hidden" name="decision" value="rejeter" />
-                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-danger underline underline-offset-3">
-                      Rejeter
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      </Apparition>
-
-      <Apparition delai={0.14}>
-      <section className="mt-10" aria-labelledby="titre-signaux">
-        <SectionTitre>
-          <span id="titre-signaux">Signaux à examiner (30 jours)</span>
-        </SectionTitre>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Des schémas qui peuvent trahir une entente pour gonfler un classement. Ce sont des signaux, pas des preuves :
-          à regarder avant toute décision. Rien n&apos;est fait automatiquement.
-        </p>
-        {aucunSignal ? (
-          <p className="mt-3 text-sm text-muted">Rien à signaler.</p>
-        ) : (
-          <ul className="mt-3 flex max-w-3xl flex-col gap-2 text-sm text-text-2">
-            {signaux.paires.map((p) => (
-              <li key={`paire-${p.a}-${p.b}`}>
-                <span className="text-mini font-semibold text-danger uppercase">Face-à-face répétés</span> — {lienJoueur(p.a)}{" "}
-                et {lienJoueur(p.b)} : <span className="tabular-nums">{p.matchs}</span> matchs (
-                <span className="tabular-nums">
-                  {p.victoiresA}–{p.victoiresB}
-                </span>
-                ).
-              </li>
-            ))}
-            {signaux.organisateursJoueurs.map((o) => (
-              <li key={`orga-${o.tournoiId}`}>
-                <span className="text-mini font-semibold text-danger uppercase">Organisateur joueur</span> —{" "}
-                {lienJoueur(o.organisateurId)} joue dans son propre tournoi {lienTournoi(o.tournoiId)}.
-              </li>
-            ))}
-            {signaux.hausses.map((h) => (
-              <li key={`hausse-${h.profileId}-${h.tournoiId}`}>
-                <span className="text-mini font-semibold text-danger uppercase">Hausse forte</span> —{" "}
-                {lienJoueur(h.profileId)} :{" "}
-                <span className="tabular-nums">
-                  +{Math.round(h.apres - h.avant)} ({Math.round(h.avant)} → {Math.round(h.apres)})
-                </span>{" "}
-                sur {lienTournoi(h.tournoiId)}.
-              </li>
-            ))}
-            {signaux.groupesFermes.map((g) => (
-              <li key={`groupe-${g.joueurs.join("-")}`}>
-                <span className="text-mini font-semibold text-danger uppercase">Groupe fermé</span> —{" "}
-                {g.joueurs.map((j, i) => (
-                  <span key={j}>
-                    {i > 0 ? ", " : ""}
-                    {lienJoueur(j)}
-                  </span>
-                ))}{" "}
-                : <span className="tabular-nums">{g.matchsInternes}</span> matchs vérifiés entre eux (
-                <span className="tabular-nums">{Math.round(g.part * 100)} %</span> de leurs matchs).
-              </li>
-            ))}
-            {signaux.petitsTournois.map((t) => (
-              <li key={`petit-${t.tournoiId}`}>
-                <span className="text-mini font-semibold text-danger uppercase">Très petit tournoi classé</span> —{" "}
-                {lienTournoi(t.tournoiId)} : <span className="tabular-nums">{t.joueurs}</span> joueurs, compte au
-                classement.
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      </Apparition>
-
       <Apparition delai={0.15}>
       <section className="mt-10">
         <SectionTitre>Derniers inscrits</SectionTitre>
@@ -812,7 +914,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     </td>
                     <td className="px-4 py-2 font-texte tabular-nums text-[0.72rem]">
                       {c.game_accounts.some((g) => g.verifie_le) ? (
-                        <span className="text-accent">Vérifié</span>
+                        <span className="inline-flex items-center gap-1.5 text-text-2">
+                          <Icone nom="coche" taille={12} />
+                          Vérifié
+                        </span>
                       ) : (
                         <span className="text-muted">Non lié</span>
                       )}
@@ -829,69 +934,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </tbody>
             </table>
           </div>
-        )}
-      </section>
-      </Apparition>
-
-      <Apparition delai={0.2}>
-      <section className="mt-10">
-        <SectionTitre>Litiges ouverts ({litigesOuverts.length})</SectionTitre>
-
-        {erreurLitiges ? (
-          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-danger"}>
-            Impossible de charger les litiges pour l&apos;instant.
-          </p>
-        ) : litigesOuverts.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-muted"}>
-            Aucun litige ouvert.
-          </p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-3">
-            {litigesOuverts.map((l) => (
-              <li key={l.id} className={classeCarte("sceau")}>
-                {l.match?.tournament && (
-                  <Link
-                    href={`/lol/tournois/${l.match.tournament.slug}`}
-                    className="font-texte tabular-nums text-mini text-muted uppercase hover:text-text"
-                  >
-                    {l.match.tournament.nom} · Tour {l.match.tour}
-                  </Link>
-                )}
-                <p className="mt-1 text-sm text-text">
-                  Ouvert par{" "}
-                  <span className="font-medium">{l.ouvert_par?.pseudo ?? "un joueur"}</span> le{" "}
-                  {formaterDate(l.cree_le)}
-                </p>
-                <p className="mt-1 text-sm text-muted">{l.motif}</p>
-                <form action={resoudreLitigeAdmin} className="mt-3 flex flex-col gap-2">
-                  <input type="hidden" name="dispute_id" value={l.id} />
-                  <label>
-                    <span className="sr-only">
-                      Résolution du litige
-                      {l.match?.tournament
-                        ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}`
-                        : ""}
-                    </span>
-                    <input
-                      name="resolution"
-                      type="text"
-                      required
-                      placeholder="Résolution (obligatoire)"
-                      className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    />
-                  </label>
-                  <Bouton
-                    aria-label={`Résoudre le litige${l.match?.tournament ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}` : ""}`}
-                    libelleEnCours="Résolution…"
-                    className="self-start"
-                  >
-                    Résoudre
-                  </Bouton>
-                </form>
-                <DossierLitige disputeId={l.id} dossier={dossierParLitige.get(l.id) ?? null} depuis="admin" />
-              </li>
-            ))}
-          </ul>
         )}
       </section>
       </Apparition>
