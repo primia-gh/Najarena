@@ -41,6 +41,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 04/10/2026 (analyse concurrentielle de l'audit : Battlefy, hubs FACEIT) : **écoles et tournois réservés aux membres** — le fondateur d'une communauté en fait une école en indiquant 1 à 5 domaines d'adresses de l'établissement (`definir_ecole`, jamais une messagerie grand public, définitif). Un membre reçoit un code à 6 chiffres sur son adresse d'école : tiré par le serveur (`preparer_verification_ecole`, rôle service, 3 envois par heure par compte comme par adresse, 15 minutes), saisi sur la page (`confirmer_verification_ecole`, 5 essais). La base ne garde que le domaine et une empreinte de l'adresse (une adresse = un compte), jamais l'adresse. Ligue des écoles `/lol/ecoles` (`classement_ecoles`) : moyenne des 5 meilleurs ratings officiels des membres vérifiés et classés, rien de recalculé. Un tournoi d'une communauté peut être réservé à ses membres (`tournaments.reserve_membres`, vérifiés pour une école), figé à la publication, contrôlé par la base à chaque inscription : solo, chacun des cinq joueurs alignés, agent libre (`eligible_tournoi_reserve`). Affichage : `src/lib/ecoles.ts`, actions `src/lib/ecole-actions.ts`.*
 
+*Mise à jour du 05/10/2026 : **bilan du joueur, étape 1** — à chaque partie vérifiée, la lecture Riot déjà faite pour le résultat garde aussi champion, poste, objets, runes, sorts, dégâts, vision, premier sang, sbires à 10 minutes et patch (`stats_match_joueur`, `src/lib/capture-partie.ts`), sans appel Riot de plus. Vue `indicateurs_partie` (verdict lu chez Riot seulement, jamais le 1v1 classique), repères `reperes_bilan` / `reperes_build` (moyennes des vainqueurs et des perdants, sans le joueur qui se compare). `/moi/bilan` (visible du joueur seul) : bilan express gratuit (3 forces, 3 axes de travail avec un conseil), bilan complet avec l'offre Elite (plan d'entraînement, progression partie par partie, champions, builds comparés à ceux des vainqueurs). `/lol/bilan` : exemple au joueur fictif (TON_PSEUDO), jamais en base. Calculs et seuils : `src/lib/bilan.ts` (5 parties pour un bilan, repère dès 30 parties d'autres joueurs, « indicatif » sous 15 parties). Aucun texte d'IA ; le KDA et l'or ne sont jamais donnés comme conseil (ils suivent l'issue de la partie).*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -152,7 +154,7 @@ Schéma de base de données : `docs/schema.sql`.
 - **Contraste** : `faint` vaut `#798079`, pas `#6F766F` (MASTER) — la valeur d'origine ne passe pas 4.5:1 (4.27 sur fond, 3.93 sur panneau), seuil que MASTER exige lui-même.
 - **Accueil = vitrine, son premier but est d'attirer** (décision du porteur, 23/09/2026, qui prime pour cette page sur le « pas de spectacle » du §1) : textes, mots du bandeau (« Zéro triche », « Rating officiel », « Repéré par les équipes ») et mise en scène de la maquette conservés ; cartes CV = illustrations du produit avec badge « VÉRIFIÉ » et pseudo « TON_PSEUDO » (jamais un faux joueur). **Jamais de section vide** : affiches de tournois complétées par le tournoi d'exemple, « Organise ton tournoi », « Crée ton équipe » ; top 10 complété par des « places à prendre ». La seule limite : **aucune fonctionnalité annoncée qui n'existe pas** (voir ci-dessous) — remplacée par une formule aussi forte mais vraie.
 - **Pas de bloc sans donnée réelle** : Talent Score, analyse IA, classement/rating par rôle, VOD, réglage public/privé par bloc — masqués tant que la fonctionnalité n'existe pas, jamais de valeurs fictives (« disponibilité » et « parcours » du profil existent, construits sur l'annonce « cherche une équipe », les équipes et le premier match réels). Pas de promesse fausse dans les textes : pas d'« anti-smurf » (→ « Comptes vérifiés »), pas de « rang vérifié » (→ « compte vérifié »), pas de rating / classement « par rôle », pas de mise à jour « après chaque match » (→ « recalculé à la fin de chaque tournoi »), pas de « les recruteurs le regardent ».
-- **Aucun visuel Riot** (icônes de champions DDragon comprises) ; la mention légale Riot reste dans le pied de page.
+- **Aucun visuel Riot** (icônes de champions DDragon comprises) ; la mention légale Riot reste dans le pied de page. **Seule exception, décidée le 05/10/2026 : l'analyse du joueur** (`/moi/bilan`, `/lol/bilan`) montre les icônes Data Dragon des champions, objets, runes et sorts (`src/lib/ddragon.ts`, composant `components/bilan/IconeJeu.tsx`, repli sur le nom si Data Dragon ne répond pas). Nulle part ailleurs.
 - **Navigation** : liens existants conservés (Tournois, Classement, Coéquipiers, Organiser, Tarifs), pas les « Équipes / Recruteurs » de la maquette tant que ces pages n'existent pas.
 - **Fond animé** : `BracketBackground` / `FondArene` remplacés par le motif d'écailles discret ; l'animation d'ouverture (logo qui se dessine) est réservée à l'accueil. `prefers-reduced-motion` coupe tout.
 
@@ -176,6 +178,7 @@ Schéma de base de données : `docs/schema.sql`.
 /lol/arene                 arène 1v1 : file d'attente, duel contre un joueur de son niveau
 /lol/pronostics            pronostics gratuits : matchs ouverts, classement des pronostiqueurs
 /lol/ecoles                ligue des écoles : écoles classées par la moyenne des 5 meilleurs membres vérifiés
+/lol/bilan                 bilan du joueur d'exemple (joueur fictif, données statiques, jamais en base)
 /joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
 /certificat/[code]         certificat de niveau daté et figé, émis depuis le CV (non indexé)
 /defi/[code]               lien « Invite ton rival » : un ami s'inscrit, lie son Riot ID et relève le défi (non indexé)
@@ -184,6 +187,7 @@ Schéma de base de données : `docs/schema.sql`.
 /communautes               espaces communauté (serveur Discord, association, école) ; /communaute/[slug], /communaute/nouvelle
 /organiser/nouveau         création de tournoi
 /moi                       tableau de bord joueur (bandeau « ton match », gérer mon abonnement)
+/moi/bilan                 bilan du joueur : forces, axes de travail ; plan, progression, champions, builds (Elite)
 /moi/profil                pseudo, pays, visites anonymes, suppression du compte
 /moi/organisation/[id]     cockpit de tournoi
 /connexion /inscription /lier-riot /mot-de-passe-oublie /nouveau-mot-de-passe

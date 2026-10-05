@@ -12,6 +12,7 @@ const LIENS = [
   { href: "/communautes", label: "Communautés" },
   { href: "/lol/ecoles", label: "Ligue des écoles" },
   { href: "/lol/pronostics", label: "Pronostics" },
+  { href: "/lol/bilan", label: "Bilan du joueur" },
   { href: "/developpeurs", label: "Widgets et API" },
   { href: "/journal", label: "Journal de bord" },
   { href: "/note-du-fondateur", label: "Le fondateur" },

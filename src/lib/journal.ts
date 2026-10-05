@@ -10,6 +10,13 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "5 octobre",
+    titre: "Ton bilan de joueur",
+    texte:
+      "Tes parties vérifiées disent maintenant ce que tu fais bien et ce qui te coûte des victoires : farm, morts, dégâts, vision, premier sang, comparés à la moyenne des vainqueurs des autres joueurs, avec un conseil par axe de travail. Avec l'offre Elite : un plan d'entraînement suivi partie après partie, tes courbes de progression, tes champions et tes builds comparés à ceux des vainqueurs. Chaque constat donne ses chiffres et le nombre de parties derrière ; aucun n'est rédigé par une IA.",
+    tags: ["Fonctionnalité"],
+  },
+  {
     date: "4 octobre",
     titre: "La ligue des écoles",
     texte:

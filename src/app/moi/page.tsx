@@ -199,6 +199,13 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             Voir mon profil public
           </Link>
         )}
+        {/* Bilan du joueur (05/10/2026). */}
+        <Link
+          href="/moi/bilan"
+          className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"
+        >
+          Mon bilan
+        </Link>
         <Link
           href="/moi/profil"
           className="inline-block text-sm text-muted underline underline-offset-3 hover:text-text"

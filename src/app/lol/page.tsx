@@ -187,7 +187,11 @@ export default async function LolHubPage() {
             <Link href="/lol/ecoles" className="text-accent underline underline-offset-3">
               ligue des écoles
             </Link>
-            .
+            . Pour progresser :{" "}
+            <Link href="/lol/bilan" className="text-accent underline underline-offset-3">
+              ton bilan
+            </Link>{" "}
+            — forces, axes de travail et builds, mesurés sur tes parties vérifiées.
           </p>
         </div>
       </section>

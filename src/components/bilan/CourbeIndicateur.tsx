@@ -1,0 +1,132 @@
+import { FUSEAU_PARIS } from "@/lib/tournois-auto/creneaux";
+import { formaterIndicateur, INDICATEURS, type SerieProgression } from "@/lib/bilan";
+
+// Un indicateur du bilan, partie par partie : chaque partie est un point
+// (plein = victoire, creux = défaite), la ligne verte est la moyenne des 5
+// dernières parties (à partir de la 5e), le pointillé la moyenne des
+// vainqueurs quand elle existe. Dessiné côté serveur en SVG, sans
+// JavaScript ; chaque point donne sa date, sa valeur et le résultat au
+// survol.
+
+const LARGEUR = 360;
+const HAUTEUR = 150;
+const GAUCHE = 40; // place des valeurs de l'échelle
+const DROITE = 8;
+const HAUT = 20; // place du libellé du repère
+const BAS = 22; // place des dates
+
+const JOUR = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", timeZone: FUSEAU_PARIS });
+
+export function dateCourte(iso: string): string {
+  return JOUR.format(new Date(iso));
+}
+
+export default function CourbeIndicateur({ serie }: { serie: SerieProgression }) {
+  const def = INDICATEURS[serie.indicateur];
+  const points = serie.points;
+  const valeurs = points.flatMap((p) => (p.moyenne === null ? [p.valeur] : [p.valeur, p.moyenne]));
+  if (serie.repere !== null) valeurs.push(serie.repere);
+  let bas = Math.min(...valeurs);
+  let haut = Math.max(...valeurs);
+  if (def.pourcentage) {
+    bas = 0;
+    haut = 1;
+  } else {
+    const marge = (haut - bas) * 0.12 || Math.max(Math.abs(haut) * 0.1, 1);
+    bas = Math.max(0, bas - marge);
+    haut += marge;
+  }
+  const largeurUtile = LARGEUR - GAUCHE - DROITE;
+  const x = (i: number) => GAUCHE + (points.length === 1 ? largeurUtile : (i / (points.length - 1)) * largeurUtile);
+  const y = (v: number) => HAUT + (1 - (v - bas) / (haut - bas)) * (HAUTEUR - HAUT - BAS);
+  const fmt = (v: number) => formaterIndicateur(serie.indicateur, v);
+  const moyennes = points.flatMap((p, i) => (p.moyenne === null ? [] : [{ i, v: p.moyenne }]));
+  const trace = moyennes.map(({ i, v }) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const fin = moyennes[moyennes.length - 1];
+  const dernier = points[points.length - 1];
+
+  const resume =
+    `${def.libelle}, ${points.length} parties` +
+    (fin ? ` : ${fmt(fin.v)} en moyenne sur les ${Math.min(5, points.length)} dernières` : "") +
+    (serie.precedente !== null ? `, contre ${fmt(serie.precedente)} sur les 5 d'avant` : "") +
+    (serie.repere !== null ? ` ; moyenne des vainqueurs ${fmt(serie.repere)}.` : ".");
+
+  return (
+    <svg viewBox={`0 0 ${LARGEUR} ${HAUTEUR}`} className="h-auto w-full" role="img" aria-label={resume}>
+      {/* Bas et haut de l'échelle : traits fins, en retrait, avec leur valeur. */}
+      {[bas, haut].map((v, n) => (
+        <g key={n}>
+          <line
+            x1={GAUCHE}
+            x2={LARGEUR - DROITE}
+            y1={y(v)}
+            y2={y(v)}
+            className={n === 0 ? "stroke-line-strong" : "stroke-line"}
+            strokeWidth="1"
+          />
+          <text x={GAUCHE - 8} y={y(v) + 4} textAnchor="end" fontSize="11" className="fill-faint font-texte">
+            {fmt(v)}
+          </text>
+        </g>
+      ))}
+      {serie.repere !== null && (
+        <g>
+          <line
+            x1={GAUCHE}
+            x2={LARGEUR - DROITE}
+            y1={y(serie.repere)}
+            y2={y(serie.repere)}
+            className="stroke-text-2"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+          />
+          <text
+            x={LARGEUR - DROITE}
+            y={y(serie.repere) - 6}
+            textAnchor="end"
+            fontSize="11"
+            className="fill-text-2 font-texte"
+          >
+            Vainqueurs : {fmt(serie.repere)}
+          </text>
+        </g>
+      )}
+      {points.map((p, i) => (
+        <circle
+          key={`p${i}`}
+          cx={x(i)}
+          cy={y(p.valeur)}
+          r="4"
+          className={p.gagne ? "fill-muted stroke-bg" : "fill-bg stroke-muted"}
+          strokeWidth={p.gagne ? 1 : 1.5}
+        />
+      ))}
+      {moyennes.length > 1 && (
+        <polyline
+          points={trace}
+          fill="none"
+          className="stroke-accent"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {fin && <circle cx={x(fin.i)} cy={y(fin.v)} r="4" className="fill-accent stroke-bg" strokeWidth="2" />}
+      {/* Zones de survol plus grandes que les points (24 px). */}
+      {points.map((p, i) => (
+        <circle key={`s${i}`} cx={x(i)} cy={y(p.valeur)} r="12" fill="transparent">
+          <title>
+            {`${dateCourte(p.joueLe)} · ${fmt(p.valeur)} · ${p.gagne ? "victoire" : "défaite"}` +
+              (p.moyenne === null ? "" : ` (moyenne sur 5 parties : ${fmt(p.moyenne)})`)}
+          </title>
+        </circle>
+      ))}
+      <text x={GAUCHE} y={HAUTEUR - 6} fontSize="11" className="fill-faint font-texte">
+        {dateCourte(points[0].joueLe)}
+      </text>
+      <text x={LARGEUR - DROITE} y={HAUTEUR - 6} fontSize="11" textAnchor="end" className="fill-faint font-texte">
+        {dateCourte(dernier.joueLe)}
+      </text>
+    </svg>
+  );
+}

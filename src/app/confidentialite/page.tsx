@@ -20,7 +20,7 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour : 4 octobre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour : 5 octobre 2026.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
         <section>
@@ -61,6 +61,12 @@ export default function ConfidentialitePage() {
               proposition de scrim n&apos;est visible que des deux capitaines ; un scrim accepté est public. La
               liste des agents libres d&apos;un tournoi (pseudo, rôle choisi) est publique, comme l&apos;échéance
               visée par une annonce « cherche une équipe ».
+            </li>
+            <li>
+              Statistiques des parties vérifiées, lues chez Riot avec le résultat : champion, poste, KDA, sbires, or,
+              dégâts, vision, objets, runes et sorts d&apos;invocateur. Comme chez Riot, celles d&apos;un match sont
+              publiques. Elles servent à ton bilan (forces, axes de travail, builds), visible de toi seul, et, sans ton
+              nom, aux moyennes de référence calculées sur l&apos;ensemble des parties vérifiées.
             </li>
             <li>
               Défis : qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement ; un défi
@@ -187,7 +193,10 @@ export default function ConfidentialitePage() {
             </li>
             <li>
               <strong className="text-text">Riot Games, Inc.</strong> (États-Unis) — pour
-              résoudre ton Riot ID et lire les données de jeu officielles.
+              résoudre ton Riot ID et lire les données de jeu officielles. Sur les pages de bilan et de
+              liaison du Riot ID, les icônes du jeu (champions, objets, runes, sorts, icône de profil) sont
+              chargées par ton navigateur directement depuis Data Dragon, le serveur d&apos;images public de
+              Riot : il reçoit ton adresse IP, comme tout site dont une page affiche une image.
             </li>
             <li>
               <strong className="text-text">Vercel Inc.</strong> — hébergement du site (voir

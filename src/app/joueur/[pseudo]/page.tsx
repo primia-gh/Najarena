@@ -617,6 +617,11 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                     Exporter mon CV
                   </BoutonLien>
                 )}
+                {compteRiot?.verifie_le && (
+                  <BoutonLien href="/moi/bilan" variante="contour">
+                    Mon bilan
+                  </BoutonLien>
+                )}
                 {rating && (
                   // Instantané daté et figé à envoyer (audit N9).
                   <form action={emettreCertificat}>
