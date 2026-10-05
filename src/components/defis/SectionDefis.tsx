@@ -134,7 +134,7 @@ export default function SectionDefis({ defis }: { defis: MesDefis }) {
       )}
 
       <form action={creerInvitationDefi} className={"mt-3 flex flex-wrap items-end gap-3 " + classeCarte("none")}>
-        <label className="flex min-w-0 flex-1 flex-col gap-1">
+        <label className="flex min-w-0 flex-[1_1_16rem] flex-col gap-1">
           <span className="font-texte text-mini font-medium text-muted uppercase">
             Inviter un ami à me défier (lien valable {DUREE_INVITATION_JOURS} jours)
           </span>
