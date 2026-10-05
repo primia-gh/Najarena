@@ -4,19 +4,20 @@ import { createClient } from "@/lib/supabase/server";
 import { publierRechercheCoequipier, retirerRechercheCoequipier } from "@/lib/coequipier-actions";
 import { inviterMembre } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
-import { progressionPalier, type Palier } from "@/lib/classement";
-import { COULEUR_PALIER } from "@/lib/paliers";
-import { chargerOffres, ORDRE_OFFRE, LABEL_OFFRE, COULEUR_OFFRE } from "@/lib/offres";
-import { classeCarte } from "@/lib/ui";
-import Bouton from "@/components/ui/Bouton";
-import SectionTitre from "@/components/ui/SectionTitre";
-import EtatVide from "@/components/ui/EtatVide";
-import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
-import CrestPalier from "@/components/ui/CrestPalier";
-import FondEcailles from "@/components/design/FondEcailles";
-import Apparition from "@/components/design/Apparition";
+import { arrondir, trouverPalier, type Palier } from "@/lib/classement";
+import { classeBoutonContour, classeChamp } from "@/lib/design";
+import { chargerOffres, ORDRE_OFFRE } from "@/lib/offres";
 import { formaterDate } from "@/lib/tournois";
 import { LIBELLE_TYPE_ECHEANCE, typeEcheance } from "@/lib/echeances";
+import { LABEL_ROLE, ROLES, type Role } from "@/lib/roles";
+import Alerte from "@/components/design/Alerte";
+import Apparition from "@/components/design/Apparition";
+import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import BoutonLien from "@/components/design/BoutonLien";
+import FondEcailles from "@/components/design/FondEcailles";
+import LibelleSection from "@/components/design/LibelleSection";
+import Panneau from "@/components/design/Panneau";
+import CarteJoueurDisponible from "@/components/coequipiers/CarteJoueurDisponible";
 
 export const metadata: Metadata = {
   title: "Trouver un coéquipier — Najarena",
@@ -52,7 +53,9 @@ async function chargerCoequipiers() {
     supabase.auth.getUser(),
     supabase
       .from("recherches_coequipiers")
-      .select("profile_id, message, cree_le, objectif_id, profile:profiles(pseudo, slug)")
+      .select(
+        "profile_id, message, cree_le, objectif_id, profile:profiles(pseudo, slug, avatar_url, game_accounts(role_prefere, region, est_principal))",
+      )
       .order("cree_le", { ascending: false }),
     supabase.from("seasons").select("id").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
     supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
@@ -69,7 +72,7 @@ async function chargerCoequipiers() {
   const annonces = annoncesData ?? [];
   const paliers: Palier[] = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
 
-  let ratingsParJoueur = new Map<string, { rating: number; palier: ReturnType<typeof progressionPalier> }>();
+  let ratingsParJoueur = new Map<string, { rating: number; palier: string | null }>();
   if (saison && annonces.length > 0) {
     const { data: ratingsData } = await supabase
       .from("ratings")
@@ -83,7 +86,10 @@ async function chargerCoequipiers() {
       );
 
     ratingsParJoueur = new Map(
-      (ratingsData ?? []).map((r) => [r.profile_id, { rating: r.rating, palier: progressionPalier(r.rating, paliers) }]),
+      (ratingsData ?? []).map((r) => [
+        r.profile_id,
+        { rating: arrondir(r.rating), palier: trouverPalier(r.rating, paliers)?.nom ?? null },
+      ]),
     );
   }
 
@@ -157,216 +163,206 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
     ? toutesLesAnnonces.filter((a) => a.objectif_id === echeanceFiltree.id)
     : toutesLesAnnonces;
 
+  const formulaire = utilisateur ? (
+    <form action={publierRechercheCoequipier} className="flex flex-col gap-4">
+      <label className="flex flex-col gap-1.5">
+        <span className="font-texte text-mini font-medium text-muted uppercase">
+          {monAnnonce ? "Mon annonce" : "Ton annonce · 200 caractères"}
+        </span>
+        <textarea
+          name="message"
+          rows={3}
+          maxLength={200}
+          defaultValue={monAnnonce?.message ?? ""}
+          placeholder="Ex. « Support, dispo le soir, cherche une équipe régulière »"
+          className={`${classeChamp()} resize-none`}
+        />
+      </label>
+      {echeances.length > 0 && (
+        <label className="flex flex-col gap-1.5">
+          <span className="font-texte text-mini font-medium text-muted uppercase">Objectif</span>
+          <select
+            name="objectif_id"
+            defaultValue={monAnnonce?.objectif_id && echeanceParId.has(monAnnonce.objectif_id) ? monAnnonce.objectif_id : ""}
+            className={classeChamp()}
+          >
+            <option value="">Une équipe régulière, pas d&apos;échéance précise</option>
+            {echeances.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nom} — {formaterDate(e.debut_le)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <BoutonEnvoi libelleEnCours="Envoi…" className="w-full sm:w-auto">
+          {monAnnonce ? "Mettre à jour" : "Publier mon annonce"}
+        </BoutonEnvoi>
+        {monAnnonce && (
+          <button
+            type="submit"
+            formAction={retirerRechercheCoequipier}
+            className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger"
+          >
+            Retirer mon annonce
+          </button>
+        )}
+      </div>
+    </form>
+  ) : (
+    <div className="flex flex-col items-start gap-4">
+      <p className="text-sm text-text-2">Connecte-toi pour publier une annonce ou inviter un joueur dans ton équipe.</p>
+      <BoutonLien href="/connexion?suite=/lol/coequipiers" variante="contour">
+        Se connecter
+      </BoutonLien>
+    </div>
+  );
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative px-grille">
-      <Apparition>
-      <Link
-        href="/lol"
-        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-      >
-        ← League of Legends
-      </Link>
-
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-        Trouver un coéquipier
-      </h1>
-      <p className="mt-2 max-w-lg text-sm text-muted">
-        Pour jouer les tournois 5v5 : ton capitaine y inscrit cinq membres de l&apos;équipe — une équipe compte jusqu&apos;à{" "}
-        {TAILLE_MAX_EQUIPE} joueurs. Publie une annonce pour te rendre visible, ou invite directement un joueur disponible dans une équipe
-        où il reste de la place.{" "}
-        <Link href="/equipe/nouvelle" className="text-text underline underline-offset-3">
-          Créer une équipe
-        </Link>
-        .
-      </p>
-      </Apparition>
-
-      {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
-      )}
-      {message && (
-        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
-      )}
-
-      {utilisateur ? (
-        <form action={publierRechercheCoequipier} className={"mt-6 flex flex-col gap-2 " + classeCarte("none")}>
-          <span className="font-texte text-mini font-medium text-muted uppercase">
-            {monAnnonce ? "Modifier mon annonce" : "Se déclarer disponible"}
-          </span>
-          <textarea
-            name="message"
-            rows={2}
-            maxLength={200}
-            defaultValue={monAnnonce?.message ?? ""}
-            placeholder="Ex. « Support, dispo le soir, cherche une équipe régulière »"
-            className="resize-none min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          />
-          {echeances.length > 0 && (
-            <label className="flex flex-col gap-1">
-              <span className="font-texte text-mini font-medium text-muted uppercase">Objectif</span>
-              <select
-                name="objectif_id"
-                defaultValue={
-                  monAnnonce?.objectif_id && echeanceParId.has(monAnnonce.objectif_id) ? monAnnonce.objectif_id : ""
-                }
-                className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <option value="">Une équipe régulière, pas d&apos;échéance précise</option>
-                {echeances.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nom} — {formaterDate(e.debut_le)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <div className="flex items-center gap-3">
-            <Bouton libelleEnCours="Envoi…">
-              {monAnnonce ? "Mettre à jour" : "Publier mon annonce"}
-            </Bouton>
-            {monAnnonce && (
-              <button
-                type="submit"
-                formAction={retirerRechercheCoequipier}
-                className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
-              >
-                Retirer mon annonce
-              </button>
-            )}
+      <div className="relative flex flex-col gap-12 px-grille">
+        <Apparition className="flex flex-wrap items-end justify-between gap-8">
+          <div>
+            <LibelleSection>League of Legends · 5v5</LibelleSection>
+            <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Trouver un coéquipier</h1>
+            <p className="mt-5 max-w-2xl text-courant text-text-2">
+              Une équipe compte jusqu&apos;à {TAILLE_MAX_EQUIPE} joueurs ; son capitaine en inscrit cinq aux tournois
+              5v5. Publie une annonce pour te rendre visible, ou invite un joueur disponible dans ton équipe.
+            </p>
           </div>
-        </form>
-      ) : (
-        <p className={"mt-6 " + classeCarte("none") + " text-sm text-muted"}>
-          <Link href="/connexion" className="text-text underline underline-offset-3">
-            Connecte-toi
-          </Link>{" "}
-          pour publier une annonce ou inviter un joueur dans ton équipe.
-        </p>
-      )}
-
-      {echeances.length > 0 && (
-        <Apparition delai={0.08}>
-        <section id="echeances" className="mt-10 scroll-mt-28">
-          <SectionTitre>Prochaines échéances</SectionTitre>
-          <p className="mt-2 max-w-lg text-sm text-muted">
-            Clash est lu dans le calendrier officiel de Riot ; le Nexus Tour et les autres compétitions sont ajoutés
-            avec leur lien officiel. Cherche une équipe pour l&apos;une d&apos;elles.
-          </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {echeances.map((e) => {
-              const candidats = candidatsParEcheance.get(e.id) ?? 0;
-              return (
-                <li key={e.id} className={"flex flex-col gap-1 " + classeCarte(echeanceFiltree?.id === e.id ? "atteste" : "none")}>
-                  <span className="font-texte text-mini text-muted uppercase">
-                    {LIBELLE_TYPE_ECHEANCE[typeEcheance(e.type)]}
-                    {e.region ? ` · ${e.region}` : ""}
-                  </span>
-                  <span className="text-sm font-semibold text-text">{e.nom}</span>
-                  <span className="text-xs text-muted tabular-nums">{formaterDate(e.debut_le)}</span>
-                  <span className="flex flex-wrap items-center gap-x-3 text-xs">
-                    <Link href={`/lol/coequipiers?objectif=${e.id}`} className="text-text underline underline-offset-3">
-                      {candidats} joueur{candidats > 1 ? "s" : ""} cherche{candidats > 1 ? "nt" : ""} une équipe
-                    </Link>
-                    {e.lien_officiel && (
-                      <a href={e.lien_officiel} rel="noopener noreferrer nofollow" target="_blank" className="text-muted underline underline-offset-3">
-                        Site officiel
-                      </a>
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+          <BoutonLien href="/equipe/nouvelle" variante="contour">
+            Créer une équipe
+          </BoutonLien>
         </Apparition>
-      )}
 
-      <Apparition delai={0.1}>
-      <section className="mt-10">
-        <SectionTitre>
-          {echeanceFiltree ? `Joueurs disponibles — ${echeanceFiltree.nom}` : "Joueurs disponibles"}
-        </SectionTitre>
-        {echeanceFiltree && (
-          <Link href="/lol/coequipiers" className="mt-1 inline-flex min-h-11 items-center text-xs text-muted underline underline-offset-3">
-            Voir toutes les annonces
-          </Link>
-        )}
-        {annonces.length === 0 ? (
-          <div className="mt-3">
-            <EtatVide illustration={<IllustrationEffectifVide />}>
-              Personne ne s&apos;est encore déclaré disponible.
-            </EtatVide>
+        {(erreur || message) && (
+          <div className="flex max-w-2xl flex-col gap-3">
+            {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+            {message && <Alerte type="succes">{message}</Alerte>}
           </div>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-3">
-            {annonces.map((a) => (
-              <li key={a.profile_id} className={classeCarte("none")}>
-                <div className="flex items-start justify-between gap-3">
-                  <span className="flex items-center gap-2 text-sm font-semibold text-text">
-                    {a.profile ? (
-                      <Link href={`/joueur/${a.profile.slug}`} className="hover:underline">
-                        {a.profile.pseudo}
-                      </Link>
-                    ) : (
-                      "Joueur inconnu"
-                    )}
-                    {(() => {
-                      const offre = offresParJoueur.get(a.profile_id)?.offre;
-                      return offre && offre !== "gratuit" ? (
-                        <span
-                          className="rounded-full border border-line px-2 py-0.5 font-texte tabular-nums text-mini tracking-[0.06em] uppercase"
-                          style={{ color: COULEUR_OFFRE[offre] }}
-                        >
-                          {LABEL_OFFRE[offre]}
-                        </span>
-                      ) : null;
-                    })()}
-                  </span>
-                  {(() => {
-                    const info = ratingsParJoueur.get(a.profile_id);
-                    const palier = info?.palier.palier;
-                    return palier ? (
-                      <CrestPalier
-                        nom={palier.nom}
-                        couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-muted)"}
-                        progression={info.palier.progression}
-                      />
-                    ) : null;
-                  })()}
-                </div>
-                {a.message && <p className="mt-1 text-sm text-muted">{a.message}</p>}
-                {a.objectif_id && echeanceParId.get(a.objectif_id) && (
-                  <p className="mt-1 text-xs text-accent">
-                    Objectif : {echeanceParId.get(a.objectif_id)!.nom} ({formaterDate(echeanceParId.get(a.objectif_id)!.debut_le)})
-                  </p>
-                )}
-
-                {utilisateur?.id !== a.profile_id && mesEquipesAvecPlace.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
-                    {mesEquipesAvecPlace.map((e) => (
-                      <form action={inviterMembre} key={e.id}>
-                        <input type="hidden" name="team_id" value={e.id} />
-                        <input type="hidden" name="slug" value={e.slug} />
-                        <input type="hidden" name="pseudo" value={a.profile?.pseudo ?? ""} />
-                        <button
-                          type="submit"
-                          aria-label={`Inviter ${a.profile?.pseudo ?? "ce joueur"} dans ${e.nom}`}
-                          className="rounded-[3px] border border-line px-3 py-1.5 font-texte tabular-nums text-mini text-text transition hover:border-text"
-                        >
-                          Inviter dans {e.tag} {e.nom}
-                        </button>
-                      </form>
-                    ))}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
         )}
-      </section>
-      </Apparition>
+
+        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <Apparition delai={0.08}>
+            <section aria-labelledby="coequipiers-disponibles" className="flex flex-col gap-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line-strong pb-4">
+                <LibelleSection as="h2" id="coequipiers-disponibles">
+                  {echeanceFiltree ? `Disponibles — ${echeanceFiltree.nom}` : "Joueurs disponibles"}{" "}
+                  <span className="text-faint tabular-nums">· {annonces.length}</span>
+                </LibelleSection>
+                {echeanceFiltree && (
+                  <Link href="/lol/coequipiers" className="text-sm text-muted underline underline-offset-3 hover:text-text">
+                    Voir toutes les annonces
+                  </Link>
+                )}
+              </div>
+              {annonces.length === 0 ? (
+                <Panneau reperes className="flex flex-col items-start gap-3 p-8">
+                  <p className="font-titre text-3xl font-black uppercase">Personne pour l&apos;instant.</p>
+                  <p className="max-w-md text-text-2">
+                    Aucun joueur ne s&apos;est encore déclaré disponible{echeanceFiltree ? " pour cette échéance" : ""}.
+                    Publie la première annonce.
+                  </p>
+                </Panneau>
+              ) : (
+                <ul className="grid gap-4 xl:grid-cols-2">
+                  {annonces.map((a) => {
+                    const compte =
+                      a.profile?.game_accounts.find((c) => c.est_principal) ?? a.profile?.game_accounts[0] ?? null;
+                    const role = compte?.role_prefere && ROLES.includes(compte.role_prefere as Role) ? (compte.role_prefere as Role) : null;
+                    const info = ratingsParJoueur.get(a.profile_id);
+                    const echeance = a.objectif_id ? echeanceParId.get(a.objectif_id) : undefined;
+                    const offre = offresParJoueur.get(a.profile_id)?.offre;
+                    return (
+                      <li key={a.profile_id}>
+                        <CarteJoueurDisponible
+                          pseudo={a.profile?.pseudo ?? "Joueur inconnu"}
+                          slug={a.profile?.slug ?? null}
+                          avatarUrl={a.profile?.avatar_url ?? null}
+                          role={role ? LABEL_ROLE[role] : null}
+                          region={compte?.region ?? null}
+                          rating={info?.rating ?? null}
+                          palier={info?.palier ?? null}
+                          offre={offre && offre !== "gratuit" ? offre : null}
+                          message={a.message}
+                          objectif={echeance ? `${echeance.nom} · ${formaterDate(echeance.debut_le)}` : null}
+                          publieLe={a.cree_le}
+                        >
+                          {utilisateur?.id !== a.profile_id &&
+                            mesEquipesAvecPlace.map((e) => (
+                              <form action={inviterMembre} key={e.id}>
+                                <input type="hidden" name="team_id" value={e.id} />
+                                <input type="hidden" name="slug" value={e.slug} />
+                                <input type="hidden" name="pseudo" value={a.profile?.pseudo ?? ""} />
+                                <button
+                                  type="submit"
+                                  aria-label={`Inviter ${a.profile?.pseudo ?? "ce joueur"} dans ${e.nom}`}
+                                  className={`${classeBoutonContour()} min-h-10! px-4! py-2! text-xs!`}
+                                >
+                                  Inviter dans {e.tag}
+                                </button>
+                              </form>
+                            ))}
+                        </CarteJoueurDisponible>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          </Apparition>
+
+          <Apparition delai={0.12} className="flex flex-col gap-8 lg:sticky lg:top-28">
+            <Panneau className="flex flex-col gap-5 p-6">
+              <LibelleSection as="h2">{monAnnonce ? "Mon annonce" : "Je cherche une équipe"}</LibelleSection>
+              {formulaire}
+            </Panneau>
+
+            {echeances.length > 0 && (
+              <section id="echeances" aria-labelledby="coequipiers-echeances" className="flex scroll-mt-28 flex-col gap-4">
+                <LibelleSection as="h2" id="coequipiers-echeances">
+                  Prochaines échéances
+                </LibelleSection>
+                <ul className="flex flex-col">
+                  {echeances.map((e) => {
+                    const candidats = candidatsParEcheance.get(e.id) ?? 0;
+                    const actif = echeanceFiltree?.id === e.id;
+                    return (
+                      <li key={e.id} className={`flex flex-col gap-1.5 border-b border-line py-4 ${actif ? "border-l-2 border-l-text pl-3" : ""}`}>
+                        <span className="font-texte text-mini font-medium text-faint uppercase">
+                          {LIBELLE_TYPE_ECHEANCE[typeEcheance(e.type)]}
+                          {e.region ? ` · ${e.region}` : ""} · {formaterDate(e.debut_le)}
+                        </span>
+                        <span className="font-semibold">{e.nom}</span>
+                        <span className="flex flex-wrap items-center gap-x-4 text-sm">
+                          <Link href={`/lol/coequipiers?objectif=${e.id}`} className="text-text-2 underline underline-offset-3 hover:text-text">
+                            {candidats} joueur{candidats > 1 ? "s" : ""} cherche{candidats > 1 ? "nt" : ""} une équipe
+                          </Link>
+                          {e.lien_officiel && (
+                            <a
+                              href={e.lien_officiel}
+                              rel="noopener noreferrer nofollow"
+                              target="_blank"
+                              className="text-muted underline underline-offset-3 hover:text-text"
+                            >
+                              Site officiel
+                            </a>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="text-xs text-muted">
+                  Clash est lu dans le calendrier officiel de Riot ; le Nexus Tour et les autres compétitions sont ajoutés avec
+                  leur lien officiel.
+                </p>
+              </section>
+            )}
+          </Apparition>
+        </div>
       </div>
     </main>
   );
