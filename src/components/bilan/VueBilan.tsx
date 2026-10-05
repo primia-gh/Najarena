@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  conseilDe,
   detailConstat,
   formaterIndicateur,
   INDICATEURS,
@@ -215,7 +216,7 @@ function BilanExpress({ bilan }: { bilan: Bilan }) {
                     <p className="mt-1 text-sm text-text-2 tabular-nums">{detailConstat(c)}</p>
                     <p className="mt-3 text-sm text-text">
                       <span className="font-semibold">Conseil : </span>
-                      {INDICATEURS[c.indicateur].conseil?.[bilan.format]}
+                      {conseilDe(c.indicateur, bilan.format)}
                     </p>
                     <Fiabilite c={c} />
                   </li>

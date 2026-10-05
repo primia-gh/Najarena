@@ -6,8 +6,11 @@
 // indicateurs et des repères sont en base (vue indicateurs_partie,
 // reperes_bilan, reperes_build — docs/schema.sql). Logique pure, testée
 // dans bilan.test.ts.
+// Étape 2 (05/10/2026) : les parties classées lues chez Riot avec l'accord
+// du joueur forment un troisième « format », comparé aux joueurs du même
+// rang Riot et du même poste (vue indicateurs_classees, reperes_classees).
 
-export type FormatBilan = "1v1" | "5v5";
+export type FormatBilan = "1v1" | "5v5" | "classees";
 
 export type CleIndicateur =
   | "kda"
@@ -19,7 +22,9 @@ export type CleIndicateur =
   | "vision_min"
   | "part_kills"
   | "part_degats"
-  | "premier_sang";
+  | "premier_sang"
+  | "ecart_or_15"
+  | "morts_avant_10";
 
 export interface DefinitionIndicateur {
   libelle: string;
@@ -30,6 +35,8 @@ export interface DefinitionIndicateur {
   pourcentage?: boolean;
   /** Oui ou non à chaque partie (premier sang) : la moyenne est une part des parties. */
   parPartie?: boolean;
+  /** Écart signé (« +450 », « −300 »). */
+  signe?: boolean;
   /** Conseil donné quand l'indicateur est un axe de travail. */
   conseil?: Partial<Record<FormatBilan, string>>;
 }
@@ -123,6 +130,26 @@ export const INDICATEURS: Record<CleIndicateur, DefinitionIndicateur> = {
         "Le premier sang rapporte de l'or en plus : coordonne-toi avec ton jungler sur les premières minutes plutôt que de jouer seul.",
     },
   },
+  // Lus dans la chronologie des parties classées (étape 2).
+  ecart_or_15: {
+    libelle: "Écart d'or à 15 minutes",
+    sens: 1,
+    decimales: 0,
+    signe: true,
+    conseil: {
+      "5v5":
+        "À 15 minutes, l'or vient surtout de ta voie : ne laisse passer aucune vague, rentre à la base quand ta vague est poussée et que tu as de quoi acheter un objet, et évite les échanges que ton champion perd en début de partie.",
+    },
+  },
+  morts_avant_10: {
+    libelle: "Morts avant 10 minutes",
+    sens: -1,
+    decimales: 1,
+    conseil: {
+      "5v5":
+        "Une mort avant 10 minutes coûte la vague, l'expérience et souvent ton premier objet. Pose une balise vers la rivière et recule dès que le jungler adverse disparaît de la carte.",
+    },
+  },
 };
 
 /** Indicateurs suivis dans chaque format (la vision et les parts n'ont pas de sens en 1v1). */
@@ -140,7 +167,27 @@ export const INDICATEURS_PAR_FORMAT: Record<FormatBilan, CleIndicateur[]> = {
     "part_degats",
     "premier_sang",
   ],
+  classees: [
+    "kda",
+    "sbires_min",
+    "sbires_10",
+    "morts_10min",
+    "morts_avant_10",
+    "ecart_or_15",
+    "degats_min",
+    "or_min",
+    "vision_min",
+    "part_kills",
+    "part_degats",
+    "premier_sang",
+  ],
 };
+
+/** Conseil d'un indicateur dans un format (les classées reprennent ceux du 5v5). */
+export function conseilDe(cle: CleIndicateur, format: FormatBilan): string | undefined {
+  const conseil = INDICATEURS[cle].conseil;
+  return conseil?.[format] ?? (format === "classees" ? conseil?.["5v5"] : undefined);
+}
 
 /**
  * Indicateurs qui deviennent des forces ou des axes de travail : ceux qu'on
@@ -149,7 +196,7 @@ export const INDICATEURS_PAR_FORMAT: Record<FormatBilan, CleIndicateur[]> = {
  * sont montrés, jamais donnés comme conseil.
  */
 function indicateursConseil(format: FormatBilan): CleIndicateur[] {
-  return INDICATEURS_PAR_FORMAT[format].filter((cle) => INDICATEURS[cle].conseil?.[format]);
+  return INDICATEURS_PAR_FORMAT[format].filter((cle) => conseilDe(cle, format));
 }
 
 export const LIBELLE_POSTE: Record<string, string> = {
@@ -315,28 +362,36 @@ export function tauxPrudent(victoires: number, parties: number): number {
   return (centre - marge) / denominateur;
 }
 
-const NOMBRE = new Map<number, Intl.NumberFormat>();
+const NOMBRE = new Map<string, Intl.NumberFormat>();
 
-/** « 7,8 », « 62 % », « 1 204 » : la valeur d'un indicateur telle qu'affichée. */
+/** « 7,8 », « 62 % », « 1 204 », « +450 » : la valeur d'un indicateur telle qu'affichée. */
 export function formaterIndicateur(cle: CleIndicateur, valeur: number): string {
   const def = INDICATEURS[cle];
   if (def.pourcentage) return `${Math.round(valeur * 100)} %`;
-  let format = NOMBRE.get(def.decimales);
+  const cleFormat = `${def.decimales}${def.signe ? "s" : ""}`;
+  let format = NOMBRE.get(cleFormat);
   if (!format) {
     format = new Intl.NumberFormat("fr-FR", {
       minimumFractionDigits: def.decimales,
       maximumFractionDigits: def.decimales,
+      signDisplay: def.signe ? "exceptZero" : "auto",
     });
-    NOMBRE.set(def.decimales, format);
+    NOMBRE.set(cleFormat, format);
   }
   return format.format(valeur);
+}
+
+const FORMATS: FormatBilan[] = ["1v1", "5v5", "classees"];
+
+export function estFormatBilan(valeur: string | null | undefined): valeur is FormatBilan {
+  return (FORMATS as string[]).includes(valeur ?? "");
 }
 
 /** Format montré par défaut : celui demandé s'il a des parties, sinon le plus joué. */
 export function choisirFormat(parties: PartieBilan[], demande?: string | null): FormatBilan {
   const compte = (f: FormatBilan) => parties.filter((p) => p.format === f).length;
-  if ((demande === "1v1" || demande === "5v5") && compte(demande) > 0) return demande;
-  return compte("5v5") > compte("1v1") ? "5v5" : "1v1";
+  if (estFormatBilan(demande) && compte(demande) > 0) return demande;
+  return FORMATS.reduce((meilleur, f) => (compte(f) > compte(meilleur) ? f : meilleur), FORMATS[0]);
 }
 
 /** Poste le plus joué, s'il est connu (5v5). */
@@ -601,10 +656,10 @@ export function construireBilan(toutes: PartieBilan[], format: FormatBilan, repe
     .filter((p) => p.format === format)
     .sort((a, b) => a.joueLe.localeCompare(b.joueLe));
   const champions = lignesChampions(parties);
-  // En 5v5, on compare les parties du poste principal, à ses repères.
-  const poste = format === "5v5" ? posteCompare(parties) : null;
+  // En 5v5 et en classée, on compare les parties du poste principal, à ses repères.
+  const poste = format === "1v1" ? null : posteCompare(parties);
   const comparees = poste ? parties.filter((p) => p.poste === poste) : parties;
-  const reperesUtilisables = format === "5v5" && !poste ? [] : reperes;
+  const reperesUtilisables = format !== "1v1" && !poste ? [] : reperes;
   const pret = comparees.length >= PARTIES_MIN_BILAN;
 
   let comparaison: Bilan["comparaison"] = null;
@@ -859,6 +914,80 @@ export function partieDepuisLigne(l: LigneIndicateurs): PartieBilan | null {
       part_kills: nombre(l.part_kills),
       part_degats: nombre(l.part_degats),
       premier_sang: nombre(l.premier_sang),
+    },
+    objets: l.objets ?? [],
+    runePrincipale: l.rune_principale,
+    styleSecondaire: l.style_secondaire,
+    sorts: l.sorts ?? [],
+  };
+}
+
+/** Une ligne de la vue indicateurs_classees (docs/schema.sql, étape 2). */
+export interface LigneIndicateursClassees {
+  id: number;
+  riot_match_id: string;
+  file: number;
+  palier: string | null;
+  champion: string;
+  champion_id: number | null;
+  poste: string | null;
+  gagne: boolean;
+  joue_le: string;
+  duree_secondes: number;
+  equipe: number | null;
+  kills: number;
+  deaths: number;
+  assists: number;
+  kda: number | string | null;
+  sbires_min: number | string | null;
+  sbires_10: number | null;
+  morts_10min: number | string | null;
+  degats_min: number | string | null;
+  or_min: number | string | null;
+  vision_min: number | string | null;
+  part_kills: number | string | null;
+  part_degats: number | string | null;
+  premier_sang: number | null;
+  ecart_or_15: number | null;
+  morts_avant_10: number | null;
+  objets: number[] | null;
+  rune_principale: number | null;
+  style_secondaire: number | null;
+  sorts: number[] | null;
+  morts_secondes: number[] | null;
+  morts_x: number[] | null;
+  morts_y: number[] | null;
+}
+
+/** Colonnes à lire dans la vue indicateurs_classees. */
+export const COLONNES_INDICATEURS_CLASSEES =
+  "id, riot_match_id, file, palier, champion, champion_id, poste, gagne, joue_le, duree_secondes, equipe, kills, deaths, assists, kda, sbires_min, sbires_10, morts_10min, degats_min, or_min, vision_min, part_kills, part_degats, premier_sang, ecart_or_15, morts_avant_10, objets, rune_principale, style_secondaire, sorts, morts_secondes, morts_x, morts_y";
+
+export function partieClasseeDepuisLigne(l: LigneIndicateursClassees): PartieBilan {
+  return {
+    matchId: l.riot_match_id,
+    format: "classees",
+    champion: l.champion,
+    championId: l.champion_id,
+    poste: l.poste,
+    gagne: l.gagne,
+    joueLe: l.joue_le,
+    kills: l.kills,
+    deaths: l.deaths,
+    assists: l.assists,
+    valeurs: {
+      kda: nombre(l.kda),
+      sbires_min: nombre(l.sbires_min),
+      sbires_10: nombre(l.sbires_10),
+      morts_10min: nombre(l.morts_10min),
+      degats_min: nombre(l.degats_min),
+      or_min: nombre(l.or_min),
+      vision_min: nombre(l.vision_min),
+      part_kills: nombre(l.part_kills),
+      part_degats: nombre(l.part_degats),
+      premier_sang: nombre(l.premier_sang),
+      ecart_or_15: nombre(l.ecart_or_15),
+      morts_avant_10: nombre(l.morts_avant_10),
     },
     objets: l.objets ?? [],
     runePrincipale: l.rune_principale,
