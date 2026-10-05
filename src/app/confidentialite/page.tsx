@@ -69,6 +69,17 @@ export default function ConfidentialitePage() {
               nom, aux moyennes de référence calculées sur l&apos;ensemble des parties vérifiées.
             </li>
             <li>
+              Parties classées, seulement si tu le demandes depuis ton bilan : Najarena lit chez Riot tes parties classées
+              (Solo/Duo et Flexible) et ton rang, et garde les chiffres de ta partie (champion, poste, farm, dégâts,
+              vision, objets, runes, écart d&apos;or à 15 minutes) et le lieu de chacune de tes morts, 100 parties au plus.
+              Elles ne comptent jamais pour le classement et ne sont visibles que de toi ; les autres joueurs n&apos;en
+              voient que des moyennes anonymes (5 joueurs au moins). Retirer ton accord les efface, avec ton rang.
+            </li>
+            <li>
+              Bilan de la semaine : si tu le demandes (offre Elite), un message privé Discord chaque lundi, avec tes
+              chiffres de la semaine ; Najarena garde la date de chaque envoi.
+            </li>
+            <li>
               Défis : qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement ; un défi
               relevé devient un duel public, comme un match de tournoi. Ta place dans la file de l&apos;arène (heure
               d&apos;entrée, rating et région) n&apos;est visible que de toi et disparaît au plus tard après 30

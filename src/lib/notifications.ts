@@ -143,7 +143,7 @@ export async function notifierDiscord(contenu: string): Promise<void> {
 const jetonBotDiscord = process.env.DISCORD_BOT_TOKEN;
 const API_DISCORD = "https://discord.com/api/v10";
 
-async function envoyerMessagePriveDiscord(discordId: string, contenu: string): Promise<void> {
+export async function envoyerMessagePriveDiscord(discordId: string, contenu: string): Promise<void> {
   if (!jetonBotDiscord) return;
 
   const entetes = {

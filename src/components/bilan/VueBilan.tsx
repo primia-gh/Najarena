@@ -15,10 +15,16 @@ import {
   type CleIndicateur,
   type Constat,
   type ElementFrequent,
+  type FormatBilan,
   type Objectif,
   type SerieProgression,
 } from "@/lib/bilan";
 import { championDe, objetDe, runeDe, sortDe, type DonneesJeu, type ElementJeu } from "@/lib/ddragon";
+import type { PositionNiveau } from "@/lib/niveau-classees";
+import { VERDICT_SANG_FROID, type SangFroid } from "@/lib/sang-froid";
+import { PARTIES_MIN_HYGIENE, PARTIES_MIN_REGLE, type Hygiene, type Situation } from "@/lib/hygiene-jeu";
+import { MORTS_MIN_CARTE, type CarteMorts as DonneesCarte } from "@/lib/carte-morts";
+import CarteMorts from "./CarteMorts";
 import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
@@ -31,6 +37,21 @@ import IconeJeu from "./IconeJeu";
 // forces, axes de travail) est gratuit ; le plan, la progression, les
 // champions et les builds sont réservés à l'offre Elite. Rien n'est montré
 // sans donnée : une section sans chiffres dit ce qu'il manque.
+// Étape 2 (05/10/2026) : pour les parties classées, le niveau parmi les
+// joueurs du même rang et du même poste, l'hygiène de jeu, la carte des
+// morts et le sang-froid (offre Elite).
+
+/** Analyses propres aux parties classées (étape 2). */
+export interface ExtrasClassees {
+  /** « Or II · 45 PL » */
+  rang: string | null;
+  /** Groupe de comparaison : « joueurs Or au poste Milieu ». */
+  groupe: string | null;
+  niveau: PositionNiveau[];
+  sangFroid: SangFroid | null;
+  hygiene: Hygiene | null;
+  carte: DonneesCarte | null;
+}
 
 interface VueBilanProps {
   bilan: Bilan;
@@ -38,6 +59,7 @@ interface VueBilanProps {
   donnees: DonneesJeu | null;
   /** Bilan complet (offre Elite, ou page d'exemple) ; sinon le bilan express seul. */
   complet: boolean;
+  extras?: ExtrasClassees;
 }
 
 const TITRE_H2 = "font-titre text-3xl font-black tracking-[1px] uppercase sm:text-4xl";
@@ -47,10 +69,12 @@ function pourcentage(part: number): string {
   return `${Math.round(part * 100)} %`;
 }
 
+const NOM_FORMAT: Record<FormatBilan, string> = { "1v1": "1v1", "5v5": "5v5", classees: "classées" };
+
 function libelleFormat(bilan: Bilan): string {
-  return bilan.format === "5v5" && bilan.postePrincipal
-    ? `5v5 au poste ${LIBELLE_POSTE[bilan.postePrincipal] ?? bilan.postePrincipal}`
-    : bilan.format;
+  return bilan.format !== "1v1" && bilan.postePrincipal
+    ? `${NOM_FORMAT[bilan.format]} au poste ${LIBELLE_POSTE[bilan.postePrincipal] ?? bilan.postePrincipal}`
+    : NOM_FORMAT[bilan.format];
 }
 
 function Fiabilite({ c }: { c: Constat }) {
@@ -73,7 +97,7 @@ function Tuile({ libelle, children }: { libelle: string; children: ReactNode }) 
   );
 }
 
-function Resume({ bilan, donnees }: { bilan: Bilan; donnees: DonneesJeu | null }) {
+function Resume({ bilan, donnees, rang }: { bilan: Bilan; donnees: DonneesJeu | null; rang: string | null }) {
   const champion = bilan.championPrincipal;
   const element = champion ? championDe(donnees, champion.champion, champion.championId) : null;
   return (
@@ -81,7 +105,7 @@ function Resume({ bilan, donnees }: { bilan: Bilan; donnees: DonneesJeu | null }
       <LibelleSection as="h2" id="bilan-resume">
         En bref · {libelleFormat(bilan)}
       </LibelleSection>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-4">
+      <div className={`grid grid-cols-2 gap-x-6 gap-y-6 ${rang ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
         <Tuile libelle="Parties vérifiées">
           <p className="font-titre text-4xl font-black tabular-nums">{bilan.parties}</p>
           {bilan.postePrincipal && bilan.partiesComparees !== bilan.parties && (
@@ -118,6 +142,11 @@ function Resume({ bilan, donnees }: { bilan: Bilan; donnees: DonneesJeu | null }
             {bilan.premiere && bilan.derniere ? `${dateCourte(bilan.premiere)} → ${dateCourte(bilan.derniere)}` : "—"}
           </p>
         </Tuile>
+        {rang && (
+          <Tuile libelle="Rang Riot">
+            <p className="font-semibold tabular-nums">{rang}</p>
+          </Tuile>
+        )}
       </div>
     </section>
   );
@@ -125,15 +154,25 @@ function Resume({ bilan, donnees }: { bilan: Bilan; donnees: DonneesJeu | null }
 
 // ---------- Bilan express ----------
 
-function SourceComparaison({ bilan }: { bilan: Bilan }) {
+function SourceComparaison({ bilan, groupe }: { bilan: Bilan; groupe: string | null }) {
   if (bilan.comparaison === "vainqueurs") {
     const complement = [...bilan.forces, ...bilan.axes].some((c) => c.source !== "vainqueurs");
     return (
       <p className="text-sm text-text-2">
-        Comparé aux vainqueurs de {bilan.partiesRepere} parties vérifiées d&apos;autres joueurs ({libelleFormat(bilan)}),
-        sans tes propres parties.
+        {bilan.format === "classees"
+          ? `Comparé aux vainqueurs de ${bilan.partiesRepere} parties classées d'autres joueurs Najarena (${groupe ?? libelleFormat(bilan)}), sans les tiennes.`
+          : `Comparé aux vainqueurs de ${bilan.partiesRepere} parties vérifiées d'autres joueurs (${libelleFormat(bilan)}), sans tes propres parties.`}
         {complement &&
           " Quand rien ne ressort face à eux, ton bilan compare aussi tes victoires à tes défaites, et tes dernières parties aux précédentes."}
+      </p>
+    );
+  }
+  if (bilan.comparaison === "tes_parties" && bilan.format === "classees") {
+    return (
+      <p className="text-sm text-text-2">
+        Pas encore assez de parties classées d&apos;autres joueurs Najarena de ton rang et de ton poste pour un repère
+        commun (5 joueurs au moins) : ton bilan compare tes victoires à tes défaites, et tes {PARTIES_RECENTES} dernières
+        parties aux précédentes.
       </p>
     );
   }
@@ -158,7 +197,7 @@ function SourceComparaison({ bilan }: { bilan: Bilan }) {
   return null;
 }
 
-function BilanExpress({ bilan }: { bilan: Bilan }) {
+function BilanExpress({ bilan, groupe }: { bilan: Bilan; groupe: string | null }) {
   const vide = bilan.forces.length === 0 && bilan.axes.length === 0;
   return (
     <section aria-labelledby="bilan-express" className="flex flex-col gap-6">
@@ -166,7 +205,7 @@ function BilanExpress({ bilan }: { bilan: Bilan }) {
         <h2 id="bilan-express" className={TITRE_H2}>
           Tes forces et tes axes de travail
         </h2>
-        <SourceComparaison bilan={bilan} />
+        <SourceComparaison bilan={bilan} groupe={groupe} />
       </div>
       {vide ? (
         <p className="text-text-2">
@@ -528,8 +567,9 @@ function Builds({ bilan, builds, donnees }: { bilan: Bilan; builds: BuildChampio
         </h2>
         <p className="text-sm text-text-2">
           Ce que tu as en fin de partie sur tes champions les plus joués (potions et balises écartées), comparé à ce que
-          prennent les vainqueurs sur le même champion en {bilan.format}, dans les parties vérifiées d&apos;autres
-          joueurs. Survole une icône pour son nom.
+          prennent les vainqueurs sur le même champion en {NOM_FORMAT[bilan.format]}, dans les parties{" "}
+          {bilan.format === "classees" ? "classées" : "vérifiées"} d&apos;autres joueurs Najarena. Survole une icône pour
+          son nom.
         </p>
         {!donnees && (
           <p className="text-sm text-muted">
@@ -580,8 +620,9 @@ function Builds({ bilan, builds, donnees }: { bilan: Bilan; builds: BuildChampio
                   />
                 ) : (
                   <p className="text-sm text-muted">
-                    Pas encore assez de parties d&apos;autres joueurs sur {champion.nom} en {bilan.format} pour un build
-                    de référence ({PARTIES_MIN_BUILD_REFERENCE} au moins).
+                    Pas encore assez de parties d&apos;autres joueurs sur {champion.nom} en {NOM_FORMAT[bilan.format]}{" "}
+                    pour un build de référence ({PARTIES_MIN_BUILD_REFERENCE} au moins
+                    {bilan.format === "classees" ? ", de 5 joueurs différents" : ""}).
                   </p>
                 )}
                 {b.aEssayer.length > 0 && (
@@ -613,6 +654,198 @@ function Builds({ bilan, builds, donnees }: { bilan: Bilan; builds: BuildChampio
   );
 }
 
+// ---------- Parties classées (étape 2) ----------
+
+function Niveau({ niveau, groupe }: { niveau: PositionNiveau[]; groupe: string | null }) {
+  return (
+    <section aria-labelledby="bilan-niveau" className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <h2 id="bilan-niveau" className={TITRE_H2}>
+          Ton niveau
+        </h2>
+        <p className="text-sm text-text-2">
+          Ta moyenne comparée à celles des autres {groupe ?? "joueurs de ton rang et de ton poste"} sur Najarena (5
+          parties classées au moins chacun) : jamais leurs chiffres, seulement ta place parmi eux.
+        </p>
+      </div>
+      {niveau.length === 0 ? (
+        <p className="text-text-2">
+          Pas encore assez de joueurs de ton rang et de ton poste sur Najarena pour te situer (10 au moins).
+        </p>
+      ) : (
+        <ul className="grid gap-x-10 gap-y-5 md:grid-cols-2">
+          {niveau.map((n) => (
+            <li key={n.indicateur} className="flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="text-sm text-text">{INDICATEURS[n.indicateur].libelle}</span>
+                <span className="font-titre text-xl font-black tabular-nums">mieux que {pourcentage(n.mieuxQue)}</span>
+              </div>
+              <div
+                className="relative h-1.5 rounded-full bg-line-strong"
+                role="img"
+                aria-label={`${INDICATEURS[n.indicateur].libelle} : mieux que ${pourcentage(n.mieuxQue)} des ${n.joueurs} autres joueurs`}
+              >
+                <div className="h-full rounded-full bg-text-2" style={{ width: `${Math.round(n.mieuxQue * 100)}%` }} />
+              </div>
+              <span className="text-xs text-faint tabular-nums">sur {n.joueurs} autres joueurs</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function TableSituations({ titre, situations }: { titre: string; situations: Situation[] }) {
+  return (
+    <Tableau legende={titre}>
+      <thead>
+        <tr>
+          <th scope="col">{titre}</th>
+          <th scope="col">Victoires</th>
+          <th scope="col">Parties</th>
+        </tr>
+      </thead>
+      <tbody>
+        {situations.map((s) => (
+          <tr key={s.cle}>
+            <td>{s.libelle}</td>
+            <td className="tabular-nums">{s.parties > 0 ? pourcentage(s.taux) : "—"}</td>
+            <td className="tabular-nums">
+              {s.parties}
+              {s.parties > 0 && s.parties < PARTIES_MIN_REGLE && <span className="text-faint"> (peu)</span>}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </Tableau>
+  );
+}
+
+function HygieneJeu({ hygiene }: { hygiene: Hygiene | null }) {
+  return (
+    <section aria-labelledby="bilan-hygiene" className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <h2 id="bilan-hygiene" className={TITRE_H2}>
+          Ton hygiène de jeu
+        </h2>
+        <p className="text-sm text-text-2">
+          Tes résultats en classée selon l&apos;enchaînement des parties, ce qui suit une défaite et l&apos;heure de la
+          journée (heure de Paris). Une règle d&apos;arrêt n&apos;apparaît que si l&apos;écart est net : {PARTIES_MIN_REGLE}{" "}
+          parties au moins, et 10 points de moins qu&apos;en général.
+        </p>
+      </div>
+      {!hygiene ? (
+        <p className="text-text-2">Il faut {PARTIES_MIN_HYGIENE} parties classées pour lire ton hygiène de jeu.</p>
+      ) : (
+        <>
+          <p className="text-text-2 tabular-nums">
+            {hygiene.parties} parties en {hygiene.sessions} sessions, soit{" "}
+            {hygiene.partiesParSession.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} par session en moyenne ·{" "}
+            {pourcentage(hygiene.taux)} de victoires.
+          </p>
+          {hygiene.regles.length > 0 ? (
+            <ul className="flex flex-col gap-3">
+              {hygiene.regles.map((r) => (
+                <li key={r.situation.cle}>
+                  <Panneau className="flex gap-3 p-4 text-sm text-text">
+                    <span aria-hidden="true">⏱️</span>
+                    <span className="tabular-nums">{r.texte}</span>
+                  </Panneau>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">
+              Aucune règle d&apos;arrêt nette : tes résultats tiennent quand tu enchaînes les parties.
+            </p>
+          )}
+          <div className="grid gap-6 lg:grid-cols-3">
+            <TableSituations titre="Après une défaite" situations={hygiene.apresDefaites} />
+            <TableSituations titre="Dans la session" situations={hygiene.rangDansSession} />
+            <TableSituations titre="Moment de la journée" situations={hygiene.momentDeJournee} />
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function CarteDesMorts({ carte }: { carte: DonneesCarte | null }) {
+  return (
+    <section aria-labelledby="bilan-morts" className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <h2 id="bilan-morts" className={TITRE_H2}>
+          Où et quand tu meurs
+        </h2>
+        <p className="text-sm text-text-2">
+          Chaque point est une de tes morts en classée, à l&apos;endroit où elle a eu lieu. Survole un point pour sa
+          minute.
+        </p>
+      </div>
+      {carte ? (
+        <CarteMorts carte={carte} />
+      ) : (
+        <p className="text-text-2">
+          Il faut {MORTS_MIN_CARTE} morts placées, lues dans la chronologie de tes parties classées, pour dessiner ta
+          carte.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function SangFroidJoueur({ sangFroid }: { sangFroid: SangFroid | null }) {
+  const verdict = sangFroid ? VERDICT_SANG_FROID[sangFroid.verdict] : null;
+  return (
+    <section aria-labelledby="bilan-sang-froid" className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <h2 id="bilan-sang-froid" className={TITRE_H2}>
+          Ton sang-froid
+        </h2>
+        <p className="text-sm text-text-2">
+          Tes chiffres en tournoi 5v5 comparés à tes parties classées, sur la même carte et au même poste quand il est
+          connu : la pression change-t-elle ton jeu ? Najarena est le seul à voir les deux.
+        </p>
+      </div>
+      {!sangFroid || !verdict ? (
+        <p className="text-text-2">
+          Il faut 5 parties de tournoi 5v5 vérifiées et 10 parties classées pour mesurer ton sang-froid.
+        </p>
+      ) : (
+        <>
+          <Panneau className="flex flex-col gap-2 p-5">
+            <p className="font-titre text-2xl font-black uppercase">{verdict.titre}</p>
+            <p className="text-sm text-text-2">{verdict.texte}</p>
+          </Panneau>
+          <Tableau legende="Tournoi 5v5 et classées comparés">
+            <thead>
+              <tr>
+                <th scope="col">Indicateur</th>
+                <th scope="col">En tournoi</th>
+                <th scope="col">En classée</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sangFroid.ecarts.map((e) => (
+                <tr key={e.indicateur}>
+                  <td>{INDICATEURS[e.indicateur].libelle}</td>
+                  <td className="tabular-nums">{formaterIndicateur(e.indicateur, e.tournoi)}</td>
+                  <td className="tabular-nums">{formaterIndicateur(e.indicateur, e.classees)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Tableau>
+          <p className="text-xs text-faint tabular-nums">
+            {sangFroid.partiesTournoi} parties de tournoi 5v5 et {sangFroid.partiesClassees} parties classées
+            {sangFroid.poste ? `, au poste ${LIBELLE_POSTE[sangFroid.poste] ?? sangFroid.poste}` : ", tous postes confondus"}.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 // ---------- Offre Elite ----------
 
 function Verrou() {
@@ -627,6 +860,11 @@ function Verrou() {
           <li>Ta progression partie par partie, comparée à la moyenne des vainqueurs.</li>
           <li>Tes champions : taux de victoire, KDA, farm, ton champion le plus sûr.</li>
           <li>Tes builds comparés à ceux des vainqueurs sur le même champion, avec les icônes du jeu.</li>
+          <li>
+            Pour tes parties classées : ton niveau parmi les joueurs de ton rang et de ton poste, ton hygiène de jeu et
+            ta règle d&apos;arrêt, la carte de tes morts, ton sang-froid en tournoi.
+          </li>
+          <li>Ton bilan de la semaine, chaque lundi sur Discord.</li>
         </ul>
         <div className="flex flex-wrap items-center gap-4">
           <BoutonLien href="/tarifs?pour=joueur">Voir l&apos;offre Elite</BoutonLien>
@@ -676,6 +914,12 @@ export function MethodeBilan() {
           d&apos;invocateur. Le détail des objets n&apos;est gardé que depuis le 5 octobre 2026.
         </li>
         <li>
+          Parties classées : lues chez Riot seulement avec ton accord, jamais comptées pour le classement Najarena,
+          visibles de toi seul. Comparées aux joueurs Najarena du même rang Riot et du même poste, par des moyennes
+          anonymes (5 joueurs au moins, 10 pour ta place parmi eux). Le rang d&apos;une partie est celui que tu avais
+          quand elle a été lue.
+        </li>
+        <li>
           Aucun texte n&apos;est rédigé par une IA : chaque constat est un calcul sur tes parties, avec ses chiffres. Les
           icônes et les noms du jeu viennent de Data Dragon, la bibliothèque publique de Riot Games.
         </li>
@@ -686,33 +930,46 @@ export function MethodeBilan() {
 
 // ---------- Page ----------
 
-export default function VueBilan({ bilan, builds, donnees, complet }: VueBilanProps) {
+export default function VueBilan({ bilan, builds, donnees, complet, extras }: VueBilanProps) {
   return (
     <div className="flex flex-col gap-14">
-      <Resume bilan={bilan} donnees={donnees} />
+      <Resume bilan={bilan} donnees={donnees} rang={extras?.rang ?? null} />
       {bilan.partiesManquantes > 0 ? (
         <Panneau as="section" className="flex flex-col gap-4 p-6 sm:p-8">
           <h2 className="font-titre text-3xl font-black uppercase">
             Encore {bilan.partiesManquantes} partie{bilan.partiesManquantes > 1 ? "s" : ""}
           </h2>
-          <p className="text-text-2">
-            Il faut {PARTIES_MIN_BILAN} parties vérifiées pour un premier bilan. Chaque partie lue chez Riot compte :
-            tournoi, arène ou défi.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <BoutonLien href="/lol/tournois">Voir les tournois</BoutonLien>
-            <BoutonLien href="/lol/arene" variante="secondaire">
-              Entrer dans l&apos;arène
-            </BoutonLien>
-          </div>
+          {bilan.format === "classees" ? (
+            <p className="text-text-2">
+              Il faut {PARTIES_MIN_BILAN} parties classées lues chez Riot pour un premier bilan. Elles arrivent par petits
+              lots ; tes nouvelles parties sont relues toutes les 6 heures.
+            </p>
+          ) : (
+            <>
+              <p className="text-text-2">
+                Il faut {PARTIES_MIN_BILAN} parties vérifiées pour un premier bilan. Chaque partie lue chez Riot compte :
+                tournoi, arène ou défi.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <BoutonLien href="/lol/tournois">Voir les tournois</BoutonLien>
+                <BoutonLien href="/lol/arene" variante="secondaire">
+                  Entrer dans l&apos;arène
+                </BoutonLien>
+              </div>
+            </>
+          )}
         </Panneau>
       ) : (
-        <BilanExpress bilan={bilan} />
+        <BilanExpress bilan={bilan} groupe={extras?.groupe ?? null} />
       )}
       {complet ? (
         <>
+          {extras && <Niveau niveau={extras.niveau} groupe={extras.groupe} />}
           {bilan.partiesManquantes === 0 && <Plan bilan={bilan} />}
           {bilan.partiesManquantes === 0 && <Progression bilan={bilan} />}
+          {extras && <HygieneJeu hygiene={extras.hygiene} />}
+          {extras && <CarteDesMorts carte={extras.carte} />}
+          {extras && <SangFroidJoueur sangFroid={extras.sangFroid} />}
           {bilan.champions.length > 0 && <Champions bilan={bilan} donnees={donnees} />}
           {bilan.champions.length > 0 && <Builds bilan={bilan} builds={builds} donnees={donnees} />}
         </>

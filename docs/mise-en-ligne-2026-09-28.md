@@ -7,11 +7,11 @@
 > porteur du projet : le secret des tâches planifiées (§ 2 bis) et les
 > réglages des §§ 3 et 4.
 >
-> **Sections 37 à 41 (04 et 05/10/2026)** — écoles et tournois réservés aux
+> **Sections 37 à 42 (04 et 05/10/2026)** — écoles et tournois réservés aux
 > membres (37), analyse détaillée automatique de l'offre Elite (38),
 > versement des cash prizes par Stripe Connect, toujours éteint (39),
-> scrims calés sur une échéance (40), bilan du joueur (41) : pas encore
-> appliquées en production. Même méthode qu'au § 2 : coller
+> scrims calés sur une échéance (40), bilan du joueur (41) et analyse des
+> parties classées sur accord (42) : pas encore appliquées en production. Même méthode qu'au § 2 : coller
 > dans l'éditeur SQL de Supabase la fin de `docs/schema.sql` à partir de
 > la ligne « Ligues écoles et universités, tournois réservés aux membres
 > (2026-10-04… » jusqu'à la dernière ligne, retirer les retours chariot,
@@ -165,6 +165,13 @@ une transaction, et contient 36 sections, dans cet ordre :
     enregistrées), vue `indicateurs_partie`, fonctions `reperes_bilan` et
     `reperes_build`. Rien à régler : les icônes du jeu viennent de Data
     Dragon, public et sans clé
+42. Bilan du joueur, étape 2 (05/10/2026) — parties classées lues sur
+    accord (`analyse_reglages`, `parties_classees`, `bilans_hebdo`,
+    repères anonymes) et une troisième tâche planifiée,
+    « najarena-analyse-classees » (même secret du coffre-fort que les deux
+    autres). Facultatif : `ANALYSE_APPELS_PAR_PASSAGE` sur Vercel (appels
+    Riot par passage, 20 par défaut ; à relever une fois la clé production
+    obtenue)
 
 Les widgets et l'API publique (N31) n'ajoutent rien à la base : ils lisent
 avec la clé publique, comme un visiteur déconnecté.
