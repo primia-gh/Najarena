@@ -57,3 +57,16 @@ export function classeBoutonContour(): string {
     "disabled:cursor-not-allowed disabled:opacity-50",
   ].join(" ");
 }
+
+/**
+ * Champ de saisie (05/10/2026) : filet clair, fond de page, bord vert au
+ * focus. Remplace la même suite de classes recopiée dans chaque formulaire.
+ */
+export function classeChamp(): string {
+  return [
+    "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5",
+    "font-texte text-base text-text outline-none placeholder:text-faint sm:text-sm",
+    "transition-colors duration-200 hover:border-[rgba(245,245,244,0.25)] focus:border-accent",
+    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+  ].join(" ");
+}

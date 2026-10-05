@@ -25,11 +25,11 @@ export default function Footer() {
   return (
     <footer className="print:hidden mt-auto border-t border-line bg-bg px-gouttiere py-14 font-texte">
       <div className="mx-auto flex max-w-contenu flex-col gap-8">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between xl:gap-12">
           <Link
             href="/"
             aria-label="Najarena — accueil"
-            className="inline-flex min-h-11 items-center self-start rounded-bouton focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+            className="inline-flex min-h-11 shrink-0 items-center self-start rounded-bouton focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
           >
             <Logo hauteur={36} />
           </Link>

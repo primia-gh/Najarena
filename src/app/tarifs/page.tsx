@@ -1,12 +1,15 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import SectionTitre from "@/components/ui/SectionTitre";
-import Bouton from "@/components/ui/Bouton";
-import { classeCarte } from "@/lib/ui";
 import { demarrerAbonnement } from "@/lib/stripe-actions";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
-import FondEcailles from "@/components/design/FondEcailles";
+import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
+import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import BoutonLien from "@/components/design/BoutonLien";
+import FondEcailles from "@/components/design/FondEcailles";
+import Icone from "@/components/design/Icone";
+import LibelleSection from "@/components/design/LibelleSection";
+import Tableau from "@/components/design/Tableau";
 
 export const metadata: Metadata = {
   title: "Tarifs — Najarena",
@@ -22,7 +25,6 @@ interface Palier {
   accroche: string;
   inclus: string[];
   cta: { libelle: string; href?: string };
-  accent: "sceau" | "laiton" | "none";
 }
 
 interface TarifsPageProps {
@@ -60,23 +62,33 @@ const OFFRES_VISIBLES: Record<Profil, Offre[]> = {
 // Tailwind ne génère pas une classe construite dynamiquement (`lg:grid-cols-${n}`) :
 // le nom complet doit apparaître tel quel dans le code source.
 const GRILLE_CARTES: Record<number, string> = {
-  2: "grid-cols-1 gap-4 sm:grid-cols-2",
-  3: "grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
-  4: "grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4",
+  2: "grid-cols-1 gap-5 md:grid-cols-2 lg:max-w-4xl",
+  3: "grid-cols-1 gap-5 md:grid-cols-3",
+  4: "grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4",
 };
 
+// « Bientôt » en gris (revue visuelle du 05/10/2026) : c'était une pastille
+// verte, alors que MASTER réserve le vert à l'essentiel — une promesse pas
+// encore tenue n'a pas à attirer l'œil plus qu'une fonction livrée.
 function PastilleBientot() {
   return (
-    <span className="ml-2 rounded-full border border-accent/30 bg-accent/12 px-1.5 py-0.5 font-texte tabular-nums text-mini tracking-[0.08em] text-accent uppercase">
+    <span className="ml-2 inline-block rounded-bouton border border-line-strong px-1.5 py-px align-[1px] font-texte text-[10px] font-medium tracking-[2px] text-muted uppercase">
       Bientôt
     </span>
   );
 }
 
+const TITRE_GROUPE: Record<Offre, string> = {
+  gratuit: "Pour tous, gratuit",
+  verifie: "Dès Vérifié",
+  elite: "Dès Elite",
+  organisateur: "Organisateur",
+};
+
 const PALIERS: Palier[] = [
   {
     nom: "Gratuit",
-    prix: "0€",
+    prix: "0\u00a0€",
     accroche: "Le cœur du produit, pour toujours.",
     inclus: [
       "Classement Glicko-2 et paliers",
@@ -87,12 +99,11 @@ const PALIERS: Palier[] = [
       "Bilan express : forces et axes de travail, tournois et classées",
     ],
     cta: { libelle: "Créer mon compte", href: "/inscription" },
-    accent: "none",
   },
   {
     nom: "Vérifié",
     cle: "verifie",
-    prix: "3-4€",
+    prix: "3–4\u00a0€",
     periode: "/mois",
     accroche: "Une identité qui se remarque.",
     inclus: [
@@ -102,12 +113,11 @@ const PALIERS: Palier[] = [
       "Inscription prioritaire aux tournois",
     ],
     cta: { libelle: "S'abonner" },
-    accent: "laiton",
   },
   {
     nom: "Elite",
     cle: "elite",
-    prix: "7-8€",
+    prix: "7–8\u00a0€",
     periode: "/mois",
     accroche: "Pour suivre sa progression de près.",
     inclus: [
@@ -121,12 +131,11 @@ const PALIERS: Palier[] = [
       "Accès aux formats premium",
     ],
     cta: { libelle: "S'abonner" },
-    accent: "sceau",
   },
   {
     nom: "Organisateur",
     cle: "organisateur",
-    prix: "10-15€",
+    prix: "10–15\u00a0€",
     periode: "/mois",
     accroche: "Pour héberger sans limite.",
     inclus: [
@@ -136,15 +145,8 @@ const PALIERS: Palier[] = [
       "Support prioritaire",
     ],
     cta: { libelle: "S'abonner" },
-    accent: "none",
   },
 ];
-
-const ACCENT_BORDURE: Record<Palier["accent"], string> = {
-  sceau: "border-t-accent",
-  laiton: "border-t-accent",
-  none: "border-t-line",
-};
 
 // Reprend mot pour mot les puces de PALIERS[].inclus, juste transposées en
 // lignes — aucune fonctionnalité nouvelle, seulement un second format pour
@@ -185,142 +187,175 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
     : PALIERS;
   const lignesVisibles = pour === "joueur" ? MATRICE.filter((l) => l.depuis !== "organisateur") : MATRICE;
 
+  // Un seul palier mis en avant, un seul bouton vert (MASTER §2 : le vert
+  // est rare) : Elite pour un joueur, Organisateur pour qui organise.
+  const enAvant: Offre = pour === "organiser" ? "organisateur" : "elite";
+  const groupes = (Object.keys(TITRE_GROUPE) as Offre[])
+    .map((offre) => ({ offre, lignes: lignesVisibles.filter((l) => l.depuis === offre) }))
+    .filter((g) => g.lignes.length > 0);
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative px-grille">
+      <div className="relative flex flex-col gap-16 px-grille">
         <Apparition>
-          <span className="block font-texte text-libelle font-medium text-muted uppercase">
-            Tarifs
-          </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-            Ton niveau reste gratuit. Pour toujours.
+          <LibelleSection>Tarifs</LibelleSection>
+          <h1 className="mt-4 max-w-5xl font-titre text-section font-black tracking-[1px] uppercase">
+            Ton niveau reste gratuit. <span className="text-accent">Pour toujours.</span>
           </h1>
-          <p className="mt-3 max-w-lg text-sm text-muted">
-            Le classement, les verdicts et le profil public ne seront jamais payants — c&apos;est la
-            promesse du site. Les paliers ci-dessous ajoutent de l&apos;identité et du confort,
-            jamais un péage sur la preuve.
+          <p className="mt-6 max-w-2xl text-courant text-text-2">
+            Le classement, les verdicts et le profil public ne seront jamais payants — c&apos;est la promesse du site. Les
+            paliers ci-dessous ajoutent de l&apos;identité et du confort, jamais un péage sur la preuve.
           </p>
+          {(erreur || message) && (
+            <div className="mt-8 flex max-w-2xl flex-col gap-3">
+              {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+              {message && <Alerte type="succes">{message}</Alerte>}
+            </div>
+          )}
         </Apparition>
 
-        {erreur && (
-          <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
-        )}
-        {message && (
-          <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
-        )}
-
         <Apparition delai={0.1}>
-          <section className="mt-12">
-            <SectionTitre>Les paliers</SectionTitre>
-            <nav aria-label="Filtrer les paliers" className="mt-4 flex flex-wrap gap-2">
-              {FILTRES.map((f) => {
-                const actif = f.pour === pour;
+          <section aria-labelledby="tarifs-paliers" className="flex flex-col gap-8">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <LibelleSection as="h2" id="tarifs-paliers" numero="01">
+                Les paliers
+              </LibelleSection>
+              <nav aria-label="Filtrer les paliers" className="flex flex-wrap gap-2">
+                {FILTRES.map((f) => {
+                  const actif = f.pour === pour;
+                  return (
+                    <Link
+                      key={f.libelle}
+                      href={f.href}
+                      aria-current={actif ? "page" : undefined}
+                      className={`inline-flex min-h-11 items-center rounded-bouton border px-4 font-texte text-sm font-semibold tracking-[2px] uppercase transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent ${
+                        actif ? "border-text text-text" : "border-line-strong text-muted hover:border-[rgba(245,245,244,0.25)] hover:text-text"
+                      }`}
+                    >
+                      {f.libelle}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+            <div className={`grid ${GRILLE_CARTES[paliersVisibles.length]}`}>
+              {paliersVisibles.map((p) => {
+                const offre: Offre = p.cle ?? "gratuit";
+                const misEnAvant = offre === enAvant;
                 return (
-                  <Link
-                    key={f.libelle}
-                    href={f.href}
-                    aria-current={actif ? "page" : undefined}
-                    className={`inline-flex min-h-11 items-center rounded-bouton border px-3 py-1.5 font-texte tabular-nums text-mini tracking-[0.1em] uppercase transition ${
-                      actif
-                        ? "border-text text-text"
-                        : "border-line text-muted hover:border-muted hover:text-text"
-                    }`}
+                  <article
+                    key={p.nom}
+                    aria-labelledby={`palier-${offre}`}
+                    className="panneau relative flex flex-col overflow-hidden p-6 sm:p-7"
                   >
-                    {f.libelle}
-                  </Link>
+                    {misEnAvant && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-accent" />}
+                    <div className="flex min-h-6 items-center justify-between gap-3">
+                      <h3 id={`palier-${offre}`} className="font-texte text-libelle font-semibold text-text uppercase">
+                        {p.nom}
+                      </h3>
+                      {misEnAvant && (
+                        <span className="font-texte text-mini font-medium text-accent uppercase">Recommandé</span>
+                      )}
+                    </div>
+                    <p className="mt-5 flex items-baseline gap-2">
+                      <span className="font-titre text-[3.25rem] leading-none font-black tabular-nums">{p.prix}</span>
+                      {p.periode && <span className="text-sm text-muted">{p.periode}</span>}
+                    </p>
+                    <p className="mt-3 text-sm text-text-2">{p.accroche}</p>
+
+                    <ul className="mt-6 flex flex-1 flex-col gap-3 border-t border-line pt-6 text-sm text-text">
+                      {p.inclus.map((i) => (
+                        <li key={i} className="flex items-start gap-2.5">
+                          <Icone nom="coche" taille={15} className="mt-0.5 text-muted" />
+                          <span>
+                            {i}
+                            {BIENTOT.has(i) && <PastilleBientot />}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {p.cta.href ? (
+                      <BoutonLien href={p.cta.href} variante={misEnAvant ? "principal" : "contour"} className="mt-8 w-full">
+                        {p.cta.libelle}
+                      </BoutonLien>
+                    ) : (
+                      <form action={demarrerAbonnement} className="mt-8">
+                        <input type="hidden" name="offre" value={p.cle} />
+                        <BoutonEnvoi
+                          variante={misEnAvant ? "principal" : "contour"}
+                          libelleEnCours="Redirection…"
+                          className="w-full"
+                        >
+                          {p.cta.libelle}
+                        </BoutonEnvoi>
+                      </form>
+                    )}
+                  </article>
                 );
               })}
-            </nav>
-            <div className={`mt-4 grid ${GRILLE_CARTES[paliersVisibles.length]}`}>
-              {paliersVisibles.map((p) => (
-                <div
-                  key={p.nom}
-                  className={`flex flex-col rounded-[3px] border border-line border-t-[3px] bg-surface p-5 ${ACCENT_BORDURE[p.accent]}`}
-                >
-                  <span className="font-texte tabular-nums text-mini tracking-[0.1em] text-muted uppercase">
-                    {p.nom}
-                  </span>
-                  <div className="mt-1.5 flex items-baseline gap-1">
-                    <span className="font-texte tabular-nums text-2xl font-bold text-text">{p.prix}</span>
-                    {p.periode && <span className="font-texte tabular-nums text-xs text-muted">{p.periode}</span>}
-                  </div>
-                  <p className="mt-1.5 text-sm text-muted">{p.accroche}</p>
-
-                  <ul className="mt-4 flex flex-1 flex-col gap-2 text-[0.82rem] text-text">
-                    {p.inclus.map((i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted" aria-hidden="true" />
-                        <span>
-                          {i}
-                          {BIENTOT.has(i) && <PastilleBientot />}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {p.cta.href ? (
-                    <Link
-                      href={p.cta.href}
-                      className="mt-5 inline-flex min-h-11 items-center justify-center rounded-bouton bg-accent px-4 py-2 text-center text-sm font-semibold text-bg transition hover:brightness-110"
-                    >
-                      {p.cta.libelle}
-                    </Link>
-                  ) : (
-                    <form action={demarrerAbonnement} className="mt-5">
-                      <input type="hidden" name="offre" value={p.cle} />
-                      <Bouton libelleEnCours="Redirection…" className="w-full">
-                        {p.cta.libelle}
-                      </Bouton>
-                    </form>
-                  )}
-                </div>
-              ))}
             </div>
-            <p className="mt-6 max-w-lg text-sm text-muted">
-              Vérifié, Elite et Organisateur sont en cours de lancement — ces prix sont indicatifs
-              et pourront évoluer.
+            <p className="max-w-2xl text-sm text-muted">
+              Vérifié, Elite et Organisateur sont en cours de lancement — ces prix sont indicatifs et pourront évoluer.
             </p>
           </section>
         </Apparition>
 
         <Apparition delai={0.12}>
-          <section className="mt-12">
-            <SectionTitre>Comparer les paliers</SectionTitre>
-            <div className="mt-4 overflow-x-auto rounded-[3px] border border-line bg-surface shadow-[0_1px_2px_rgba(18,22,29,0.05),0_10px_24px_-16px_rgba(18,22,29,0.15)]">
-              <table className="w-full min-w-[560px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-line">
-                    <th className="px-4 py-2 font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase">
-                      Fonctionnalité
+          <section aria-labelledby="tarifs-comparer" className="flex flex-col gap-8">
+            <LibelleSection as="h2" id="tarifs-comparer" numero="02">
+              Comparer les paliers
+            </LibelleSection>
+            <Tableau legende="Fonctionnalités incluses dans chaque palier">
+              <thead>
+                <tr>
+                  <th scope="col">Fonctionnalité</th>
+                  {paliersVisibles.map((p) => (
+                    <th
+                      key={p.nom}
+                      scope="col"
+                      className={`w-28 text-center! ${(p.cle ?? "gratuit") === enAvant ? "text-text!" : ""}`}
+                    >
+                      {p.nom}
                     </th>
-                    {paliersVisibles.map((p) => (
-                      <th
-                        key={p.nom}
-                        className="px-4 py-2 text-center font-texte tabular-nums text-mini tracking-[0.12em] text-muted uppercase"
-                      >
-                        {p.nom}
-                      </th>
-                    ))}
+                  ))}
+                </tr>
+              </thead>
+              {groupes.map((g) => (
+                <tbody key={g.offre}>
+                  <tr>
+                    <th
+                      scope="colgroup"
+                      colSpan={paliersVisibles.length + 1}
+                      className="pt-8! pb-3! font-texte text-mini font-medium text-faint uppercase"
+                    >
+                      {TITRE_GROUPE[g.offre]}
+                    </th>
                   </tr>
-                </thead>
-                <tbody>
-                  {lignesVisibles.map((ligne) => (
-                    <tr key={ligne.fonctionnalite} className="border-b border-line last:border-b-0">
-                      <td className="px-4 py-2 text-text">{ligne.fonctionnalite}</td>
+                  {g.lignes.map((ligne) => (
+                    <tr key={ligne.fonctionnalite}>
+                      <th
+                        scope="row"
+                        className="border-[rgba(245,245,244,0.06)]! py-3.5! text-sm! font-normal! tracking-normal! text-text! normal-case! whitespace-normal!"
+                      >
+                        {ligne.fonctionnalite}
+                      </th>
                       {paliersVisibles.map((p) => {
-                        const cle = (p.cle ?? "gratuit") as Offre;
-                        const inclus = ORDRE_OFFRE[cle] >= ORDRE_OFFRE[ligne.depuis];
+                        const inclus = ORDRE_OFFRE[p.cle ?? "gratuit"] >= ORDRE_OFFRE[ligne.depuis];
                         return (
-                          <td key={p.nom} className="px-4 py-2 text-center">
+                          <td key={p.nom} className="py-3.5! text-center">
                             {inclus && BIENTOT.has(ligne.fonctionnalite) ? (
-                              <span className="font-texte tabular-nums text-mini tracking-[0.08em] text-accent uppercase">
+                              <span className="font-texte text-[10px] font-medium tracking-[2px] text-muted uppercase">
                                 Bientôt
                               </span>
                             ) : inclus ? (
-                              <span className="text-accent">✓</span>
+                              <Icone nom="coche" taille={16} libelle="Inclus" className="mx-auto text-text" />
                             ) : (
-                              <span className="text-muted/40">—</span>
+                              <span className="text-faint">
+                                <span aria-hidden="true">—</span>
+                                <span className="sr-only">Non inclus</span>
+                              </span>
                             )}
                           </td>
                         );
@@ -328,27 +363,25 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
-            <p className="mt-3 text-[0.78rem] text-muted">
+              ))}
+            </Tableau>
+            <p className="text-sm text-muted">
               « Bientôt » : en cours de développement, inclus dans le palier dès leur mise en ligne.
             </p>
           </section>
         </Apparition>
 
-        <Apparition delai={0.15}>
-          <p className="mt-12 text-sm text-muted">
-            Une question sur les tarifs à venir ?{" "}
-            <Link href="/faq" className="text-text underline underline-offset-3">
-              Voir la FAQ
-            </Link>{" "}
-            ou{" "}
-            <Link href="/comment-ca-marche" className="text-text underline underline-offset-3">
-              comment ça marche
-            </Link>
-            .
-          </p>
-        </Apparition>
+        <p className="text-sm text-muted">
+          Une question sur les tarifs à venir ?{" "}
+          <Link href="/faq" className="text-text underline underline-offset-3 hover:text-accent">
+            Voir la FAQ
+          </Link>{" "}
+          ou{" "}
+          <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:text-accent">
+            comment ça marche
+          </Link>
+          .
+        </p>
       </div>
     </main>
   );

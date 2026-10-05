@@ -66,6 +66,7 @@ const ICONES: NomIcone[] = [
   "lecture",
   "cadenas",
   "oeil",
+  "alerte",
   "horloge",
   "eclat",
 ];

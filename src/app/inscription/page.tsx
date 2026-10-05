@@ -2,10 +2,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { destinationInterne } from "@/lib/redirection";
 import { sInscrire, seConnecterAvecDiscord } from "@/lib/auth-actions";
-import { classeCarte } from "@/lib/ui";
-import Bouton from "@/components/ui/Bouton";
-import FondEcailles from "@/components/design/FondEcailles";
-import Apparition from "@/components/design/Apparition";
+import { classeChamp } from "@/lib/design";
+import Alerte from "@/components/design/Alerte";
+import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import CadreCompte, { ChampCompte, SeparateurOu } from "@/components/compte/CadreCompte";
+import ConsentementCompte from "@/components/compte/ConsentementCompte";
 
 export const metadata: Metadata = {
   title: "Inscription — Najarena",
@@ -24,27 +25,32 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
   const suite = suiteDemandee ? destinationInterne(suiteDemandee, "") || null : null;
 
   return (
-    <main className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
-      <FondEcailles />
-      <Apparition className="relative mx-auto w-full max-w-md px-6">
-      <h1 className="font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-        Créer un compte
-      </h1>
-      <p className="mt-1 text-sm text-muted">Ton niveau, vérifié — dès ton premier tournoi.</p>
-      <p className="mt-2 text-sm text-muted">
-        Le Riot ID se lie ensuite, depuis ton profil.
-      </p>
-
-      {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
-      )}
-
-      <form action={sInscrire} className="mt-6 flex flex-col gap-4">
+    <CadreCompte
+      libelle="Compte joueur · gratuit"
+      titre="Créer un compte"
+      intro={
+        <>
+          <p>Ton niveau, vérifié — dès ton premier tournoi.</p>
+          <p className="text-muted">Le Riot ID se lie ensuite, depuis ton profil.</p>
+        </>
+      }
+      promesses
+      alerte={erreur ? <Alerte type="erreur">{erreur}</Alerte> : undefined}
+      pied={
+        <>
+          Déjà un compte ?{" "}
+          <Link
+            href={suite ? `/connexion?suite=${encodeURIComponent(suite)}` : "/connexion"}
+            className="font-semibold text-text underline underline-offset-3 hover:text-accent"
+          >
+            Se connecter
+          </Link>
+        </>
+      }
+    >
+      <form action={sInscrire} className="flex flex-col gap-4">
         {suite && <input type="hidden" name="suite" value={suite} />}
-        <label className="flex flex-col gap-1">
-          <span className="font-texte text-mini font-medium text-muted uppercase">
-            Pseudo
-          </span>
+        <ChampCompte libelle="Pseudo · 3 à 20 caractères">
           <input
             name="pseudo"
             type="text"
@@ -52,98 +58,37 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
             minLength={3}
             maxLength={20}
             autoComplete="username"
-            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className={classeChamp()}
           />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="font-texte text-mini font-medium text-muted uppercase">
-            E-mail
-          </span>
-          <input
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="font-texte text-mini font-medium text-muted uppercase">
-            Mot de passe
-          </span>
+        </ChampCompte>
+        <ChampCompte libelle="E-mail">
+          <input name="email" type="email" required autoComplete="email" className={classeChamp()} />
+        </ChampCompte>
+        <ChampCompte libelle="Mot de passe · 8 caractères min.">
           <input
             name="mot_de_passe"
             type="password"
             required
             minLength={8}
             autoComplete="new-password"
-            className="min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className={classeChamp()}
           />
-        </label>
-
-        <label className="flex items-start gap-2 text-sm text-muted">
-          <input
-            name="age_confirme"
-            type="checkbox"
-            required
-            className="mt-0.5 accent-accent"
-          />
-          <span>
-            J&apos;ai au moins 15 ans (ou l&apos;autorisation de mon représentant légal) et
-            j&apos;accepte les{" "}
-            <Link href="/cgu" className="text-text underline underline-offset-3">
-              CGU
-            </Link>
-            . Mes données sont traitées selon la{" "}
-            <Link href="/confidentialite" className="text-text underline underline-offset-3">
-              politique de confidentialité
-            </Link>
-            .
-          </span>
-        </label>
-
-        <Bouton libelleEnCours="Création…" className="mt-2">
+        </ChampCompte>
+        <ConsentementCompte />
+        <BoutonEnvoi libelleEnCours="Création…" className="mt-2 w-full">
           Créer mon compte
-        </Bouton>
+        </BoutonEnvoi>
       </form>
 
-      <div className="mt-6 flex items-center gap-3">
-        <span className="h-px flex-1 bg-line" />
-        <span className="font-texte text-mini font-medium text-muted uppercase">ou</span>
-        <span className="h-px flex-1 bg-line" />
-      </div>
+      <SeparateurOu />
 
-      <form action={seConnecterAvecDiscord} className="mt-6 flex flex-col gap-3">
+      <form action={seConnecterAvecDiscord} className="flex flex-col gap-4">
         {suite && <input type="hidden" name="suite" value={suite} />}
-        <label className="flex items-start gap-2 text-sm text-muted">
-          <input name="age_confirme" type="checkbox" required className="mt-0.5 accent-accent" />
-          <span>
-            J&apos;ai au moins 15 ans (ou l&apos;autorisation de mon représentant légal) et
-            j&apos;accepte les{" "}
-            <Link href="/cgu" className="text-text underline underline-offset-3">
-              CGU
-            </Link>
-            . Mes données sont traitées selon la{" "}
-            <Link href="/confidentialite" className="text-text underline underline-offset-3">
-              politique de confidentialité
-            </Link>
-            .
-          </span>
-        </label>
-        <Bouton variante="secondaire" libelleEnCours="Redirection…" className="w-full">
+        <ConsentementCompte />
+        <BoutonEnvoi variante="contour" libelleEnCours="Redirection…" className="w-full">
           Continuer avec Discord
-        </Bouton>
+        </BoutonEnvoi>
       </form>
-
-      <p className="mt-6 text-sm text-muted">
-        Déjà un compte ?{" "}
-        <Link href={suite ? `/connexion?suite=${encodeURIComponent(suite)}` : "/connexion"} className="text-text underline underline-offset-3">
-          Se connecter
-        </Link>
-      </p>
-      </Apparition>
-    </main>
+    </CadreCompte>
   );
 }
