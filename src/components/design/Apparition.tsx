@@ -2,10 +2,20 @@
 
 // Apparition au défilement de la nouvelle identité (MASTER §7 : apparitions
 // 300–450 ms) : fondu + léger glissement vers le haut, une seule fois,
-// durées recalées sur MASTER. Mouvement réduit : contenu affiché tel quel.
+// durées recalées sur MASTER.
+//
+// Mouvement réduit (corrigé le 05/10/2026) : le composant rendait un simple
+// <div> quand le navigateur demandait moins d'animations. Mais le serveur,
+// qui ne connaît pas ce réglage, envoyait la version animée, masquée
+// (opacity: 0) en attendant le défilement ; React ne corrige pas un
+// attribut différent à l'hydratation, et le <div> sans animation ne
+// l'enlevait jamais : tout le contenu restait invisible pour ces visiteurs.
+// Désormais le même élément est rendu pour tous, et c'est la feuille de
+// style (globals.css, [data-apparition]) qui l'affiche d'emblée, sans
+// mouvement, quand prefers-reduced-motion vaut « reduce ».
 
 import type { ReactNode } from "react";
-import { motion, useReducedMotion, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
 
 interface ApparitionProps {
   children: ReactNode;
@@ -20,14 +30,9 @@ const variantes: Variants = {
 };
 
 export default function Apparition({ children, delai = 0, className }: ApparitionProps) {
-  const mouvementReduit = useReducedMotion();
-
-  if (mouvementReduit) {
-    return <div className={className}>{children}</div>;
-  }
-
   return (
     <motion.div
+      data-apparition=""
       className={className}
       initial="cache"
       whileInView="visible"
