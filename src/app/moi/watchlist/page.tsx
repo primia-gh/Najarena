@@ -4,14 +4,18 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { chargerOffre } from "@/lib/offres";
 import { retirerDeLaWatchlist } from "@/lib/watchlist-actions";
-import { progressionPalier, type Palier } from "@/lib/classement";
+import { arrondir, trouverPalier, type Palier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
-import { classeCarte } from "@/lib/ui";
-import CrestPalier from "@/components/ui/CrestPalier";
-import EtatVide from "@/components/ui/EtatVide";
-import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
-import FondEcailles from "@/components/design/FondEcailles";
+import { formaterDate } from "@/lib/tournois";
+import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
+import AvatarJoueur from "@/components/design/AvatarJoueur";
+import BoutonLien from "@/components/design/BoutonLien";
+import FondEcailles from "@/components/design/FondEcailles";
+import Icone from "@/components/design/Icone";
+import LibelleSection from "@/components/design/LibelleSection";
+import Panneau from "@/components/design/Panneau";
+import Tableau from "@/components/design/Tableau";
 
 export const metadata: Metadata = {
   title: "Ma watchlist — Najarena",
@@ -39,7 +43,7 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
   const [{ data: watchlistData }, { data: saison }, { data: paliersData }] = await Promise.all([
     supabase
       .from("watchlist")
-      .select("joueur_suivi_id, cree_le, joueur:profiles!watchlist_joueur_suivi_id_fkey(pseudo, slug)")
+      .select("joueur_suivi_id, cree_le, joueur:profiles!watchlist_joueur_suivi_id_fkey(pseudo, slug, avatar_url)")
       .eq("recruteur_id", userData.user.id)
       .order("cree_le", { ascending: false }),
     supabase.from("seasons").select("id").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
@@ -65,80 +69,111 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative px-grille">
-        <Apparition>
-          <Link
-            href="/moi"
-            className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            ← Mon compte
-          </Link>
-          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-            Ma watchlist
-          </h1>
-          <p className="mt-2 max-w-lg text-sm text-muted">
-            Les joueurs que tu suis, avec leur palier actuel.{" "}
-            <Link href="/lol/recherche" className="text-text underline underline-offset-3">
-              Rechercher des joueurs
+      <div className="relative flex flex-col gap-10 px-grille">
+        <Apparition className="flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <Link
+              href="/moi"
+              className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+            >
+              <Icone nom="fleche-gauche" taille={14} />
+              Mon compte
             </Link>
-            .
-          </p>
+            <LibelleSection className="mt-6">Offre Organisateur · {suivis.length} suivi{suivis.length > 1 ? "s" : ""}</LibelleSection>
+            <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Ma watchlist</h1>
+            <p className="mt-4 max-w-2xl text-text-2">Les joueurs que tu suis, avec leur palier et leur rating actuels.</p>
+          </div>
+          <BoutonLien href="/lol/recherche" variante="contour">
+            Rechercher des joueurs
+          </BoutonLien>
         </Apparition>
 
-        {erreur && (
-          <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
-        )}
-        {message && (
-          <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
+        {(erreur || message) && (
+          <div className="flex max-w-2xl flex-col gap-3">
+            {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+            {message && <Alerte type="succes">{message}</Alerte>}
+          </div>
         )}
 
-        <Apparition delai={0.1}>
-          <section className="mt-8">
-            {suivis.length === 0 ? (
-              <div className="mt-3">
-                <EtatVide illustration={<IllustrationEffectifVide />}>
-                  Aucun joueur suivi pour l&apos;instant.
-                </EtatVide>
-              </div>
-            ) : (
-              <ul className="mt-3 flex flex-col gap-2">
+        <Apparition delai={0.08}>
+          {suivis.length === 0 ? (
+            <Panneau reperes className="flex flex-col items-start gap-4 p-8">
+              <p className="font-titre text-3xl font-black uppercase">Aucun joueur suivi.</p>
+              <p className="text-text-2">Suis un joueur depuis la recherche ou depuis son CV (bouton « Suivre »).</p>
+            </Panneau>
+          ) : (
+            <Tableau legende="Joueurs suivis">
+              <thead>
+                <tr>
+                  <th scope="col">Joueur</th>
+                  <th scope="col" className="hidden sm:table-cell">
+                    Palier
+                  </th>
+                  <th scope="col" className="text-right!">
+                    Rating
+                  </th>
+                  <th scope="col" className="hidden text-right! md:table-cell">
+                    Suivi depuis
+                  </th>
+                  <th scope="col" className="text-right!">
+                    <span className="sr-only">Retirer</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
                 {suivis.map((s) => {
                   const rating = ratingsParJoueur.get(s.joueur_suivi_id);
-                  const { palier, progression } =
-                    rating !== undefined ? progressionPalier(rating, paliers) : { palier: null, progression: 0 };
+                  const palier = rating !== undefined ? (trouverPalier(rating, paliers)?.nom ?? null) : null;
                   return (
-                    <li key={s.joueur_suivi_id} className={"flex items-center justify-between gap-3 " + classeCarte("none")}>
-                      <Link href={`/joueur/${s.joueur!.slug}`} className="text-sm font-semibold text-text hover:underline">
-                        {s.joueur!.pseudo}
-                      </Link>
-                      <div className="flex shrink-0 items-center gap-3">
+                    <tr key={s.joueur_suivi_id}>
+                      <td className="py-3!">
+                        <Link
+                          href={`/joueur/${s.joueur!.slug}`}
+                          className="inline-flex min-h-11 items-center gap-3 font-semibold hover:text-accent"
+                        >
+                          <AvatarJoueur pseudo={s.joueur!.pseudo} src={s.joueur!.avatar_url} />
+                          {s.joueur!.pseudo}
+                        </Link>
+                      </td>
+                      <td className="hidden py-3! text-sm text-text-2 sm:table-cell">
                         {palier ? (
-                          <CrestPalier
-                            nom={palier.nom}
-                            couleur={COULEUR_PALIER[palier.nom.toLowerCase()] ?? "var(--color-muted)"}
-                            progression={progression}
-                          />
+                          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                            <span
+                              aria-hidden="true"
+                              className="h-2 w-2 rounded-full"
+                              style={{ background: COULEUR_PALIER[palier.toLowerCase()] ?? "var(--color-muted)" }}
+                            />
+                            {palier}
+                          </span>
                         ) : (
-                          <span className="font-texte tabular-nums text-mini text-muted">Non classé</span>
+                          <span className="text-faint">Non classé</span>
                         )}
+                      </td>
+                      <td className="py-3! text-right font-titre text-2xl font-extrabold tabular-nums">
+                        {rating !== undefined ? arrondir(rating) : <span className="font-texte text-sm font-normal text-faint">—</span>}
+                      </td>
+                      <td className="hidden py-3! text-right text-sm text-muted tabular-nums md:table-cell">
+                        {formaterDate(s.cree_le).split(" ")[0]}
+                      </td>
+                      <td className="py-3! text-right">
                         <form action={retirerDeLaWatchlist}>
                           <input type="hidden" name="joueur_suivi_id" value={s.joueur_suivi_id} />
                           <input type="hidden" name="retour" value="/moi/watchlist" />
                           <button
                             type="submit"
                             aria-label={`Retirer ${s.joueur!.pseudo} de la watchlist`}
-                            className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
+                            className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger"
                           >
                             Retirer
                           </button>
                         </form>
-                      </div>
-                    </li>
+                      </td>
+                    </tr>
                   );
                 })}
-              </ul>
-            )}
-          </section>
+              </tbody>
+            </Tableau>
+          )}
         </Apparition>
       </div>
     </main>
