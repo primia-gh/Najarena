@@ -80,12 +80,14 @@ function objetsDe(p: ParticipantMatchRiot): number[] {
 /**
  * Poste de la partie. Dans les parties personnalisées, Riot ne le donne
  * souvent pas : seuls les cas sans ambiguïté sont déduits (Châtiment =
- * jungle, objet de support = support). Sinon, aucun poste.
+ * jungle, objet de support = support), puis l'estimation de Riot pour le
+ * joueur seul (individualPosition). Sinon, aucun poste.
  */
 export function posteDeLaPartie(p: ParticipantMatchRiot): string | null {
   if (p.teamPosition && POSTES.has(p.teamPosition)) return p.teamPosition;
   if (p.summoner1Id === SORT_CHATIMENT || p.summoner2Id === SORT_CHATIMENT) return "JUNGLE";
   if (objetsDe(p).some((o) => OBJETS_SUPPORT.has(o))) return "UTILITY";
+  if (p.individualPosition && POSTES.has(p.individualPosition)) return p.individualPosition;
   return null;
 }
 

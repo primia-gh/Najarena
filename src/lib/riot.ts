@@ -147,6 +147,7 @@ export interface ParticipantMatchRiot {
   championId?: number;
   champLevel?: number;
   teamPosition?: string;
+  individualPosition?: string;
   item0?: number;
   item1?: number;
   item2?: number;

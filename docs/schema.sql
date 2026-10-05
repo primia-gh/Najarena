@@ -7802,7 +7802,10 @@ create index if not exists stats_match_joueur_champion_idx on public.stats_match
 
 -- Indicateurs de chaque partie vérifiée (verdict lu chez Riot, jamais une
 -- décision manuelle), formules écrites une seule fois ici. Lisible par
--- tous, comme les parties dont ils viennent (droits du lecteur).
+-- tous, comme les parties dont ils viennent (droits du lecteur). Le 1v1
+-- classique (premier sang, première tour ou 100 sbires) n'y entre pas : la
+-- partie continue après la condition remplie, ses chiffres ne se comparent
+-- pas. Sbires à 10 minutes : seulement pour une partie de 10 minutes au moins.
 create or replace view public.indicateurs_partie with (security_invoker = true) as
 select
   s.match_id, s.profile_id, t.format, s.champion, s.champion_id, s.poste, s.gagne,
@@ -7814,19 +7817,23 @@ select
   round(s.degats_champions / nullif(s.duree_secondes / 60.0, 0), 1) as degats_min,
   round(s.deaths / nullif(s.duree_secondes / 600.0, 0), 2) as morts_10min,
   round(s.score_vision / nullif(s.duree_secondes / 60.0, 0), 2) as vision_min,
-  s.part_kills, s.part_degats, s.sbires_10,
+  s.part_kills, s.part_degats,
+  case when s.duree_secondes >= 600 then s.sbires_10 end as sbires_10,
   case when s.premier_sang is null then null when s.premier_sang then 1 else 0 end as premier_sang,
   case when s.premiere_tour is null then null when s.premiere_tour then 1 else 0 end as premiere_tour,
   s.objets, s.balise, s.sorts, s.style_principal, s.rune_principale, s.runes, s.style_secondaire
 from public.stats_match_joueur s
 join public.matches m on m.id = s.match_id
 join public.tournaments t on t.id = m.tournament_id
-join public.match_verdicts v on v.match_id = s.match_id and v.est_definitif and v.niveau <> 'manuel';
+join public.match_verdicts v on v.match_id = s.match_id and v.est_definitif and v.niveau <> 'manuel'
+where t.format <> '1v1' or t.condition_victoire = 'nexus';
 grant select on public.indicateurs_partie to anon, authenticated;
 
 -- Repères d'un format (et d'un poste en 5v5) : moyenne et écart des
--- vainqueurs et des perdants, sur toutes les parties vérifiées de Najarena.
-create or replace function public.reperes_bilan(p_format text, p_poste text default null)
+-- vainqueurs et des perdants, sur les parties vérifiées de Najarena — sans
+-- celles du joueur qui se compare (p_sauf), pour ne pas se comparer à soi.
+drop function if exists public.reperes_bilan(text, text);
+create or replace function public.reperes_bilan(p_format text, p_poste text default null, p_sauf uuid default null)
 returns table (
   indicateur text, parties integer,
   moyenne_gagnants numeric, ecart_gagnants numeric,
@@ -7847,24 +7854,28 @@ as $$
     ('kda', i.kda), ('sbires_min', i.sbires_min), ('or_min', i.or_min), ('degats_min', i.degats_min),
     ('morts_10min', i.morts_10min), ('vision_min', i.vision_min), ('part_kills', i.part_kills),
     ('part_degats', i.part_degats), ('sbires_10', i.sbires_10::numeric),
-    ('premier_sang', i.premier_sang::numeric), ('premiere_tour', i.premiere_tour::numeric)
+    ('premier_sang', i.premier_sang::numeric)
   ) as x(indicateur, valeur)
-  where i.format = p_format and (p_poste is null or i.poste = p_poste) and x.valeur is not null
+  where i.format = p_format and (p_poste is null or i.poste = p_poste)
+    and (p_sauf is null or i.profile_id <> p_sauf) and x.valeur is not null
   group by x.indicateur
   order by x.indicateur;
 $$;
-grant execute on function public.reperes_bilan(text, text) to anon, authenticated;
+grant execute on function public.reperes_bilan(text, text, uuid) to anon, authenticated;
 
 -- Build de référence d'un champion dans un format : objets, rune
--- principale, style secondaire et sorts, avec parties et victoires.
-create or replace function public.reperes_build(p_format text, p_champion text)
+-- principale, style secondaire et sorts, avec parties et victoires (sans
+-- les parties du joueur qui se compare, p_sauf).
+drop function if exists public.reperes_build(text, text);
+create or replace function public.reperes_build(p_format text, p_champion text, p_sauf uuid default null)
 returns table (genre text, valeur text, parties integer, victoires integer)
 language sql
 stable
 set search_path = public
 as $$
   with p as (
-    select * from public.indicateurs_partie where format = p_format and champion = p_champion
+    select * from public.indicateurs_partie
+    where format = p_format and champion = p_champion and (p_sauf is null or profile_id <> p_sauf)
   )
   select 'total', null::text, count(*)::integer, (count(*) filter (where gagne))::integer from p
   union all
@@ -7883,4 +7894,4 @@ as $$
         from p where cardinality(p.sorts) = 2) s
   group by s.paire;
 $$;
-grant execute on function public.reperes_build(text, text) to anon, authenticated;
+grant execute on function public.reperes_build(text, text, uuid) to anon, authenticated;

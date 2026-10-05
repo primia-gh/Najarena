@@ -3,7 +3,7 @@
 \set ON_ERROR_STOP 0
 
 -- Mia, Noe et Oli jouent un tournoi 1v1 ; Pat joue un match tranché à la
--- main ; puis un match 5v5.
+-- main ; puis un match 5v5, et Mia un tournoi au 1v1 classique.
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000000160', 'mia957@test', '{"pseudo":"Mia957","slug":"mia957"}'),
   ('00000000-0000-0000-0000-000000000161', 'noe957@test', '{"pseudo":"Noe957","slug":"noe957"}'),
@@ -12,18 +12,24 @@ insert into auth.users (id, email, raw_user_meta_data) values
 insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement) values
   ('a1000000-0000-0000-0000-000000000001', 1, '00000000-0000-0000-0000-000000000163', 'bilan-1v1', 'Bilan 1v1', '1v1', 8, 'EUW', now() - interval '2 days', now() - interval '2 days', 'termine', true),
   ('a1000000-0000-0000-0000-000000000002', 1, '00000000-0000-0000-0000-000000000163', 'bilan-5v5', 'Bilan 5v5', '5v5', 4, 'EUW', now() - interval '1 day', now() - interval '1 day', 'termine', false);
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement, condition_victoire) values
+  ('a1000000-0000-0000-0000-000000000003', 1, '00000000-0000-0000-0000-000000000163', 'bilan-classique', 'Bilan classique', '1v1', 8, 'EUW', now() - interval '3 days', now() - interval '3 days', 'termine', true, 'classique');
 insert into matches (id, tournament_id, tour, position, statut) values
   ('a1000000-0000-0000-0000-0000000000a1', 'a1000000-0000-0000-0000-000000000001', 1, 1, 'termine'),
   ('a1000000-0000-0000-0000-0000000000a2', 'a1000000-0000-0000-0000-000000000001', 1, 2, 'termine'),
   ('a1000000-0000-0000-0000-0000000000a3', 'a1000000-0000-0000-0000-000000000001', 1, 3, 'termine'),
   ('a1000000-0000-0000-0000-0000000000a4', 'a1000000-0000-0000-0000-000000000001', 1, 4, 'termine'),
-  ('a1000000-0000-0000-0000-0000000000b1', 'a1000000-0000-0000-0000-000000000002', 1, 1, 'termine');
+  ('a1000000-0000-0000-0000-0000000000a5', 'a1000000-0000-0000-0000-000000000001', 2, 1, 'termine'),
+  ('a1000000-0000-0000-0000-0000000000b1', 'a1000000-0000-0000-0000-000000000002', 1, 1, 'termine'),
+  ('a1000000-0000-0000-0000-0000000000c1', 'a1000000-0000-0000-0000-000000000003', 1, 1, 'termine');
 insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif) values
   ('a1000000-0000-0000-0000-0000000000a1', 'historique', '00000000-0000-0000-0000-000000000160', true),
   ('a1000000-0000-0000-0000-0000000000a2', 'historique', '00000000-0000-0000-0000-000000000160', true),
   ('a1000000-0000-0000-0000-0000000000a3', 'historique', '00000000-0000-0000-0000-000000000161', true),
   ('a1000000-0000-0000-0000-0000000000a4', 'manuel', '00000000-0000-0000-0000-000000000163', true),
-  ('a1000000-0000-0000-0000-0000000000b1', 'historique', '00000000-0000-0000-0000-000000000160', true);
+  ('a1000000-0000-0000-0000-0000000000a5', 'historique', '00000000-0000-0000-0000-000000000161', true),
+  ('a1000000-0000-0000-0000-0000000000b1', 'historique', '00000000-0000-0000-0000-000000000160', true),
+  ('a1000000-0000-0000-0000-0000000000c1', 'historique', '00000000-0000-0000-0000-000000000160', true);
 
 insert into stats_match_joueur (match_id, profile_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne,
                                 degats_champions, premier_sang, premiere_tour, objets, rune_principale, style_secondaire, sorts, poste, patch, joue_le) values
@@ -36,7 +42,15 @@ insert into stats_match_joueur (match_id, profile_id, champion, kills, deaths, a
   ('a1000000-0000-0000-0000-0000000000a4', '00000000-0000-0000-0000-000000000163', 'Ahri', 10, 0, 0, 200, 9000, 900, true, 12000, true, true, array[3089], 8112, null, array[4, 14], null, '15.19', now() - interval '45 hours'),
   ('a1000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-000000000160', 'Ahri', 5, 2, 7, 210, 11000, 1500, true, 21000, false, false, array[6655, 3020, 4645], 8112, 8300, array[4, 12], 'MIDDLE', '15.19', now() - interval '1 day'),
   ('a1000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-000000000162', 'Yasuo', 3, 6, 2, 190, 9500, 1500, false, 15000, false, false, array[3031, 3006], 8008, 8400, array[4, 12], 'MIDDLE', '15.19', now() - interval '1 day'),
-  ('a1000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-000000000161', 'Garen', 1, 5, 3, 180, 8000, 1500, false, 12000, false, true, array[3078], 8010, 8400, array[4, 12], 'TOP', '15.19', now() - interval '1 day');
+  ('a1000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-000000000161', 'Garen', 1, 5, 3, 180, 8000, 1500, false, 12000, false, true, array[3078], 8010, 8400, array[4, 12], 'TOP', '15.19', now() - interval '1 day'),
+  ('a1000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000160', 'Ahri', 1, 0, 0, 30, 1500, 330, true, 900, true, false, array[1056], 8112, null, array[4, 14], null, '15.19', now() - interval '3 days'),
+  ('a1000000-0000-0000-0000-0000000000a5', '00000000-0000-0000-0000-000000000161', 'Zed', 3, 0, 0, 80, 3600, 540, true, 5400, true, true, array[3142], 8010, null, array[4, 14], null, '15.19', now() - interval '44 hours'),
+  ('a1000000-0000-0000-0000-0000000000a5', '00000000-0000-0000-0000-000000000162', 'Yasuo', 0, 3, 0, 60, 2000, 540, false, 2700, false, false, array[3031], 8008, null, array[4, 14], null, '15.19', now() - interval '44 hours');
+-- Sbires à 10 minutes, lus chez Riot (une partie de 9 minutes en compte aussi).
+update stats_match_joueur set sbires_10 = 60
+where match_id = 'a1000000-0000-0000-0000-0000000000a1' and profile_id = '00000000-0000-0000-0000-000000000160';
+update stats_match_joueur set sbires_10 = 80
+where match_id = 'a1000000-0000-0000-0000-0000000000a5' and profile_id = '00000000-0000-0000-0000-000000000161';
 
 select refus('Plus de six objets dans une partie',
   $q$update stats_match_joueur set objets = array[1, 2, 3, 4, 5, 6, 7] where match_id = 'a1000000-0000-0000-0000-0000000000a1' and profile_id = '00000000-0000-0000-0000-000000000160'$q$,
@@ -52,6 +66,14 @@ select verifie('Visiteur : indicateurs de la première partie de Mia (KDA 5, 10 
    from indicateurs_partie where match_id = 'a1000000-0000-0000-0000-0000000000a1' and profile_id = '00000000-0000-0000-0000-000000000160'));
 select verifie('Un match tranché à la main n''entre pas dans les indicateurs',
   (select count(*) = 0 from indicateurs_partie where match_id = 'a1000000-0000-0000-0000-0000000000a4'));
+select verifie('Une partie au 1v1 classique (arrêtée au premier sang) n''entre pas dans les indicateurs',
+  (select count(*) = 0 from indicateurs_partie where match_id = 'a1000000-0000-0000-0000-0000000000c1'));
+select verifie('Sbires à 10 minutes : gardés pour une partie de 15 minutes, pas pour une partie de 9 minutes',
+  (select bool_and(case when match_id = 'a1000000-0000-0000-0000-0000000000a1' then sbires_10 = 60 else sbires_10 is null end)
+          and count(*) = 2
+   from indicateurs_partie
+   where (match_id, profile_id) in (('a1000000-0000-0000-0000-0000000000a1'::uuid, '00000000-0000-0000-0000-000000000160'::uuid),
+                                    ('a1000000-0000-0000-0000-0000000000a5'::uuid, '00000000-0000-0000-0000-000000000161'::uuid))));
 select verifie('Repères 1v1 : moyennes des vainqueurs et des perdants calculées sur toutes les parties vérifiées (celles de Mia comprises)',
   (select r.parties = c.parties and r.moyenne_gagnants = c.gagnants and r.moyenne_perdants = c.perdants and c.parties >= 6
    from public.reperes_bilan('1v1') r,
@@ -64,8 +86,16 @@ select verifie('Repères 1v1 : les vainqueurs ont tous fait le premier sang, les
 select verifie('Repères 1v1 : pas de vision mesurée en 1v1', (select count(*) = 0 from public.reperes_bilan('1v1') where indicateur = 'vision_min'));
 select verifie('Repères 5v5 au poste mid : les deux joueurs du milieu seulement',
   (select parties = 2 from public.reperes_bilan('5v5', 'MIDDLE') where indicateur = 'kda'));
-select verifie('Build de référence d''Ahri en 1v1 : 3 parties, 2 victoires (le match manuel ne compte pas)',
+select verifie('Repères sans le joueur qui se compare : les parties 1v1 de Mia sont retirées',
+  (select r.parties = c.parties - 3
+   from public.reperes_bilan('1v1', null, '00000000-0000-0000-0000-000000000160') r,
+        (select count(*)::integer as parties from indicateurs_partie where format = '1v1') c
+   where r.indicateur = 'kda'));
+select verifie('Build de référence d''Ahri en 1v1 : 3 parties, 2 victoires (ni le match manuel, ni le 1v1 classique)',
   (select parties = 3 and victoires = 2 from public.reperes_build('1v1', 'Ahri') where genre = 'total'));
+select verifie('Build de référence d''Ahri sans Mia : plus aucune partie, aucune ligne d''objet',
+  (select count(*) filter (where genre = 'total' and parties = 0) = 1 and count(*) = 1
+   from public.reperes_build('1v1', 'Ahri', '00000000-0000-0000-0000-000000000160')));
 select verifie('Build d''Ahri : objets comptés une fois par partie, avec leurs victoires',
   (select array_agg(valeur || ':' || parties || '/' || victoires order by valeur) = array['1056:3/2', '3020:2/1', '6655:2/2']
    from public.reperes_build('1v1', 'Ahri') where genre = 'objet'));
@@ -78,7 +108,7 @@ reset role;
 
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-000000000160');
-select verifie('Mia retrouve ses 4 parties vérifiées (3 en 1v1, 1 en 5v5)',
+select verifie('Mia retrouve ses 4 parties vérifiées (3 en 1v1, 1 en 5v5 ; pas celle au 1v1 classique)',
   (select count(*) = 4 from indicateurs_partie where profile_id = '00000000-0000-0000-0000-000000000160'));
 select essai('Mia écrit dans les indicateurs', $q$delete from indicateurs_partie where profile_id = '00000000-0000-0000-0000-000000000160'$q$, 'bloque');
 reset role;

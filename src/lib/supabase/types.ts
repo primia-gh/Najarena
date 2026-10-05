@@ -2588,7 +2588,7 @@ export type Database = {
       definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
       revues_a_rediger: { Args: { p_limite: number }; Returns: { match_id: string; profile_id: string }[] }
       reperes_bilan: {
-        Args: { p_format: string; p_poste?: string }
+        Args: { p_format: string; p_poste?: string; p_sauf?: string }
         Returns: {
           ecart_gagnants: number | null
           ecart_perdants: number | null
@@ -2599,7 +2599,7 @@ export type Database = {
         }[]
       }
       reperes_build: {
-        Args: { p_champion: string; p_format: string }
+        Args: { p_champion: string; p_format: string; p_sauf?: string }
         Returns: { genre: string; parties: number; valeur: string | null; victoires: number }[]
       }
       noter_echec_revue: { Args: { p_match_id: string; p_profile_id: string }; Returns: undefined }

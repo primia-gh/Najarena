@@ -101,6 +101,8 @@ describe("poste et patch", () => {
     expect(posteDeLaPartie({ ...ahri, teamPosition: "MIDDLE" })).toBe("MIDDLE");
     expect(posteDeLaPartie({ ...ahri, summoner2Id: 11 })).toBe("JUNGLE");
     expect(posteDeLaPartie({ ...ahri, item0: 3865 })).toBe("UTILITY");
+    expect(posteDeLaPartie({ ...ahri, individualPosition: "MIDDLE" })).toBe("MIDDLE");
+    expect(posteDeLaPartie({ ...ahri, individualPosition: "Invalid" })).toBeNull();
     expect(posteDeLaPartie(ahri)).toBeNull();
   });
 
