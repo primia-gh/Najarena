@@ -109,3 +109,68 @@ export function grouperTournois<T extends { statut: Statut; debute_le: string }>
     annules: tournois.filter((t) => t.statut === "annule").sort(parDate(-1)),
   };
 }
+
+/** Tournoi tel que l'affiche une ligne de liste (LigneTournoi). */
+export interface TournoiListe {
+  id: string;
+  slug: string;
+  nom: string;
+  format: string;
+  capacite: number;
+  region: string;
+  statut: StatutPublic;
+  debute_le: string;
+  reserve_membres: boolean;
+  /** Tournoi quotidien créé par Najarena. */
+  officiel: boolean;
+  /** Déclaré amical par son organisateur : ne compte jamais au classement. */
+  amical: boolean;
+  /** Décision figée à la clôture (null avant). */
+  classe: boolean | null;
+  inscrits: number;
+}
+
+/**
+ * Colonnes d'une ligne de liste. Le nombre d'inscrits vient de
+ * `registrations(count)` : filtrer la requête avec
+ * `.in("registrations.statut", INSCRIPTIONS_ACTIVES)`.
+ */
+export const COLONNES_TOURNOI_LISTE =
+  "id, slug, nom, format, capacite, region, statut, debute_le, reserve_membres, creneau_auto, compte_pour_classement, classe, registrations(count)";
+export const INSCRIPTIONS_ACTIVES = ["inscrit", "confirme"] as const;
+
+interface LigneTournoiBrute {
+  id: string;
+  slug: string;
+  nom: string;
+  format: string;
+  capacite: number;
+  region: string;
+  statut: Statut;
+  debute_le: string;
+  reserve_membres: boolean;
+  creneau_auto: string | null;
+  compte_pour_classement: boolean;
+  classe: boolean | null;
+  registrations: { count: number }[];
+}
+
+/** Ligne brute (COLONNES_TOURNOI_LISTE) → ligne affichable ; null si le statut n'est pas public. */
+export function versTournoiListe(t: LigneTournoiBrute): TournoiListe | null {
+  if (!estStatutPublic(t.statut)) return null;
+  return {
+    id: t.id,
+    slug: t.slug,
+    nom: t.nom,
+    format: t.format,
+    capacite: t.capacite,
+    region: t.region,
+    statut: t.statut,
+    debute_le: t.debute_le,
+    reserve_membres: t.reserve_membres,
+    officiel: t.creneau_auto !== null,
+    amical: t.compte_pour_classement === false,
+    classe: t.classe,
+    inscrits: t.registrations[0]?.count ?? 0,
+  };
+}

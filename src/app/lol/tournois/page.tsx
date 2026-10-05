@@ -2,14 +2,23 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { STATUTS_PUBLICS, estStatutPublic, grouperTournois, type StatutPublic } from "@/lib/tournois";
+import {
+  COLONNES_TOURNOI_LISTE,
+  INSCRIPTIONS_ACTIVES,
+  STATUTS_PUBLICS,
+  estStatutPublic,
+  grouperTournois,
+  versTournoiListe,
+  type StatutPublic,
+  type TournoiListe,
+} from "@/lib/tournois";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
-import LigneTournoi, { type TournoiListe } from "@/components/tournoi/LigneTournoi";
+import LigneTournoi from "@/components/tournoi/LigneTournoi";
 
 export const metadata: Metadata = {
   title: "Tournois LoL — Najarena",
@@ -27,10 +36,6 @@ interface TournoisPageProps {
 // direct, puis à venir (le plus proche d'abord), puis les derniers
 // terminés ; les annulés ne s'affichent qu'avec leur filtre. Filtres en
 // liens (pas de bouton « Filtrer » à valider).
-
-const COLONNES =
-  "id, slug, nom, format, capacite, region, statut, debute_le, reserve_membres, creneau_auto, compte_pour_classement, classe, registrations(count)";
-const INSCRIPTIONS_ACTIVES = ["inscrit", "confirme"] as const;
 
 const FILTRES: { statut: StatutPublic | null; libelle: string }[] = [
   { statut: null, libelle: "Tous" },
@@ -82,7 +87,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
   const base = () => {
     let r = supabase
       .from("tournaments")
-      .select(COLONNES)
+      .select(COLONNES_TOURNOI_LISTE)
       .eq("game_id", 1)
       .eq("nature", "tournoi")
       .in("registrations.statut", [...INSCRIPTIONS_ACTIVES]);
@@ -110,22 +115,10 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
   const erreurConnexion = resultats.some((r) => r.error);
   const tournois: TournoiListe[] = resultats
     .flatMap((r) => r.data ?? [])
-    .filter((t): t is typeof t & { statut: StatutPublic } => estStatutPublic(t.statut))
-    .map((t) => ({
-      id: t.id,
-      slug: t.slug,
-      nom: t.nom,
-      format: t.format,
-      capacite: t.capacite,
-      region: t.region,
-      statut: t.statut,
-      debute_le: t.debute_le,
-      reserve_membres: t.reserve_membres,
-      officiel: t.creneau_auto !== null,
-      amical: t.compte_pour_classement === false,
-      classe: t.classe,
-      inscrits: t.registrations[0]?.count ?? 0,
-    }));
+    .flatMap((t) => {
+      const ligne = versTournoiListe(t);
+      return ligne ? [ligne] : [];
+    });
   const groupes = grouperTournois(tournois);
   const regions = Array.from(new Set((regionsData ?? []).map((r) => r.region))).sort();
   const ordre = (["enDirect", "aVenir", "termines", "annules"] as const).filter((g) => groupes[g].length > 0);

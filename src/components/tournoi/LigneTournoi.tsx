@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { partiesDate, type StatutPublic } from "@/lib/tournois";
+import { partiesDate, type TournoiListe } from "@/lib/tournois";
 import { BadgeEnDirect } from "@/components/design/Badges";
 import Icone from "@/components/design/Icone";
 
@@ -11,24 +11,8 @@ import Icone from "@/components/design/Icone";
 // §6). Toute la ligne est cliquable ; aucune information n'est portée par
 // la couleur seule.
 
-export interface TournoiListe {
-  id: string;
-  slug: string;
-  nom: string;
-  format: string;
-  capacite: number;
-  region: string;
-  statut: StatutPublic;
-  debute_le: string;
-  reserve_membres: boolean;
-  /** Tournoi quotidien créé par Najarena. */
-  officiel: boolean;
-  /** Déclaré amical par son organisateur : ne compte jamais au classement. */
-  amical: boolean;
-  /** Décision figée à la clôture (null avant). */
-  classe: boolean | null;
-  inscrits: number;
-}
+export type { TournoiListe };
+
 
 function Etiquette({ children }: { children: ReactNode }) {
   return (

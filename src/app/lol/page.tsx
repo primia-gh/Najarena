@@ -1,16 +1,15 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { formaterDate, type StatutPublic } from "@/lib/tournois";
+import { COLONNES_TOURNOI_LISTE, INSCRIPTIONS_ACTIVES, versTournoiListe } from "@/lib/tournois";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
 import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
-import Icone from "@/components/design/Icone";
 import { BadgeVerdict, BadgeVerifie } from "@/components/design/Badges";
-import { StatutTournoi } from "@/components/tournoi/BlocsTournoi";
+import LigneTournoi from "@/components/tournoi/LigneTournoi";
 
 // Hub League of Legends — refonte « Venin » du 24/09/2026 (MASTER.md) :
 // même contenu et même requête qu'avant. Retiré : les icônes de champions
@@ -101,21 +100,19 @@ export default async function LolHubPage() {
   // l'id depuis un slug.
   const { data } = await supabase
     .from("tournaments")
-    .select("slug, nom, format, capacite, region, statut, debute_le")
+    .select(COLONNES_TOURNOI_LISTE)
     .eq("game_id", 1)
+    // Défis entre joueurs et scrims : pas des tournois à rejoindre (CLAUDE.md §4).
+    .eq("nature", "tournoi")
     .in("statut", ["ouvert", "checkin"])
+    .in("registrations.statut", [...INSCRIPTIONS_ACTIVES])
     .order("debute_le", { ascending: true })
     .limit(6);
 
-  const prochainsTournois = (data ?? []) as Array<{
-    slug: string;
-    nom: string;
-    format: string;
-    capacite: number;
-    region: string;
-    statut: StatutPublic;
-    debute_le: string;
-  }>;
+  const prochainsTournois = (data ?? []).flatMap((t) => {
+    const ligne = versTournoiListe(t);
+    return ligne ? [ligne] : [];
+  });
 
   return (
     <main className="bg-bg font-texte text-text">
@@ -134,15 +131,15 @@ export default async function LolHubPage() {
             </p>
           </Apparition>
           <Apparition delai={0.08} className="flex flex-wrap items-center gap-x-5 gap-y-3">
+            {/* Revue visuelle du 05/10/2026 : quatre boutons de même poids
+                se faisaient concurrence ; le coéquipier a sa carte juste
+                en dessous, le classement son lien dans la barre. */}
             <BoutonLien href="/lol/tournois">Voir les tournois</BoutonLien>
             <BoutonLien href="/lol/arene" variante="contour">
               Duel tout de suite
             </BoutonLien>
-            <BoutonLien href="/lol/classement" variante="contour">
+            <BoutonLien href="/lol/classement" variante="secondaire">
               Voir le classement
-            </BoutonLien>
-            <BoutonLien href="/lol/coequipiers" variante="secondaire">
-              Trouver un coéquipier
             </BoutonLien>
           </Apparition>
         </div>
@@ -167,7 +164,7 @@ export default async function LolHubPage() {
                   >
                     <h3 className="font-titre text-[28px] leading-none font-extrabold uppercase">{c.titre}</h3>
                     <p className="flex-1 text-sm leading-relaxed text-muted">{c.texte}</p>
-                    <span className="inline-flex items-center gap-2 text-sm font-semibold tracking-[2px] text-accent uppercase">
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold tracking-[2px] text-text uppercase transition-colors duration-200 group-hover:text-accent">
                       {c.cta}
                       <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">
                         →
@@ -180,15 +177,15 @@ export default async function LolHubPage() {
           </ul>
           <p className="text-sm text-muted">
             Pas en lice ce soir ?{" "}
-            <Link href="/lol/pronostics" className="text-accent underline underline-offset-3">
+            <Link href="/lol/pronostics" className="text-text underline underline-offset-3 hover:text-accent">
               Pronostique les demi-finales et les finales en cours
             </Link>{" "}
             — gratuit, sans mise ni gain. Étudiant ? Fais monter ton école dans la{" "}
-            <Link href="/lol/ecoles" className="text-accent underline underline-offset-3">
+            <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
               ligue des écoles
             </Link>
             . Pour progresser :{" "}
-            <Link href="/lol/bilan" className="text-accent underline underline-offset-3">
+            <Link href="/lol/bilan" className="text-text underline underline-offset-3 hover:text-accent">
               ton bilan
             </Link>{" "}
             — forces, axes de travail et builds, mesurés sur tes parties vérifiées.
@@ -212,7 +209,7 @@ export default async function LolHubPage() {
               <li key={e.titre}>
                 <Apparition delai={i * 0.06} className="h-full">
                   <Panneau className="flex h-full flex-col gap-3 p-6">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-bouton border border-accent/40 bg-accent/10 text-accent">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-bouton border border-line-strong text-text">
                       <IconeEtape chemin={e.icone} />
                     </span>
                     <span className="text-mini font-semibold text-accent uppercase">
@@ -316,29 +313,15 @@ export default async function LolHubPage() {
               </Panneau>
             </Apparition>
           ) : (
-            <ul className="flex flex-col gap-3">
-              {prochainsTournois.map((t, i) => (
-                <li key={t.slug}>
-                  <Apparition delai={Math.min(i * 0.06, 0.3)}>
-                    <Link
-                      href={`/lol/tournois/${t.slug}`}
-                      className="group panneau flex flex-wrap items-center justify-between gap-4 px-6 py-5 transition-[border-color] duration-200 hover:border-accent/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
-                    >
-                      <span className="flex min-w-0 flex-col gap-1.5">
-                        <span className="font-titre text-2xl leading-none font-extrabold uppercase">{t.nom}</span>
-                        <span className="text-sm text-muted tabular-nums">
-                          {t.format} · {t.capacite} joueurs · {t.region} · {formaterDate(t.debute_le)}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-4 text-mini font-semibold uppercase">
-                        <StatutTournoi statut={t.statut} />
-                        <Icone nom="fleche-droite" className="text-accent transition-transform duration-200 group-hover:translate-x-1" />
-                      </span>
-                    </Link>
-                  </Apparition>
-                </li>
-              ))}
-            </ul>
+            <Apparition delai={0.08}>
+              <ul className="border-t border-line-strong">
+                {prochainsTournois.map((t) => (
+                  <li key={t.id}>
+                    <LigneTournoi t={t} />
+                  </li>
+                ))}
+              </ul>
+            </Apparition>
           )}
         </div>
       </section>
