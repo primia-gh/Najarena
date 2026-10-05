@@ -25,11 +25,13 @@ export interface EvenementChronologie {
   buildingType?: string;
   /** BUILDING_KILL : équipe à qui appartenait le bâtiment détruit. */
   teamId?: number;
+  /** CHAMPION_KILL : lieu de la mort, en coordonnées de la carte. */
+  position?: { x: number; y: number };
 }
 
 export interface ImageChronologie {
   timestamp: number;
-  participantFrames?: Record<string, { minionsKilled?: number }>;
+  participantFrames?: Record<string, { minionsKilled?: number; totalGold?: number }>;
   events?: EvenementChronologie[];
 }
 
