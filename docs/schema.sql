@@ -7754,3 +7754,132 @@ drop trigger if exists scrims_objectif on public.scrims;
 create trigger scrims_objectif
   after update of tournament_id on public.scrims
   for each row execute function public.reporter_objectif_scrim();
+
+-- ---------- Bilan du joueur, étape 1 : parties vérifiées complètes (2026-10-05) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Pour retrouver un résultat, le site lit déjà chez Riot la fiche complète
+-- de la partie ; il n'en gardait que 8 chiffres. On garde désormais, sans
+-- aucun appel Riot de plus, ce qui sert au bilan du joueur (/moi/bilan) :
+-- champion, poste, objets, runes, sorts, dégâts, vision, objectifs, patch.
+-- Des valeurs choisies seulement, jamais la fiche brute (place en base).
+-- Les parties déjà enregistrées gardent ces colonnes vides.
+alter table public.stats_match_joueur
+  add column if not exists champion_id          integer,
+  add column if not exists niveau               smallint,
+  add column if not exists poste                text check (poste in ('TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY')),
+  add column if not exists objets               integer[] check (cardinality(objets) <= 6),
+  add column if not exists balise               integer,
+  add column if not exists sorts                integer[] check (cardinality(sorts) <= 2),
+  add column if not exists style_principal      integer,
+  add column if not exists rune_principale      integer,
+  add column if not exists runes                integer[] check (cardinality(runes) <= 6),
+  add column if not exists style_secondaire     integer,
+  add column if not exists fragments            integer[] check (cardinality(fragments) <= 3),
+  add column if not exists degats_champions     integer,
+  add column if not exists degats_subis         integer,
+  add column if not exists degats_attenues      integer,
+  add column if not exists degats_batiments     integer,
+  add column if not exists soins                integer,
+  add column if not exists controle_secondes    integer,
+  add column if not exists score_vision         smallint,
+  add column if not exists balises_posees       smallint,
+  add column if not exists balises_detruites    smallint,
+  add column if not exists balises_controle     smallint,
+  add column if not exists tours_detruites      smallint,
+  add column if not exists premier_sang         boolean,
+  add column if not exists premiere_tour        boolean,
+  add column if not exists multi_kill_max       smallint,
+  add column if not exists solo_kills           smallint,
+  add column if not exists part_kills           numeric(4, 3) check (part_kills between 0 and 1),
+  add column if not exists part_degats          numeric(4, 3) check (part_degats between 0 and 1),
+  add column if not exists sbires_10            smallint,
+  add column if not exists temps_mort_secondes  integer,
+  add column if not exists patch                text check (patch ~ '^[0-9]{1,2}\.[0-9]{1,2}$'),
+  add column if not exists joue_le              timestamptz;
+create index if not exists stats_match_joueur_profile_idx on public.stats_match_joueur (profile_id);
+create index if not exists stats_match_joueur_champion_idx on public.stats_match_joueur (champion);
+
+-- Indicateurs de chaque partie vérifiée (verdict lu chez Riot, jamais une
+-- décision manuelle), formules écrites une seule fois ici. Lisible par
+-- tous, comme les parties dont ils viennent (droits du lecteur).
+create or replace view public.indicateurs_partie with (security_invoker = true) as
+select
+  s.match_id, s.profile_id, t.format, s.champion, s.champion_id, s.poste, s.gagne,
+  coalesce(s.joue_le, v.cree_le) as joue_le, s.patch, s.duree_secondes,
+  s.kills, s.deaths, s.assists,
+  round((s.kills + s.assists)::numeric / greatest(s.deaths, 1), 2) as kda,
+  round(s.cs / nullif(s.duree_secondes / 60.0, 0), 2) as sbires_min,
+  round(s.or_gagne / nullif(s.duree_secondes / 60.0, 0), 1) as or_min,
+  round(s.degats_champions / nullif(s.duree_secondes / 60.0, 0), 1) as degats_min,
+  round(s.deaths / nullif(s.duree_secondes / 600.0, 0), 2) as morts_10min,
+  round(s.score_vision / nullif(s.duree_secondes / 60.0, 0), 2) as vision_min,
+  s.part_kills, s.part_degats, s.sbires_10,
+  case when s.premier_sang is null then null when s.premier_sang then 1 else 0 end as premier_sang,
+  case when s.premiere_tour is null then null when s.premiere_tour then 1 else 0 end as premiere_tour,
+  s.objets, s.balise, s.sorts, s.style_principal, s.rune_principale, s.runes, s.style_secondaire
+from public.stats_match_joueur s
+join public.matches m on m.id = s.match_id
+join public.tournaments t on t.id = m.tournament_id
+join public.match_verdicts v on v.match_id = s.match_id and v.est_definitif and v.niveau <> 'manuel';
+grant select on public.indicateurs_partie to anon, authenticated;
+
+-- Repères d'un format (et d'un poste en 5v5) : moyenne et écart des
+-- vainqueurs et des perdants, sur toutes les parties vérifiées de Najarena.
+create or replace function public.reperes_bilan(p_format text, p_poste text default null)
+returns table (
+  indicateur text, parties integer,
+  moyenne_gagnants numeric, ecart_gagnants numeric,
+  moyenne_perdants numeric, ecart_perdants numeric
+)
+language sql
+stable
+set search_path = public
+as $$
+  select x.indicateur,
+         count(*)::integer,
+         round(avg(x.valeur) filter (where i.gagne), 3),
+         round(stddev_samp(x.valeur) filter (where i.gagne), 3),
+         round(avg(x.valeur) filter (where not i.gagne), 3),
+         round(stddev_samp(x.valeur) filter (where not i.gagne), 3)
+  from public.indicateurs_partie i
+  cross join lateral (values
+    ('kda', i.kda), ('sbires_min', i.sbires_min), ('or_min', i.or_min), ('degats_min', i.degats_min),
+    ('morts_10min', i.morts_10min), ('vision_min', i.vision_min), ('part_kills', i.part_kills),
+    ('part_degats', i.part_degats), ('sbires_10', i.sbires_10::numeric),
+    ('premier_sang', i.premier_sang::numeric), ('premiere_tour', i.premiere_tour::numeric)
+  ) as x(indicateur, valeur)
+  where i.format = p_format and (p_poste is null or i.poste = p_poste) and x.valeur is not null
+  group by x.indicateur
+  order by x.indicateur;
+$$;
+grant execute on function public.reperes_bilan(text, text) to anon, authenticated;
+
+-- Build de référence d'un champion dans un format : objets, rune
+-- principale, style secondaire et sorts, avec parties et victoires.
+create or replace function public.reperes_build(p_format text, p_champion text)
+returns table (genre text, valeur text, parties integer, victoires integer)
+language sql
+stable
+set search_path = public
+as $$
+  with p as (
+    select * from public.indicateurs_partie where format = p_format and champion = p_champion
+  )
+  select 'total', null::text, count(*)::integer, (count(*) filter (where gagne))::integer from p
+  union all
+  select 'objet', u.objet::text, count(*)::integer, (count(*) filter (where p.gagne))::integer
+  from p cross join lateral (select distinct o as objet from unnest(p.objets) o where o > 0) u
+  group by u.objet
+  union all
+  select 'rune', p.rune_principale::text, count(*)::integer, (count(*) filter (where p.gagne))::integer
+  from p where p.rune_principale is not null group by p.rune_principale
+  union all
+  select 'style', p.style_secondaire::text, count(*)::integer, (count(*) filter (where p.gagne))::integer
+  from p where p.style_secondaire is not null group by p.style_secondaire
+  union all
+  select 'sorts', s.paire, count(*)::integer, (count(*) filter (where s.gagne))::integer
+  from (select p.gagne, array_to_string(array(select x from unnest(p.sorts) x order by x), ',') as paire
+        from p where cardinality(p.sorts) = 2) s
+  group by s.paire;
+$$;
+grant execute on function public.reperes_build(text, text) to anon, authenticated;

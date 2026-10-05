@@ -22,6 +22,7 @@ import {
   type DetailsMatchRiot,
   type ParticipantMatchRiot,
 } from "@/lib/riot";
+import { detailsPartie } from "@/lib/capture-partie";
 import { DELAI_FORFAIT_MINUTES, forfaitAAppliquer } from "@/lib/forfait";
 import { vainqueurClassique, type ConditionVictoire } from "@/lib/conditions-1v1";
 import { alignementsDansLaPartie, type Alignements } from "@/lib/cinq-contre-cinq";
@@ -50,6 +51,8 @@ interface PartieTrouvee extends PartieSerie {
   /** Tous les joueurs de la partie (stats des dix joueurs alignés en 5v5). */
   participants: ParticipantMatchRiot[];
   dureeSecondes: number;
+  /** Version du jeu (patch), gardée pour le bilan du joueur. */
+  versionJeu?: string;
 }
 
 interface SerieTrouvee {
@@ -148,6 +151,7 @@ export async function trouverSerieCorrespondante(
       participantB,
       participants: info.participants,
       dureeSecondes: info.gameDuration,
+      versionJeu: info.gameVersion,
     });
   }
 
@@ -226,6 +230,9 @@ async function enregistrerSerie(
     or_gagne: stat.goldEarned,
     duree_secondes: decisive.dureeSecondes,
     gagne,
+    // Bilan du joueur (05/10/2026) : objets, runes, sorts, dégâts, vision,
+    // objectifs, patch — lus dans la même fiche, sans appel de plus.
+    ...detailsPartie(stat, { versionJeu: decisive.versionJeu, debut: decisive.debut }),
   });
   const gagnantEstA = gagnantId === compteA.profile_id;
   const lignes = equipes

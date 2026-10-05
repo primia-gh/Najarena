@@ -1928,6 +1928,38 @@ export type Database = {
       stats_match_joueur: {
         Row: {
           assists: number
+          balise: number | null
+          balises_controle: number | null
+          balises_detruites: number | null
+          balises_posees: number | null
+          champion_id: number | null
+          controle_secondes: number | null
+          degats_attenues: number | null
+          degats_batiments: number | null
+          degats_champions: number | null
+          degats_subis: number | null
+          fragments: number[] | null
+          joue_le: string | null
+          multi_kill_max: number | null
+          niveau: number | null
+          objets: number[] | null
+          part_degats: number | null
+          part_kills: number | null
+          patch: string | null
+          poste: string | null
+          premier_sang: boolean | null
+          premiere_tour: boolean | null
+          rune_principale: number | null
+          runes: number[] | null
+          sbires_10: number | null
+          score_vision: number | null
+          soins: number | null
+          solo_kills: number | null
+          sorts: number[] | null
+          style_principal: number | null
+          style_secondaire: number | null
+          temps_mort_secondes: number | null
+          tours_detruites: number | null
           champion: string
           cree_le: string
           cs: number
@@ -1942,6 +1974,38 @@ export type Database = {
         }
         Insert: {
           assists: number
+          balise?: number | null
+          balises_controle?: number | null
+          balises_detruites?: number | null
+          balises_posees?: number | null
+          champion_id?: number | null
+          controle_secondes?: number | null
+          degats_attenues?: number | null
+          degats_batiments?: number | null
+          degats_champions?: number | null
+          degats_subis?: number | null
+          fragments?: number[] | null
+          joue_le?: string | null
+          multi_kill_max?: number | null
+          niveau?: number | null
+          objets?: number[] | null
+          part_degats?: number | null
+          part_kills?: number | null
+          patch?: string | null
+          poste?: string | null
+          premier_sang?: boolean | null
+          premiere_tour?: boolean | null
+          rune_principale?: number | null
+          runes?: number[] | null
+          sbires_10?: number | null
+          score_vision?: number | null
+          soins?: number | null
+          solo_kills?: number | null
+          sorts?: number[] | null
+          style_principal?: number | null
+          style_secondaire?: number | null
+          temps_mort_secondes?: number | null
+          tours_detruites?: number | null
           champion: string
           cree_le?: string
           cs: number
@@ -1956,6 +2020,38 @@ export type Database = {
         }
         Update: {
           assists?: number
+          balise?: number | null
+          balises_controle?: number | null
+          balises_detruites?: number | null
+          balises_posees?: number | null
+          champion_id?: number | null
+          controle_secondes?: number | null
+          degats_attenues?: number | null
+          degats_batiments?: number | null
+          degats_champions?: number | null
+          degats_subis?: number | null
+          fragments?: number[] | null
+          joue_le?: string | null
+          multi_kill_max?: number | null
+          niveau?: number | null
+          objets?: number[] | null
+          part_degats?: number | null
+          part_kills?: number | null
+          patch?: string | null
+          poste?: string | null
+          premier_sang?: boolean | null
+          premiere_tour?: boolean | null
+          rune_principale?: number | null
+          runes?: number[] | null
+          sbires_10?: number | null
+          score_vision?: number | null
+          soins?: number | null
+          solo_kills?: number | null
+          sorts?: number[] | null
+          style_principal?: number | null
+          style_secondaire?: number | null
+          temps_mort_secondes?: number | null
+          tours_detruites?: number | null
           champion?: string
           cree_le?: string
           cs?: number
@@ -2310,6 +2406,42 @@ export type Database = {
       }
     }
     Views: {
+      indicateurs_partie: {
+        Row: {
+          assists: number
+          balise: number | null
+          champion: string
+          champion_id: number | null
+          deaths: number
+          degats_min: number | null
+          duree_secondes: number
+          format: string
+          gagne: boolean
+          joue_le: string
+          kda: number
+          kills: number
+          match_id: string
+          morts_10min: number | null
+          objets: number[] | null
+          or_min: number | null
+          part_degats: number | null
+          part_kills: number | null
+          patch: string | null
+          poste: string | null
+          premier_sang: number | null
+          premiere_tour: number | null
+          profile_id: string
+          rune_principale: number | null
+          runes: number[] | null
+          sbires_10: number | null
+          sbires_min: number | null
+          sorts: number[] | null
+          style_principal: number | null
+          style_secondaire: number | null
+          vision_min: number | null
+        }
+        Relationships: []
+      }
       registre_public: {
         Row: {
           adversaire_id: string | null
@@ -2455,6 +2587,21 @@ export type Database = {
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
       definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
       revues_a_rediger: { Args: { p_limite: number }; Returns: { match_id: string; profile_id: string }[] }
+      reperes_bilan: {
+        Args: { p_format: string; p_poste?: string }
+        Returns: {
+          ecart_gagnants: number | null
+          ecart_perdants: number | null
+          indicateur: string
+          moyenne_gagnants: number | null
+          moyenne_perdants: number | null
+          parties: number
+        }[]
+      }
+      reperes_build: {
+        Args: { p_champion: string; p_format: string }
+        Returns: { genre: string; parties: number; valeur: string | null; victoires: number }[]
+      }
       noter_echec_revue: { Args: { p_match_id: string; p_profile_id: string }; Returns: undefined }
       preparer_verification_ecole: {
         Args: { p_code: string; p_communaute_id: string; p_email: string; p_profile_id: string }

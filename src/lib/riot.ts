@@ -141,6 +141,47 @@ export interface ParticipantMatchRiot {
   totalMinionsKilled: number;
   neutralMinionsKilled: number;
   goldEarned: number;
+  // Détails gardés pour le bilan du joueur (05/10/2026), déjà présents
+  // dans la réponse : aucun appel de plus. Facultatifs, Riot pouvant en
+  // omettre selon le mode de jeu.
+  championId?: number;
+  champLevel?: number;
+  teamPosition?: string;
+  item0?: number;
+  item1?: number;
+  item2?: number;
+  item3?: number;
+  item4?: number;
+  item5?: number;
+  item6?: number;
+  summoner1Id?: number;
+  summoner2Id?: number;
+  perks?: {
+    statPerks?: { offense?: number; flex?: number; defense?: number };
+    styles?: { description?: string; style?: number; selections?: { perk?: number }[] }[];
+  };
+  totalDamageDealtToChampions?: number;
+  totalDamageTaken?: number;
+  damageSelfMitigated?: number;
+  damageDealtToBuildings?: number;
+  totalHeal?: number;
+  timeCCingOthers?: number;
+  visionScore?: number;
+  wardsPlaced?: number;
+  wardsKilled?: number;
+  detectorWardsPlaced?: number;
+  turretTakedowns?: number;
+  firstBloodKill?: boolean;
+  firstTowerKill?: boolean;
+  firstTowerAssist?: boolean;
+  largestMultiKill?: number;
+  totalTimeSpentDead?: number;
+  challenges?: {
+    soloKills?: number;
+    killParticipation?: number;
+    teamDamagePercentage?: number;
+    laneMinionsFirst10Minutes?: number;
+  };
 }
 
 export interface DetailsMatchRiot {
@@ -148,6 +189,8 @@ export interface DetailsMatchRiot {
     gameStartTimestamp: number; // ms epoch
     gameDuration: number; // secondes
     queueId: number; // 0 = partie personnalisée
+    /** « 15.19.715.1234 » : le patch de la partie. */
+    gameVersion?: string;
     participants: ParticipantMatchRiot[];
   };
 }
