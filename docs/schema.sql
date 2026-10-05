@@ -7486,6 +7486,7 @@ create table if not exists public.comptes_versement (
   maj_le            timestamptz not null default now()
 );
 alter table public.comptes_versement enable row level security;
+drop policy if exists "le gagnant et les administrateurs lisent le compte de versement" on public.comptes_versement;
 create policy "le gagnant et les administrateurs lisent le compte de versement" on public.comptes_versement
   for select using (
     profile_id = (select auth.uid())
