@@ -592,6 +592,36 @@ export type Database = {
           },
         ]
       }
+      coachings: {
+        Row: {
+          coach_id: string
+          debut_le: string | null
+          demande_le: string
+          eleve_id: string
+          fin_le: string | null
+          id: string
+          statut: string
+        }
+        Insert: {
+          coach_id: string
+          debut_le?: string | null
+          demande_le?: string
+          eleve_id: string
+          fin_le?: string | null
+          id?: string
+          statut?: string
+        }
+        Update: {
+          coach_id?: string
+          debut_le?: string | null
+          demande_le?: string
+          eleve_id?: string
+          fin_le?: string | null
+          id?: string
+          statut?: string
+        }
+        Relationships: []
+      }
       disponibilites: {
         Row: {
           cree_le: string
@@ -2963,6 +2993,25 @@ export type Database = {
       proposer_remplacement: { Args: { p_tournament_id: string; p_role?: string }; Returns: boolean }
       quitter_remplacants: { Args: { p_tournament_id: string }; Returns: boolean }
       remplacer_aligne: { Args: { p_tournament_id: string; p_sortant: string; p_entrant: string }; Returns: boolean }
+      est_coach_eligible: { Args: { p_profile_id: string }; Returns: boolean }
+      demander_coaching: { Args: { p_coach: string }; Returns: string }
+      repondre_coaching: { Args: { p_coaching_id: string; p_accepter: boolean }; Returns: boolean }
+      terminer_coaching: { Args: { p_coaching_id: string }; Returns: boolean }
+      eleves_coach: {
+        Args: { p_coach: string }
+        Returns: {
+          coaching_id: string
+          eleve_id: string
+          eleve_pseudo: string
+          eleve_slug: string
+          statut: string
+          demande_le: string
+          debut_le: string | null
+          fin_le: string | null
+          tournois: number
+          points: number
+        }[]
+      }
       meteo_semaines: {
         Args: { p_semaines?: number }
         Returns: { semaine: string; matchs: number; matchs_verifies: number; joueurs_actifs: number }[]

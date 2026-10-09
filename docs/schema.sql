@@ -9372,3 +9372,199 @@ drop trigger if exists tournaments_vider_bourse on public.tournaments;
 create trigger tournaments_vider_bourse
   after update of statut on public.tournaments
   for each row execute function public.vider_bourse_remplacants();
+
+-- ---------- Coach vérifié (2026-10-09, idée en réserve n°8) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Un joueur classé Diamant ou plus (seuil du palier Diamant, 1750) peut
+-- suivre des élèves : l'élève le demande depuis le CV du coach, le coach
+-- accepte. La progression de chaque élève est lue dans le registre des
+-- points : somme des variations « tournoi » entre le début et la fin du
+-- suivi (ni remise de saison ni inactivité), avec le nombre de tournois.
+-- Rien n'est déclaré, rien n'est saisi. Un élève a au plus un suivi en
+-- cours (ou demandé) ; un coach, 20 élèves suivis à la fois.
+
+create table if not exists public.coachings (
+  id          uuid primary key default gen_random_uuid(),
+  coach_id    uuid not null references public.profiles(id) on delete cascade,
+  eleve_id    uuid not null references public.profiles(id) on delete cascade,
+  statut      text not null default 'demande' check (statut in ('demande', 'actif', 'termine')),
+  demande_le  timestamptz not null default now(),
+  debut_le    timestamptz,
+  fin_le      timestamptz,
+  check (coach_id <> eleve_id)
+);
+create unique index if not exists coachings_eleve_en_cours_idx
+  on public.coachings (eleve_id) where statut in ('demande', 'actif');
+create index if not exists coachings_coach_idx on public.coachings (coach_id);
+alter table public.coachings enable row level security;
+drop policy if exists "suivi lu par le coach et l'eleve" on public.coachings;
+create policy "suivi lu par le coach et l'eleve" on public.coachings
+  for select using (auth.uid() = coach_id or auth.uid() = eleve_id);
+revoke insert, update, delete on public.coachings from anon, authenticated;
+
+-- Classé cette saison, rating au moins celui du palier Diamant.
+create or replace function public.est_coach_eligible(p_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.ratings r
+    join public.seasons s on s.id = r.season_id and s.est_courante
+    where r.profile_id = p_profile_id and r.game_id = 1 and r.est_classe
+      and r.rating >= coalesce((select t.rating_min from public.tiers t where t.game_id = 1 and t.nom = 'Diamant'), 1750)
+  );
+$$;
+revoke execute on function public.est_coach_eligible(uuid) from public;
+grant execute on function public.est_coach_eligible(uuid) to anon, authenticated, service_role;
+
+create or replace function public.demander_coaching(p_coach uuid)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_eleve uuid := auth.uid();
+  v_id uuid;
+begin
+  if v_eleve is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if p_coach = v_eleve then
+    raise exception 'COACH_SOI_MEME';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_eleve and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if not exists (select 1 from public.profiles where id = p_coach and supprime_le is null)
+     or not public.est_coach_eligible(p_coach)
+     or exists (select 1 from public.suspensions where profile_id = p_coach and levee_le is null) then
+    raise exception 'COACH_NON_ELIGIBLE';
+  end if;
+  if exists (select 1 from public.coachings where eleve_id = v_eleve and statut in ('demande', 'actif')) then
+    raise exception 'SUIVI_EN_COURS';
+  end if;
+  insert into public.coachings (coach_id, eleve_id) values (p_coach, v_eleve) returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke execute on function public.demander_coaching(uuid) from public, anon;
+grant execute on function public.demander_coaching(uuid) to authenticated;
+
+-- Le coach accepte (le suivi commence) ou refuse (la demande s'efface).
+create or replace function public.repondre_coaching(p_coaching_id uuid, p_accepter boolean)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_coach uuid := auth.uid();
+  v_ligne record;
+begin
+  select * into v_ligne from public.coachings
+  where id = p_coaching_id and coach_id = v_coach and statut = 'demande'
+  for update;
+  if not found then
+    raise exception 'DEMANDE_INTROUVABLE';
+  end if;
+  if not p_accepter then
+    delete from public.coachings where id = p_coaching_id;
+    return false;
+  end if;
+  if not public.est_coach_eligible(v_coach) then
+    raise exception 'COACH_NON_ELIGIBLE';
+  end if;
+  if (select count(*) from public.coachings where coach_id = v_coach and statut = 'actif') >= 20 then
+    raise exception 'LIMITE_ELEVES';
+  end if;
+  update public.coachings set statut = 'actif', debut_le = now() where id = p_coaching_id;
+  return true;
+end;
+$$;
+revoke execute on function public.repondre_coaching(uuid, boolean) from public, anon;
+grant execute on function public.repondre_coaching(uuid, boolean) to authenticated;
+
+-- L'un ou l'autre met fin au suivi (une demande en attente s'efface).
+create or replace function public.terminer_coaching(p_coaching_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_ligne record;
+begin
+  select * into v_ligne from public.coachings
+  where id = p_coaching_id and (coach_id = v_moi or eleve_id = v_moi) and statut in ('demande', 'actif')
+  for update;
+  if not found then
+    return false;
+  end if;
+  if v_ligne.statut = 'demande' then
+    delete from public.coachings where id = p_coaching_id;
+  else
+    update public.coachings set statut = 'termine', fin_le = now() where id = p_coaching_id;
+  end if;
+  return true;
+end;
+$$;
+revoke execute on function public.terminer_coaching(uuid) from public, anon;
+grant execute on function public.terminer_coaching(uuid) to authenticated;
+
+-- Élèves d'un coach et leur progression lue dans le registre. Les demandes
+-- en attente ne sont rendues qu'au coach lui-même.
+create or replace function public.eleves_coach(p_coach uuid)
+returns table (
+  coaching_id uuid,
+  eleve_id uuid,
+  eleve_pseudo text,
+  eleve_slug text,
+  statut text,
+  demande_le timestamptz,
+  debut_le timestamptz,
+  fin_le timestamptz,
+  tournois integer,
+  points numeric
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select c.id, c.eleve_id, p.pseudo, p.slug, c.statut, c.demande_le, c.debut_le, c.fin_le,
+         coalesce(e.tournois, 0), coalesce(e.points, 0)
+  from public.coachings c
+  join public.profiles p on p.id = c.eleve_id and p.supprime_le is null
+  left join lateral (
+    select count(*)::integer as tournois, sum(re.rating_apres - re.rating_avant) as points
+    from public.rating_events re
+    where re.profile_id = c.eleve_id and re.motif = 'tournoi' and re.game_id = 1
+      and c.debut_le is not null
+      and re.cree_le >= c.debut_le and re.cree_le < coalesce(c.fin_le, now())
+  ) e on true
+  where c.coach_id = p_coach
+    and (c.statut <> 'demande' or auth.uid() = p_coach)
+  order by (c.statut = 'demande') desc, coalesce(c.debut_le, c.demande_le) desc
+  limit 100;
+$$;
+revoke execute on function public.eleves_coach(uuid) from public;
+grant execute on function public.eleves_coach(uuid) to anon, authenticated, service_role;
+
+-- Compte supprimé : ses suivis (comme coach ou élève) disparaissent.
+create or replace function public.effacer_coachings_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.coachings where coach_id = new.id or eleve_id = new.id;
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_coachings_compte_supprime() from public, anon, authenticated;
+drop trigger if exists coachings_compte_supprime on public.profiles;
+create trigger coachings_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_coachings_compte_supprime();

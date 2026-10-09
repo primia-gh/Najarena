@@ -32,6 +32,7 @@ import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
+import BlocCoach from "@/components/profil/BlocCoach";
 import BlocRecommandations from "@/components/profil/BlocRecommandations";
 import CourbeProgression from "@/components/profil/CourbeProgression";
 import BoutonPartager from "@/components/profil/BoutonPartager";
@@ -57,7 +58,7 @@ const LABEL_MOTIF: Record<string, string> = {
 
 interface JoueurPageProps {
   params: Promise<{ pseudo: string }>;
-  searchParams?: Promise<{ revue?: string; reco?: string; recoErreur?: string }>;
+  searchParams?: Promise<{ revue?: string; reco?: string; recoErreur?: string; coach?: string; coachErreur?: string }>;
 }
 
 // Réponse à « Analyse détaillée » (audit N25, src/lib/revue-ia-actions.ts).
@@ -323,7 +324,13 @@ export async function generateMetadata({ params }: JoueurPageProps): Promise<Met
 
 export default async function JoueurPage({ params, searchParams }: JoueurPageProps) {
   const { pseudo } = await params;
-  const { revue: retourRevue, reco: retourReco, recoErreur: retourRecoErreur } = (await searchParams) ?? {};
+  const {
+    revue: retourRevue,
+    reco: retourReco,
+    recoErreur: retourRecoErreur,
+    coach: retourCoach,
+    coachErreur: retourCoachErreur,
+  } = (await searchParams) ?? {};
   const donnees = await chargerJoueur(pseudo);
 
   if (donnees.statut === "deplace") {
@@ -978,6 +985,17 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               estProprietaire={estProprietaire}
               message={retourReco}
               erreur={retourRecoErreur}
+            />
+
+            {/* Coach vérifié (idée en réserve n°8). */}
+            <BlocCoach
+              profilId={profil.id}
+              slug={profil.slug}
+              pseudo={profil.pseudo}
+              visiteurId={visiteurId}
+              estProprietaire={estProprietaire}
+              message={retourCoach}
+              erreur={retourCoachErreur}
             />
 
             {/* Journal des points */}
