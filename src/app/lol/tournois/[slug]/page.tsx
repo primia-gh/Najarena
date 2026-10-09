@@ -54,6 +54,7 @@ import {
 import OngletsTournoi from "@/components/tournoi/OngletsTournoi";
 import SalleDeMatch, { type InfosSalleDeMatch, type JoueurAligne } from "@/components/tournoi/SalleDeMatch";
 import FormulaireAlignement from "@/components/tournoi/FormulaireAlignement";
+import BourseRemplacants from "@/components/tournoi/BourseRemplacants";
 import {
   chargerEquipesCapitaine,
   chargerEquipesDesTournois,
@@ -98,7 +99,7 @@ const LABEL_INSCRIPTION: Record<string, string> = {
 
 interface TournoiPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ erreur?: string; message?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; bourse?: string; bourseErreur?: string }>;
 }
 
 // cache : generateMetadata et la page partagent un seul chargement par
@@ -425,7 +426,7 @@ export async function generateMetadata({
 
 export default async function TournoiPage({ params, searchParams }: TournoiPageProps) {
   const { slug } = await params;
-  const { erreur, message } = await searchParams;
+  const { erreur, message, bourse: messageBourse, bourseErreur } = await searchParams;
   const donnees = await chargerTournoi(slug);
 
   if (donnees.statut === "introuvable") {
@@ -1739,6 +1740,15 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 Regroupés en équipes de cinq au lancement du bracket, parmi ceux qui ont confirmé leur présence.
               </p>
             </div>
+          )}
+          {/* Bourse aux remplaçants (idée en réserve n°15). */}
+          {estEquipes && tournoi.nature === "tournoi" && (
+            <BourseRemplacants
+              tournoi={{ id: tournoi.id, slug: tournoi.slug, region: tournoi.region, statut }}
+              utilisateurId={utilisateur?.id ?? null}
+              message={messageBourse}
+              erreur={bourseErreur}
+            />
           )}
         </div>
       </section>

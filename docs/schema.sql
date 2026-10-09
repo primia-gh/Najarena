@@ -9161,3 +9161,214 @@ as $$
 $$;
 revoke execute on function public.chimie_equipe(uuid) from public;
 grant execute on function public.chimie_equipe(uuid) to anon, authenticated, service_role;
+
+-- ---------- Bourse aux remplaçants (2026-10-09, idée en réserve n°15) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Tournoi 5v5 : un joueur au compte Riot vérifié dans la région se déclare
+-- disponible pour dépanner (« Je peux remplacer »). Jusqu'au lancement du
+-- bracket, le capitaine d'une équipe inscrite remplace un de ses alignés
+-- (jamais lui-même) par un joueur de cette liste : nouvelle règle, l'aligné
+-- temporaire, qui joue ce tournoi pour l'équipe sans en être membre
+-- (alignements.remplace_profile_id = le joueur remplacé). Au plus 2 par
+-- équipe et par tournoi. Le résultat se lit chez Riot comme d'habitude :
+-- les dix alignés, remplaçant compris, doivent être dans la partie.
+-- Changer ensuite son alignement avec ses seuls membres (modifier_alignement)
+-- retire les alignés temporaires.
+
+create table if not exists public.remplacants_disponibles (
+  tournament_id uuid not null references public.tournaments(id) on delete cascade,
+  profile_id    uuid not null references public.profiles(id) on delete cascade,
+  role          text check (role is null or role in ('top', 'jungle', 'mid', 'adc', 'support')),
+  inscrit_le    timestamptz not null default now(),
+  primary key (tournament_id, profile_id)
+);
+create index if not exists remplacants_disponibles_profile_idx on public.remplacants_disponibles (profile_id);
+alter table public.remplacants_disponibles enable row level security;
+drop policy if exists "remplacants disponibles lisibles par tous" on public.remplacants_disponibles;
+create policy "remplacants disponibles lisibles par tous" on public.remplacants_disponibles
+  for select using (true);
+revoke insert, update, delete on public.remplacants_disponibles from anon, authenticated;
+
+alter table public.alignements
+  add column if not exists remplace_profile_id uuid references public.profiles(id) on delete set null;
+
+create or replace function public.proposer_remplacement(p_tournament_id uuid, p_role text default null)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_tournoi record;
+  v_region text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, statut, format, nature, region into v_tournoi
+  from public.tournaments where id = p_tournament_id;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_tournoi.format <> '5v5' or v_tournoi.nature <> 'tournoi' then
+    raise exception 'TOURNOI_EN_SOLO';
+  end if;
+  if v_tournoi.statut not in ('ouvert', 'checkin') then
+    raise exception 'ALIGNEMENT_FIGE';
+  end if;
+  if p_role is not null and p_role not in ('top', 'jungle', 'mid', 'adc', 'support') then
+    raise exception 'ROLE_INVALIDE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_joueur);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if v_region <> v_tournoi.region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  if exists (select 1 from public.alignements where tournament_id = p_tournament_id and profile_id = v_joueur) then
+    raise exception 'DEJA_DANS_UNE_EQUIPE';
+  end if;
+  if not coalesce(public.eligible_tournoi_reserve(p_tournament_id, v_joueur), true) then
+    raise exception 'RESERVE_MEMBRES';
+  end if;
+
+  insert into public.remplacants_disponibles (tournament_id, profile_id, role)
+  values (p_tournament_id, v_joueur, p_role)
+  on conflict (tournament_id, profile_id) do update set role = excluded.role;
+  return true;
+end;
+$$;
+revoke execute on function public.proposer_remplacement(uuid, text) from public, anon;
+grant execute on function public.proposer_remplacement(uuid, text) to authenticated;
+
+create or replace function public.quitter_remplacants(p_tournament_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.remplacants_disponibles where tournament_id = p_tournament_id and profile_id = auth.uid();
+  return found;
+end;
+$$;
+revoke execute on function public.quitter_remplacants(uuid) from public, anon;
+grant execute on function public.quitter_remplacants(uuid) to authenticated;
+
+-- Le capitaine remplace un aligné par un joueur de la bourse.
+create or replace function public.remplacer_aligne(p_tournament_id uuid, p_sortant uuid, p_entrant uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_capitaine uuid := auth.uid();
+  v_tournoi record;
+  v_inscription record;
+  v_sortant record;
+begin
+  if v_capitaine is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, statut, region, game_id into v_tournoi
+  from public.tournaments where id = p_tournament_id
+  for update;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_tournoi.statut not in ('ouvert', 'checkin') then
+    raise exception 'ALIGNEMENT_FIGE';
+  end if;
+
+  select id, team_id into v_inscription
+  from public.registrations
+  where tournament_id = p_tournament_id and profile_id = v_capitaine
+    and statut in ('inscrit', 'confirme') and team_id is not null;
+  if not found then
+    raise exception 'EQUIPE_NON_INSCRITE';
+  end if;
+  if p_sortant = v_capitaine then
+    raise exception 'REMPLACER_CAPITAINE';
+  end if;
+  select profile_id, remplace_profile_id into v_sortant
+  from public.alignements
+  where registration_id = v_inscription.id and profile_id = p_sortant;
+  if not found then
+    raise exception 'JOUEUR_NON_ALIGNE';
+  end if;
+
+  if not exists (
+    select 1 from public.remplacants_disponibles where tournament_id = p_tournament_id and profile_id = p_entrant
+  ) then
+    raise exception 'REMPLACANT_INDISPONIBLE';
+  end if;
+  if exists (select 1 from public.alignements where tournament_id = p_tournament_id and profile_id = p_entrant) then
+    raise exception 'JOUEUR_DEJA_ALIGNE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = p_entrant and levee_le is null) then
+    raise exception 'ALIGNEMENT_SUSPENDU';
+  end if;
+  if not exists (
+    select 1 from public.game_accounts
+    where profile_id = p_entrant and game_id = v_tournoi.game_id and est_principal
+      and verifie_le is not null and region = v_tournoi.region
+  ) then
+    raise exception 'ALIGNEMENT_COMPTE_RIOT';
+  end if;
+  -- Un aligné temporaire remplacé à son tour garde la place d'origine.
+  if v_sortant.remplace_profile_id is null and (
+    select count(*) from public.alignements
+    where registration_id = v_inscription.id and remplace_profile_id is not null
+  ) >= 2 then
+    raise exception 'LIMITE_REMPLACANTS';
+  end if;
+
+  delete from public.alignements where registration_id = v_inscription.id and profile_id = p_sortant;
+  insert into public.alignements (tournament_id, profile_id, registration_id, remplace_profile_id)
+  values (p_tournament_id, p_entrant, v_inscription.id, coalesce(v_sortant.remplace_profile_id, p_sortant));
+  delete from public.remplacants_disponibles where tournament_id = p_tournament_id and profile_id = p_entrant;
+  return true;
+end;
+$$;
+revoke execute on function public.remplacer_aligne(uuid, uuid, uuid) from public, anon;
+grant execute on function public.remplacer_aligne(uuid, uuid, uuid) to authenticated;
+
+-- Aligné dans une équipe (par son capitaine ou en remplaçant) : il quitte la bourse.
+create or replace function public.retirer_remplacant_aligne()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.remplacants_disponibles
+  where tournament_id = new.tournament_id and profile_id = new.profile_id;
+  return new;
+end;
+$$;
+revoke execute on function public.retirer_remplacant_aligne() from public, anon, authenticated;
+drop trigger if exists alignements_retirer_remplacant on public.alignements;
+create trigger alignements_retirer_remplacant
+  after insert on public.alignements
+  for each row execute function public.retirer_remplacant_aligne();
+
+-- Bracket lancé ou tournoi annulé : la bourse de ce tournoi se vide.
+create or replace function public.vider_bourse_remplacants()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.statut not in ('ouvert', 'checkin') and old.statut in ('ouvert', 'checkin') then
+    delete from public.remplacants_disponibles where tournament_id = new.id;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.vider_bourse_remplacants() from public, anon, authenticated;
+drop trigger if exists tournaments_vider_bourse on public.tournaments;
+create trigger tournaments_vider_bourse
+  after update of statut on public.tournaments
+  for each row execute function public.vider_bourse_remplacants();

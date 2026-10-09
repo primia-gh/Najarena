@@ -94,18 +94,21 @@ export type Database = {
           aligne_le: string
           profile_id: string
           registration_id: string
+          remplace_profile_id: string | null
           tournament_id: string
         }
         Insert: {
           aligne_le?: string
           profile_id: string
           registration_id: string
+          remplace_profile_id?: string | null
           tournament_id: string
         }
         Update: {
           aligne_le?: string
           profile_id?: string
           registration_id?: string
+          remplace_profile_id?: string | null
           tournament_id?: string
         }
         Relationships: [
@@ -559,6 +562,35 @@ export type Database = {
           texte?: string
         }
         Relationships: []
+      }
+      remplacants_disponibles: {
+        Row: {
+          inscrit_le: string
+          profile_id: string
+          role: string | null
+          tournament_id: string
+        }
+        Insert: {
+          inscrit_le?: string
+          profile_id: string
+          role?: string | null
+          tournament_id: string
+        }
+        Update: {
+          inscrit_le?: string
+          profile_id?: string
+          role?: string | null
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remplacants_disponibles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       disponibilites: {
         Row: {
@@ -2928,6 +2960,9 @@ export type Database = {
         Args: { p_team_id: string }
         Returns: { match_id: string; joue_le: string; gagne: boolean; joueurs: string[] }[]
       }
+      proposer_remplacement: { Args: { p_tournament_id: string; p_role?: string }; Returns: boolean }
+      quitter_remplacants: { Args: { p_tournament_id: string }; Returns: boolean }
+      remplacer_aligne: { Args: { p_tournament_id: string; p_sortant: string; p_entrant: string }; Returns: boolean }
       meteo_semaines: {
         Args: { p_semaines?: number }
         Returns: { semaine: string; matchs: number; matchs_verifies: number; joueurs_actifs: number }[]
