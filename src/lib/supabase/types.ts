@@ -2866,6 +2866,23 @@ export type Database = {
       code_liaison_discord: { Args: { p_communaute_id: string }; Returns: string }
       lier_serveur_discord: { Args: { p_code: string; p_guild_id: string }; Returns: string }
       agir_depuis_discord: { Args: { p_discord_id: string; p_action: string; p_cible: string }; Returns: Json }
+      meteo_classement: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          saison: string | null
+          joueurs_avec_rating: number
+          joueurs_classes: number
+          rd_median: number | null
+          joueurs_actifs_30j: number
+          matchs_30j: number
+          matchs_verifies_30j: number
+          matchs_par_actif_median: number | null
+        }[]
+      }
+      meteo_semaines: {
+        Args: { p_semaines?: number }
+        Returns: { semaine: string; matchs: number; matchs_verifies: number; joueurs_actifs: number }[]
+      }
       declarer_disponibilite: { Args: { p_debut: string }; Returns: number }
       retirer_disponibilite: { Args: { p_debut: string }; Returns: boolean }
       disponibilites_creneaux: { Args: { p_region: string }; Returns: { debut: string; joueurs: number }[] }

@@ -8852,3 +8852,92 @@ drop trigger if exists controle_inscription_non_classes on public.registrations;
 create trigger controle_inscription_non_classes
   before insert or update of statut on public.registrations
   for each row execute function public.controler_inscription_non_classes();
+
+-- ---------- Météo du classement (2026-10-09, idée en réserve n°5) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Page publique /lol/meteo : à quel point le classement est déjà précis.
+-- Sa précision dépend du nombre de matchs par joueur (CLAUDE.md §10) : on
+-- publie ce nombre, la part des résultats lus chez Riot et l'incertitude
+-- (RD) des joueurs, sans rien enjoliver. Des nombres seulement, jamais de
+-- noms. Matchs 1v1 (tournois et duels), le 5v5 ne comptant pas au
+-- classement individuel.
+
+-- État actuel de la saison en cours.
+create or replace function public.meteo_classement()
+returns table (
+  saison text,
+  joueurs_avec_rating integer,
+  joueurs_classes integer,
+  rd_median numeric,
+  joueurs_actifs_30j integer,
+  matchs_30j integer,
+  matchs_verifies_30j integer,
+  matchs_par_actif_median numeric
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with saison as (
+    select id, coalesce(nom, 'Saison ' || numero) as nom from public.seasons where game_id = 1 and est_courante limit 1
+  ),
+  notes as (
+    select r.rd, r.est_classe from public.ratings r join saison s on s.id = r.season_id where r.game_id = 1
+  ),
+  matchs_recents as (
+    select m.id, v.niveau
+    from public.matches m
+    join public.tournaments t on t.id = m.tournament_id
+    join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+    where t.game_id = 1 and t.format = '1v1' and t.nature in ('tournoi', 'defi')
+      and v.cree_le > now() - interval '30 days'
+  ),
+  par_joueur as (
+    select mp.profile_id, count(*) as n
+    from matchs_recents mr
+    join public.match_participants mp on mp.match_id = mr.id
+    group by mp.profile_id
+  )
+  select
+    (select nom from saison),
+    (select count(*)::integer from notes),
+    (select count(*)::integer from notes where est_classe),
+    (select round(percentile_cont(0.5) within group (order by rd)::numeric, 1) from notes),
+    (select count(*)::integer from par_joueur),
+    (select count(*)::integer from matchs_recents),
+    (select count(*)::integer from matchs_recents where niveau <> 'manuel'),
+    (select round(percentile_cont(0.5) within group (order by n)::numeric, 1) from par_joueur);
+$$;
+revoke execute on function public.meteo_classement() from public;
+grant execute on function public.meteo_classement() to anon, authenticated, service_role;
+
+-- Semaine par semaine (lundi), sur les p_semaines dernières semaines.
+create or replace function public.meteo_semaines(p_semaines integer default 8)
+returns table (semaine date, matchs integer, matchs_verifies integer, joueurs_actifs integer)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with semaines as (
+    select (date_trunc('week', now() at time zone 'Europe/Paris') - make_interval(weeks => g))::date as lundi
+    from generate_series(0, greatest(1, least(p_semaines, 26)) - 1) g
+  ),
+  matchs as (
+    select m.id, v.niveau, (date_trunc('week', v.cree_le at time zone 'Europe/Paris'))::date as lundi
+    from public.matches m
+    join public.tournaments t on t.id = m.tournament_id
+    join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+    where t.game_id = 1 and t.format = '1v1' and t.nature in ('tournoi', 'defi')
+      and v.cree_le > now() - make_interval(weeks => greatest(1, least(p_semaines, 26)) + 1)
+  )
+  select s.lundi,
+         (select count(*)::integer from matchs x where x.lundi = s.lundi),
+         (select count(*)::integer from matchs x where x.lundi = s.lundi and x.niveau <> 'manuel'),
+         (select count(distinct mp.profile_id)::integer
+            from matchs x join public.match_participants mp on mp.match_id = x.id
+           where x.lundi = s.lundi)
+  from semaines s
+  order by s.lundi desc;
+$$;
+revoke execute on function public.meteo_semaines(integer) from public;
+grant execute on function public.meteo_semaines(integer) to anon, authenticated, service_role;

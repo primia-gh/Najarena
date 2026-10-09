@@ -182,6 +182,10 @@ export default async function ClassementPage() {
                   Saisons et classements archivés
                 </Link>
                 {" · "}
+                <Link href="/lol/meteo" className="text-text underline underline-offset-3 hover:text-accent">
+                  Météo du classement
+                </Link>
+                {" · "}
                 <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:text-accent">
                   Comment ça marche
                 </Link>
