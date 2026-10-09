@@ -1,7 +1,8 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import BoutonLien from "@/components/design/BoutonLien";
+import LibelleSection from "@/components/design/LibelleSection";
 import { JsonLd } from "@/lib/json-ld";
 import { CRENEAUX } from "@/lib/tournois-auto/creneaux";
 
@@ -106,44 +107,44 @@ export default function FaqPage() {
         }}
       />
       <FondEcailles />
-      <div className="relative px-grille *:max-w-3xl">
+      {/* Revue visuelle du 09/10/2026 : onze cartes à liseré vert et réponses
+          en 14 px deviennent une liste numérotée séparée par des filets,
+          réponses en texte courant (MASTER §3, 17–20 px). Textes inchangés. */}
+      <div className="relative flex flex-col gap-14 px-grille *:max-w-3xl">
         <Apparition>
-          <span className="block font-texte text-libelle font-medium text-muted uppercase">
-            FAQ
-          </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-            Les questions de confiance.
-          </h1>
-          <p className="mt-3 max-w-lg text-sm text-muted">
-            Les réponses que tu cherches avant de t&apos;inscrire — sans détour, et toutes vérifiées
-            dans le fonctionnement réel du site.
+          <LibelleSection>FAQ</LibelleSection>
+          <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Les questions de confiance.</h1>
+          <p className="mt-6 text-courant text-text-2">
+            Les réponses que tu cherches avant de t&apos;inscrire — sans détour, et toutes vérifiées dans le fonctionnement
+            réel du site.
           </p>
         </Apparition>
 
-        <div className="mt-10 flex flex-col gap-4">
+        <ol className="flex flex-col border-b border-line">
           {QUESTIONS.map((q, i) => (
-            <Apparition key={q.question} delai={Math.min(i * 0.05, 0.25)}>
-              <article className="rounded-[3px] border border-line border-l-[3px] border-l-accent bg-surface p-5">
-                <h2 className="font-titre uppercase text-base font-extrabold text-text">{q.question}</h2>
-                <p className="mt-1.5 text-sm text-muted">{q.reponse}</p>
-              </article>
-            </Apparition>
+            <li key={q.question} className="border-t border-line py-8">
+              <Apparition delai={Math.min(i * 0.04, 0.2)} className="grid gap-x-6 gap-y-3 sm:grid-cols-[3rem_minmax(0,1fr)]">
+                <span aria-hidden="true" className="font-titre text-3xl leading-none font-black text-faint tabular-nums">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="flex flex-col gap-3">
+                  <h2 className="font-titre text-2xl leading-none font-black uppercase">{q.question}</h2>
+                  <p className="text-courant text-text-2">{q.reponse}</p>
+                </div>
+              </Apparition>
+            </li>
           ))}
-        </div>
+        </ol>
 
-        <Apparition delai={0.1}>
-          <p className="mt-12 text-sm text-muted">
-            Pour aller plus loin :{" "}
-            {LIENS.map((l, i) => (
-              <span key={l.href}>
-                {i > 0 && " · "}
-                <Link href={l.href} className="text-text underline underline-offset-3">
-                  {l.libelle}
-                </Link>
-              </span>
+        <Apparition className="flex flex-col gap-4">
+          <LibelleSection>Pour aller plus loin</LibelleSection>
+          <div className="flex flex-wrap gap-x-8 gap-y-2">
+            {LIENS.map((l) => (
+              <BoutonLien key={l.href} href={l.href} variante="secondaire">
+                {l.libelle}
+              </BoutonLien>
             ))}
-            .
-          </p>
+          </div>
         </Apparition>
       </div>
     </main>
