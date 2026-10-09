@@ -8320,3 +8320,287 @@ end;
 $$;
 revoke execute on function public.agir_depuis_discord(text, text, uuid) from public, anon, authenticated;
 grant execute on function public.agir_depuis_discord(text, text, uuid) to service_role;
+
+-- ---------- Tournois à la demande (2026-10-09, idée en réserve n°11) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Un joueur indique les heures où il est libre (heures pleines de 12 h à
+-- 23 h, heure de Paris, de 90 minutes à 3 jours à l'avance, 8 au plus).
+-- Dès que 8 joueurs de la même région ont indiqué la même heure, la tâche
+-- des tournois automatiques ouvre un tournoi 1v1 à cette heure-là et y
+-- inscrit chacun d'eux (s_inscrire_tournoi, en leur nom : mêmes règles
+-- qu'une inscription sur le site). Le tournoi reste ouvert à tous jusqu'au
+-- check-in. Personne ne voit qui est disponible : seulement combien.
+-- Classement : un tournoi à la demande n'est pas « officiel » ; il suit la
+-- règle des tournois d'organisateur (au moins 8 joueurs au départ, publié
+-- au moins 24 h avant son début) — déclarer tôt le rend classé.
+
+create table if not exists public.disponibilites (
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  region      text not null,
+  debut       timestamptz not null,
+  cree_le     timestamptz not null default now(),
+  primary key (profile_id, debut)
+);
+create index if not exists disponibilites_creneau_idx on public.disponibilites (region, debut);
+alter table public.disponibilites enable row level security;
+revoke all on public.disponibilites from anon, authenticated;
+grant select on public.disponibilites to authenticated;
+drop policy if exists "ses disponibilites" on public.disponibilites;
+create policy "ses disponibilites" on public.disponibilites
+  for select to authenticated using (profile_id = (select auth.uid()));
+
+-- Heure valable pour une disponibilité : heure pleine, de 12 h à 23 h à
+-- Paris, de 90 minutes à 3 jours à l'avance.
+create or replace function public.heure_disponibilite_valable(p_debut timestamptz)
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select p_debut = date_trunc('hour', p_debut)
+     and extract(hour from p_debut at time zone 'Europe/Paris') between 12 and 23
+     and p_debut >= now() + interval '90 minutes'
+     and p_debut <= now() + interval '72 hours';
+$$;
+
+create or replace function public.declarer_disponibilite(p_debut timestamptz)
+returns integer -- joueurs disponibles à cette heure dans la région, soi compris
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_region text;
+  v_nombre integer;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_joueur);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if not public.heure_disponibilite_valable(p_debut) then
+    raise exception 'HEURE_INVALIDE';
+  end if;
+  -- Un tournoi automatique est déjà prévu à cette heure : on s'y inscrit.
+  if exists (
+    select 1 from public.tournaments
+    where region = v_region and debute_le = p_debut and nature = 'tournoi'
+      and creneau_auto is not null and statut in ('ouvert', 'checkin')
+  ) then
+    raise exception 'TOURNOI_DEJA_PREVU';
+  end if;
+  if (select count(*) from public.disponibilites where profile_id = v_joueur and debut > now()) >= 8
+     and not exists (select 1 from public.disponibilites where profile_id = v_joueur and debut = p_debut) then
+    raise exception 'LIMITE_DISPONIBILITES';
+  end if;
+
+  insert into public.disponibilites (profile_id, region, debut)
+  values (v_joueur, v_region, p_debut)
+  on conflict (profile_id, debut) do nothing;
+
+  select count(*)::integer into v_nombre
+  from public.disponibilites
+  where region = v_region and debut = p_debut;
+  return v_nombre;
+end;
+$$;
+revoke execute on function public.declarer_disponibilite(timestamptz) from public, anon;
+grant execute on function public.declarer_disponibilite(timestamptz) to authenticated;
+
+create or replace function public.retirer_disponibilite(p_debut timestamptz)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  delete from public.disponibilites where profile_id = auth.uid() and debut = p_debut;
+  return found;
+end;
+$$;
+revoke execute on function public.retirer_disponibilite(timestamptz) from public, anon;
+grant execute on function public.retirer_disponibilite(timestamptz) to authenticated;
+
+-- Combien de joueurs sont disponibles à chaque heure à venir d'une région.
+-- Des nombres seulement, jamais de noms.
+create or replace function public.disponibilites_creneaux(p_region text)
+returns table (debut timestamptz, joueurs integer)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select d.debut, count(*)::integer
+  from public.disponibilites d
+  where d.region = p_region and d.debut > now()
+  group by d.debut
+  order by d.debut;
+$$;
+revoke execute on function public.disponibilites_creneaux(text) from public;
+grant execute on function public.disponibilites_creneaux(text) to anon, authenticated, service_role;
+
+-- Passage de la tâche des tournois automatiques (rôle service) : ouvre un
+-- tournoi pour chaque heure qui a atteint 8 joueurs disponibles, et les y
+-- inscrit. Les disponibilités de cette heure sont alors effacées (un joueur
+-- qui ne peut plus être inscrit — compte délié, tournoi complet — est
+-- simplement laissé de côté).
+create or replace function public.ouvrir_tournois_a_la_demande(p_organisateur_id uuid)
+returns table (tournament_id uuid, slug text, inscrits uuid[])
+language plpgsql
+security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  v_creneau record;
+  v_tournoi uuid;
+  v_slug text;
+  v_joueur uuid;
+  v_inscrits uuid[];
+begin
+  for v_creneau in
+    select d.region, d.debut, count(*)::integer as nombre
+    from public.disponibilites d
+    where d.debut >= now() + interval '45 minutes'
+    group by d.region, d.debut
+    having count(*) >= 8
+    order by d.debut
+  loop
+    -- Un tournoi automatique à la même heure (le quotidien, ou celui-ci,
+    -- déjà ouvert) : les joueurs y sont inscrits plutôt qu'en ouvrir un
+    -- second.
+    v_tournoi := null;
+    select t.id, t.slug into v_tournoi, v_slug
+    from public.tournaments t
+    where t.region = v_creneau.region and t.debute_le = v_creneau.debut and t.nature = 'tournoi'
+      and t.creneau_auto is not null and t.statut = 'ouvert'
+    limit 1;
+
+    if v_tournoi is null then
+      v_slug := 'a-la-demande-' || lower(v_creneau.region) || '-'
+        || to_char(v_creneau.debut at time zone 'Europe/Paris', 'YYYY-MM-DD-HH24') || 'h';
+      insert into public.tournaments (
+        game_id, season_id, organisateur_id, slug, nom, format, capacite, best_of, region,
+        debute_le, checkin_ouvre_le, statut, creneau_auto, condition_victoire
+      ) values (
+        1,
+        (select id from public.seasons where game_id = 1 and est_courante limit 1),
+        p_organisateur_id,
+        v_slug,
+        'Tournoi à la demande · ' || to_char(v_creneau.debut at time zone 'Europe/Paris', 'DD/MM HH24') || 'h',
+        '1v1',
+        case when v_creneau.nombre <= 12 then 16 when v_creneau.nombre <= 24 then 32 else 64 end,
+        1,
+        v_creneau.region,
+        v_creneau.debut,
+        v_creneau.debut - interval '30 minutes',
+        'ouvert',
+        'a-la-demande',
+        'nexus'
+      )
+      on conflict (slug) do nothing
+      returning id into v_tournoi;
+      if v_tournoi is null then
+        continue;
+      end if;
+    end if;
+
+    v_inscrits := array[]::uuid[];
+    for v_joueur in
+      select d.profile_id from public.disponibilites d
+      where d.region = v_creneau.region and d.debut = v_creneau.debut
+      order by d.cree_le
+    loop
+      -- Inscription au nom du joueur : mêmes contrôles que sur le site.
+      perform set_config('request.jwt.claim.sub', v_joueur::text, true);
+      perform set_config('request.jwt.claims', json_build_object('sub', v_joueur, 'role', 'authenticated')::text, true);
+      begin
+        perform public.s_inscrire_tournoi(v_tournoi);
+        v_inscrits := v_inscrits || v_joueur;
+      exception when others then
+        null;
+      end;
+    end loop;
+    perform set_config('request.jwt.claim.sub', '', true);
+    perform set_config('request.jwt.claims', '{}', true);
+
+    delete from public.disponibilites d
+    where d.region = v_creneau.region and d.debut = v_creneau.debut;
+
+    tournament_id := v_tournoi;
+    slug := v_slug;
+    inscrits := v_inscrits;
+    return next;
+  end loop;
+end;
+$$;
+revoke execute on function public.ouvrir_tournois_a_la_demande(uuid) from public, anon, authenticated;
+grant execute on function public.ouvrir_tournois_a_la_demande(uuid) to service_role;
+
+-- Ménage : les disponibilités passées ne servent plus.
+create or replace function public.effacer_disponibilites_passees()
+returns integer
+language sql
+security definer set search_path = public
+as $$
+  with effacees as (delete from public.disponibilites where debut <= now() returning 1)
+  select count(*)::integer from effacees;
+$$;
+revoke execute on function public.effacer_disponibilites_passees() from public, anon, authenticated;
+grant execute on function public.effacer_disponibilites_passees() to service_role;
+
+-- Critères « tournoi classé » : un tournoi à la demande n'est pas officiel
+-- (il suit la règle des tournois d'organisateur). Seul changement : la
+-- ligne « officiel ».
+create or replace function public.criteres_tournoi_classe(p_tournament_id uuid)
+returns table (
+  officiel boolean,
+  amical boolean,
+  publie_a_temps boolean,
+  joueurs_au_depart integer,
+  organisateur_joue boolean,
+  classe boolean,
+  defi boolean
+)
+language sql
+stable
+set search_path = public
+as $$
+  select
+    c.officiel,
+    c.amical,
+    c.publie_a_temps,
+    c.joueurs,
+    c.orga,
+    not c.amical and (c.officiel or c.defi or (c.publie_a_temps and c.joueurs >= 8 and not c.orga)),
+    c.defi
+  from (
+    select
+      t.creneau_auto is not null and t.creneau_auto <> 'a-la-demande' as officiel,
+      not t.compte_pour_classement as amical,
+      coalesce(t.publie_le <= t.debute_le - interval '24 hours', false) as publie_a_temps,
+      (select count(distinct mp.profile_id)::integer
+         from public.matches m
+         join public.match_participants mp on mp.match_id = m.id
+        where m.tournament_id = t.id) as joueurs,
+      exists (
+        select 1 from public.matches m
+        join public.match_participants mp on mp.match_id = m.id
+        where m.tournament_id = t.id and mp.profile_id = t.organisateur_id
+      ) or exists (
+        select 1 from public.registrations r
+        where r.tournament_id = t.id and r.profile_id = t.organisateur_id
+          and r.statut in ('inscrit', 'confirme')
+      ) as orga,
+      t.nature = 'defi' as defi
+    from public.tournaments t
+    where t.id = p_tournament_id
+  ) c;
+$$;
+revoke execute on function public.criteres_tournoi_classe(uuid) from public;
+grant execute on function public.criteres_tournoi_classe(uuid) to anon, authenticated, service_role;

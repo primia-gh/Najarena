@@ -973,6 +973,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                     ? ` · ${complements.typeBracket}`
                     : ""}
               {complements.estQuotidien ? " · Tournoi quotidien" : ""}
+              {complements.estALaDemande ? " · Tournoi à la demande" : ""}
               {condition === "classique" ? " · 1v1 classique" : ""}
               {tournoi.reserve_membres ? " · Réservé aux membres" : ""}
             </span>

@@ -1,4 +1,5 @@
 import type { Database } from "@/lib/supabase/types";
+import { estOfficiel } from "@/lib/a-la-demande";
 import { FUSEAU_PARIS } from "@/lib/tournois-auto/creneaux";
 
 export type Statut = Database["public"]["Enums"]["tournament_status"];
@@ -168,7 +169,7 @@ export function versTournoiListe(t: LigneTournoiBrute): TournoiListe | null {
     statut: t.statut,
     debute_le: t.debute_le,
     reserve_membres: t.reserve_membres,
-    officiel: t.creneau_auto !== null,
+    officiel: estOfficiel(t.creneau_auto),
     amical: t.compte_pour_classement === false,
     classe: t.classe,
     inscrits: t.registrations[0]?.count ?? 0,

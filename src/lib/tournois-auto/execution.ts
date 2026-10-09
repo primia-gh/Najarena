@@ -35,7 +35,7 @@ import { doitPublierEmpreinte } from "@/lib/registre";
 import { lundiDeLaSemaine, messageRecap } from "@/lib/recap-semaine";
 import { chargerRecapSemaine } from "@/lib/recap-semaine-serveur";
 
-type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
+export type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
 
 // Si un créneau a été retiré de CRENEAUX alors qu'un de ses tournois
 // était déjà créé : même minimum que le créneau d'origine.
@@ -302,7 +302,7 @@ async function appliquer(admin: ClientAdmin, action: Action): Promise<string> {
 // quel tournoi (CLAUDE.md §3 : en cas de doute, on escalade vers
 // l'organisateur). TOURNOIS_AUTO_ORGANISATEUR_ID si elle est définie
 // (par exemple un compte « Najarena » dédié), sinon le premier admin.
-async function trouverOrganisateur(admin: ClientAdmin): Promise<string | null> {
+export async function trouverOrganisateur(admin: ClientAdmin): Promise<string | null> {
   const configure = process.env.TOURNOIS_AUTO_ORGANISATEUR_ID;
   if (configure) return configure;
   const { data } = await admin

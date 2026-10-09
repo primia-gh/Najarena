@@ -527,6 +527,35 @@ export type Database = {
           },
         ]
       }
+      disponibilites: {
+        Row: {
+          cree_le: string
+          debut: string
+          profile_id: string
+          region: string
+        }
+        Insert: {
+          cree_le?: string
+          debut: string
+          profile_id: string
+          region: string
+        }
+        Update: {
+          cree_le?: string
+          debut?: string
+          profile_id?: string
+          region?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disponibilites_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bilans_hebdo: {
         Row: {
           envoye_le: string
@@ -2826,6 +2855,14 @@ export type Database = {
       code_liaison_discord: { Args: { p_communaute_id: string }; Returns: string }
       lier_serveur_discord: { Args: { p_code: string; p_guild_id: string }; Returns: string }
       agir_depuis_discord: { Args: { p_discord_id: string; p_action: string; p_cible: string }; Returns: Json }
+      declarer_disponibilite: { Args: { p_debut: string }; Returns: number }
+      retirer_disponibilite: { Args: { p_debut: string }; Returns: boolean }
+      disponibilites_creneaux: { Args: { p_region: string }; Returns: { debut: string; joueurs: number }[] }
+      ouvrir_tournois_a_la_demande: {
+        Args: { p_organisateur_id: string }
+        Returns: { tournament_id: string; slug: string; inscrits: string[] }[]
+      }
+      effacer_disponibilites_passees: { Args: Record<PropertyKey, never>; Returns: number }
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
       definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
       revues_a_rediger: { Args: { p_limite: number }; Returns: { match_id: string; profile_id: string }[] }
