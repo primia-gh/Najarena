@@ -978,7 +978,14 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                   <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
                     registre des points
                   </Link>
-                  , vérifiable par tous.
+                  , vérifiable par tous. Chaque ligne peut aussi être{" "}
+                  <Link
+                    href={`/joueur/${profil.slug}/recalcul`}
+                    className="text-text underline underline-offset-3 hover:text-accent"
+                  >
+                    recalculée dans ton navigateur
+                  </Link>
+                  .
                 </p>
               </div>
               {evenementsPoints.length === 0 ? (

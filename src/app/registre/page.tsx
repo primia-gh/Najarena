@@ -229,6 +229,11 @@ export default async function RegistrePage() {
                 .
               </li>
             </ol>
+            <p className="mt-4 text-sm leading-relaxed text-text-2">
+              La chaîne prouve qu&apos;aucune ligne n&apos;a été retouchée. Pour vérifier que chaque ligne suit bien la
+              formule Glicko-2, ouvre le CV d&apos;un joueur : son journal des points mène à « Recalcule toi-même », qui
+              refait tout son calcul dans ton navigateur.
+            </p>
             <details className="mt-4 text-sm text-text-2">
               <summary className="cursor-pointer font-semibold text-text">Comment l&apos;empreinte est calculée</summary>
               <p className="mt-2 leading-relaxed">
