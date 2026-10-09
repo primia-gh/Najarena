@@ -36,9 +36,11 @@ import BoutonLien from "@/components/design/BoutonLien";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import Panneau from "@/components/design/Panneau";
+import Tableau from "@/components/design/Tableau";
 import LibelleSection from "@/components/design/LibelleSection";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import { CaseMatch, ColonnesBracket, type EtatMatch } from "@/components/tournoi/Bracket";
+import { chancesDeTitre, formaterChance, type MatchTitre } from "@/lib/chances-titre";
 import {
   Deroulement,
   EnTeteTournoi,
@@ -510,6 +512,37 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     rounds.set(m.tour, liste);
   }
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
+
+  // Chances de titre (idée en réserve n°14) : estimation d'après les
+  // ratings au début du tournoi, avant le tournoi et au fil des résultats.
+  // Tournois 1v1 seulement (en 5v5, le capitaine représente l'équipe).
+  const titre =
+    !estEquipes && tournoi.nature === "tournoi" && matchs.length > 0 && (statut === "en_cours" || statut === "termine")
+      ? (() => {
+          const matchsTitre: MatchTitre[] = matchs.map((m) => ({
+            tour: m.tour,
+            position: m.position,
+            joueurs: m.match_participants.map((p) => ({ profileId: p.profile_id, slot: p.slot })),
+            gagnant: verdictParMatch.get(m.id)?.gagnant_id ?? null,
+          }));
+          const joueurs = new Map(
+            matchs.flatMap((m) => m.match_participants.map((p) => [p.profile_id, p.profile] as const)),
+          );
+          const avant = chancesDeTitre(matchsTitre, etatDepart, false);
+          const maintenant = chancesDeTitre(matchsTitre, etatDepart, true);
+          const lignes = [...avant.keys()]
+            .map((id) => ({
+              id,
+              pseudo: joueurs.get(id)?.pseudo ?? "Joueur",
+              slug: joueurs.get(id)?.slug ?? null,
+              avant: avant.get(id) ?? 0,
+              maintenant: maintenant.get(id) ?? 0,
+            }))
+            .sort((a, b) => b.maintenant - a.maintenant || b.avant - a.avant);
+          const vainqueur = statut === "termine" && maintenant.size === 1 ? lignes[0] : null;
+          return { lignes, vainqueur };
+        })()
+      : null;
 
   const complements = await chargerComplementsTournoi(tournoi.id);
 
@@ -1408,6 +1441,63 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 }),
               }))}
             />
+          )}
+
+          {/* Chances de titre (idée en réserve n°14). */}
+          {titre && titre.vainqueur && (
+            <p className="text-sm text-text-2">
+              Vainqueur : <span className="font-semibold text-text">{titre.vainqueur.pseudo}</span>, qui avait{" "}
+              <span className="tabular-nums">{formaterChance(titre.vainqueur.avant)}</span> de chances de titre avant le
+              tournoi (estimation d&apos;après les ratings du départ).
+            </p>
+          )}
+          {titre && !titre.vainqueur && statut === "en_cours" && (
+            <Panneau as="section" aria-labelledby="titre-chances" className="flex flex-col gap-4 p-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <LibelleSection as="h3" id="titre-chances">
+                  Chances de titre
+                </LibelleSection>
+                <span className="text-xs text-muted">Estimation provisoire, d&apos;après les ratings au départ</span>
+              </div>
+              <Tableau legende="Chances de chaque joueur de gagner le tournoi">
+                <thead>
+                  <tr>
+                    <th scope="col">Joueur</th>
+                    <th scope="col" className="text-right">
+                      Avant le tournoi
+                    </th>
+                    <th scope="col" className="text-right">
+                      Maintenant
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {titre.lignes.slice(0, 8).map((l) => (
+                    <tr key={l.id}>
+                      <td className={l.maintenant > 0 ? "font-semibold" : "text-faint"}>
+                        {l.slug ? (
+                          <Link href={`/joueur/${l.slug}`} className="hover:text-accent">
+                            {l.pseudo}
+                          </Link>
+                        ) : (
+                          l.pseudo
+                        )}
+                      </td>
+                      <td className="text-right text-muted tabular-nums">{formaterChance(l.avant)}</td>
+                      <td className="text-right tabular-nums">
+                        {l.maintenant > 0 ? formaterChance(l.maintenant) : <span className="text-faint">Éliminé</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Tableau>
+              {titre.lignes.length > 8 && (
+                <p className="text-xs text-muted">
+                  Et {titre.lignes.length - 8} autre{titre.lignes.length - 8 > 1 ? "s" : ""} joueur
+                  {titre.lignes.length - 8 > 1 ? "s" : ""}, aux chances plus faibles ou éliminés.
+                </p>
+              )}
+            </Panneau>
           )}
         </div>
       </section>
