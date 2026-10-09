@@ -8773,3 +8773,12 @@ as $$
   where c.code = p_code;
 $$;
 grant execute on function public.lire_certificat(text) to anon, authenticated;
+
+-- ---------- Registre ancré sur GitHub (2026-10-09, idée en réserve n°3) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- L'empreinte du soir, déjà publiée sur Discord, est aussi déposée dans un
+-- dépôt GitHub public (un fichier par jour, daté par GitHub), dès que
+-- GITHUB_ANCRAGE_DEPOT et GITHUB_ANCRAGE_JETON sont configurées
+-- (src/lib/ancrage-github.ts). Cette colonne note le dépôt réussi ; un
+-- dépôt manqué (GitHub injoignable) est retenté aux passages suivants.
+alter table public.empreintes_publiees add column if not exists ancree_github_le timestamptz;

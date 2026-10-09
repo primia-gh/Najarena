@@ -15,6 +15,7 @@ import { creerClientAdmin } from "@/lib/supabase/admin";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { boutonCheckin, boutonPret } from "@/lib/suites-joueur";
+import { configAncrage, deposerEmpreinte } from "@/lib/ancrage-github";
 import { matchsOuverts } from "@/lib/apres-verdict";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { verifierCleRiot } from "@/lib/riot";
@@ -101,6 +102,12 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
   }
 
   try {
+    resultats.push(...(await ancrerEmpreintesSurGithub(admin)));
+  } catch (erreur) {
+    resultats.push(`ancrage GitHub : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
+  try {
     resultats.push(...(await publierRecapSemaine(admin, maintenant)));
   } catch (erreur) {
     resultats.push(`récap de la semaine : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
@@ -169,6 +176,30 @@ async function publierEmpreinteRegistre(admin: ClientAdmin, maintenant: Date): P
     `🔏 Registre des points au ${jour.split("-").reverse().join("/")} : ${derniere.numero} ligne${derniere.numero > 1 ? "s" : ""}, dernière empreinte \`${derniere.empreinte}\`. Retoucher une seule ligne passée changerait cette empreinte. Vérifier : ${URL_SITE}/registre`,
   );
   return [`empreinte du registre publiée (${derniere.numero} lignes)`];
+}
+
+// Registre ancré sur GitHub (09/10/2026, idée en réserve n°3) : chaque
+// empreinte publiée (sur 7 jours) qui n'est pas encore déposée dans le
+// dépôt GitHub public l'est — aussitôt après la publication du soir, ou au
+// passage suivant si GitHub ne répondait pas. Sans configuration, rien.
+async function ancrerEmpreintesSurGithub(admin: ClientAdmin): Promise<string[]> {
+  const config = configAncrage();
+  if (!config) return [];
+  const { data: aDeposer } = await admin
+    .from("empreintes_publiees")
+    .select("jour, numero, empreinte")
+    .is("ancree_github_le", null)
+    .gte("jour", ajouterJours(jourParis(new Date()), -7))
+    .order("jour", { ascending: true });
+  const resultats: string[] = [];
+  for (const e of aDeposer ?? []) {
+    const issue = await deposerEmpreinte({ jour: e.jour, numero: e.numero, empreinte: e.empreinte, site: URL_SITE }, config);
+    if (issue === "depose" || issue === "deja_depose") {
+      await admin.from("empreintes_publiees").update({ ancree_github_le: new Date().toISOString() }).eq("jour", e.jour);
+    }
+    resultats.push(`empreinte du ${e.jour} sur GitHub : ${issue}`);
+  }
+  return resultats;
 }
 
 // Contrôle de la clé Riot dans les heures qui précèdent chaque tournoi

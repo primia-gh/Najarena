@@ -5,6 +5,7 @@ import { arrondir } from "@/lib/classement";
 import { formaterDate } from "@/lib/tournois";
 import { empreinteCourte, LABEL_MOTIF_REGISTRE } from "@/lib/registre";
 import { URL_SITE } from "@/lib/notifications";
+import { adresseFichier, depotAncrage } from "@/lib/ancrage-github";
 import { classeCarte } from "@/lib/ui";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
@@ -37,7 +38,12 @@ export default async function RegistrePage() {
       )
       .order("numero", { ascending: false })
       .limit(DERNIERES_LIGNES),
-    supabase.from("empreintes_publiees").select("jour, numero, empreinte").order("jour", { ascending: false }).limit(1).maybeSingle(),
+    supabase
+      .from("empreintes_publiees")
+      .select("jour, numero, empreinte, ancree_github_le")
+      .order("jour", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   // L'empreinte publiée sur Discord doit être celle de la ligne du même numéro.
@@ -48,6 +54,8 @@ export default async function RegistrePage() {
 
   const intacte = verification ? verification.premiere_rupture === null : null;
   const adresseExport = `${URL_SITE}/registre/export`;
+  // Second témoin (idée en réserve n°3) : le dépôt GitHub public, s'il est configuré.
+  const depotGithub = depotAncrage();
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -108,6 +116,19 @@ export default async function RegistrePage() {
                     avec le registre.
                   </p>
                   <code className="text-xs break-all text-text tabular-nums select-all">{publication.empreinte}</code>
+                  {depotGithub && publication.ancree_github_le && (
+                    <p className="text-sm text-text-2">
+                      Aussi déposée sur GitHub, qui date chaque dépôt :{" "}
+                      <a
+                        href={adresseFichier(depotGithub, publication.jour)}
+                        className="text-text underline underline-offset-3 hover:text-accent"
+                        rel="noopener"
+                      >
+                        fichier du {publication.jour.split("-").reverse().join("/")}
+                      </a>
+                      .
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-muted">
@@ -190,7 +211,23 @@ export default async function RegistrePage() {
               <li>
                 Avec Node.js : <code className="text-xs break-all text-text">node verifier-registre.mjs {adresseExport}</code>
               </li>
-              <li>Comparer la dernière empreinte obtenue avec celle publiée sur notre Discord le même soir.</li>
+              <li>
+                Comparer la dernière empreinte obtenue avec celle publiée sur notre Discord le même soir
+                {depotGithub ? (
+                  <>
+                    {" "}
+                    ou déposée dans le dépôt public{" "}
+                    <a
+                      href={`https://github.com/${depotGithub}`}
+                      className="text-text underline underline-offset-3 hover:text-accent"
+                      rel="noopener"
+                    >
+                      github.com/{depotGithub}
+                    </a>
+                  </>
+                ) : null}
+                .
+              </li>
             </ol>
             <details className="mt-4 text-sm text-text-2">
               <summary className="cursor-pointer font-semibold text-text">Comment l&apos;empreinte est calculée</summary>

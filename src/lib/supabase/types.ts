@@ -1187,6 +1187,7 @@ export type Database = {
       empreintes_publiees: {
         Row: {
           empreinte: string
+          ancree_github_le: string | null
           jour: string
           numero: number
           publiee_le: string
@@ -1199,6 +1200,7 @@ export type Database = {
         }
         Update: {
           empreinte?: string
+          ancree_github_le?: string | null
           jour?: string
           numero?: number
           publiee_le?: string
