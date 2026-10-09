@@ -41,6 +41,7 @@ import LibelleSection from "@/components/design/LibelleSection";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import { CaseMatch, ColonnesBracket, type EtatMatch } from "@/components/tournoi/Bracket";
 import { chancesDeTitre, formaterChance, type MatchTitre } from "@/lib/chances-titre";
+import { ficheAdversaire } from "@/lib/fiche-adversaire";
 import {
   Deroulement,
   EnTeteTournoi,
@@ -205,6 +206,7 @@ const chargerTournoi = cache(async (slug: string) => {
     mesEquipes,
     { data: monAdhesion },
     { data: monClassement },
+    { data: partiesAdversaire },
   ] = await Promise.all([
     profileIds.length > 0
       ? (() => {
@@ -294,6 +296,16 @@ const chargerTournoi = cache(async (slug: string) => {
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    // Fiche de l'adversaire (idée en réserve n°9) : ses parties lues chez
+    // Riot (stats_match_joueur n'existe que pour elles), en 1v1.
+    adversaireId && tournoi.format !== "5v5"
+      ? supabase
+          .from("stats_match_joueur")
+          .select("champion, gagne, poste")
+          .eq("profile_id", adversaireId)
+          .order("cree_le", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
@@ -337,6 +349,7 @@ const chargerTournoi = cache(async (slug: string) => {
     monMatch,
     riotIdAdversaire:
       compteAdversaire?.verifie_le ? `${compteAdversaire.riot_game_name}#${compteAdversaire.riot_tag_line}` : null,
+    ficheDeLAdversaire: ficheAdversaire(partiesAdversaire ?? []),
     paliers,
     ratingParProfile,
     etatDepart,
@@ -440,6 +453,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     monCompteRiot,
     monMatch,
     riotIdAdversaire,
+    ficheDeLAdversaire,
     paliers,
     ratingParProfile,
     etatDepart,
@@ -641,6 +655,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             demarreLe: monMatch.demarre_le,
             bestOf: tournoi.best_of,
             perdantDeclare: perdant,
+            ficheAdversaire: estEquipes ? null : ficheDeLAdversaire,
             chances:
               adversaire && !estEquipes
                 ? (() => {

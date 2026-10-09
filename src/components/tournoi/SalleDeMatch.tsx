@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
+import type { FicheAdversaire } from "@/lib/fiche-adversaire";
 import BoutonCopier from "@/components/design/BoutonCopier";
 import { etapesMatch, etapesMatch5v5 } from "@/lib/reglement";
 import { heureParis } from "@/lib/tournois-auto/creneaux";
@@ -45,6 +46,8 @@ export interface InfosSalleDeMatch {
   perdantDeclare: string | null;
   /** Chances estimées avant le match, en % (ratings Glicko-2). */
   chances?: { moi: number; adversaire: number } | null;
+  /** Fiche de l'adversaire (idée en réserve n°9), 1v1 seulement. */
+  ficheAdversaire?: FicheAdversaire | null;
   /** « Je suis prêt » de chacun (audit N4) : heure de la déclaration, ou nul. */
   pret?: { moi: string | null; adversaire: string | null };
   /** Comment on gagne une partie (audit N5). */
@@ -176,6 +179,7 @@ export default function SalleDeMatch({ infos, actions, actionPret }: SalleDeMatc
     bestOf,
     perdantDeclare,
     chances,
+    ficheAdversaire,
     pret,
     condition,
     equipes,
@@ -287,6 +291,28 @@ export default function SalleDeMatch({ infos, actions, actionPret }: SalleDeMatc
               Chances estimées : toi {chances.moi} % · {adversaire.pseudo} {chances.adversaire} % — d&apos;après vos
               ratings Glicko-2 au début du tournoi, à titre indicatif.
             </p>
+          )}
+
+          {/* Fiche de l'adversaire (idée en réserve n°9) : ses parties lues chez Riot. */}
+          {ficheAdversaire && (
+            <div className="flex flex-col gap-2 border-t border-line pt-4">
+              <span className="text-mini text-muted uppercase">Ses parties vérifiées</span>
+              <p className="text-sm text-text-2 tabular-nums">
+                {ficheAdversaire.parties} dernières : {ficheAdversaire.victoires} V ·{" "}
+                {ficheAdversaire.parties - ficheAdversaire.victoires} D
+                {ficheAdversaire.poste && <> · poste le plus joué : {ficheAdversaire.poste.toLowerCase()}</>}
+              </p>
+              <ul className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                {ficheAdversaire.champions.map((c) => (
+                  <li key={c.nom} className="tabular-nums">
+                    <span className="font-semibold text-text">{c.nom}</span>{" "}
+                    <span className="text-muted">
+                      {c.parties} partie{c.parties > 1 ? "s" : ""}, {c.victoires} V
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           <p
