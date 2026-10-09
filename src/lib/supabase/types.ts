@@ -533,6 +533,33 @@ export type Database = {
           },
         ]
       }
+      recommandations: {
+        Row: {
+          auteur_id: string
+          cree_le: string
+          destinataire_id: string
+          masquee: boolean
+          modifie_le: string
+          texte: string
+        }
+        Insert: {
+          auteur_id: string
+          cree_le?: string
+          destinataire_id: string
+          masquee?: boolean
+          modifie_le?: string
+          texte: string
+        }
+        Update: {
+          auteur_id?: string
+          cree_le?: string
+          destinataire_id?: string
+          masquee?: boolean
+          modifie_le?: string
+          texte?: string
+        }
+        Relationships: []
+      }
       disponibilites: {
         Row: {
           cree_le: string
@@ -2877,6 +2904,24 @@ export type Database = {
           matchs_30j: number
           matchs_verifies_30j: number
           matchs_par_actif_median: number | null
+        }[]
+      }
+      matchs_communs: { Args: { p_a: string; p_b: string }; Returns: { ensemble: number; contre: number }[] }
+      recommander: { Args: { p_destinataire: string; p_texte: string }; Returns: undefined }
+      retirer_recommandation: { Args: { p_destinataire: string }; Returns: undefined }
+      masquer_recommandation: { Args: { p_auteur: string; p_masquee: boolean }; Returns: boolean }
+      recommandations_joueur: {
+        Args: { p_profile_id: string }
+        Returns: {
+          auteur_id: string
+          auteur_pseudo: string
+          auteur_slug: string
+          texte: string
+          masquee: boolean
+          cree_le: string
+          modifie_le: string
+          matchs_ensemble: number
+          matchs_contre: number
         }[]
       }
       meteo_semaines: {

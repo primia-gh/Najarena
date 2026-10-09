@@ -8941,3 +8941,194 @@ as $$
 $$;
 revoke execute on function public.meteo_semaines(integer) from public;
 grant execute on function public.meteo_semaines(integer) to anon, authenticated, service_role;
+
+-- ---------- Recommandations vérifiées (2026-10-09, idée en réserve n°7) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Un joueur peut en recommander un autre seulement s'ils ont réellement
+-- joué ensemble ou l'un contre l'autre : une partie lue chez Riot (verdict
+-- définitif de niveau 2 ou 3) où les deux ont une fiche de partie
+-- (stats_match_joueur : les deux joueurs d'un 1v1, les dix alignés d'un
+-- 5v5). Le nombre de matchs communs est recalculé à chaque lecture, jamais
+-- saisi. Le joueur recommandé peut masquer une recommandation de son CV.
+
+create table if not exists public.recommandations (
+  auteur_id       uuid not null references public.profiles(id) on delete cascade,
+  destinataire_id uuid not null references public.profiles(id) on delete cascade,
+  texte           text not null check (char_length(btrim(texte)) between 20 and 500),
+  masquee         boolean not null default false,
+  cree_le         timestamptz not null default now(),
+  modifie_le      timestamptz not null default now(),
+  primary key (auteur_id, destinataire_id),
+  check (auteur_id <> destinataire_id)
+);
+create index if not exists recommandations_destinataire_idx on public.recommandations (destinataire_id);
+alter table public.recommandations enable row level security;
+-- Lecture directe : l'auteur et le joueur recommandé seulement (le CV passe
+-- par recommandations_joueur). Aucune écriture directe : fonctions ci-dessous.
+drop policy if exists "recommandation lue par ses deux joueurs" on public.recommandations;
+create policy "recommandation lue par ses deux joueurs" on public.recommandations
+  for select using (auth.uid() = auteur_id or auth.uid() = destinataire_id);
+
+-- Matchs vérifiés joués ensemble (même camp) et l'un contre l'autre.
+create or replace function public.matchs_communs(p_a uuid, p_b uuid)
+returns table (ensemble integer, contre integer)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select
+    count(*) filter (where sa.gagne = sb.gagne)::integer,
+    count(*) filter (where sa.gagne <> sb.gagne)::integer
+  from public.stats_match_joueur sa
+  join public.stats_match_joueur sb on sb.match_id = sa.match_id and sb.profile_id = p_b
+  where sa.profile_id = p_a
+    and p_a <> p_b
+    and exists (
+      select 1 from public.match_verdicts v
+      where v.match_id = sa.match_id and v.est_definitif and v.niveau in ('code_tournoi', 'historique')
+    );
+$$;
+revoke execute on function public.matchs_communs(uuid, uuid) from public;
+grant execute on function public.matchs_communs(uuid, uuid) to anon, authenticated, service_role;
+
+-- Modération : texte public (CLAUDE.md §6, audit N27).
+create or replace function public.moderer_recommandation()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if coalesce(public.analyser_texte(new.texte, 'texte_public'), '') like 'refus:%' then
+    raise exception 'TEXTE_INTERDIT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_recommandation() from public, anon, authenticated;
+drop trigger if exists moderation_recommandation on public.recommandations;
+create trigger moderation_recommandation
+  before insert or update of texte on public.recommandations
+  for each row execute function public.moderer_recommandation();
+
+-- Écrire ou modifier sa recommandation (une par joueur recommandé).
+create or replace function public.recommander(p_destinataire uuid, p_texte text)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_auteur uuid := auth.uid();
+  v_texte text := btrim(coalesce(p_texte, ''));
+begin
+  if v_auteur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if p_destinataire = v_auteur then
+    raise exception 'RECOMMANDATION_SOI_MEME';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_auteur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if not exists (select 1 from public.profiles where id = p_destinataire and supprime_le is null) then
+    raise exception 'JOUEUR_INTROUVABLE';
+  end if;
+  if char_length(v_texte) not between 20 and 500 then
+    raise exception 'TEXTE_LONGUEUR';
+  end if;
+  if not exists (
+    select 1 from public.matchs_communs(v_auteur, p_destinataire) c where c.ensemble + c.contre > 0
+  ) then
+    raise exception 'PAS_JOUE_ENSEMBLE';
+  end if;
+  if not exists (
+    select 1 from public.recommandations where auteur_id = v_auteur and destinataire_id = p_destinataire
+  ) and (
+    select count(*) from public.recommandations
+    where auteur_id = v_auteur and cree_le > now() - interval '24 hours'
+  ) >= 10 then
+    raise exception 'LIMITE_RECOMMANDATIONS';
+  end if;
+
+  insert into public.recommandations (auteur_id, destinataire_id, texte)
+  values (v_auteur, p_destinataire, v_texte)
+  on conflict (auteur_id, destinataire_id)
+  do update set texte = excluded.texte, modifie_le = now();
+end;
+$$;
+revoke execute on function public.recommander(uuid, text) from public, anon;
+grant execute on function public.recommander(uuid, text) to authenticated;
+
+create or replace function public.retirer_recommandation(p_destinataire uuid)
+returns void
+language sql
+security definer set search_path = public
+as $$
+  delete from public.recommandations where auteur_id = auth.uid() and destinataire_id = p_destinataire;
+$$;
+revoke execute on function public.retirer_recommandation(uuid) from public, anon;
+grant execute on function public.retirer_recommandation(uuid) to authenticated;
+
+-- Le joueur recommandé masque (ou réaffiche) une recommandation de son CV.
+create or replace function public.masquer_recommandation(p_auteur uuid, p_masquee boolean)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.recommandations set masquee = p_masquee
+  where auteur_id = p_auteur and destinataire_id = auth.uid();
+  return found;
+end;
+$$;
+revoke execute on function public.masquer_recommandation(uuid, boolean) from public, anon;
+grant execute on function public.masquer_recommandation(uuid, boolean) to authenticated;
+
+-- Recommandations affichées sur un CV, avec les matchs communs du moment.
+-- Les masquées ne sont rendues qu'au joueur recommandé lui-même.
+create or replace function public.recommandations_joueur(p_profile_id uuid)
+returns table (
+  auteur_id uuid,
+  auteur_pseudo text,
+  auteur_slug text,
+  texte text,
+  masquee boolean,
+  cree_le timestamptz,
+  modifie_le timestamptz,
+  matchs_ensemble integer,
+  matchs_contre integer
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select r.auteur_id, p.pseudo, p.slug, r.texte, r.masquee, r.cree_le, r.modifie_le, c.ensemble, c.contre
+  from public.recommandations r
+  join public.profiles p on p.id = r.auteur_id and p.supprime_le is null
+  cross join lateral public.matchs_communs(r.auteur_id, r.destinataire_id) c
+  where r.destinataire_id = p_profile_id
+    and (not r.masquee or auth.uid() = p_profile_id)
+    and c.ensemble + c.contre > 0
+  order by c.ensemble + c.contre desc, r.cree_le desc
+  limit 50;
+$$;
+revoke execute on function public.recommandations_joueur(uuid) from public;
+grant execute on function public.recommandations_joueur(uuid) to anon, authenticated, service_role;
+
+-- Compte supprimé : ses recommandations, écrites et reçues, disparaissent.
+create or replace function public.effacer_recommandations_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.recommandations where auteur_id = new.id or destinataire_id = new.id;
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_recommandations_compte_supprime() from public, anon, authenticated;
+drop trigger if exists recommandations_compte_supprime on public.profiles;
+create trigger recommandations_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_recommandations_compte_supprime();

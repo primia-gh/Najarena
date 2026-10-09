@@ -10,6 +10,8 @@ interface PanneauProps {
   /** Repères de visée aux 4 coins — pour les visuels, pas les blocs de texte. */
   reperes?: boolean;
   className?: string;
+  /** Ancre (lien « #… » vers ce bloc). */
+  id?: string;
   /** Titre qui nomme le bloc (section), pour les lecteurs d'écran. */
   "aria-labelledby"?: string;
   children: ReactNode;
@@ -19,11 +21,12 @@ export default function Panneau({
   as: Balise = "div",
   reperes = false,
   className = "",
+  id,
   "aria-labelledby": titrePar,
   children,
 }: PanneauProps) {
   return (
-    <Balise className={`panneau ${reperes ? "relative" : ""} ${className}`} aria-labelledby={titrePar}>
+    <Balise id={id} className={`panneau ${reperes ? "relative" : ""} ${className}`} aria-labelledby={titrePar}>
       {reperes && <ReperesVisee />}
       {children}
     </Balise>
