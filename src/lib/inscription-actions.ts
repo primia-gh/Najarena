@@ -23,6 +23,9 @@ const MESSAGES_REFUS: Record<string, string> = {
   // Tournoi réservé aux membres d'une communauté (04/10/2026).
   RESERVE_MEMBRES:
     "Ce tournoi est réservé aux membres de sa communauté (aux membres vérifiés, pour une école) : rejoins-la depuis sa page avant de t'inscrire.",
+  // Coupe des nouveaux (09/10/2026, idée en réserve n°12).
+  RESERVE_NON_CLASSES:
+    "La Coupe des nouveaux est réservée aux joueurs pas encore classés cette saison : inscris-toi au tournoi quotidien.",
 };
 
 // Tournois 5v5 (03/10/2026, audit N21) : refus de s_inscrire_equipe et de

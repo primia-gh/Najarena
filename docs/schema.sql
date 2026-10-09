@@ -8386,11 +8386,14 @@ begin
   if not public.heure_disponibilite_valable(p_debut) then
     raise exception 'HEURE_INVALIDE';
   end if;
-  -- Un tournoi automatique est déjà prévu à cette heure : on s'y inscrit.
+  -- Un tournoi automatique est déjà prévu à cette heure : on s'y inscrit
+  -- (sauf la Coupe des nouveaux, réservée aux joueurs non classés — colonne
+  -- ajoutée par la section « Coupe des nouveaux »).
   if exists (
     select 1 from public.tournaments
     where region = v_region and debute_le = p_debut and nature = 'tournoi'
       and creneau_auto is not null and statut in ('ouvert', 'checkin')
+      and not reserve_non_classes
   ) then
     raise exception 'TOURNOI_DEJA_PREVU';
   end if;
@@ -8478,7 +8481,7 @@ begin
     select t.id, t.slug into v_tournoi, v_slug
     from public.tournaments t
     where t.region = v_creneau.region and t.debute_le = v_creneau.debut and t.nature = 'tournoi'
-      and t.creneau_auto is not null and t.statut = 'ouvert'
+      and t.creneau_auto is not null and t.statut = 'ouvert' and not t.reserve_non_classes
     limit 1;
 
     if v_tournoi is null then
@@ -8782,3 +8785,70 @@ grant execute on function public.lire_certificat(text) to anon, authenticated;
 -- (src/lib/ancrage-github.ts). Cette colonne note le dépôt réussi ; un
 -- dépôt manqué (GitHub injoignable) est retenté aux passages suivants.
 alter table public.empreintes_publiees add column if not exists ancree_github_le timestamptz;
+
+-- ---------- Coupe des nouveaux (2026-10-09, idée en réserve n°12) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (et avec la section « Tournois à la demande », qui lit cette colonne).
+-- Un créneau quotidien réservé aux joueurs pas encore classés
+-- (src/lib/tournois-auto/creneaux.ts) : ils accumulent des matchs entre
+-- eux pour atteindre plus vite le classement (RD ≤ 150). Tournoi officiel,
+-- donc classé comme le quotidien. La réservation est posée par le serveur
+-- seul (jamais par un organisateur) et contrôlée par la base à chaque
+-- inscription : un joueur classé dans la saison en cours est refusé.
+alter table public.tournaments add column if not exists reserve_non_classes boolean not null default false;
+
+create or replace function public.controler_reserve_non_classes()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user = 'authenticated'
+     and ((tg_op = 'INSERT' and new.reserve_non_classes)
+          or (tg_op = 'UPDATE' and new.reserve_non_classes is distinct from old.reserve_non_classes)) then
+    raise exception 'CHAMP_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_reserve_non_classes() from public, anon, authenticated;
+drop trigger if exists controle_reserve_non_classes on public.tournaments;
+create trigger controle_reserve_non_classes
+  before insert or update of reserve_non_classes on public.tournaments
+  for each row execute function public.controler_reserve_non_classes();
+
+-- Vrai si le joueur n'est pas classé dans la saison en cours.
+create or replace function public.est_non_classe(p_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select not exists (
+    select 1 from public.ratings r
+    join public.seasons s on s.id = r.season_id and s.est_courante
+    where r.profile_id = p_profile_id and r.game_id = 1 and r.est_classe
+  );
+$$;
+revoke all on function public.est_non_classe(uuid) from public, anon, authenticated;
+
+create or replace function public.controler_inscription_non_classes()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.statut in ('inscrit', 'confirme')
+     and (tg_op = 'INSERT' or old.statut = 'retire')
+     and exists (select 1 from public.tournaments t where t.id = new.tournament_id and t.reserve_non_classes)
+     and not public.est_non_classe(new.profile_id) then
+    raise exception 'RESERVE_NON_CLASSES';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_inscription_non_classes() from public, anon, authenticated;
+drop trigger if exists controle_inscription_non_classes on public.registrations;
+create trigger controle_inscription_non_classes
+  before insert or update of statut on public.registrations
+  for each row execute function public.controler_inscription_non_classes();

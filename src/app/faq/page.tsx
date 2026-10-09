@@ -11,6 +11,7 @@ import { CRENEAUX } from "@/lib/tournois-auto/creneaux";
 // automatiques (lib/tournois-auto/creneaux.ts) : elle ne peut pas annoncer
 // un horaire ou une capacité qui n'existe pas.
 const QUOTIDIEN = CRENEAUX[0];
+const COUPE_NOUVEAUX = CRENEAUX.find((c) => c.reserveNonClasses);
 
 export const metadata: Metadata = {
   title: "FAQ — Najarena",
@@ -37,7 +38,7 @@ const QUESTIONS = [
     ? [
         {
           question: "Y a-t-il un tournoi tous les jours ?",
-          reponse: `Oui : le ${QUOTIDIEN.nom}, un tournoi 1v1 ouvert à tous, chaque soir à ${QUOTIDIEN.heure} (heure de Paris) sur le serveur ${QUOTIDIEN.region}, ${QUOTIDIEN.capacite} places. Il se crée tout seul, la veille. Le check-in ouvre ${QUOTIDIEN.checkinMinutes} minutes avant le début : confirme ta présence depuis la page du tournoi (un rappel t'est envoyé si tu as activé les notifications). Sans check-in, pas de place dans le bracket. En dessous de ${QUOTIDIEN.minimumJoueurs} joueurs confirmés, le tournoi est annulé. L'heure ne te convient pas ? Indique sur la page « Tournois à la demande » quand tu es libre : dès que ${SEUIL_A_LA_DEMANDE} joueurs de ta région le sont à la même heure, un tournoi s'ouvre et vous y êtes inscrits.`,
+          reponse: `Oui : le ${QUOTIDIEN.nom}, un tournoi 1v1 ouvert à tous, chaque soir à ${QUOTIDIEN.heure} (heure de Paris) sur le serveur ${QUOTIDIEN.region}, ${QUOTIDIEN.capacite} places. Il se crée tout seul, la veille. Le check-in ouvre ${QUOTIDIEN.checkinMinutes} minutes avant le début : confirme ta présence depuis la page du tournoi (un rappel t'est envoyé si tu as activé les notifications). Sans check-in, pas de place dans le bracket. En dessous de ${QUOTIDIEN.minimumJoueurs} joueurs confirmés, le tournoi est annulé. L'heure ne te convient pas ? Indique sur la page « Tournois à la demande » quand tu es libre : dès que ${SEUIL_A_LA_DEMANDE} joueurs de ta région le sont à la même heure, un tournoi s'ouvre et vous y êtes inscrits.${COUPE_NOUVEAUX ? ` Pas encore classé ? La ${COUPE_NOUVEAUX.nom} se joue aussi chaque soir à ${COUPE_NOUVEAUX.heure}, entre joueurs qui ne le sont pas encore.` : ""}`,
         },
       ]
     : []),

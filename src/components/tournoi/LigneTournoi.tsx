@@ -81,6 +81,7 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
           {t.amical && <Etiquette>Amical</Etiquette>}
           {t.statut === "termine" && t.classe === true && <Etiquette>Classé</Etiquette>}
           {t.reserve_membres && <Etiquette>Membres</Etiquette>}
+          {t.reserve_non_classes && <Etiquette>Non classés</Etiquette>}
         </span>
       </div>
 

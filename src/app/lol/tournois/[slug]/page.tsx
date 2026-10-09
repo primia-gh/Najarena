@@ -106,7 +106,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, communaute:communautes(id, slug, nom, type), objectif:echeances(nom)",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, reserve_non_classes, communaute:communautes(id, slug, nom, type), objectif:echeances(nom)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -202,6 +202,7 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: comptesDuMatchData },
     mesEquipes,
     { data: monAdhesion },
+    { data: monClassement },
   ] = await Promise.all([
     profileIds.length > 0
       ? (() => {
@@ -278,6 +279,19 @@ const chargerTournoi = cache(async (slug: string) => {
           .eq("profile_id", userData.user.id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    // Coupe des nouveaux (idée en réserve n°12) : le visiteur est-il déjà
+    // classé dans la saison en cours ? (même règle que est_non_classe)
+    userData.user && tournoi.reserve_non_classes
+      ? supabase
+          .from("ratings")
+          .select("est_classe, season:seasons!inner(est_courante)")
+          .eq("profile_id", userData.user.id)
+          .eq("game_id", tournoi.game_id)
+          .eq("season.est_courante", true)
+          .eq("est_classe", true)
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
@@ -334,9 +348,10 @@ const chargerTournoi = cache(async (slug: string) => {
     resumeOrganisateur: ficheOrganisateur ? resumeFiche(ficheOrganisateur) : null,
     // Même règle que la base (eligible_tournoi_reserve), pour l'affichage.
     eligibleReserve:
-      !tournoi.reserve_membres ||
-      (monAdhesion !== null &&
-        (typeCommunaute(tournoi.communaute?.type) !== "ecole" || monAdhesion.verifie_le !== null)),
+      (!tournoi.reserve_membres ||
+        (monAdhesion !== null &&
+          (typeCommunaute(tournoi.communaute?.type) !== "ecole" || monAdhesion.verifie_le !== null))) &&
+      (!tournoi.reserve_non_classes || monClassement === null),
   };
 });
 
@@ -740,6 +755,15 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     <p className="text-[13px] leading-normal text-muted">
       Tournoi réservé aux membres d&apos;une communauté qui n&apos;existe plus : les inscriptions sont closes.
     </p>
+  ) : tournoi.reserve_non_classes ? (
+    <div className="flex flex-col gap-3">
+      <p className="text-[13px] leading-normal text-muted">
+        Réservé aux joueurs pas encore classés cette saison : tu l&apos;es déjà. Retrouve-toi au tournoi quotidien.
+      </p>
+      <BoutonLien href="/lol/tournois" className="w-full">
+        Voir les tournois
+      </BoutonLien>
+    </div>
   ) : null;
   // Agents libres (audit N23) : ceux qui attendent encore une équipe.
   const agentsEnAttente = agentsLibres.filter((a) => a.statut !== "place");
@@ -976,6 +1000,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               {complements.estALaDemande ? " · Tournoi à la demande" : ""}
               {condition === "classique" ? " · 1v1 classique" : ""}
               {tournoi.reserve_membres ? " · Réservé aux membres" : ""}
+              {tournoi.reserve_non_classes ? " · Réservé aux joueurs non classés" : ""}
             </span>
           </>
         }

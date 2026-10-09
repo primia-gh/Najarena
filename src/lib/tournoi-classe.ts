@@ -90,7 +90,9 @@ export function criteresClassement(d: DonneesClassement): CritereClassement[] {
   if (d.officiel) {
     return [
       {
-        libelle: "Tournoi officiel Najarena, ouvert à tous",
+        // « ouvert à tous » retiré le 09/10/2026 : la Coupe des nouveaux est
+        // officielle mais réservée aux joueurs non classés.
+        libelle: "Tournoi officiel organisé par Najarena",
         etat: d.amical ? "ko" : "ok",
         detail: null,
       },

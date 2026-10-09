@@ -388,6 +388,7 @@ async function creer(
         statut: "ouvert",
         creneau_auto: creneau.cle,
         condition_victoire: creneau.conditionVictoire,
+        reserve_non_classes: creneau.reserveNonClasses ?? false,
       },
       { onConflict: "slug", ignoreDuplicates: true },
     )
@@ -406,7 +407,7 @@ async function reserverRappel(admin: ClientAdmin, tournoiId: string, type: TypeR
 async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel): Promise<string> {
   const { data: t } = await admin
     .from("tournaments")
-    .select("nom, slug, debute_le, checkin_ouvre_le, capacite, creneau_auto")
+    .select("nom, slug, debute_le, checkin_ouvre_le, capacite, creneau_auto, reserve_non_classes")
     .eq("id", tournoiId)
     .maybeSingle();
   if (!t) return `rappel ${type} (${tournoiId}) : tournoi introuvable`;
@@ -431,7 +432,7 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
     const inscrits = count ?? 0;
     const affluence = inscrits >= minimum ? `, ${inscrits}/${t.capacite} inscrits` : "";
     await notifierDiscord(
-      `📣 Aujourd'hui à ${heure} : **${echapperDiscord(t.nom)}** — tournoi 1v1 ouvert à tous${affluence}. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
+      `📣 Aujourd'hui à ${heure} : **${echapperDiscord(t.nom)}** — tournoi 1v1 ${t.reserve_non_classes ? "réservé aux joueurs pas encore classés" : "ouvert à tous"}${affluence}. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
     );
     return `annonce ${t.slug} : envoyée`;
   }

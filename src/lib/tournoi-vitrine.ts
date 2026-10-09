@@ -16,14 +16,15 @@ export async function chargerComplementsTournoi(tournoiId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("tournaments")
-    .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, classe")
+    .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, classe, reserve_non_classes")
     .eq("id", tournoiId)
     .maybeSingle();
 
   const min = data?.rating_min ?? null;
   const max = data?.rating_max ?? null;
-  const niveau =
-    min !== null && max !== null
+  const niveau = data?.reserve_non_classes
+    ? "Joueurs non classés"
+    : min !== null && max !== null
       ? `${min} – ${max}`
       : min !== null
         ? `${min} et plus`

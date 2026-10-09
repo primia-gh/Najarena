@@ -2470,6 +2470,7 @@ export type Database = {
           rating_min: number | null
           region: string
           reserve_membres: boolean
+          reserve_non_classes: boolean
           season_id: string | null
           slug: string
           statut: Database["public"]["Enums"]["tournament_status"]
@@ -2501,6 +2502,7 @@ export type Database = {
           rating_min?: number | null
           region: string
           reserve_membres?: boolean
+          reserve_non_classes?: boolean
           season_id?: string | null
           slug: string
           statut?: Database["public"]["Enums"]["tournament_status"]
@@ -2532,6 +2534,7 @@ export type Database = {
           rating_min?: number | null
           region?: string
           reserve_membres?: boolean
+          reserve_non_classes?: boolean
           season_id?: string | null
           slug?: string
           statut?: Database["public"]["Enums"]["tournament_status"]
