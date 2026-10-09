@@ -1319,6 +1319,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                         motif={verdict?.motif}
                         monMatch={estParticipantDuMatch}
                         exploit={exploit}
+                        lienPreuve={`/lol/match/${m.id}`}
                       >
                         {!verdict && m.statut === "litige" && !perdantDeclare && (
                           <p className="text-xs text-danger">

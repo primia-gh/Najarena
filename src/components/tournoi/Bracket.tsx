@@ -94,9 +94,11 @@ interface CaseMatchProps {
   exploit?: number | null;
   /** Messages et formulaire sous la case (litige, attente d'organisateur). */
   children?: ReactNode;
+  /** Fiche de preuve du match (idée en réserve n°1) : le badge du verdict y mène. */
+  lienPreuve?: string;
 }
 
-export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit, children }: CaseMatchProps) {
+export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit, children, lienPreuve }: CaseMatchProps) {
   const bordure =
     etat === "litige"
       ? "border-danger/60"
@@ -170,7 +172,18 @@ export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit
           {etat === "direct" ? (
             <BadgeEnDirect />
           ) : etat === "verdict" && niveau ? (
-            <BadgeVerdict niveau={niveau} compact />
+            lienPreuve ? (
+              <Link
+                href={lienPreuve}
+                title="Voir la preuve de ce résultat"
+                className="hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <BadgeVerdict niveau={niveau} compact />
+                <span className="sr-only"> — voir la preuve</span>
+              </Link>
+            ) : (
+              <BadgeVerdict niveau={niveau} compact />
+            )
           ) : etat === "litige" ? (
             <span className="text-mini font-semibold text-danger uppercase">Litige</span>
           ) : etat === "attente" ? (

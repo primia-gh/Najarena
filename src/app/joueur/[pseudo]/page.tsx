@@ -882,7 +882,15 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                             </td>
                             <td className="text-right">
                               <span className="inline-flex flex-col items-end gap-1">
-                                <BadgeVerdict niveau={h.niveau} compact />
+                                {/* Fiche de preuve du match (idée en réserve n°1). */}
+                                <Link
+                                  href={`/lol/match/${h.matchId}`}
+                                  title="Voir la preuve de ce résultat"
+                                  className="hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                >
+                                  <BadgeVerdict niveau={h.niveau} compact />
+                                  <span className="sr-only"> — voir la preuve</span>
+                                </Link>
                                 {h.niveau === "manuel" && h.motif && (
                                   <span className="max-w-[220px] text-xs text-muted">Motif : {h.motif}</span>
                                 )}
