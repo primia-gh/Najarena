@@ -8604,3 +8604,73 @@ as $$
 $$;
 revoke execute on function public.criteres_tournoi_classe(uuid) from public;
 grant execute on function public.criteres_tournoi_classe(uuid) to anon, authenticated, service_role;
+
+-- ---------- Bloc « Fiabilité » du CV (2026-10-09, idée en réserve n°6) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Ce qu'une équipe regarde avant de recruter, compté par la base sur les
+-- tournois et duels 1v1 du joueur (src/lib/fiabilite.ts n'affiche rien sur
+-- trop peu de données) :
+--   - présence au check-in : tournois commencés où il était inscrit, et
+--     ceux où il a confirmé (un retrait avant le début ne compte pas) ;
+--   - délai pour se déclarer prêt : médiane, depuis l'ouverture du match ;
+--   - forfaits : matchs perdus faute de s'être déclaré prêt à temps ;
+--   - défaites reconnues : « J'ai perdu » sans attendre la lecture Riot.
+-- Rien de nouveau n'est enregistré : tout se lit dans les tables existantes.
+create or replace function public.fiabilite_joueur(p_profile_id uuid)
+returns table (
+  tournois integer,
+  checkins integer,
+  matchs_prets integer,
+  delai_pret_median_secondes integer,
+  matchs_joues integer,
+  forfaits integer,
+  defaites_reconnues integer
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select
+    (select count(*)::integer
+       from public.registrations r
+       join public.tournaments t on t.id = r.tournament_id
+      where r.profile_id = p_profile_id and t.nature = 'tournoi' and t.format = '1v1'
+        and t.statut in ('en_cours', 'termine') and r.statut in ('confirme', 'absent', 'inscrit')),
+    (select count(*)::integer
+       from public.registrations r
+       join public.tournaments t on t.id = r.tournament_id
+      where r.profile_id = p_profile_id and t.nature = 'tournoi' and t.format = '1v1'
+        and t.statut in ('en_cours', 'termine') and r.statut = 'confirme'),
+    (select count(*)::integer
+       from public.match_participants mp
+       join public.matches m on m.id = mp.match_id
+       join public.tournaments t on t.id = m.tournament_id
+      where mp.profile_id = p_profile_id and t.format = '1v1'
+        and mp.pret_le is not null and m.demarre_le is not null and mp.pret_le >= m.demarre_le),
+    (select round(percentile_cont(0.5) within group (order by extract(epoch from mp.pret_le - m.demarre_le)))::integer
+       from public.match_participants mp
+       join public.matches m on m.id = mp.match_id
+       join public.tournaments t on t.id = m.tournament_id
+      where mp.profile_id = p_profile_id and t.format = '1v1'
+        and mp.pret_le is not null and m.demarre_le is not null and mp.pret_le >= m.demarre_le),
+    (select count(*)::integer
+       from public.match_participants mp
+       join public.matches m on m.id = mp.match_id
+       join public.tournaments t on t.id = m.tournament_id
+      where mp.profile_id = p_profile_id and t.format = '1v1'
+        and m.statut in ('termine', 'forfait')
+        and (select count(*) from public.match_participants autre where autre.match_id = m.id) = 2),
+    (select count(*)::integer
+       from public.match_participants mp
+       join public.matches m on m.id = mp.match_id
+       join public.tournaments t on t.id = m.tournament_id
+       join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+      where mp.profile_id = p_profile_id and t.format = '1v1'
+        and m.statut = 'forfait' and mp.pret_le is null and v.gagnant_id <> p_profile_id),
+    (select count(*)::integer
+       from public.matches m
+       join public.tournaments t on t.id = m.tournament_id
+      where m.defaite_reconnue_par = p_profile_id and t.format = '1v1');
+$$;
+revoke execute on function public.fiabilite_joueur(uuid) from public;
+grant execute on function public.fiabilite_joueur(uuid) to anon, authenticated, service_role;

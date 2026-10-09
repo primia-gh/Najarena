@@ -3023,6 +3023,18 @@ export type Database = {
           tournois_termines: number
         }[]
       }
+      fiabilite_joueur: {
+        Args: { p_profile_id: string }
+        Returns: {
+          checkins: number
+          defaites_reconnues: number
+          delai_pret_median_secondes: number | null
+          forfaits: number
+          matchs_joues: number
+          matchs_prets: number
+          tournois: number
+        }[]
+      }
       former_equipes_agents_libres: { Args: { p_equipes: Json; p_tournament_id: string }; Returns: number }
       modifier_alignement: { Args: { p_joueurs: string[]; p_tournament_id: string }; Returns: boolean }
       modifier_mon_profil: {

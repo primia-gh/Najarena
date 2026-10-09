@@ -1124,6 +1124,26 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               </Panneau>
             )}
 
+            {/* Fiabilité (idée en réserve n°6) : ce qu'une équipe regarde avant
+                de recruter. Absent tant qu'il y a trop peu de données. */}
+            {complements.fiabilite.length > 0 && (
+              <Panneau className="flex flex-col gap-4 p-7">
+                <LibelleSection as="h2">Fiabilité</LibelleSection>
+                <dl className="flex flex-col gap-3">
+                  {complements.fiabilite.map((ligne) => (
+                    <div key={ligne.libelle} className="flex flex-col gap-0.5">
+                      <dt className="text-[11px] tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
+                      <dd className="text-sm text-text tabular-nums">{ligne.valeur}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="text-xs text-muted">
+                  Compté par Najarena sur ses tournois et duels 1v1 : check-in, bouton « Je suis prêt », forfaits pour
+                  absence, défaites reconnues.
+                </p>
+              </Panneau>
+            )}
+
             {/* Fiche d'organisateur (audit N13) : le sérieux de ses tournois. */}
             {complements.ficheOrganisateur && (
               <Panneau className="flex flex-col gap-4 p-7">

@@ -4,6 +4,7 @@ import { progressionPalier, type Palier } from "@/lib/classement";
 import { LABEL_ROLE, type Role } from "@/lib/roles";
 import { libelleEquipe, parcoursDansTournoi } from "@/lib/cinq-contre-cinq";
 import { lignesFiche } from "@/lib/fiche-organisateur";
+import { lignesFiabilite } from "@/lib/fiabilite";
 
 // Données d'affichage ajoutées par la refonte « Venin » du profil
 // (design-system/najarena/pages/profil.md) : classement national, palier,
@@ -244,8 +245,12 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     }))
     .sort((a, b) => Number(b.principal) - Number(a.principal));
 
-  // Fiche publique d'organisateur (audit N13), s'il en a publié.
-  const { data: fiche } = await supabase.rpc("fiche_organisateur", { p_profile_id: profilId }).maybeSingle();
+  // Fiche publique d'organisateur (audit N13), s'il en a publié ; bloc
+  // « Fiabilité » (idée en réserve n°6), compté par la base.
+  const [{ data: fiche }, { data: fiabilite }] = await Promise.all([
+    supabase.rpc("fiche_organisateur", { p_profile_id: profilId }).maybeSingle(),
+    supabase.rpc("fiabilite_joueur", { p_profile_id: profilId }).maybeSingle(),
+  ]);
 
   // Tournois 5v5 terminés où il était aligné (audit N21) : où son équipe
   // s'est arrêtée, d'après le bracket (le capitaine y représente l'équipe).
@@ -306,6 +311,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     saisonsPassees,
     tournoisEnEquipe,
     ficheOrganisateur: fiche && fiche.tournois_publies > 0 ? lignesFiche(fiche) : null,
+    fiabilite: fiabilite ? lignesFiabilite(fiabilite) : [],
     comptesRiot,
     // Lu ici, pas pendant le rendu : sert à ne plus afficher un objectif passé.
     maintenantIso: new Date().toISOString(),
