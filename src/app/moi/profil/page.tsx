@@ -6,11 +6,15 @@ import { modifierMonProfil, supprimerMonCompte } from "@/lib/profil-actions";
 import { estPseudoAutomatique, prochainChangementPseudo } from "@/lib/pseudo";
 import { formaterDate } from "@/lib/tournois";
 import { URL_SITE } from "@/lib/notifications";
-import { classeCarte } from "@/lib/ui";
-import Bouton from "@/components/ui/Bouton";
+import { classeChamp } from "@/lib/design";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
-import FondEcailles from "@/components/design/FondEcailles";
+import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
+import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import FondEcailles from "@/components/design/FondEcailles";
+import { Champ, Choix, GroupeFormulaire } from "@/components/design/Formulaire";
+import Icone from "@/components/design/Icone";
+import LibelleSection from "@/components/design/LibelleSection";
 
 // Modifier mon profil (28/09/2026, audit E7) : pseudo, pays, visites
 // anonymes. Les règles sont appliquées par la base (modifier_mon_profil).
@@ -35,9 +39,6 @@ const PAYS_SUGGERES = [
   "Cameroun",
   "Monaco",
 ];
-
-const CHAMP =
-  "min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint read-only:text-muted focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 interface ModifierProfilPageProps {
   searchParams: Promise<{ erreur?: string; message?: string }>;
@@ -67,146 +68,142 @@ export default async function ModifierProfilPage({ searchParams }: ModifierProfi
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative px-grille *:max-w-xl">
+      <div className="relative flex flex-col gap-10 px-grille *:max-w-xl">
         <Apparition>
           <Link
             href="/moi"
-            className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+            className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
           >
-            ← Mon compte
+            <Icone nom="fleche-gauche" taille={14} />
+            Mon compte
           </Link>
+          <LibelleSection className="mt-6">Réglages</LibelleSection>
+          <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Modifier mon profil</h1>
+          <p className="mt-4 text-text-2">Ton pseudo est le nom affiché sur ton CV, dans les brackets et au classement.</p>
+        </Apparition>
 
-          <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-            Modifier mon profil
-          </h1>
-          <p className="mt-2 text-sm text-muted">
-            Ton pseudo est le nom affiché sur ton CV, dans les brackets et au classement.
-          </p>
+        {(erreur || message) && (
+          <div className="flex flex-col gap-3">
+            {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+            {message && <Alerte type="succes">{message}</Alerte>}
+          </div>
+        )}
 
-          {erreur && (
-            <p role="alert" className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>
-              {erreur}
-            </p>
-          )}
-          {message && (
-            <p role="status" className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>
-              {message}
-            </p>
-          )}
+        <Apparition delai={0.06}>
+          <form action={modifierMonProfil} className="flex flex-col gap-12">
+            <GroupeFormulaire numero="01" titre="Identité" id="groupe-identite">
+              <Champ
+                libelle="Pseudo"
+                idAide="aide-pseudo"
+                aide={
+                  prochainChangement ? (
+                    <>
+                      Prochain changement de pseudo possible le{" "}
+                      <span className="tabular-nums">{formaterDate(prochainChangement.toISOString())}</span> (un tous
+                      les 30 jours).
+                    </>
+                  ) : pseudoAutomatique ? (
+                    <>
+                      Ton compte porte encore le pseudo automatique « {profil.pseudo} ». 3 à 20 caractères : lettres,
+                      chiffres, espaces, - ou _.
+                    </>
+                  ) : (
+                    <>
+                      3 à 20 caractères : lettres, chiffres, espaces, - ou _. Un changement tous les 30 jours ; ton CV
+                      change d&apos;adresse ({adresse}) et l&apos;ancienne continue de mener à toi.
+                    </>
+                  )
+                }
+              >
+                <input
+                  name="pseudo"
+                  type="text"
+                  required
+                  minLength={3}
+                  maxLength={20}
+                  pattern="[a-zA-Z0-9 _\-]{3,20}"
+                  defaultValue={profil.pseudo}
+                  readOnly={prochainChangement !== null}
+                  aria-describedby="aide-pseudo"
+                  className={`${classeChamp()} read-only:text-muted`}
+                />
+              </Champ>
 
-          <form action={modifierMonProfil} className="mt-6 flex flex-col gap-6">
-            <label className="flex flex-col gap-1">
-              <span className="font-texte text-mini font-medium text-muted uppercase">Pseudo</span>
-              <input
-                name="pseudo"
-                type="text"
-                required
-                minLength={3}
-                maxLength={20}
-                pattern="[a-zA-Z0-9 _\-]{3,20}"
-                defaultValue={profil.pseudo}
-                readOnly={prochainChangement !== null}
-                aria-describedby="aide-pseudo"
-                className={CHAMP}
-              />
-              <span id="aide-pseudo" className="text-xs leading-relaxed text-muted">
-                {prochainChangement ? (
-                  <>
-                    Prochain changement de pseudo possible le{" "}
-                    <span className="tabular-nums">{formaterDate(prochainChangement.toISOString())}</span> (un
-                    tous les 30 jours).
-                  </>
-                ) : pseudoAutomatique ? (
-                  <>
-                    Ton compte porte encore le pseudo automatique « {profil.pseudo} ». 3 à 20 caractères : lettres,
-                    chiffres, espaces, - ou _.
-                  </>
-                ) : (
-                  <>
-                    3 à 20 caractères : lettres, chiffres, espaces, - ou _. Un changement tous les 30 jours ; ton
-                    CV change d&apos;adresse ({adresse}) et l&apos;ancienne continue de mener à toi.
-                  </>
-                )}
-              </span>
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="font-texte text-mini font-medium text-muted uppercase">Pays (facultatif)</span>
-              <input
-                name="pays"
-                type="text"
-                maxLength={40}
-                list="pays-suggeres"
-                defaultValue={profil.pays ?? ""}
-                autoComplete="country-name"
-                className={CHAMP}
-              />
+              <Champ libelle="Pays (facultatif)">
+                <input
+                  name="pays"
+                  type="text"
+                  maxLength={40}
+                  list="pays-suggeres"
+                  defaultValue={profil.pays ?? ""}
+                  autoComplete="country-name"
+                  className={classeChamp()}
+                />
+              </Champ>
               <datalist id="pays-suggeres">
                 {PAYS_SUGGERES.map((p) => (
                   <option key={p} value={p} />
                 ))}
               </datalist>
-            </label>
+            </GroupeFormulaire>
 
-            <label className="flex items-start gap-3 text-sm text-text-2">
-              <input
-                name="visites_anonymes"
+            <GroupeFormulaire numero="02" titre="Confidentialité" id="groupe-confidentialite">
+              <Choix
                 type="checkbox"
+                name="visites_anonymes"
+                value="on"
                 defaultChecked={reglages?.visites_anonymes ?? false}
-                className="mt-1 h-4 w-4 accent-accent"
+                titre="Visites anonymes"
+                detail="Quand tu consultes le profil d'un joueur, tu n'apparais pas dans sa liste « Qui a vu ton profil ». Tes visites déjà enregistrées sont effacées."
               />
-              <span>
-                <span className="font-semibold text-text">Visites anonymes</span> — quand tu consultes le profil
-                d&apos;un joueur, tu n&apos;apparais pas dans sa liste « Qui a vu ton profil ». Tes visites déjà
-                enregistrées sont effacées.
-              </span>
-            </label>
+            </GroupeFormulaire>
 
-            <Bouton libelleEnCours="Enregistrement…" className="self-start">
+            <BoutonEnvoi libelleEnCours="Enregistrement…" className="self-start">
               Enregistrer
-            </Bouton>
+            </BoutonEnvoi>
           </form>
-
-          <p className="mt-10 text-sm leading-relaxed text-muted">
-            Riot ID :{" "}
-            <Link href="/lier-riot" className="text-text underline underline-offset-3">
-              lier ou vérifier mon compte
-            </Link>
-            . Bio et lien externe : sur{" "}
-            <Link href={`/joueur/${profil.slug}#personnaliser`} className="text-text underline underline-offset-3">
-              ton profil public
-            </Link>{" "}
-            (offre Vérifié).
-          </p>
-
-          <section aria-labelledby="titre-suppression" className="mt-14 border-t border-line pt-8">
-            <h2 id="titre-suppression" className="font-titre text-2xl font-extrabold uppercase text-text">
-              Supprimer mon compte
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              Sont effacés : ton pseudo, ton pays, ton compte Riot, ton rating et ta place au classement, tes
-              équipes dont tu es le seul membre, ton annonce, tes visites, ta liste de suivi et ton adresse de
-              connexion. Restent affichés sous un pseudo anonyme (« Supprime-… ») : tes matchs déjà joués et le
-              journal public de tes points, qui font partie de l&apos;historique des autres joueurs, ainsi que
-              les messages que tu as envoyés. C&apos;est définitif.
-            </p>
-            <form action={supprimerMonCompte} className="mt-4 flex flex-col gap-3">
-              <label className="flex flex-col gap-1">
-                <span className="font-texte text-mini font-medium text-muted uppercase">
-                  Écris SUPPRIMER pour confirmer
-                </span>
-                <input name="confirmation" type="text" required autoComplete="off" className={CHAMP} />
-              </label>
-              <BoutonConfirmation
-                type="submit"
-                confirmation="Supprimer définitivement ton compte ? Tu seras déconnecté et ne pourras plus t'y reconnecter."
-                className="inline-flex min-h-11 items-center self-start font-texte text-mini font-semibold text-danger uppercase underline underline-offset-3"
-              >
-                Supprimer mon compte
-              </BoutonConfirmation>
-            </form>
-          </section>
         </Apparition>
+
+        <p className="text-sm leading-relaxed text-muted">
+          Riot ID :{" "}
+          <Link href="/lier-riot" className="text-text underline underline-offset-3 hover:text-accent">
+            lier ou vérifier mon compte
+          </Link>
+          . Bio et lien externe : sur{" "}
+          <Link
+            href={`/joueur/${profil.slug}#personnaliser`}
+            className="text-text underline underline-offset-3 hover:text-accent"
+          >
+            ton profil public
+          </Link>{" "}
+          (offre Vérifié).
+        </p>
+
+        <section aria-labelledby="titre-suppression" className="flex flex-col gap-4 rounded-carte border border-danger/30 p-6">
+          <h2 id="titre-suppression" className="inline-flex items-center gap-2 font-texte text-libelle font-medium text-danger uppercase">
+            <Icone nom="alerte" taille={14} />
+            Supprimer mon compte
+          </h2>
+          <p className="text-sm leading-relaxed text-text-2">
+            Sont effacés : ton pseudo, ton pays, ton compte Riot, ton rating et ta place au classement, tes équipes dont
+            tu es le seul membre, ton annonce, tes visites, ta liste de suivi et ton adresse de connexion. Restent
+            affichés sous un pseudo anonyme (« Supprime-… ») : tes matchs déjà joués et le journal public de tes points,
+            qui font partie de l&apos;historique des autres joueurs, ainsi que les messages que tu as envoyés.
+            C&apos;est définitif.
+          </p>
+          <form action={supprimerMonCompte} className="flex flex-col gap-3">
+            <Champ libelle="Écris SUPPRIMER pour confirmer">
+              <input name="confirmation" type="text" required autoComplete="off" className={classeChamp()} />
+            </Champ>
+            <BoutonConfirmation
+              type="submit"
+              confirmation="Supprimer définitivement ton compte ? Tu seras déconnecté et ne pourras plus t'y reconnecter."
+              className="inline-flex min-h-11 cursor-pointer items-center self-start rounded-bouton border border-danger/60 px-5 font-texte text-[13px] font-semibold tracking-[2px] text-danger uppercase transition-colors duration-200 hover:bg-danger/10"
+            >
+              Supprimer mon compte
+            </BoutonConfirmation>
+          </form>
+        </section>
       </div>
     </main>
   );
