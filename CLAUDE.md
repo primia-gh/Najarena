@@ -55,6 +55,16 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 - ***Coupe des nouveaux*** (n°12) : créneau automatique quotidien à 20 h (`creneaux.ts`, `reserveNonClasses`), réservé aux joueurs non classés de la saison (`tournaments.reserve_non_classes`, posé par le serveur seul, refus `RESERVE_NON_CLASSES` par la base). Officiel, donc classé.
 - ***Chances de titre*** (n°14) : probabilité de gagner le tournoi, avant et pendant, calcul exact sur le bracket (`src/lib/chances-titre.ts`), tournois 1v1, affichée comme estimation provisoire.
 
+*Mise à jour du 09/10/2026, suite (idées en réserve n°4, 5, 7, 8, 9, 13, 15, 16 — toutes les idées en réserve sont construites) :*
+- ***Recalcule toi-même*** (n°4) : `/joueur/[pseudo]/recalcul` refait dans le navigateur du visiteur le calcul Glicko-2 de chaque ligne du registre d'un joueur, à partir de l'API publique `/api/public/v1/joueurs/[pseudo]/recalcul` (lignes du registre, matchs et verdicts, état de départ des adversaires). La volatilité, absente du registre, est reconstituée en rejouant tout l'historique (0,06 au départ). `src/lib/recalcul.ts` reprend les règles de `cloturerTournoi` (niveaux 2-3, jamais un forfait, 3 victoires au plus contre le même adversaire en 24 h) : **toute modification de la clôture se reporte dans `recalcul.ts`**.
+- ***Météo du classement*** (n°5) : `/lol/meteo` — joueurs classés, incertitude médiane, matchs par joueur actif, part lue chez Riot (`meteo_classement`, `meteo_semaines`, `src/lib/meteo.ts`).
+- ***Fiche de l'adversaire*** (n°9) : dans la salle de match 1v1, champions et bilan de ses parties vérifiées, noms seulement, rien sous 3 parties (`src/lib/fiche-adversaire.ts`).
+- ***Recommandations vérifiées*** (n°7) : bloc du CV. Seulement entre joueurs qui ont une partie lue chez Riot en commun, ensemble ou l'un contre l'autre (`matchs_communs` : fiches de partie et verdict de niveau 2 ou 3, recompté à chaque affichage). Une par paire, 20 à 500 caractères, modérée comme un texte public, masquable par le joueur recommandé (`recommander`, `masquer_recommandation`, `recommandations_joueur`).
+- ***Coach vérifié*** (n°8) : bloc du CV d'un joueur classé Diamant ou plus (`est_coach_eligible`). L'élève demande un suivi, le coach accepte (`coachings`) ; la progression affichée est la somme des variations « tournoi » du registre pendant le suivi (`eleves_coach`), rien sous 3 tournois (`src/lib/coach.ts`).
+- ***Chimie d'équipe*** (n°16) : page d'équipe, résultats des matchs 5v5 lus chez Riot par composition, par duo et avec / sans chaque joueur, rien sous 3 matchs (`chimie_equipe`, `src/lib/chimie-equipe.ts`).
+- ***Bourse aux remplaçants*** (n°15) : tournoi 5v5, « Je peux remplacer ». Jusqu'au lancement du bracket, le capitaine remplace un aligné (jamais lui-même) par un joueur de la bourse : **aligné temporaire**, qui joue ce tournoi pour l'équipe sans en être membre (`alignements.remplace_profile_id`, 2 au plus par équipe, `remplacer_aligne`). Lecture Riot inchangée : les dix alignés, remplaçant compris.
+- ***Divisions mensuelles*** (n°13) : `/lol/divisions`. Inscription au mois suivant par région, début le premier lundi du mois (Paris), poules de 4 (ou 3) par niveau, un match par semaine contre chacun, semaine 4 de rattrapage. Chaque match est un duel ordinaire (`nature = 'defi'`, donc classé comme un défi) lancé quand les deux joueurs ont cliqué « Je suis là » à moins de 30 minutes d'écart (`je_suis_la_division`). La tâche des tournois automatiques forme les poules, annonce le match de la semaine et clôt la ligue 24 h après sa fin, le premier de chaque poule montant, le dernier descendant (`src/lib/divisions-serveur.ts`, calculs `src/lib/divisions.ts`). **Format proposé, à valider par le porteur du projet.**
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -190,11 +200,13 @@ Schéma de base de données : `docs/schema.sql`.
 /lol/coequipiers           recherche de coéquipiers (5v5)
 /lol/arene                 arène 1v1 : file d'attente, duel contre un joueur de son niveau
 /lol/a-la-demande          tournois à la demande : chacun indique ses heures libres, 8 joueurs = un tournoi
+/lol/divisions             divisions mensuelles : poules de 4 par niveau, un match par semaine, montée et descente
+/lol/meteo                 météo du classement : précision du classement, matchs par joueur, part lue chez Riot
 /lol/match/[id]            fiche de preuve d'un match : verdict et source, partie Riot, registre (non indexée)
 /lol/pronostics            pronostics gratuits : matchs ouverts, classement des pronostiqueurs
 /lol/ecoles                ligue des écoles : écoles classées par la moyenne des 5 meilleurs membres vérifiés
 /lol/bilan                 bilan du joueur d'exemple (joueur fictif, données statiques, jamais en base)
-/joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol
+/joueur/[pseudo]           CV e-sport public — transverse, jamais sous /lol ; /recalcul : le calcul de ses points refait dans le navigateur
 /certificat/[code]         certificat de niveau daté et figé, émis depuis le CV (non indexé)
 /defi/[code]               lien « Invite ton rival » : un ami s'inscrit, lie son Riot ID et relève le défi (non indexé)
 /equipe/[slug]             page publique d'équipe

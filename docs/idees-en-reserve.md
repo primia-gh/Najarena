@@ -1,9 +1,10 @@
 # Idées en réserve
 
 Idées de fonctionnalités proposées le 04/10/2026, mises de côté à la demande
-du porteur du projet. **Construites le 09/10/2026 : n°1, 2, 3, 6, 10, 11, 12
-et 14** (voir CLAUDE.md, mise à jour du 09/10/2026) ; les autres restent en
-réserve. Critère de tri : rendre le
+du porteur du projet. **Toutes construites le 09/10/2026** : n°1, 2, 3, 6,
+10, 11, 12 et 14, puis n°4, 5, 7, 8, 9, 13, 15 et 16 (voir CLAUDE.md, mises
+à jour du 09/10/2026). Le format des divisions (n°13) reste à valider par le
+porteur du projet. Critère de tri : rendre le
 classement plus crédible, ou faire jouer plus de matchs par joueur (CLAUDE.md
 §1 et §10). Toutes respectent les règles du projet : pas d'argent, pas de
 donnée inventée, pas de visuel Riot.
@@ -21,20 +22,20 @@ Effort : S = moins de 3 jours · M = 1 à 2 semaines · L = plus.
    (bibliothèque `tweetnacl` déjà présente).
 3. ~~**Registre ancré hors de Najarena**~~ (construite le 09/10/2026) (S, invention) — l'empreinte du
    soir publiée aussi dans un dépôt GitHub public, en plus de Discord.
-4. **« Recalcule toi-même »** (M, invention) — le calcul Glicko-2 d'un
+4. ~~**« Recalcule toi-même »**~~ (construite le 09/10/2026) (M, invention) — le calcul Glicko-2 d'un
    joueur refait dans le navigateur à partir du registre public.
-5. **Météo du classement** (S, invention) — page publique : matchs par
+5. ~~**Météo du classement**~~ (construite le 09/10/2026) (S, invention) — page publique : matchs par
    joueur actif, part des résultats lus chez Riot, incertitude moyenne.
 
 ## Un CV qui intéresse une équipe
 
 6. ~~**Bloc « Fiabilité »**~~ (construite le 09/10/2026) (S, invention) — présence aux check-ins, délai
    pour se déclarer prêt, forfaits, défaites reconnues.
-7. **Recommandations vérifiées** (M, invention) — seulement entre joueurs
+7. ~~**Recommandations vérifiées**~~ (construite le 09/10/2026) (M, invention) — seulement entre joueurs
    qui ont réellement joué ensemble, avec le nombre de matchs communs.
-8. **Coach vérifié** (M, invention) — progression mesurée des élèves d'un
+8. ~~**Coach vérifié**~~ (construite le 09/10/2026) (M, invention) — progression mesurée des élèves d'un
    joueur Diamant ou plus, affichée sur son CV.
-9. **Fiche de l'adversaire** (S) — champions joués dans ses parties
+9. ~~**Fiche de l'adversaire**~~ (construite le 09/10/2026) (S) — champions joués dans ses parties
    vérifiées et résultats, noms seulement.
 
 ## Faire jouer plus de matchs
@@ -46,16 +47,16 @@ Effort : S = moins de 3 jours · M = 1 à 2 semaines · L = plus.
     moment.
 12. ~~**Coupe des nouveaux**~~ (construite le 09/10/2026) (S) — créneau quotidien réservé aux joueurs pas
     encore classés.
-13. **Divisions hebdomadaires** (L) — poules par palier, un match par
+13. ~~**Divisions hebdomadaires**~~ (construite le 09/10/2026, en ligue mensuelle) (L) — poules par palier, un match par
     semaine contre chacun, montée et descente en fin de mois.
 14. ~~**Chances de titre**~~ (construite le 09/10/2026) (S) — probabilité de chaque joueur de gagner le
     tournoi, avant et pendant celui-ci.
 
 ## Équipes 5v5
 
-15. **Bourse aux remplaçants** (M) — un joueur vérifié disponible remplace
+15. ~~**Bourse aux remplaçants**~~ (construite le 09/10/2026) (M) — un joueur vérifié disponible remplace
     un absent pour un tournoi (nouvelle règle en base : aligné temporaire).
-16. **Chimie d'équipe** (M, invention) — résultats vérifiés selon les
+16. ~~**Chimie d'équipe**~~ (construite le 09/10/2026) (M, invention) — résultats vérifiés selon les
     joueurs alignés ensemble.
 
 ## Ordre conseillé le 04/10/2026
