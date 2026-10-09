@@ -9568,3 +9568,395 @@ create trigger coachings_compte_supprime
   for each row
   when (old.supprime_le is null and new.supprime_le is not null)
   execute function public.effacer_coachings_compte_supprime();
+
+-- ---------- Divisions mensuelles (2026-10-09, idée en réserve n°13) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Ligue mensuelle par région : on s'inscrit pour le mois suivant ; la ligue
+-- démarre le premier lundi du mois (00 h, heure de Paris) et dure 4
+-- semaines. Les inscrits sont répartis en poules de 4 (ou 3) rangées par
+-- niveau (src/lib/divisions.ts : ordre du mois précédent avec montées et
+-- descentes, nouveaux insérés selon leur rating). Dans une poule, un match
+-- par semaine contre chacun (semaines 1 à 3), la semaine 4 sert au
+-- rattrapage. Chaque match est un duel ordinaire (nature « defi », même
+-- salle de match, même lecture Riot, mêmes règles de classement), lancé
+-- quand les deux joueurs ont cliqué « Je suis là » à moins de 30 minutes
+-- d'écart. À la fin, le premier de chaque poule monte, le dernier descend.
+
+create or replace function public.debut_division(p_mois date)
+returns timestamptz
+language sql
+stable
+as $$
+  select ((date_trunc('month', p_mois)::date
+           + ((8 - extract(isodow from date_trunc('month', p_mois))::int) % 7))::timestamp
+          at time zone 'Europe/Paris');
+$$;
+
+-- Début de la prochaine ligue : premier lundi de ce mois s'il est à venir,
+-- sinon celui du mois suivant.
+create or replace function public.prochain_debut_division()
+returns timestamptz
+language sql
+stable
+as $$
+  select case
+    when public.debut_division((now() at time zone 'Europe/Paris')::date) > now()
+      then public.debut_division((now() at time zone 'Europe/Paris')::date)
+    else public.debut_division(((now() at time zone 'Europe/Paris')::date + interval '1 month')::date)
+  end;
+$$;
+
+create table if not exists public.ligues_division (
+  id               uuid primary key default gen_random_uuid(),
+  region           text not null,
+  debut_le         timestamptz not null,
+  fin_le           timestamptz not null,
+  statut           text not null default 'inscriptions'
+                   check (statut in ('inscriptions', 'en_cours', 'terminee', 'annulee')),
+  semaine_annoncee smallint not null default 0,
+  cree_le          timestamptz not null default now(),
+  unique (region, debut_le)
+);
+create table if not exists public.inscriptions_division (
+  ligue_id   uuid not null references public.ligues_division(id) on delete cascade,
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  inscrit_le timestamptz not null default now(),
+  primary key (ligue_id, profile_id)
+);
+create table if not exists public.poules_division (
+  id       uuid primary key default gen_random_uuid(),
+  ligue_id uuid not null references public.ligues_division(id) on delete cascade,
+  niveau   smallint not null check (niveau >= 1),
+  unique (ligue_id, niveau)
+);
+create table if not exists public.membres_poule_division (
+  poule_id      uuid not null references public.poules_division(id) on delete cascade,
+  profile_id    uuid not null references public.profiles(id) on delete cascade,
+  ordre         smallint not null,
+  rating_depart numeric(7,2),
+  rang_final    smallint,
+  mouvement     text check (mouvement in ('monte', 'descend', 'reste')),
+  primary key (poule_id, profile_id)
+);
+create table if not exists public.rencontres_division (
+  id            uuid primary key default gen_random_uuid(),
+  poule_id      uuid not null references public.poules_division(id) on delete cascade,
+  semaine       smallint not null check (semaine between 1 and 3),
+  joueur_a      uuid not null references public.profiles(id) on delete cascade,
+  joueur_b      uuid not null references public.profiles(id) on delete cascade,
+  dispo_a       timestamptz,
+  dispo_b       timestamptz,
+  tournament_id uuid references public.tournaments(id) on delete set null,
+  check (joueur_a <> joueur_b)
+);
+create index if not exists inscriptions_division_profile_idx on public.inscriptions_division (profile_id);
+create index if not exists membres_poule_division_profile_idx on public.membres_poule_division (profile_id);
+create index if not exists rencontres_division_poule_idx on public.rencontres_division (poule_id);
+create index if not exists rencontres_division_tournoi_idx on public.rencontres_division (tournament_id);
+
+alter table public.ligues_division enable row level security;
+alter table public.inscriptions_division enable row level security;
+alter table public.poules_division enable row level security;
+alter table public.membres_poule_division enable row level security;
+alter table public.rencontres_division enable row level security;
+drop policy if exists "ligues lisibles par tous" on public.ligues_division;
+create policy "ligues lisibles par tous" on public.ligues_division for select using (true);
+drop policy if exists "inscriptions division lisibles par tous" on public.inscriptions_division;
+create policy "inscriptions division lisibles par tous" on public.inscriptions_division for select using (true);
+drop policy if exists "poules lisibles par tous" on public.poules_division;
+create policy "poules lisibles par tous" on public.poules_division for select using (true);
+drop policy if exists "membres de poule lisibles par tous" on public.membres_poule_division;
+create policy "membres de poule lisibles par tous" on public.membres_poule_division for select using (true);
+drop policy if exists "rencontres lisibles par tous" on public.rencontres_division;
+create policy "rencontres lisibles par tous" on public.rencontres_division for select using (true);
+revoke insert, update, delete on public.ligues_division, public.inscriptions_division, public.poules_division,
+  public.membres_poule_division, public.rencontres_division from anon, authenticated;
+
+-- S'inscrire à la prochaine ligue de sa région (créée à la première inscription).
+create or replace function public.s_inscrire_division()
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_region text;
+  v_debut timestamptz := public.prochain_debut_division();
+  v_ligue uuid;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_joueur);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+
+  insert into public.ligues_division (region, debut_le, fin_le)
+  values (v_region, v_debut, v_debut + interval '28 days')
+  on conflict (region, debut_le) do nothing;
+  select id into v_ligue from public.ligues_division where region = v_region and debut_le = v_debut;
+  if (select statut from public.ligues_division where id = v_ligue) <> 'inscriptions' then
+    raise exception 'INSCRIPTIONS_FERMEES';
+  end if;
+
+  insert into public.inscriptions_division (ligue_id, profile_id) values (v_ligue, v_joueur)
+  on conflict do nothing;
+  return v_ligue;
+end;
+$$;
+revoke execute on function public.s_inscrire_division() from public, anon;
+grant execute on function public.s_inscrire_division() to authenticated;
+
+create or replace function public.quitter_division()
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.inscriptions_division i
+  using public.ligues_division l
+  where l.id = i.ligue_id and l.statut = 'inscriptions' and i.profile_id = auth.uid();
+  return found;
+end;
+$$;
+revoke execute on function public.quitter_division() from public, anon;
+grant execute on function public.quitter_division() to authenticated;
+
+-- Le serveur forme les poules (ordre calculé par src/lib/divisions.ts) :
+-- p_poules = [[joueur, ...], ...], de la poule 1 (la plus forte) à la
+-- dernière, chaque poule dans son ordre de départ. La base vérifie que
+-- chaque joueur retenu est inscrit, une seule fois, poules de 3 ou 4, et
+-- écrit le calendrier. Moins de 3 inscrits : la ligue est annulée.
+create or replace function public.former_poules_division(p_ligue_id uuid, p_poules jsonb)
+returns integer
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_ligue record;
+  v_poule jsonb;
+  v_niveau int := 0;
+  v_poule_id uuid;
+  v_joueurs uuid[];
+  v_tous uuid[] := '{}';
+  v_saison uuid;
+  j int;
+begin
+  select * into v_ligue from public.ligues_division where id = p_ligue_id for update;
+  if not found or v_ligue.statut <> 'inscriptions' then
+    raise exception 'LIGUE_DEJA_FORMEE';
+  end if;
+  if jsonb_array_length(coalesce(p_poules, '[]'::jsonb)) = 0 then
+    update public.ligues_division set statut = 'annulee' where id = p_ligue_id;
+    return 0;
+  end if;
+  select id into v_saison from public.seasons where game_id = 1 and est_courante;
+
+  for v_poule in select * from jsonb_array_elements(p_poules) loop
+    v_niveau := v_niveau + 1;
+    select array_agg(x::uuid order by ord) into v_joueurs
+    from jsonb_array_elements_text(v_poule) with ordinality as t(x, ord);
+    if cardinality(v_joueurs) not between 3 and 4 then
+      raise exception 'TAILLE_POULE';
+    end if;
+    if exists (select 1 from unnest(v_joueurs) x where x = any (v_tous))
+       or (select count(*) from public.inscriptions_division
+           where ligue_id = p_ligue_id and profile_id = any (v_joueurs)) <> cardinality(v_joueurs) then
+      raise exception 'JOUEUR_NON_INSCRIT';
+    end if;
+    v_tous := v_tous || v_joueurs;
+
+    insert into public.poules_division (ligue_id, niveau) values (p_ligue_id, v_niveau) returning id into v_poule_id;
+    for j in 1 .. cardinality(v_joueurs) loop
+      insert into public.membres_poule_division (poule_id, profile_id, ordre, rating_depart)
+      values (v_poule_id, v_joueurs[j], j,
+              (select r.rating from public.ratings r where r.profile_id = v_joueurs[j] and r.game_id = 1 and r.season_id = v_saison));
+    end loop;
+    -- Un match par semaine contre chacun (ordre de départ 1 à 4).
+    if cardinality(v_joueurs) = 4 then
+      insert into public.rencontres_division (poule_id, semaine, joueur_a, joueur_b) values
+        (v_poule_id, 1, v_joueurs[1], v_joueurs[4]), (v_poule_id, 1, v_joueurs[2], v_joueurs[3]),
+        (v_poule_id, 2, v_joueurs[1], v_joueurs[3]), (v_poule_id, 2, v_joueurs[4], v_joueurs[2]),
+        (v_poule_id, 3, v_joueurs[1], v_joueurs[2]), (v_poule_id, 3, v_joueurs[3], v_joueurs[4]);
+    else
+      insert into public.rencontres_division (poule_id, semaine, joueur_a, joueur_b) values
+        (v_poule_id, 1, v_joueurs[1], v_joueurs[3]),
+        (v_poule_id, 2, v_joueurs[1], v_joueurs[2]),
+        (v_poule_id, 3, v_joueurs[2], v_joueurs[3]);
+    end if;
+  end loop;
+
+  update public.ligues_division set statut = 'en_cours' where id = p_ligue_id;
+  return v_niveau;
+end;
+$$;
+revoke execute on function public.former_poules_division(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.former_poules_division(uuid, jsonb) to service_role;
+
+-- « Je suis là » : le match se lance quand l'adversaire l'a aussi dit dans
+-- les 30 dernières minutes (duel ordinaire, arbitré par le premier
+-- administrateur). Renvoie l'adresse du duel lancé, ou null en attendant.
+create or replace function public.je_suis_la_division(p_rencontre_id uuid)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_r record;
+  v_ligue record;
+  v_statut_duel public.tournament_status;
+  v_autre_dispo timestamptz;
+  v_region text;
+  v_arbitre uuid;
+  v_saison uuid;
+  v_classe boolean;
+  v_tournoi uuid;
+  v_match uuid;
+  v_slug text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select r.* into v_r from public.rencontres_division r where r.id = p_rencontre_id for update;
+  if not found or v_joueur not in (v_r.joueur_a, v_r.joueur_b) then
+    raise exception 'RENCONTRE_INTROUVABLE';
+  end if;
+  select l.* into v_ligue from public.ligues_division l
+  join public.poules_division p on p.ligue_id = l.id where p.id = v_r.poule_id;
+  if v_ligue.statut <> 'en_cours' or now() >= v_ligue.fin_le
+     or now() < v_ligue.debut_le + make_interval(days => 7 * (v_r.semaine - 1)) then
+    raise exception 'RENCONTRE_HORS_DELAI';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if v_r.tournament_id is not null then
+    select statut into v_statut_duel from public.tournaments where id = v_r.tournament_id;
+    if v_statut_duel = 'en_cours' then
+      raise exception 'MATCH_DEJA_LANCE';
+    elsif v_statut_duel = 'termine' then
+      raise exception 'RENCONTRE_JOUEE';
+    end if;
+  end if;
+
+  if v_joueur = v_r.joueur_a then
+    update public.rencontres_division set dispo_a = now() where id = p_rencontre_id;
+    v_autre_dispo := v_r.dispo_b;
+  else
+    update public.rencontres_division set dispo_b = now() where id = p_rencontre_id;
+    v_autre_dispo := v_r.dispo_a;
+  end if;
+  if v_autre_dispo is null or v_autre_dispo < now() - interval '30 minutes' then
+    return null;
+  end if;
+
+  -- Les deux sont là : duel ordinaire, mêmes règles que creer_duel.
+  v_region := public.region_compte_verifie(v_r.joueur_a);
+  if v_region is null or public.region_compte_verifie(v_r.joueur_b) is distinct from v_region then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  select profile_id into v_arbitre from public.admins order by ajoute_le, profile_id limit 1;
+  if v_arbitre is null then
+    raise exception 'AUCUN_ARBITRE';
+  end if;
+  select id into v_saison from public.seasons where game_id = 1 and est_courante;
+  v_classe := not exists (
+    select 1 from public.tournaments t
+    where t.nature = 'defi' and t.compte_pour_classement and t.cree_le > now() - interval '24 hours'
+      and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = v_r.joueur_a)
+      and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = v_r.joueur_b)
+  );
+  v_slug := 'division-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
+
+  insert into public.tournaments (
+    game_id, season_id, organisateur_id, slug, nom, format, type_bracket, best_of, capacite,
+    region, compte_pour_classement, debute_le, checkin_ouvre_le, statut, condition_victoire, nature
+  ) values (
+    1, v_saison, v_arbitre, v_slug,
+    'Division ' || (select pseudo from public.profiles where id = v_r.joueur_a)
+      || ' contre ' || (select pseudo from public.profiles where id = v_r.joueur_b),
+    '1v1', 'elim_simple', 1, 2, v_region, v_classe, now(), now(), 'en_cours', 'nexus', 'defi'
+  ) returning id into v_tournoi;
+  insert into public.registrations (tournament_id, profile_id, statut, confirme_le, seed) values
+    (v_tournoi, v_r.joueur_a, 'confirme', now(), 1),
+    (v_tournoi, v_r.joueur_b, 'confirme', now(), 2);
+  insert into public.matches (tournament_id, tour, position, statut, demarre_le)
+  values (v_tournoi, 1, 1, 'en_cours', now()) returning id into v_match;
+  insert into public.match_participants (match_id, profile_id, slot) values
+    (v_match, v_r.joueur_a, 1), (v_match, v_r.joueur_b, 2);
+
+  update public.rencontres_division
+  set tournament_id = v_tournoi, dispo_a = null, dispo_b = null
+  where id = p_rencontre_id;
+  return v_slug;
+end;
+$$;
+revoke execute on function public.je_suis_la_division(uuid) from public, anon;
+grant execute on function public.je_suis_la_division(uuid) to authenticated;
+
+-- Rencontres d'une ligue, avec l'issue de leur duel (verdict définitif).
+create or replace function public.rencontres_ligue(p_ligue_id uuid)
+returns table (
+  rencontre_id uuid,
+  poule_id uuid,
+  semaine smallint,
+  joueur_a uuid,
+  joueur_b uuid,
+  dispo_a timestamptz,
+  dispo_b timestamptz,
+  tournoi_slug text,
+  tournoi_statut text,
+  gagnant_id uuid,
+  niveau_verdict text
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select r.id, r.poule_id, r.semaine, r.joueur_a, r.joueur_b, r.dispo_a, r.dispo_b,
+         t.slug, t.statut::text, v.gagnant_id, v.niveau::text
+  from public.rencontres_division r
+  join public.poules_division p on p.id = r.poule_id and p.ligue_id = p_ligue_id
+  left join public.tournaments t on t.id = r.tournament_id
+  left join public.matches m on m.tournament_id = t.id
+  left join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+  order by p.niveau, r.semaine, r.id;
+$$;
+revoke execute on function public.rencontres_ligue(uuid) from public;
+grant execute on function public.rencontres_ligue(uuid) to anon, authenticated, service_role;
+
+-- Fin de ligue : le serveur écrit le classement final de chaque poule
+-- (src/lib/divisions.ts) : p_classements = [{joueur, poule, rang, mouvement}].
+create or replace function public.cloturer_ligue_division(p_ligue_id uuid, p_classements jsonb)
+returns integer
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_ligne jsonb;
+  v_n int := 0;
+begin
+  if not exists (select 1 from public.ligues_division where id = p_ligue_id and statut = 'en_cours' for update) then
+    raise exception 'LIGUE_PAS_EN_COURS';
+  end if;
+  for v_ligne in select * from jsonb_array_elements(p_classements) loop
+    update public.membres_poule_division m
+    set rang_final = (v_ligne ->> 'rang')::smallint, mouvement = v_ligne ->> 'mouvement'
+    from public.poules_division p
+    where p.id = m.poule_id and p.ligue_id = p_ligue_id
+      and m.poule_id = (v_ligne ->> 'poule')::uuid and m.profile_id = (v_ligne ->> 'joueur')::uuid;
+    if found then
+      v_n := v_n + 1;
+    end if;
+  end loop;
+  update public.ligues_division set statut = 'terminee' where id = p_ligue_id;
+  return v_n;
+end;
+$$;
+revoke execute on function public.cloturer_ligue_division(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.cloturer_ligue_division(uuid, jsonb) to service_role;

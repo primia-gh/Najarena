@@ -622,6 +622,170 @@ export type Database = {
         }
         Relationships: []
       }
+      inscriptions_division: {
+        Row: {
+          inscrit_le: string
+          ligue_id: string
+          profile_id: string
+        }
+        Insert: {
+          inscrit_le?: string
+          ligue_id: string
+          profile_id: string
+        }
+        Update: {
+          inscrit_le?: string
+          ligue_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inscriptions_division_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inscriptions_division_ligue_id_fkey"
+            columns: ["ligue_id"]
+            isOneToOne: false
+            referencedRelation: "ligues_division"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ligues_division: {
+        Row: {
+          cree_le: string
+          debut_le: string
+          fin_le: string
+          id: string
+          region: string
+          semaine_annoncee: number
+          statut: string
+        }
+        Insert: {
+          cree_le?: string
+          debut_le: string
+          fin_le: string
+          id?: string
+          region: string
+          semaine_annoncee?: number
+          statut?: string
+        }
+        Update: {
+          cree_le?: string
+          debut_le?: string
+          fin_le?: string
+          id?: string
+          region?: string
+          semaine_annoncee?: number
+          statut?: string
+        }
+        Relationships: []
+      }
+      membres_poule_division: {
+        Row: {
+          mouvement: string | null
+          ordre: number
+          poule_id: string
+          profile_id: string
+          rang_final: number | null
+          rating_depart: number | null
+        }
+        Insert: {
+          mouvement?: string | null
+          ordre: number
+          poule_id: string
+          profile_id: string
+          rang_final?: number | null
+          rating_depart?: number | null
+        }
+        Update: {
+          mouvement?: string | null
+          ordre?: number
+          poule_id?: string
+          profile_id?: string
+          rang_final?: number | null
+          rating_depart?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membres_poule_division_poule_id_fkey"
+            columns: ["poule_id"]
+            isOneToOne: false
+            referencedRelation: "poules_division"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membres_poule_division_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poules_division: {
+        Row: {
+          id: string
+          ligue_id: string
+          niveau: number
+        }
+        Insert: {
+          id?: string
+          ligue_id: string
+          niveau: number
+        }
+        Update: {
+          id?: string
+          ligue_id?: string
+          niveau?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poules_division_ligue_id_fkey"
+            columns: ["ligue_id"]
+            isOneToOne: false
+            referencedRelation: "ligues_division"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rencontres_division: {
+        Row: {
+          dispo_a: string | null
+          dispo_b: string | null
+          id: string
+          joueur_a: string
+          joueur_b: string
+          poule_id: string
+          semaine: number
+          tournament_id: string | null
+        }
+        Insert: {
+          dispo_a?: string | null
+          dispo_b?: string | null
+          id?: string
+          joueur_a: string
+          joueur_b: string
+          poule_id: string
+          semaine: number
+          tournament_id?: string | null
+        }
+        Update: {
+          dispo_a?: string | null
+          dispo_b?: string | null
+          id?: string
+          joueur_a?: string
+          joueur_b?: string
+          poule_id?: string
+          semaine?: number
+          tournament_id?: string | null
+        }
+        Relationships: []
+      }
       disponibilites: {
         Row: {
           cree_le: string
@@ -3010,6 +3174,28 @@ export type Database = {
           fin_le: string | null
           tournois: number
           points: number
+        }[]
+      }
+      prochain_debut_division: { Args: Record<PropertyKey, never>; Returns: string }
+      s_inscrire_division: { Args: Record<PropertyKey, never>; Returns: string }
+      quitter_division: { Args: Record<PropertyKey, never>; Returns: boolean }
+      former_poules_division: { Args: { p_ligue_id: string; p_poules: Json }; Returns: number }
+      je_suis_la_division: { Args: { p_rencontre_id: string }; Returns: string | null }
+      cloturer_ligue_division: { Args: { p_ligue_id: string; p_classements: Json }; Returns: number }
+      rencontres_ligue: {
+        Args: { p_ligue_id: string }
+        Returns: {
+          rencontre_id: string
+          poule_id: string
+          semaine: number
+          joueur_a: string
+          joueur_b: string
+          dispo_a: string | null
+          dispo_b: string | null
+          tournoi_slug: string | null
+          tournoi_statut: string | null
+          gagnant_id: string | null
+          niveau_verdict: string | null
         }[]
       }
       meteo_semaines: {

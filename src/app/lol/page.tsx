@@ -44,7 +44,7 @@ function IconeEtape({ chemin }: { chemin: keyof typeof ICONE_ETAPE }) {
 const PORTES = [
   {
     titre: "Je veux jouer",
-    texte: "Des tournois quotidiens en 1v1, des tournois 5v5 entre équipes, l'arène pour un duel tout de suite contre un joueur de ton niveau.",
+    texte: "Des tournois quotidiens en 1v1, des tournois 5v5 entre équipes, l'arène pour un duel tout de suite contre un joueur de ton niveau, et les divisions : un match par semaine dans une poule de ton niveau.",
     cta: "Voir les tournois",
     href: "/lol/tournois",
   },

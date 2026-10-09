@@ -141,6 +141,12 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
             >
               Pas de tournoi à ton heure ? Indique quand tu es libre
             </Link>
+            <Link
+              href="/lol/divisions"
+              className="ml-6 inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:text-accent"
+            >
+              Divisions : un match par semaine, à ton niveau
+            </Link>
           </div>
           <BoutonLien href="/organiser/nouveau" variante="contour">
             Organiser un tournoi

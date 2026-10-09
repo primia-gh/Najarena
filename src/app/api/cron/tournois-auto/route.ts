@@ -3,6 +3,7 @@ import { executerTournoisAuto } from "@/lib/tournois-auto/execution";
 import { doitSynchroniserClash, synchroniserClash } from "@/lib/echeances-serveur";
 import { apparierArene } from "@/lib/arene-serveur";
 import { ouvrirTournoisALaDemande } from "@/lib/a-la-demande-serveur";
+import { executerDivisions } from "@/lib/divisions-serveur";
 
 // Tournois automatiques (24/09/2026) : création des tournois quotidiens,
 // ouverture du check-in, rappels, démarrage ou annulation — voir
@@ -41,5 +42,7 @@ export async function GET(request: Request) {
   // Tournois à la demande (idée en réserve n°11) : une heure qui a réuni
   // assez de joueurs disponibles devient un tournoi.
   const aLaDemande = simulation ? undefined : await ouvrirTournoisALaDemande().catch(() => null);
-  return NextResponse.json({ ...bilan, clash, arene, aLaDemande }, { status: bilan.erreur ? 503 : 200 });
+  // Divisions mensuelles (idée en réserve n°13) : poules, annonces, clôture.
+  const divisions = simulation ? undefined : await executerDivisions().catch(() => null);
+  return NextResponse.json({ ...bilan, clash, arene, aLaDemande, divisions }, { status: bilan.erreur ? 503 : 200 });
 }
