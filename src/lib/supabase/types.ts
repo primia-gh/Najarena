@@ -2825,6 +2825,7 @@ export type Database = {
       }
       code_liaison_discord: { Args: { p_communaute_id: string }; Returns: string }
       lier_serveur_discord: { Args: { p_code: string; p_guild_id: string }; Returns: string }
+      agir_depuis_discord: { Args: { p_discord_id: string; p_action: string; p_cible: string }; Returns: Json }
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
       definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
       revues_a_rediger: { Args: { p_limite: number }; Returns: { match_id: string; profile_id: string }[] }

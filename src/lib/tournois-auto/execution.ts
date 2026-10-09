@@ -14,6 +14,8 @@
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { boutonCheckin, boutonPret } from "@/lib/suites-joueur";
+import { matchsOuverts } from "@/lib/apres-verdict";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { verifierCleRiot } from "@/lib/riot";
 import {
@@ -420,6 +422,7 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
           `Check-in ouvert — ${t.nom}`,
           `Confirme ta présence avant ${heure} : seuls les joueurs confirmés sont placés dans le bracket.`,
           lien,
+          { boutons: [boutonCheckin(tournoiId)] },
         ),
       ),
     );
@@ -432,6 +435,7 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
           `Dernier appel — ${t.nom}`,
           `Le tournoi commence à ${heure} et ton check-in n'est pas fait. Sans lui, pas de place dans le bracket.`,
           lien,
+          { boutons: [boutonCheckin(tournoiId)] },
         ),
       ),
     );
@@ -544,15 +548,19 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
     );
   }
 
+  // Bouton « Je suis prêt » à ceux dont le match du premier tour est ouvert.
+  const matchDe = new Map((await matchsOuverts(tournoiId)).flatMap((m) => m.joueurs.map((j) => [j, m.matchId] as const)));
   await Promise.all([
-    ...retenus.map((id) =>
-      envoyerRappel(
+    ...retenus.map((id) => {
+      const matchId = matchDe.get(id);
+      return envoyerRappel(
         id,
         `C'est parti — ${t.nom}`,
         "Le bracket est en ligne. Ouvre-le pour voir ton adversaire et lancer ta partie.",
-        lien,
-      ),
-    ),
+        matchId ? `${lien}#ton-match` : lien,
+        { boutons: matchId ? [boutonPret(matchId)] : [] },
+      );
+    }),
     ...surplus.map((id) =>
       envoyerRappel(
         id,

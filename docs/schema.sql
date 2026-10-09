@@ -8247,3 +8247,76 @@ select cron.schedule(
   $$
 );
 -- [supabase-uniquement:fin]
+
+-- ---------- Boutons des messages privés Discord (2026-10-09, idée en réserve n°10) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Les messages privés du bot portent des boutons : « Je confirme ma
+-- présence » (check-in), « Je suis prêt » (salle de match), « Accepter » /
+-- « Refuser » (défi reçu) et « Proposer une revanche » (fin d'un duel).
+-- Discord signe chaque clic et donne l'identifiant Discord de celui qui a
+-- cliqué (src/app/api/discord/interactions/route.ts). Le serveur appelle
+-- alors cette fonction, réservée au rôle service, qui agit au nom du joueur
+-- lié à ce compte Discord en appelant exactement les fonctions du site :
+-- mêmes règles, mêmes refus. Elle n'ajoute aucun droit — un clic ne fait
+-- que ce que le joueur pourrait faire lui-même sur le site.
+create or replace function public.agir_depuis_discord(p_discord_id text, p_action text, p_cible uuid)
+returns jsonb
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid;
+  v_ok boolean;
+  v_slug text;
+  v_adversaire uuid;
+  v_condition text;
+  v_defi uuid;
+begin
+  select id into v_joueur
+  from public.profiles
+  where discord_id = p_discord_id and supprime_le is null;
+  if v_joueur is null then
+    raise exception 'COMPTE_DISCORD_INCONNU';
+  end if;
+
+  -- Identité du joueur pour la fin de la transaction : auth.uid() le
+  -- renvoie, comme s'il avait cliqué sur le site.
+  perform set_config('request.jwt.claim.sub', v_joueur::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', v_joueur, 'role', 'authenticated')::text, true);
+
+  case p_action
+    when 'checkin' then
+      v_ok := public.confirmer_presence(p_cible);
+      if not v_ok then
+        v_ok := public.confirmer_agent_libre(p_cible);
+      end if;
+      return jsonb_build_object('joueur', v_joueur, 'ok', v_ok);
+    when 'pret' then
+      v_ok := public.declarer_pret(p_cible);
+      return jsonb_build_object('joueur', v_joueur, 'ok', true, 'nouveau', v_ok);
+    when 'defi_oui', 'defi_non' then
+      v_slug := public.repondre_defi(p_cible, p_action = 'defi_oui');
+      return jsonb_build_object('joueur', v_joueur, 'ok', true, 'slug', v_slug);
+    when 'revanche' then
+      -- p_cible : le duel qui vient de se jouer. Revanche contre l'autre
+      -- joueur de ce duel, avec la même condition de victoire.
+      select autre.profile_id, t.condition_victoire
+      into v_adversaire, v_condition
+      from public.tournaments t
+      join public.matches m on m.tournament_id = t.id
+      join public.match_participants moi on moi.match_id = m.id and moi.profile_id = v_joueur
+      join public.match_participants autre on autre.match_id = m.id and autre.profile_id <> v_joueur
+      where t.id = p_cible and t.nature = 'defi'
+      limit 1;
+      if v_adversaire is null then
+        raise exception 'NON_PARTICIPANT';
+      end if;
+      v_defi := public.lancer_defi(v_adversaire, coalesce(v_condition, 'nexus'));
+      return jsonb_build_object('joueur', v_joueur, 'ok', true, 'defi', v_defi, 'adversaire', v_adversaire);
+    else
+      raise exception 'ACTION_INCONNUE';
+  end case;
+end;
+$$;
+revoke execute on function public.agir_depuis_discord(text, text, uuid) from public, anon, authenticated;
+grant execute on function public.agir_depuis_discord(text, text, uuid) to service_role;

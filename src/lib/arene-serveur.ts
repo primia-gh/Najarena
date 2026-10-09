@@ -1,5 +1,6 @@
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { envoyerRappel, URL_SITE } from "@/lib/notifications";
+import { boutonPret, matchDuDuel } from "@/lib/suites-joueur";
 
 // Arène 1v1 (03/10/2026, audit N19), côté serveur : passage périodique de
 // l'appariement (tâche des tournois automatiques, toutes les 5 minutes) et
@@ -15,6 +16,7 @@ export async function prevenirDuelArene(slug: string, sauf?: string): Promise<vo
   const ids = (inscrits ?? []).map((r) => r.profile_id);
   const { data: profils } = await admin.from("profiles").select("id, pseudo").in("id", ids);
   const pseudo = (id: string) => profils?.find((p) => p.id === id)?.pseudo ?? "un joueur";
+  const matchId = await matchDuDuel(slug);
 
   await Promise.all(
     ids
@@ -25,6 +27,7 @@ export async function prevenirDuelArene(slug: string, sauf?: string): Promise<vo
           "Adversaire trouvé dans l'arène",
           `Ton duel contre ${pseudo(ids.find((autre) => autre !== id) ?? "")} est ouvert : déclare-toi prêt dans la salle de match.`,
           `${URL_SITE}/lol/tournois/${slug}#ton-match`,
+          { boutons: matchId ? [boutonPret(matchId)] : [] },
         ),
       ),
   );

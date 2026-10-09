@@ -6,6 +6,8 @@ import { formaterDate } from "@/lib/tournois";
 import { URL_SITE } from "@/lib/notifications";
 import { echapperDiscord } from "@/lib/echappement";
 import { lienOrganiser, lireOption, peutGererServeur, type OptionCommande } from "@/lib/discord-commandes";
+import { horodatageRecent } from "@/lib/boutons-discord";
+import { traiterClicBouton } from "@/lib/boutons-discord-serveur";
 
 // Bot Discord interactif (3e volet de la demande Discord du 2026-09-12).
 // Pas de connexion WebSocket permanente à un "gateway" — incompatible avec
@@ -21,6 +23,8 @@ const clePublique = process.env.DISCORD_PUBLIC_KEY;
 
 const TYPE_PING = 1;
 const TYPE_APPLICATION_COMMAND = 2;
+/** Clic sur un bouton d'un message du bot (idée en réserve n°10). */
+const TYPE_MESSAGE_COMPONENT = 3;
 const TYPE_PONG = 1;
 const TYPE_MESSAGE = 4;
 /** Message visible seulement de celui qui a lancé la commande. */
@@ -29,8 +33,11 @@ const EPHEMERE = 64;
 interface InteractionDiscord {
   type: number;
   guild_id?: string;
-  member?: { permissions?: string };
-  data?: { name?: string; options?: OptionCommande[] };
+  /** Sur un serveur : le membre qui agit ; en message privé : `user`. */
+  member?: { permissions?: string; user?: { id?: string } };
+  user?: { id?: string };
+  data?: { name?: string; options?: OptionCommande[]; custom_id?: string };
+  message?: { content?: string };
 }
 
 function reponseJson(corps: unknown) {
@@ -232,6 +239,10 @@ export async function POST(request: Request) {
   if (!verifierSignature(corps, signature, timestamp)) {
     return new Response("Signature invalide", { status: 401 });
   }
+  // Signature valable mais ancienne : requête captée puis rejouée.
+  if (!horodatageRecent(timestamp, Date.now())) {
+    return new Response("Requête trop ancienne", { status: 401 });
+  }
 
   const interaction = JSON.parse(corps) as InteractionDiscord;
 
@@ -262,6 +273,11 @@ export async function POST(request: Request) {
       type: TYPE_MESSAGE,
       data: { content: contenu, ...(ephemere ? { flags: EPHEMERE } : {}), allowed_mentions: { parse: [] } },
     });
+  }
+
+  if (interaction.type === TYPE_MESSAGE_COMPONENT) {
+    const discordId = interaction.user?.id ?? interaction.member?.user?.id;
+    return reponseJson(await traiterClicBouton(discordId, interaction.data?.custom_id, interaction.message?.content));
   }
 
   return reponseJson({ type: TYPE_PONG });

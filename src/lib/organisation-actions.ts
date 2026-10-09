@@ -7,7 +7,7 @@ import { envoyerRappel, notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/
 import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { echapperDiscord, echapperHtml } from "@/lib/echappement";
-import { prevenirMatchOuvert } from "@/lib/apres-verdict";
+import { matchsOuverts, prevenirMatchOuvert } from "@/lib/apres-verdict";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
 import { formerEquipes } from "@/lib/agents-libres";
@@ -239,6 +239,11 @@ export async function genererBracket(formData: FormData) {
   }
 
   await supabase.from("tournaments").update({ statut: "en_cours" }).eq("id", tournamentId);
+
+  // Les joueurs des matchs déjà ouverts sont prévenus (push et Discord, avec
+  // le bouton « Je suis prêt ») — jusqu'ici, seuls les tours suivants
+  // l'étaient.
+  await Promise.all((await matchsOuverts(tournamentId)).map((m) => prevenirMatchOuvert(m.matchId)));
 
   redirect(`/moi/organisation/${tournamentId}`);
 }
