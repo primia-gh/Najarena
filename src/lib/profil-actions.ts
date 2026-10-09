@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { estPseudoAutomatique, MESSAGE_PSEUDO_INVALIDE, PSEUDO_REGEX } from "@/lib/pseudo";
 import { messageModeration } from "@/lib/moderation";
+import { enBase64, paireClesServeur, signerTexte } from "@/lib/signature-certificats";
 
 // Modification du profil (28/09/2026, audit E7) : pseudo, pays et visites
 // anonymes. Toutes les règles (unicité, un changement de pseudo par mois,
@@ -132,5 +133,21 @@ export async function emettreCertificat() {
         : "Impossible d'émettre un certificat pour l'instant.";
     redirect(`/moi?erreur=${encodeURIComponent(message)}`);
   }
+  // Signature (idée en réserve n°2) : le texte signé est produit par la
+  // base ; sans clé configurée, le certificat reste valable, non signé.
+  await signerCertificat(code).catch(() => undefined);
   redirect(`/certificat/${code}?nouveau=1`);
+}
+
+async function signerCertificat(code: string): Promise<void> {
+  const paire = paireClesServeur();
+  const admin = creerClientAdmin();
+  if (!paire || !admin) return;
+  const { data: texte } = await admin.rpc("contenu_certificat", { p_code: code });
+  if (!texte) return;
+  await admin.rpc("signer_certificat", {
+    p_code: code,
+    p_signature: signerTexte(texte, paire.secrete),
+    p_cle_publique: enBase64(paire.publique),
+  });
 }

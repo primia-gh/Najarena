@@ -14,10 +14,18 @@ import LibelleSection from "@/components/design/LibelleSection";
 import IndicateurConfiance from "@/components/design/IndicateurConfiance";
 import BoutonCopier from "@/components/design/BoutonCopier";
 import QrCode from "@/components/design/QrCode";
+import { clesPubliees, etatSignature, type EtatSignature } from "@/lib/signature-certificats";
 
 // Certificat de niveau vérifiable (28/09/2026, audit N9) : instantané daté,
 // figé par la base et adossé au registre des points scellé. Page non
 // indexée (lien envoyé à un recruteur, une équipe, un sponsor).
+
+const TEXTE_SIGNATURE: Record<EtatSignature, string> = {
+  valide: "Signé par Najarena : la signature correspond exactement au contenu de ce certificat.",
+  invalide: "La signature ne correspond pas au contenu : ce certificat a été modifié depuis son émission.",
+  cle_inconnue: "Signé avec une clé que Najarena ne publie pas : ne te fie pas à ce certificat.",
+  absente: "Émis sans signature numérique (avant leur mise en place) : sa preuve reste le registre des points.",
+};
 
 interface CertificatPageProps {
   params: Promise<{ code: string }>;
@@ -38,11 +46,13 @@ const chargerCertificat = cache(async (code: string) => {
   const { data: certificat } = await supabase.rpc("lire_certificat", { p_code: code }).maybeSingle();
   if (!certificat) return null;
 
-  const [{ data: saison }, { data: ligne }] = await Promise.all([
+  const [{ data: saison }, { data: ligne }, { data: contenu }] = await Promise.all([
     supabase.from("seasons").select("id").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
     certificat.registre_numero !== null
       ? supabase.from("rating_events").select("empreinte").eq("numero", certificat.registre_numero).maybeSingle()
       : Promise.resolve({ data: null }),
+    // Certificats signés (idée en réserve n°2) : texte exact signé.
+    supabase.rpc("contenu_certificat", { p_code: code }),
   ]);
   const { data: actuel } =
     saison && !certificat.compte_supprime
@@ -59,6 +69,7 @@ const chargerCertificat = cache(async (code: string) => {
     certificat,
     actuel,
     registreConcorde: ligne ? ligne.empreinte === certificat.registre_empreinte : null,
+    signature: etatSignature(contenu ?? null, certificat.signature, certificat.cle_publique, clesPubliees()),
   };
 });
 
@@ -80,7 +91,7 @@ export default async function CertificatPage({ params, searchParams }: Certifica
   const donnees = await chargerCertificat(code);
   if (!donnees) notFound();
 
-  const { certificat: c, actuel, registreConcorde } = donnees;
+  const { certificat: c, actuel, registreConcorde, signature } = donnees;
   const lien = `${URL_SITE}/certificat/${c.code}`;
   const defaites = c.matchs_verifies - c.victoires;
 
@@ -186,6 +197,47 @@ export default async function CertificatPage({ params, searchParams }: Certifica
               )}
             </Panneau>
           </div>
+        </Apparition>
+
+        {/* Signature numérique (idée en réserve n°2). */}
+        <Apparition delai={0.14}>
+          <Panneau as="section" className="mt-4 flex flex-col gap-3 px-6 py-6">
+            <LibelleSection as="h2">Signature numérique</LibelleSection>
+            <p className="text-sm text-text-2">{TEXTE_SIGNATURE[signature]}</p>
+            {c.signature && (
+              <dl className="flex flex-col gap-2 text-xs">
+                <div className="flex flex-col gap-0.5">
+                  <dt className="text-muted uppercase">Signature (Ed25519)</dt>
+                  <dd>
+                    <code className="break-all text-muted">{c.signature}</code>
+                  </dd>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <dt className="text-muted uppercase">Clé publique de Najarena</dt>
+                  <dd>
+                    <code className="break-all text-muted">{c.cle_publique}</code>
+                  </dd>
+                </div>
+              </dl>
+            )}
+            {c.signature && (
+              <p className="text-xs text-muted">
+                Vérifie-le sans passer par ce site, avec Node.js :{" "}
+                <a href="/certificat/verifier-certificat.mjs" className="text-text underline underline-offset-3 hover:text-accent">
+                  télécharge le programme de vérification
+                </a>{" "}
+                puis lance{" "}
+                <code className="break-all text-text">
+                  node verifier-certificat.mjs {URL_SITE}/api/public/v1/certificats/{c.code}
+                </code>
+                . Il compare la signature au texte du certificat et à la{" "}
+                <a href="/api/public/v1/cle-certificats" className="text-text underline underline-offset-3 hover:text-accent">
+                  clé publique de Najarena
+                </a>
+                . Une seule lettre changée et la signature ne correspond plus.
+              </p>
+            )}
+          </Panneau>
         </Apparition>
 
         {/* QR code (audit N9) : à imprimer sur un CV papier ou à montrer. */}

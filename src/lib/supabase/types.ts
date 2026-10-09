@@ -228,6 +228,8 @@ export type Database = {
           rating: number
           rd: number
           registre_empreinte: string | null
+          signature: string | null
+          cle_publique: string | null
           registre_numero: number | null
           saison: string | null
           victoires: number
@@ -243,6 +245,8 @@ export type Database = {
           rating: number
           rd: number
           registre_empreinte?: string | null
+          signature?: string | null
+          cle_publique?: string | null
           registre_numero?: number | null
           saison?: string | null
           victoires: number
@@ -258,6 +262,8 @@ export type Database = {
           rating?: number
           rd?: number
           registre_empreinte?: string | null
+          signature?: string | null
+          cle_publique?: string | null
           registre_numero?: number | null
           saison?: string | null
           victoires?: number
@@ -2992,8 +2998,12 @@ export type Database = {
           saison: string | null
           slug: string
           victoires: number
+          signature: string | null
+          cle_publique: string | null
         }[]
       }
+      contenu_certificat: { Args: { p_code: string }; Returns: string | null }
+      signer_certificat: { Args: { p_code: string; p_signature: string; p_cle_publique: string }; Returns: boolean }
       mes_reglages_profil: {
         Args: never
         Returns: { pseudo_modifie_le: string | null; visites_anonymes: boolean }[]

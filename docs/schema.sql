@@ -8674,3 +8674,102 @@ as $$
 $$;
 revoke execute on function public.fiabilite_joueur(uuid) from public;
 grant execute on function public.fiabilite_joueur(uuid) to anon, authenticated, service_role;
+
+-- ---------- Certificats signés (2026-10-09, idée en réserve n°2) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Chaque certificat émis est signé par le serveur (Ed25519, clé secrète
+-- CERTIFICATS_CLE_PRIVEE, jamais en base ni dans le dépôt). La clé publique
+-- est publiée (/api/public/v1/cle-certificats) : n'importe qui vérifie un
+-- certificat hors de Najarena (scripts/verifier-certificat.mjs). Le texte
+-- signé est produit par la base (contenu_certificat), toujours le même pour
+-- un même certificat. Le certificat reste figé : seule la signature peut
+-- être posée, une fois, par le serveur.
+alter table public.certificats add column if not exists signature text;
+alter table public.certificats add column if not exists cle_publique text;
+
+-- Texte exact signé : une ligne par champ, dans cet ordre, « - » pour un
+-- champ vide. Ne jamais changer ce format (les signatures déjà émises ne
+-- se vérifieraient plus) : en créer un « v2 » si besoin.
+create or replace function public.contenu_certificat(p_code text)
+returns text
+language sql
+stable
+security definer set search_path = public
+as $$
+  select concat_ws(E'\n',
+    'najarena-certificat-v1',
+    'code: ' || c.code,
+    'joueur: ' || c.profile_id::text,
+    'jeu: ' || g.slug,
+    'emis_le: ' || to_char(c.cree_le at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+    'saison: ' || coalesce(c.saison, '-'),
+    'rating: ' || c.rating::text,
+    'rd: ' || c.rd::text,
+    'classe: ' || case when c.est_classe then 'oui' else 'non' end,
+    'palier: ' || coalesce(c.palier, '-'),
+    'matchs_verifies: ' || c.matchs_verifies::text,
+    'victoires: ' || c.victoires::text,
+    'registre_numero: ' || coalesce(c.registre_numero::text, '-'),
+    'registre_empreinte: ' || coalesce(c.registre_empreinte, '-'))
+  from public.certificats c
+  join public.games g on g.id = c.game_id
+  where c.code = p_code;
+$$;
+revoke execute on function public.contenu_certificat(text) from public;
+grant execute on function public.contenu_certificat(text) to anon, authenticated, service_role;
+
+-- Pose de la signature, par le serveur seulement, une seule fois.
+create or replace function public.signer_certificat(p_code text, p_signature text, p_cle_publique text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if p_signature !~ '^[A-Za-z0-9+/]{86}==$' or p_cle_publique !~ '^[A-Za-z0-9+/]{43}=$' then
+    raise exception 'SIGNATURE_INVALIDE';
+  end if;
+  update public.certificats
+  set signature = p_signature, cle_publique = p_cle_publique
+  where code = p_code and signature is null;
+  return found;
+end;
+$$;
+revoke execute on function public.signer_certificat(text, text, text) from public, anon, authenticated;
+grant execute on function public.signer_certificat(text, text, text) to service_role;
+
+-- Figé, comme avant ; seule exception : la signature, posée une fois.
+create or replace function public.refuser_modification_certificat()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if old.signature is null and new.signature is not null and new.cle_publique is not null
+     and (to_jsonb(new) - 'signature' - 'cle_publique') = (to_jsonb(old) - 'signature' - 'cle_publique') then
+    return new;
+  end if;
+  raise exception 'CERTIFICAT_IMMUABLE';
+end;
+$$;
+revoke execute on function public.refuser_modification_certificat() from public, anon, authenticated;
+
+-- Lecture d'un certificat : signature et clé en plus.
+drop function if exists public.lire_certificat(text);
+create or replace function public.lire_certificat(p_code text)
+returns table (
+  code text, cree_le timestamptz, saison text, rating numeric, rd numeric, est_classe boolean,
+  palier text, matchs_verifies integer, victoires integer, registre_numero bigint,
+  registre_empreinte text, profile_id uuid, pseudo text, slug text, compte_supprime boolean,
+  signature text, cle_publique text
+)
+language sql stable
+security definer set search_path = public
+as $$
+  select c.code, c.cree_le, c.saison, c.rating, c.rd, c.est_classe, c.palier, c.matchs_verifies,
+         c.victoires, c.registre_numero, c.registre_empreinte, c.profile_id, p.pseudo, p.slug,
+         p.supprime_le is not null, c.signature, c.cle_publique
+  from public.certificats c
+  join public.profiles p on p.id = c.profile_id
+  where c.code = p_code;
+$$;
+grant execute on function public.lire_certificat(text) to anon, authenticated;
