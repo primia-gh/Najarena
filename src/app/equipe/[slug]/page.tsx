@@ -26,6 +26,7 @@ import { annulerScrim, proposerScrim, repondreScrim } from "@/lib/scrim-actions"
 import { etatScrim, LIBELLE_ETAT_SCRIM, resultatScrim } from "@/lib/scrims";
 import { libelleEquipe, TAILLE_ALIGNEMENT } from "@/lib/cinq-contre-cinq";
 import { ChoixAlignement } from "@/components/tournoi/FormulaireAlignement";
+import ChimieEquipe from "@/components/equipe/ChimieEquipe";
 
 interface EquipePageProps {
   params: Promise<{ slug: string }>;
@@ -465,6 +466,10 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
           </ul>
         )}
       </section>
+      </Apparition>
+
+      <Apparition delai={0.113}>
+        <ChimieEquipe teamId={equipe.id} />
       </Apparition>
 
       <Apparition delai={0.115}>

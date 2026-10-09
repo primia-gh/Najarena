@@ -2924,6 +2924,10 @@ export type Database = {
           matchs_contre: number
         }[]
       }
+      chimie_equipe: {
+        Args: { p_team_id: string }
+        Returns: { match_id: string; joue_le: string; gagne: boolean; joueurs: string[] }[]
+      }
       meteo_semaines: {
         Args: { p_semaines?: number }
         Returns: { semaine: string; matchs: number; matchs_verifies: number; joueurs_actifs: number }[]

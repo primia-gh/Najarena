@@ -9132,3 +9132,32 @@ create trigger recommandations_compte_supprime
   for each row
   when (old.supprime_le is null and new.supprime_le is not null)
   execute function public.effacer_recommandations_compte_supprime();
+
+-- ---------- Chimie d'équipe (2026-10-09, idée en réserve n°16) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Matchs 5v5 d'une équipe (tournois et scrims) lus chez Riot (verdict
+-- définitif de niveau 2 ou 3), avec ses joueurs alignés présents dans la
+-- partie (fiche de partie) et l'issue. La page d'équipe en tire les
+-- résultats par duo et par composition (src/lib/chimie-equipe.ts). Rien que
+-- des données déjà publiques (brackets, alignements, fiches de partie).
+create or replace function public.chimie_equipe(p_team_id uuid)
+returns table (match_id uuid, joue_le timestamptz, gagne boolean, joueurs uuid[])
+language sql
+stable
+security definer set search_path = public
+as $$
+  select m.id, v.cree_le, bool_and(s.gagne), array_agg(s.profile_id order by s.profile_id)
+  from public.registrations r
+  join public.tournaments t on t.id = r.tournament_id and t.format = '5v5' and t.statut <> 'brouillon'
+  join public.alignements a on a.registration_id = r.id
+  join public.matches m on m.tournament_id = r.tournament_id
+  join public.match_verdicts v
+    on v.match_id = m.id and v.est_definitif and v.niveau in ('code_tournoi', 'historique')
+  join public.stats_match_joueur s on s.match_id = m.id and s.profile_id = a.profile_id
+  where r.team_id = p_team_id and r.statut <> 'retire'
+  group by m.id, v.cree_le
+  order by v.cree_le desc
+  limit 200;
+$$;
+revoke execute on function public.chimie_equipe(uuid) from public;
+grant execute on function public.chimie_equipe(uuid) to anon, authenticated, service_role;
