@@ -12,7 +12,7 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000001a3', 'kim9410@test', '{"pseudo":"Kim9410","slug":"kim9410"}');
 
 insert into tournaments (id, game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut) values
-  ('ab100000-0000-0000-0000-000000000001', 1, (select id from seasons where est_courante), '00000000-0000-0000-0000-00000000000a', 'officiel-9410', 'Officiel 9410', '1v1', 4, 'EUW', now() - interval '1 hour', now() - interval '2 hours', 'en_cours'),
+  ('ab100000-0000-0000-0000-000000000001', 1, (select id from seasons where est_courante), '00000000-0000-0000-0000-00000000000a', 'coupe-alice-9410', 'Coupe Alice 9410', '1v1', 4, 'EUW', now() - interval '1 hour', now() - interval '2 hours', 'en_cours'),
   ('ab100000-0000-0000-0000-000000000002', 1, (select id from seasons where est_courante), '00000000-0000-0000-0000-0000000001a0', 'hugo-9410', 'Hugo 9410', '1v1', 4, 'EUW', now() + interval '1 day', now() + interval '20 hours', 'ouvert');
 insert into matches (id, tournament_id, tour, position, statut) values
   ('ab100000-0000-0000-0000-0000000000a1', 'ab100000-0000-0000-0000-000000000001', 2, 1, 'en_cours');
