@@ -7018,3 +7018,436 @@ grant execute on function public.noter_versement(uuid, uuid, text, text) to auth
 -- comme pour toutes les autres fonctions du schéma.
 alter function public.ecart_arene(numeric, numeric, numeric) set search_path = public;
 alter function public.points_pronostic(smallint, integer) set search_path = public;
+
+-- ---------- Audit sécurité du 10/10/2026 : bracket, comptes Riot, litiges, saisons, région, limites ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Constats de l'agent « securite » sur tout le projet (C1, M1 à M7).
+
+-- C1 / M2 — Structure du bracket contrôlée par la base.
+-- Avant : un organisateur pouvait créer, dans son propre tournoi, un match
+-- dont le « match suivant » était la finale d'un autre tournoi (officiel
+-- compris) ; avancer_vainqueur y insérait alors son joueur. Il pouvait
+-- aussi ajouter une fausse « finale » (match sans suivant) une fois son
+-- tournoi lancé, ce qui déclenchait la clôture avant les vrais matchs.
+-- Désormais, à la création d'un match par un organisateur :
+--   - le tournoi n'a pas commencé (ouvert ou check-in) et c'est un vrai
+--     tournoi (défis et scrims sont créés par la base elle-même) ;
+--   - le tour et la position existent pour la capacité du tournoi, une
+--     seule fois chacun (contrainte unique d'origine de la table matches) ;
+--   - seul le dernier tour (la finale) n'a pas de match suivant ; sinon le
+--     match suivant est dans le même tournoi, au tour d'après, à la bonne
+--     position.
+-- La finale est donc unique et toujours au dernier tour.
+create or replace function public.controler_ecriture_match()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_tournoi record;
+  v_nb_tours integer;
+  v_suivant record;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.statut <> 'en_attente' or new.demarre_le is not null or new.code_tournoi is not null
+       or new.defaite_reconnue_par is not null or new.defaite_reconnue_le is not null then
+      raise exception 'CHAMP_RESERVE';
+    end if;
+
+    select statut, capacite, nature into v_tournoi
+    from public.tournaments
+    where id = new.tournament_id;
+
+    if not found or v_tournoi.nature <> 'tournoi'
+       or v_tournoi.statut not in ('ouvert', 'checkin') then
+      raise exception 'BRACKET_FIGE';
+    end if;
+
+    v_nb_tours := round(log(2, v_tournoi.capacite))::integer;
+    if new.tour < 1 or new.tour > v_nb_tours
+       or new.position < 1 or new.position > v_tournoi.capacite / (2 ^ new.tour)::integer then
+      raise exception 'STRUCTURE_BRACKET_INVALIDE';
+    end if;
+
+    if new.tour = v_nb_tours then
+      if new.match_suivant_id is not null then
+        raise exception 'STRUCTURE_BRACKET_INVALIDE';
+      end if;
+    else
+      select tournament_id, tour, position into v_suivant
+      from public.matches
+      where id = new.match_suivant_id;
+      if not found or v_suivant.tournament_id <> new.tournament_id
+         or v_suivant.tour <> new.tour + 1
+         or v_suivant.position <> (new.position + 1) / 2 then
+        raise exception 'STRUCTURE_BRACKET_INVALIDE';
+      end if;
+    end if;
+
+    return new;
+  end if;
+
+  if (new.tournament_id, new.tour, new.position, new.match_suivant_id, new.code_tournoi,
+      new.defaite_reconnue_par, new.defaite_reconnue_le)
+     is distinct from
+     (old.tournament_id, old.tour, old.position, old.match_suivant_id, old.code_tournoi,
+      old.defaite_reconnue_par, old.defaite_reconnue_le) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+
+  if new.statut is distinct from old.statut
+     and not (old.statut = 'en_attente' and new.statut = 'en_cours') then
+    raise exception 'CHANGEMENT_DE_STATUT_INTERDIT';
+  end if;
+
+  if new.demarre_le is distinct from old.demarre_le and not (
+       old.demarre_le is null
+       and new.demarre_le between now() - interval '2 minutes' and now() + interval '2 minutes'
+  ) then
+    raise exception 'HEURE_DE_DEBUT_RESERVEE';
+  end if;
+
+  return new;
+end;
+$$;
+revoke execute on function public.controler_ecriture_match() from public, anon, authenticated;
+
+-- M2 — Placement au tour 1 : seulement avant le lancement du tournoi, et
+-- jamais un joueur déjà marqué « prêt » (son adversaire perdrait par un
+-- forfait d'apparence automatique au lieu d'un verdict manuel signé).
+create or replace function public.controler_placement_joueur()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_tournoi uuid;
+  v_tour smallint;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  select tournament_id, tour into v_tournoi, v_tour
+  from public.matches
+  where id = new.match_id;
+
+  if v_tour <> 1 or new.est_gagnant is not null or new.score <> 0 or new.pret_le is not null then
+    raise exception 'CHAMP_RESERVE';
+  end if;
+
+  if not exists (
+    select 1 from public.tournaments
+    where id = v_tournoi and statut in ('ouvert', 'checkin')
+  ) then
+    raise exception 'BRACKET_FIGE';
+  end if;
+
+  if not exists (
+    select 1 from public.registrations
+    where tournament_id = v_tournoi and profile_id = new.profile_id and statut = 'confirme'
+  ) then
+    raise exception 'JOUEUR_NON_CONFIRME';
+  end if;
+
+  if (select count(*) from public.match_participants where match_id = new.match_id) >= 2 then
+    raise exception 'MATCH_COMPLET';
+  end if;
+
+  if exists (
+    select 1
+    from public.match_participants mp
+    join public.matches m on m.id = mp.match_id
+    where m.tournament_id = v_tournoi and mp.profile_id = new.profile_id
+  ) then
+    raise exception 'JOUEUR_DEJA_PLACE';
+  end if;
+
+  return new;
+end;
+$$;
+revoke execute on function public.controler_placement_joueur() from public, anon, authenticated;
+
+-- C1 — Le vainqueur n'avance que dans le match suivant de son propre
+-- tournoi, et jamais dans un match déjà complet (dernier rempart si une
+-- structure invalide existait malgré tout).
+create or replace function public.avancer_vainqueur(p_match_id uuid, p_gagnant_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi uuid;
+  v_match_suivant_id uuid;
+  v_slot_libre smallint;
+  v_nb_participants int;
+begin
+  update match_participants
+  set est_gagnant = (profile_id = p_gagnant_id)
+  where match_id = p_match_id;
+
+  update matches set statut = 'termine' where id = p_match_id;
+
+  select tournament_id, match_suivant_id into v_tournoi, v_match_suivant_id
+  from matches where id = p_match_id;
+  if v_match_suivant_id is null then
+    return;
+  end if;
+
+  perform 1 from matches
+  where id = v_match_suivant_id and tournament_id = v_tournoi
+  for update;
+  if not found then
+    raise exception 'MATCH_SUIVANT_INVALIDE';
+  end if;
+
+  if exists (select 1 from match_participants where match_id = v_match_suivant_id and profile_id = p_gagnant_id) then
+    return;
+  end if;
+
+  if (select count(*) from match_participants where match_id = v_match_suivant_id) >= 2 then
+    raise exception 'MATCH_COMPLET';
+  end if;
+
+  select case
+    when exists (select 1 from match_participants where match_id = v_match_suivant_id and slot = 1)
+    then 2 else 1
+  end into v_slot_libre;
+
+  insert into match_participants (match_id, profile_id, slot)
+  values (v_match_suivant_id, p_gagnant_id, v_slot_libre)
+  on conflict (match_id, profile_id) do nothing;
+
+  select count(*) into v_nb_participants from match_participants where match_id = v_match_suivant_id;
+  if v_nb_participants = 2 then
+    update matches set statut = 'en_cours', demarre_le = now() where id = v_match_suivant_id;
+  end if;
+end;
+$$;
+revoke execute on function public.avancer_vainqueur from public, anon, authenticated;
+
+-- M1 — Délier son compte Riot : refusé dès qu'on est engagé dans un
+-- tournoi pas encore terminé, y compris aligné dans une équipe 5v5 ou
+-- inscrit comme agent libre (avant : seule l'inscription individuelle
+-- était regardée, un coéquipier pouvait changer de compte en plein
+-- tournoi et faire jouer quelqu'un d'autre).
+create or replace function public.delier_compte_riot(p_game_id smallint)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  if public.engage_en_tournoi(v_joueur, p_game_id) then
+    raise exception 'INSCRIT_A_UN_TOURNOI';
+  end if;
+
+  delete from public.game_accounts where profile_id = v_joueur and game_id = p_game_id;
+  return found;
+end;
+$$;
+revoke execute on function public.delier_compte_riot(smallint) from public, anon;
+grant execute on function public.delier_compte_riot(smallint) to authenticated;
+
+-- M4 — Litiges : le joueur n'écrit que le match et son motif. Résolution,
+-- auteur de la résolution et dates sont posés par la base (avant : un
+-- joueur pouvait créer un litige « déjà résolu », signé de l'organisateur,
+-- daté d'il y a un an, et fausser la fiche publique de l'organisateur).
+-- Un seul litige ouvert par joueur et par match.
+revoke insert on public.disputes from anon, authenticated;
+grant insert (match_id, ouvert_par, motif) on public.disputes to authenticated;
+
+create unique index if not exists disputes_un_ouvert_par_joueur_et_match
+  on public.disputes (match_id, ouvert_par) where resolution is null;
+
+create or replace function public.controler_ecriture_litige()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    new.resolution := null;
+    new.resolu_par := null;
+    new.resolu_le := null;
+    new.cree_le := now();
+    return new;
+  end if;
+
+  -- Une résolution vide ne tranche rien : sans texte, le litige reste
+  -- ouvert (sinon un organisateur pouvait poser resolu_le seul et gonfler
+  -- « litiges tranchés » et le délai médian de sa fiche publique).
+  if nullif(btrim(coalesce(new.resolution, '')), '') is null then
+    new.resolution := null;
+    new.resolu_par := null;
+    new.resolu_le := null;
+    return new;
+  end if;
+
+  -- Résolution écrite ou réécrite : signée par celui qui la rédige, datée
+  -- de maintenant. Sinon, signature et date d'origine conservées.
+  if new.resolution is distinct from old.resolution then
+    new.resolu_par := auth.uid();
+    new.resolu_le := now();
+  else
+    new.resolu_par := old.resolu_par;
+    new.resolu_le := old.resolu_le;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_ecriture_litige() from public, anon, authenticated;
+
+drop trigger if exists controle_ecriture_litige on public.disputes;
+create trigger controle_ecriture_litige
+  before insert or update on public.disputes
+  for each row execute function public.controler_ecriture_litige();
+
+-- M5 — Saison d'un tournoi : toujours la saison courante du jeu à la
+-- création par un organisateur (avant : choisie par le navigateur, ce qui
+-- permettait d'écrire des points dans une saison archivée).
+create or replace function public.imposer_saison_courante()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  new.season_id := (
+    select id from public.seasons
+    where game_id = new.game_id and est_courante
+    limit 1
+  );
+  return new;
+end;
+$$;
+revoke execute on function public.imposer_saison_courante() from public, anon, authenticated;
+
+drop trigger if exists tournaments_saison_courante on public.tournaments;
+create trigger tournaments_saison_courante
+  before insert on public.tournaments
+  for each row execute function public.imposer_saison_courante();
+
+-- M6 — Région : un code de serveur connu (même liste que
+-- src/lib/regions.ts, les deux à changer ensemble), plus un texte libre
+-- publié tel quel sur le Discord officiel.
+alter table public.tournaments drop constraint if exists tournaments_region_check;
+alter table public.tournaments add constraint tournaments_region_check
+  check (region in ('EUW', 'EUNE', 'TR', 'RU', 'NA', 'BR', 'LAN', 'LAS', 'OCE', 'KR', 'JP'));
+
+-- M7 — Limites d'usage sur les actions coûteuses ou bruyantes (même
+-- principe que reserver_appel_assistant_ia) :
+--   - liaison_riot : 10 par heure (chaque essai interroge l'API Riot, dont
+--     le quota est partagé par tout le site) ;
+--   - creation_tournoi : 5 par 24 h (chaque publication part sur Discord) ;
+--   - litige : 10 par 24 h (chaque litige prévient l'organisateur) ;
+--   - message : 30 par heure (chaque message prévient le destinataire).
+-- Message affiché au joueur : LIMITE_ATTEINTE dans src/lib/moderation.ts.
+create table if not exists public.limites_usage (
+  id          bigint generated always as identity primary key,
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  action      text not null,
+  cree_le     timestamptz not null default now()
+);
+create index if not exists limites_usage_profile_action_cree_le_idx
+  on public.limites_usage (profile_id, action, cree_le);
+alter table public.limites_usage enable row level security;
+revoke all on public.limites_usage from anon, authenticated;
+-- Aucune policy : seule consommer_limite y écrit.
+
+-- Compte une action du joueur connecté ; false si sa limite est atteinte.
+-- Ne touche que la limite de l'appelant (auth.uid()).
+create or replace function public.consommer_limite(p_action text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_plafond integer;
+  v_fenetre interval;
+  v_nombre integer;
+begin
+  case p_action
+    when 'liaison_riot' then v_plafond := 10; v_fenetre := interval '1 hour';
+    when 'creation_tournoi' then v_plafond := 5; v_fenetre := interval '24 hours';
+    when 'litige' then v_plafond := 10; v_fenetre := interval '24 hours';
+    when 'message' then v_plafond := 30; v_fenetre := interval '1 hour';
+    else raise exception 'ACTION_INCONNUE';
+  end case;
+
+  if v_joueur is null then
+    return false;
+  end if;
+
+  -- Une demande à la fois par joueur : deux onglets ne dépassent pas la limite.
+  perform 1 from public.profiles where id = v_joueur for update;
+
+  delete from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le < now() - interval '7 days';
+
+  select count(*) into v_nombre
+  from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le > now() - v_fenetre;
+
+  if v_nombre >= v_plafond then
+    return false;
+  end if;
+
+  insert into public.limites_usage (profile_id, action) values (v_joueur, p_action);
+  return true;
+end;
+$$;
+revoke execute on function public.consommer_limite(text) from public, anon;
+grant execute on function public.consommer_limite(text) to authenticated;
+
+-- Tournois, litiges et messages : comptés à l'insertion par un joueur (un
+-- refus plus loin annule aussi le décompte, même transaction).
+create or replace function public.limiter_ecriture()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if not public.consommer_limite(tg_argv[0]) then
+    raise exception 'LIMITE_ATTEINTE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.limiter_ecriture() from public, anon, authenticated;
+
+drop trigger if exists tournaments_limite on public.tournaments;
+create trigger tournaments_limite
+  before insert on public.tournaments
+  for each row execute function public.limiter_ecriture('creation_tournoi');
+
+drop trigger if exists disputes_limite on public.disputes;
+create trigger disputes_limite
+  before insert on public.disputes
+  for each row execute function public.limiter_ecriture('litige');
+
+drop trigger if exists messages_limite on public.messages;
+create trigger messages_limite
+  before insert on public.messages
+  for each row execute function public.limiter_ecriture('message');
