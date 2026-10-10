@@ -3,8 +3,8 @@
 Idées de fonctionnalités proposées le 04/10/2026, mises de côté à la demande
 du porteur du projet. **Toutes construites le 09/10/2026** : n°1, 2, 3, 6,
 10, 11, 12 et 14, puis n°4, 5, 7, 8, 9, 13, 15 et 16 (voir CLAUDE.md, mises
-à jour du 09/10/2026). Le format des divisions (n°13) reste à valider par le
-porteur du projet. Critère de tri : rendre le
+à jour du 09/10/2026). Le format des divisions (n°13) a été validé par le
+porteur du projet le 10/10/2026. Critère de tri : rendre le
 classement plus crédible, ou faire jouer plus de matchs par joueur (CLAUDE.md
 §1 et §10). Toutes respectent les règles du projet : pas d'argent, pas de
 donnée inventée, pas de visuel Riot.
