@@ -56,12 +56,13 @@ export async function remplacerAligne(formData: FormData) {
   if (error) retour(slug, "erreur", messageRefusBourse(error.message));
 
   const [{ data: t }, { data: inscription }] = await Promise.all([
-    supabase.from("tournaments").select("nom").eq("id", tournoi).maybeSingle(),
+    supabase.from("tournaments").select("nom, slug").eq("id", tournoi).maybeSingle(),
     supabase.from("alignements").select("registration:registrations(equipe_nom)").eq("tournament_id", tournoi).eq("profile_id", entrant).maybeSingle(),
   ]);
   const equipe = inscription?.registration?.equipe_nom ?? "une équipe";
   const nomTournoi = t?.nom ?? "le tournoi";
-  const lien = `${URL_SITE}/lol/tournois/${slug}`;
+  // Adresse du tournoi relue en base, jamais celle du formulaire.
+  const lien = t ? `${URL_SITE}/lol/tournois/${t.slug}` : URL_SITE;
   after(() =>
     Promise.all([
       envoyerRappel(

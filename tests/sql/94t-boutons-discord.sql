@@ -117,4 +117,6 @@ insert into suspensions (profile_id, motif) values ('00000000-0000-0000-0000-000
 set role service_role;
 select refus('Cyd, suspendue, confirme sa présence depuis Discord',
   $q$select public.agir_depuis_discord('D-CYD', 'checkin', '94700000-0000-0000-0000-000000000001')$q$, 'COMPTE_SUSPENDU');
+select refus('Cyd, suspendue, se déclare prête depuis Discord (refus dès l''entrée, quelle que soit l''action)',
+  $q$select public.agir_depuis_discord('D-CYD', 'pret', '94700000-0000-0000-0000-000000000031')$q$, 'COMPTE_SUSPENDU');
 reset role;

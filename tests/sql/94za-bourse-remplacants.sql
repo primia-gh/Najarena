@@ -72,6 +72,59 @@ select verifie('Sun garde la place d''origine de Roy ; toujours cinq alignés',
   and (select count(*) = 5 from alignements where tournament_id = 'a8000000-0000-0000-0000-000000000001'));
 reset role;
 
+-- Refus du contrôle de sécurité du 10/10 : remplaçant suspendu, sans compte
+-- Riot vérifié, tournoi réservé aux membres. Val (3da), Wes (3db), Xia (3dc).
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000003da', 'val94za@test', '{"pseudo":"Val94za","slug":"val94za"}'),
+  ('00000000-0000-0000-0000-0000000003db', 'wes94za@test', '{"pseudo":"Wes94za","slug":"wes94za"}'),
+  ('00000000-0000-0000-0000-0000000003dc', 'xia94za@test', '{"pseudo":"Xia94za","slug":"xia94za"}');
+insert into game_accounts (profile_id, game_id, puuid, riot_game_name, riot_tag_line, region, est_principal, verifie_le, methode_verification)
+select v.id::uuid, 1, 'P-94za-' || v.n, 'R' || v.n, 'EUW', 'EUW', true, now(), 'icone_profil'
+from (values ('00000000-0000-0000-0000-0000000003da', 'a'), ('00000000-0000-0000-0000-0000000003db', 'b'),
+             ('00000000-0000-0000-0000-0000000003dc', 'c')) v(id, n);
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003da'); select public.proposer_remplacement('a8000000-0000-0000-0000-000000000001');
+select en_tant_que('00000000-0000-0000-0000-0000000003db'); select public.proposer_remplacement('a8000000-0000-0000-0000-000000000001');
+reset role;
+insert into suspensions (profile_id, motif) values ('00000000-0000-0000-0000-0000000003da', 'Test de suspension');
+delete from game_accounts where profile_id = '00000000-0000-0000-0000-0000000003db';
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003d0');
+select refus('Rex prend Val, suspendu depuis son entrée dans la bourse',
+  $q$select public.remplacer_aligne('a8000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000003d4', '00000000-0000-0000-0000-0000000003da')$q$, 'ALIGNEMENT_SUSPENDU');
+select refus('Rex prend Wes, qui a perdu son compte Riot vérifié',
+  $q$select public.remplacer_aligne('a8000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000003d4', '00000000-0000-0000-0000-0000000003db')$q$, 'ALIGNEMENT_COMPTE_RIOT');
+reset role;
+
+-- Tournoi réservé aux membres d'un club (organisé par sa propriétaire,
+-- Alice) : Rex et ses quatre titulaires en sont membres, Xia aussi au début.
+insert into communautes (id, slug, nom, proprietaire_id) values
+  ('a8000000-0000-0000-0000-0000000000c1', 'club-94za', 'Club 94za', '00000000-0000-0000-0000-00000000000a');
+insert into membres_communaute (communaute_id, profile_id, role) values
+  ('a8000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000000a', 'proprietaire');
+insert into membres_communaute (communaute_id, profile_id)
+select 'a8000000-0000-0000-0000-0000000000c1', ('00000000-0000-0000-0000-0000000003d' || n)::uuid
+from unnest(array['0', '1', '2', '3', '4', 'c']) n;
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement, communaute_id, reserve_membres) values
+  ('a8000000-0000-0000-0000-000000000002', 1, '00000000-0000-0000-0000-00000000000a', 'bourse-94za-club', 'Bourse 94za club', '5v5', 4, 'EUW',
+   now() + interval '1 day', now() + interval '20 hours', 'ouvert', false, 'a8000000-0000-0000-0000-0000000000c1', true);
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003d0');
+select essai('Rex inscrit son équipe au tournoi réservé du club',
+  $q$select public.s_inscrire_equipe('a8000000-0000-0000-0000-000000000002', 'a8000000-0000-0000-0000-00000000000a', array['00000000-0000-0000-0000-0000000003d0','00000000-0000-0000-0000-0000000003d1','00000000-0000-0000-0000-0000000003d2','00000000-0000-0000-0000-0000000003d3','00000000-0000-0000-0000-0000000003d4']::uuid[])$q$, 'passe');
+select en_tant_que('00000000-0000-0000-0000-0000000003d6');
+select refus('Sky, pas membre du club, se propose pour le tournoi réservé',
+  $q$select public.proposer_remplacement('a8000000-0000-0000-0000-000000000002')$q$, 'RESERVE_MEMBRES');
+select en_tant_que('00000000-0000-0000-0000-0000000003dc');
+select essai('Xia, membre du club, se propose', $q$select public.proposer_remplacement('a8000000-0000-0000-0000-000000000002')$q$, 'passe');
+reset role;
+delete from membres_communaute where profile_id = '00000000-0000-0000-0000-0000000003dc';
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003d0');
+select refus('Rex prend Xia, qui a quitté le club entre-temps',
+  $q$select public.remplacer_aligne('a8000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000003d4', '00000000-0000-0000-0000-0000000003dc')$q$, 'RESERVE_MEMBRES');
+reset role;
+
 -- Bracket lancé : alignement figé, bourse vidée.
 update tournaments set statut = 'en_cours' where id = 'a8000000-0000-0000-0000-000000000001';
 select verifie('Bracket lancé : la bourse du tournoi est vide',

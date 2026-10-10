@@ -53,8 +53,14 @@ select verifie('Cora accepte Eli',
   public.repondre_coaching((select id from coachings where eleve_id = '00000000-0000-0000-0000-0000000003e2'), true));
 select verifie('Cora refuse Fay',
   not public.repondre_coaching((select id from coachings where eleve_id = '00000000-0000-0000-0000-0000000003e3'), false));
-select verifie('La demande de Fay s''est effacée',
-  not exists (select 1 from coachings where eleve_id = '00000000-0000-0000-0000-0000000003e3'));
+select verifie('La demande de Fay est gardée, refusée (pas publique)',
+  (select statut = 'refusee' from coachings where eleve_id = '00000000-0000-0000-0000-0000000003e3')
+  and not exists (select 1 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')
+                  where eleve_id = '00000000-0000-0000-0000-0000000003e3'));
+select en_tant_que('00000000-0000-0000-0000-0000000003e3');
+select refus('Fay redemande aussitôt un suivi à Cora (notification à répétition)',
+  $q$select public.demander_coaching('00000000-0000-0000-0000-0000000003e0')$q$, 'DEMANDE_RECENTE');
+select en_tant_que('00000000-0000-0000-0000-0000000003e0');
 reset role;
 
 -- Le suivi d'Eli a commencé il y a 10 jours : un tournoi avant (ignoré), trois pendant.

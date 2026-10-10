@@ -58,6 +58,8 @@ const REFUS: Record<string, string> = {
   COMPTE_SUSPENDU: "Ton compte est suspendu.",
   COACH_NON_ELIGIBLE: "Ce joueur n'est pas classé Diamant ou plus : il ne peut pas suivre d'élève.",
   SUIVI_EN_COURS: "Tu as déjà un suivi en cours ou demandé : termine-le d'abord.",
+  DEMANDE_RECENTE:
+    "Demande impossible pour l'instant : 7 jours d'attente après une demande annulée ou refusée par ce coach, et 5 demandes par jour au plus.",
   DEMANDE_INTROUVABLE: "Cette demande n'existe plus.",
   LIMITE_ELEVES: `Tu suis déjà ${COACH_ELEVES_MAX} élèves : termine un suivi d'abord.`,
 };

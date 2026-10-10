@@ -3134,7 +3134,7 @@ export type Database = {
         }[]
       }
       matchs_communs: { Args: { p_a: string; p_b: string }; Returns: { ensemble: number; contre: number }[] }
-      recommander: { Args: { p_destinataire: string; p_texte: string }; Returns: undefined }
+      recommander: { Args: { p_destinataire: string; p_texte: string }; Returns: boolean }
       retirer_recommandation: { Args: { p_destinataire: string }; Returns: undefined }
       masquer_recommandation: { Args: { p_auteur: string; p_masquee: boolean }; Returns: boolean }
       recommandations_joueur: {
@@ -3181,7 +3181,7 @@ export type Database = {
       s_inscrire_division: { Args: Record<PropertyKey, never>; Returns: string }
       quitter_division: { Args: Record<PropertyKey, never>; Returns: boolean }
       former_poules_division: { Args: { p_ligue_id: string; p_poules: Json }; Returns: number }
-      je_suis_la_division: { Args: { p_rencontre_id: string }; Returns: string | null }
+      je_suis_la_division: { Args: { p_rencontre_id: string }; Returns: { slug: string | null; prevenir: boolean }[] }
       cloturer_ligue_division: { Args: { p_ligue_id: string; p_classements: Json }; Returns: number }
       rencontres_ligue: {
         Args: { p_ligue_id: string }

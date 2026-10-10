@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decoderEntites, echapperDiscord, echapperHtml } from "./echappement";
+import { decoderEntites, echapperDiscord, echapperHtml, lienSur } from "./echappement";
 
 describe("échappement HTML", () => {
   it("neutralise une balise glissée dans un nom de tournoi", () => {
@@ -30,5 +30,20 @@ describe("échappement Discord", () => {
     expect(echapperDiscord("# Annonce")).toBe("\\# Annonce");
     expect(echapperDiscord("> cite")).toBe("\\> cite");
     expect(echapperDiscord("Cup #3 - finale")).toBe("Cup #3 - finale");
+  });
+});
+
+describe("lienSur", () => {
+  const base = "https://najarena.example";
+  it("garde un lien du site", () => {
+    expect(lienSur(`${base}/joueur/vipere#coach`, base)).toBe(`${base}/joueur/vipere#coach`);
+    expect(lienSur(`${base}/lol/divisions?region=EUW#ma-poule`, base)).toBe(`${base}/lol/divisions?region=EUW#ma-poule`);
+  });
+
+  it("refuse un lien d'un autre site ou piégé, et renvoie l'accueil", () => {
+    expect(lienSur("https://piege.example/joueur/x", base)).toBe(base);
+    expect(lienSur(`${base}.piege.example/x`, base)).toBe(base);
+    expect(lienSur(`${base}/joueur/x\n\n**Sécurité** [Confirme](https://piege.example)`, base)).toBe(base);
+    expect(lienSur(`${base}/joueur/x)`, base)).toBe(base);
   });
 });

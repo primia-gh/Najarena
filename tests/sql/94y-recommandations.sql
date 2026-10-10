@@ -44,10 +44,13 @@ reset role;
 
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003b1');
-select essai('Quentin recommande Pia, affrontée dans une partie lue chez Riot',
-  $q$select public.recommander('00000000-0000-0000-0000-0000000003b0', 'Joueuse solide, à l''heure et fair-play jusqu''au bout.')$q$, 'passe');
-select essai('Quentin modifie sa recommandation (toujours une seule)',
-  $q$select public.recommander('00000000-0000-0000-0000-0000000003b0', 'Joueuse solide et régulière, très bon placement en fin de partie.')$q$, 'passe');
+select verifie('Quentin recommande Pia, affrontée dans une partie lue chez Riot : Pia est prévenue',
+  public.recommander('00000000-0000-0000-0000-0000000003b0', 'Joueuse solide, à l''heure et fair-play jusqu''au bout.'));
+select verifie('Quentin modifie sa recommandation (toujours une seule) : Pia n''est pas reprévenue',
+  not public.recommander('00000000-0000-0000-0000-0000000003b0', 'Joueuse solide et régulière, très bon placement en fin de partie.'));
+select public.retirer_recommandation('00000000-0000-0000-0000-0000000003b0');
+select verifie('Quentin retire puis réécrit : Pia n''est toujours pas reprévenue (journal des paires)',
+  not public.recommander('00000000-0000-0000-0000-0000000003b0', 'Joueuse solide et régulière, très bon placement en fin de partie.'));
 select verifie('Une seule recommandation de Quentin pour Pia, texte modifié',
   (select count(*) = 1 and bool_and(texte like '%placement%') from public.recommandations
     where auteur_id = '00000000-0000-0000-0000-0000000003b1'));

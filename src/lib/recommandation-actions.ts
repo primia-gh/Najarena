@@ -35,17 +35,23 @@ export async function recommanderJoueur(formData: FormData) {
     .eq("auteur_id", moi)
     .eq("destinataire_id", destinataire)
     .maybeSingle();
-  const { error } = await supabase.rpc("recommander", { p_destinataire: destinataire, p_texte: texte });
+  // La base dit si c'est la première recommandation de cette paire : le
+  // joueur n'est prévenu qu'une fois par auteur, même après un retrait.
+  const { data: premiere, error } = await supabase.rpc("recommander", { p_destinataire: destinataire, p_texte: texte });
   if (error) retour(slug, "erreur", messageRefusRecommandation(error.message));
 
-  if (!existante) {
-    const { data: auteur } = await supabase.from("profiles").select("pseudo").eq("id", moi).maybeSingle();
+  if (premiere) {
+    // Pseudo et adresse du CV relus en base, jamais ceux du formulaire.
+    const [{ data: auteur }, { data: cible }] = await Promise.all([
+      supabase.from("profiles").select("pseudo").eq("id", moi).maybeSingle(),
+      supabase.from("profiles").select("slug").eq("id", destinataire).maybeSingle(),
+    ]);
     after(() =>
       envoyerRappel(
         destinataire,
         "Nouvelle recommandation",
         `${auteur?.pseudo ?? "Un joueur"} t'a recommandé sur ton CV Najarena. Tu peux la masquer si tu ne veux pas l'afficher.`,
-        `${URL_SITE}/joueur/${slug}#recommandations`,
+        cible ? `${URL_SITE}/joueur/${cible.slug}#recommandations` : URL_SITE,
       ),
     );
   }

@@ -35,13 +35,14 @@ export async function demanderCoaching(formData: FormData) {
   const { error } = await supabase.rpc("demander_coaching", { p_coach: coach });
   if (error) retour(slug, "erreur", messageRefusCoach(error.message));
 
-  const eleve = await pseudoDe(supabase, moi);
+  // Adresse du CV relue en base, jamais celle du formulaire.
+  const [eleve, profilCoach] = await Promise.all([pseudoDe(supabase, moi), pseudoDe(supabase, coach)]);
   after(() =>
     envoyerRappel(
       coach,
       "Demande de suivi",
       `${eleve?.pseudo ?? "Un joueur"} te demande de le suivre comme coach. Accepte ou refuse depuis ton CV.`,
-      `${URL_SITE}/joueur/${slug}#coach`,
+      profilCoach ? `${URL_SITE}/joueur/${profilCoach.slug}#coach` : URL_SITE,
     ),
   );
   retour(slug, "message", "Demande envoyée : le coach est prévenu.");
@@ -66,7 +67,7 @@ export async function repondreCoaching(formData: FormData) {
         accepter
           ? `${coach?.pseudo ?? "Ton coach"} a accepté de te suivre : ta progression en tournoi s'affiche désormais sur son CV.`
           : `${coach?.pseudo ?? "Le coach"} n'a pas accepté ta demande de suivi.`,
-        `${URL_SITE}/joueur/${slug}#coach`,
+        coach ? `${URL_SITE}/joueur/${coach.slug}#coach` : URL_SITE,
       ),
     );
   }

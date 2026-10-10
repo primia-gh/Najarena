@@ -82,11 +82,13 @@ select en_tant_que('00000000-0000-0000-0000-0000000003f0');
 select refus('Joueur 0 veut jouer dès maintenant la rencontre de la semaine 2',
   $q$select public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 2))$q$,
   'RENCONTRE_HORS_DELAI');
-select verifie('Joueur 0 est là (semaine 1, contre joueur 2) : on attend son adversaire',
-  public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1)) is null);
+select verifie('Joueur 0 est là (semaine 1, contre joueur 2) : on attend son adversaire, qui est prévenu',
+  (select slug is null and prevenir from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
+select verifie('Joueur 0 reclique : son adversaire n''est pas reprévenu',
+  (select slug is null and not prevenir from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
 select en_tant_que('00000000-0000-0000-0000-0000000003f2');
 select verifie('Joueur 2 est là aussi : le duel est lancé',
-  public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1)) like 'division-%');
+  (select slug like 'division-%' from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
 select refus('Joueur 2 relance la même rencontre',
   $q$select public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))$q$,
   'MATCH_DEJA_LANCE');

@@ -38,3 +38,21 @@ export function echapperDiscord(texte: string): string {
     .replace(/[\\*_~`|[\]]/g, (c) => `\\${c}`)
     .replace(/^(\s*)([>#-])/gm, "$1\\$2");
 }
+
+/**
+ * Lien placé dans une notification (message privé Discord, push) : seulement
+ * une adresse du site lui-même, sans espace, saut de ligne ni caractère de
+ * mise en forme Discord. Sinon, l'adresse du site (contrôle de sécurité du
+ * 10/10/2026 : un champ caché de formulaire réécrit pouvait glisser un faux
+ * avertissement et un lien masqué dans un message du bot officiel).
+ */
+export function lienSur(lien: string, base: string): string {
+  const racine = base.replace(/\/+$/, "");
+  // « Commence par l'adresse du site » ne suffit pas : najarena.fr.piege.example
+  // commence aussi par najarena.fr. Il faut la suite exacte : / ? # ou rien.
+  const duSite = lien === racine || [`${racine}/`, `${racine}?`, `${racine}#`].some((d) => lien.startsWith(d));
+  // Espaces et sauts de ligne (texte ajouté au message), crochets et
+  // parenthèses (lien masqué), chevrons, accents graves, barres verticales.
+  const valide = duSite && !/[\s<>()[\]`|]/.test(lien);
+  return valide ? lien : racine;
+}

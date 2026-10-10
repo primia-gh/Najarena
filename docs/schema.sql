@@ -8711,6 +8711,11 @@ begin
   if v_joueur is null then
     raise exception 'COMPTE_DISCORD_INCONNU';
   end if;
+  -- Un compte suspendu n'agit pas plus depuis Discord que depuis le site
+  -- (contrôle de sécurité du 10/10/2026).
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
 
   -- Identité du joueur pour la fin de la transaction : auth.uid() le
   -- renvoie, comme s'il avait cliqué sur le site.
@@ -8902,7 +8907,9 @@ begin
   for v_creneau in
     select d.region, d.debut, count(*)::integer as nombre
     from public.disponibilites d
-    where d.debut >= now() + interval '45 minutes'
+    -- L'organisateur de ces tournois n'y joue jamais (il serait juge et
+    -- partie, et sa présence rendrait le tournoi non classé).
+    where d.debut >= now() + interval '45 minutes' and d.profile_id <> p_organisateur_id
     group by d.region, d.debut
     having count(*) >= 8
     order by d.debut
@@ -8918,8 +8925,11 @@ begin
     limit 1;
 
     if v_tournoi is null then
+      -- Suffixe aléatoire : une adresse devinable pourrait être réservée
+      -- d'avance par un organisateur pour bloquer le créneau.
       v_slug := 'a-la-demande-' || lower(v_creneau.region) || '-'
-        || to_char(v_creneau.debut at time zone 'Europe/Paris', 'YYYY-MM-DD-HH24') || 'h';
+        || to_char(v_creneau.debut at time zone 'Europe/Paris', 'YYYY-MM-DD-HH24') || 'h-'
+        || substr(replace(gen_random_uuid()::text, '-', ''), 1, 6);
       insert into public.tournaments (
         game_id, season_id, organisateur_id, slug, nom, format, capacite, best_of, region,
         debute_le, checkin_ouvre_le, statut, creneau_auto, condition_victoire
@@ -8950,6 +8960,7 @@ begin
     for v_joueur in
       select d.profile_id from public.disponibilites d
       where d.region = v_creneau.region and d.debut = v_creneau.debut
+        and d.profile_id <> p_organisateur_id
       order by d.cree_le
     loop
       -- Inscription au nom du joueur : mêmes contrôles que sur le site.
@@ -9395,6 +9406,18 @@ create table if not exists public.recommandations (
   check (auteur_id <> destinataire_id)
 );
 create index if not exists recommandations_destinataire_idx on public.recommandations (destinataire_id);
+-- Journal des paires (auteur, recommandé) : jamais effacé par un retrait.
+-- Le joueur recommandé n'est prévenu qu'une fois par auteur, et la limite
+-- de 10 nouvelles recommandations par 24 h ne se contourne pas en retirant
+-- puis en réécrivant (contrôle de sécurité du 10/10/2026).
+create table if not exists public.recommandations_journal (
+  auteur_id       uuid not null references public.profiles(id) on delete cascade,
+  destinataire_id uuid not null references public.profiles(id) on delete cascade,
+  premiere_le     timestamptz not null default now(),
+  primary key (auteur_id, destinataire_id)
+);
+alter table public.recommandations_journal enable row level security;
+revoke all on public.recommandations_journal from anon, authenticated;
 alter table public.recommandations enable row level security;
 -- Lecture directe : l'auteur et le joueur recommandé seulement (le CV passe
 -- par recommandations_joueur). Aucune écriture directe : fonctions ci-dessous.
@@ -9444,8 +9467,11 @@ create trigger moderation_recommandation
   for each row execute function public.moderer_recommandation();
 
 -- Écrire ou modifier sa recommandation (une par joueur recommandé).
+-- Renvoie vrai la première fois seulement pour cette paire : c'est alors
+-- que le joueur recommandé est prévenu.
+drop function if exists public.recommander(uuid, text);
 create or replace function public.recommander(p_destinataire uuid, p_texte text)
-returns void
+returns boolean
 language plpgsql
 security definer set search_path = public
 as $$
@@ -9474,10 +9500,10 @@ begin
     raise exception 'PAS_JOUE_ENSEMBLE';
   end if;
   if not exists (
-    select 1 from public.recommandations where auteur_id = v_auteur and destinataire_id = p_destinataire
+    select 1 from public.recommandations_journal where auteur_id = v_auteur and destinataire_id = p_destinataire
   ) and (
-    select count(*) from public.recommandations
-    where auteur_id = v_auteur and cree_le > now() - interval '24 hours'
+    select count(*) from public.recommandations_journal
+    where auteur_id = v_auteur and premiere_le > now() - interval '24 hours'
   ) >= 10 then
     raise exception 'LIMITE_RECOMMANDATIONS';
   end if;
@@ -9486,6 +9512,11 @@ begin
   values (v_auteur, p_destinataire, v_texte)
   on conflict (auteur_id, destinataire_id)
   do update set texte = excluded.texte, modifie_le = now();
+
+  insert into public.recommandations_journal (auteur_id, destinataire_id)
+  values (v_auteur, p_destinataire)
+  on conflict do nothing;
+  return found;
 end;
 $$;
 revoke execute on function public.recommander(uuid, text) from public, anon;
@@ -9555,6 +9586,7 @@ security definer set search_path = public
 as $$
 begin
   delete from public.recommandations where auteur_id = new.id or destinataire_id = new.id;
+  delete from public.recommandations_journal where auteur_id = new.id or destinataire_id = new.id;
   return null;
 end;
 $$;
@@ -9820,12 +9852,16 @@ create table if not exists public.coachings (
   id          uuid primary key default gen_random_uuid(),
   coach_id    uuid not null references public.profiles(id) on delete cascade,
   eleve_id    uuid not null references public.profiles(id) on delete cascade,
-  statut      text not null default 'demande' check (statut in ('demande', 'actif', 'termine')),
+  statut      text not null default 'demande' check (statut in ('demande', 'actif', 'termine', 'annulee', 'refusee')),
   demande_le  timestamptz not null default now(),
   debut_le    timestamptz,
   fin_le      timestamptz,
   check (coach_id <> eleve_id)
 );
+-- Base déjà créée avec l'ancienne liste de statuts : la remplacer.
+alter table public.coachings drop constraint if exists coachings_statut_check;
+alter table public.coachings add constraint coachings_statut_check
+  check (statut in ('demande', 'actif', 'termine', 'annulee', 'refusee'));
 create unique index if not exists coachings_eleve_en_cours_idx
   on public.coachings (eleve_id) where statut in ('demande', 'actif');
 create index if not exists coachings_coach_idx on public.coachings (coach_id);
@@ -9878,6 +9914,19 @@ begin
   if exists (select 1 from public.coachings where eleve_id = v_eleve and statut in ('demande', 'actif')) then
     raise exception 'SUIVI_EN_COURS';
   end if;
+  -- Chaque demande prévient le coach : pas de redemande au même coach
+  -- pendant 7 jours après une demande annulée ou refusée, 5 demandes par
+  -- 24 h au plus (contrôle de sécurité du 10/10/2026).
+  if exists (
+    select 1 from public.coachings
+    where eleve_id = v_eleve and coach_id = p_coach and statut in ('annulee', 'refusee')
+      and demande_le > now() - interval '7 days'
+  ) or (
+    select count(*) from public.coachings
+    where eleve_id = v_eleve and demande_le > now() - interval '24 hours'
+  ) >= 5 then
+    raise exception 'DEMANDE_RECENTE';
+  end if;
   insert into public.coachings (coach_id, eleve_id) values (p_coach, v_eleve) returning id into v_id;
   return v_id;
 end;
@@ -9885,7 +9934,8 @@ $$;
 revoke execute on function public.demander_coaching(uuid) from public, anon;
 grant execute on function public.demander_coaching(uuid) to authenticated;
 
--- Le coach accepte (le suivi commence) ou refuse (la demande s'efface).
+-- Le coach accepte (le suivi commence) ou refuse (la demande est gardée,
+-- refusée, pour empêcher de la renvoyer aussitôt).
 create or replace function public.repondre_coaching(p_coaching_id uuid, p_accepter boolean)
 returns boolean
 language plpgsql
@@ -9902,7 +9952,7 @@ begin
     raise exception 'DEMANDE_INTROUVABLE';
   end if;
   if not p_accepter then
-    delete from public.coachings where id = p_coaching_id;
+    update public.coachings set statut = 'refusee', fin_le = now() where id = p_coaching_id;
     return false;
   end if;
   if not public.est_coach_eligible(v_coach) then
@@ -9918,7 +9968,7 @@ $$;
 revoke execute on function public.repondre_coaching(uuid, boolean) from public, anon;
 grant execute on function public.repondre_coaching(uuid, boolean) to authenticated;
 
--- L'un ou l'autre met fin au suivi (une demande en attente s'efface).
+-- L'un ou l'autre met fin au suivi (une demande en attente est annulée).
 create or replace function public.terminer_coaching(p_coaching_id uuid)
 returns boolean
 language plpgsql
@@ -9935,7 +9985,7 @@ begin
     return false;
   end if;
   if v_ligne.statut = 'demande' then
-    delete from public.coachings where id = p_coaching_id;
+    update public.coachings set statut = 'annulee', fin_le = now() where id = p_coaching_id;
   else
     update public.coachings set statut = 'termine', fin_le = now() where id = p_coaching_id;
   end if;
@@ -9976,7 +10026,7 @@ as $$
       and re.cree_le >= c.debut_le and re.cree_le < coalesce(c.fin_le, now())
   ) e on true
   where c.coach_id = p_coach
-    and (c.statut <> 'demande' or auth.uid() = p_coach)
+    and (c.statut in ('actif', 'termine') or (c.statut = 'demande' and auth.uid() = p_coach))
   order by (c.statut = 'demande') desc, coalesce(c.debut_le, c.demande_le) desc
   limit 100;
 $$;
@@ -10232,18 +10282,23 @@ grant execute on function public.former_poules_division(uuid, jsonb) to service_
 
 -- « Je suis là » : le match se lance quand l'adversaire l'a aussi dit dans
 -- les 30 dernières minutes (duel ordinaire, arbitré par le premier
--- administrateur). Renvoie l'adresse du duel lancé, ou null en attendant.
+-- administrateur). Renvoie l'adresse du duel lancé (null en attendant) et
+-- s'il faut prévenir l'adversaire : seulement quand la présence du joueur
+-- commence, jamais à chaque clic (contrôle de sécurité du 10/10/2026).
+drop function if exists public.je_suis_la_division(uuid);
 create or replace function public.je_suis_la_division(p_rencontre_id uuid)
-returns text
+returns table (slug text, prevenir boolean)
 language plpgsql
 security definer set search_path = public
 as $$
+#variable_conflict use_column
 declare
   v_joueur uuid := auth.uid();
   v_r record;
   v_ligue record;
   v_statut_duel public.tournament_status;
   v_autre_dispo timestamptz;
+  v_ma_dispo timestamptz;
   v_region text;
   v_arbitre uuid;
   v_saison uuid;
@@ -10280,12 +10335,17 @@ begin
   if v_joueur = v_r.joueur_a then
     update public.rencontres_division set dispo_a = now() where id = p_rencontre_id;
     v_autre_dispo := v_r.dispo_b;
+    v_ma_dispo := v_r.dispo_a;
   else
     update public.rencontres_division set dispo_b = now() where id = p_rencontre_id;
     v_autre_dispo := v_r.dispo_a;
+    v_ma_dispo := v_r.dispo_b;
   end if;
   if v_autre_dispo is null or v_autre_dispo < now() - interval '30 minutes' then
-    return null;
+    slug := null;
+    prevenir := v_ma_dispo is null or v_ma_dispo < now() - interval '30 minutes';
+    return next;
+    return;
   end if;
 
   -- Les deux sont là : duel ordinaire, mêmes règles que creer_duel.
@@ -10326,7 +10386,9 @@ begin
   update public.rencontres_division
   set tournament_id = v_tournoi, dispo_a = null, dispo_b = null
   where id = p_rencontre_id;
-  return v_slug;
+  slug := v_slug;
+  prevenir := true;
+  return next;
 end;
 $$;
 revoke execute on function public.je_suis_la_division(uuid) from public, anon;

@@ -40,8 +40,11 @@ export async function jeSuisLa(formData: FormData) {
   const rencontre = String(formData.get("rencontre") ?? "");
   const { supabase, moi } = await connecte();
 
-  const { data: slug, error } = await supabase.rpc("je_suis_la_division", { p_rencontre_id: rencontre });
+  const { data, error } = await supabase.rpc("je_suis_la_division", { p_rencontre_id: rencontre });
   if (error) retour("erreur", messageRefusDivision(error.message), "ma-poule");
+  // La base dit s'il faut prévenir l'adversaire : seulement quand la
+  // présence commence, jamais à chaque clic.
+  const { slug = null, prevenir = false } = data?.[0] ?? {};
 
   const { data: r } = await supabase
     .from("rencontres_division")
@@ -65,7 +68,7 @@ export async function jeSuisLa(formData: FormData) {
     }
     redirect(`/lol/tournois/${slug}#ton-match`);
   }
-  if (adversaire) {
+  if (adversaire && prevenir) {
     after(() =>
       envoyerRappel(
         adversaire,
@@ -77,7 +80,9 @@ export async function jeSuisLa(formData: FormData) {
   }
   retour(
     "message",
-    `C'est noté : ton adversaire est prévenu. Le match se lance dès qu'il clique aussi (dans les ${DELAI_PRESENCE_MINUTES} minutes).`,
+    prevenir
+      ? `C'est noté : ton adversaire est prévenu. Le match se lance dès qu'il clique aussi (dans les ${DELAI_PRESENCE_MINUTES} minutes).`
+      : `C'est noté. Ton adversaire a déjà été prévenu : le match se lance dès qu'il clique aussi.`,
     "ma-poule",
   );
 }

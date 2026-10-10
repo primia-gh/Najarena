@@ -87,6 +87,11 @@ select essai('Dispo7, huitième joueur disponible à 20 h',
 reset role;
 
 set role service_role;
+select verifie('Si l''organisateur des tournois automatiques est l''un des 8, il ne compte pas : aucun tournoi',
+  not exists (select 1 from public.ouvrir_tournois_a_la_demande('00000000-0000-0000-0000-0000000002d7')));
+reset role;
+
+set role service_role;
 create temp table ouverts as
   select * from public.ouvrir_tournois_a_la_demande('00000000-0000-0000-0000-00000000000a');
 reset role;
@@ -97,6 +102,8 @@ select verifie('Tournoi 1v1 à 20 h, région EUW, 16 places, check-in 30 min ava
   exists (select 1 from tournaments where id = :'tournoi_demande' and format = '1v1' and region = 'EUW'
           and debute_le = :'h20' and capacite = 16 and checkin_ouvre_le = debute_le - interval '30 minutes'
           and statut = 'ouvert' and creneau_auto = 'a-la-demande' and nature = 'tournoi'));
+select verifie('Adresse imprévisible (suffixe aléatoire) : impossible de la réserver d''avance',
+  (select slug ~ '^a-la-demande-euw-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}h-[0-9a-f]{6}$' from tournaments where id = :'tournoi_demande'));
 select verifie('Les 8 joueurs sont inscrits',
   (select count(*) from registrations where tournament_id = :'tournoi_demande' and statut = 'inscrit') = 8);
 select verifie('Les disponibilités EUW de 20 h sont effacées, celle de Nina (NA) reste',

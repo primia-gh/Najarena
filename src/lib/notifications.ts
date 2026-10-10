@@ -8,7 +8,7 @@
 import { Resend } from "resend";
 import webpush, { WebPushError } from "web-push";
 import { creerClientAdmin } from "@/lib/supabase/admin";
-import { decoderEntites, echapperDiscord, echapperHtml } from "@/lib/echappement";
+import { decoderEntites, echapperDiscord, echapperHtml, lienSur } from "@/lib/echappement";
 import { composantsDiscord, type BoutonDiscord, type LigneComposants } from "@/lib/boutons-discord";
 
 const cle = process.env.RESEND_API_KEY;
@@ -201,6 +201,9 @@ export async function envoyerRappel(
   options: { boutons?: BoutonDiscord[]; push?: boolean } = {},
 ): Promise<void> {
   const { boutons = [], push = true } = options;
+  // Seulement une adresse du site, sans caractère piège : le lien peut venir
+  // (directement ou non) d'un formulaire (contrôle de sécurité du 10/10/2026).
+  lien = lienSur(lien, URL_SITE);
   const discordId = await (async () => {
     if (!jetonBotDiscord) return null;
     const admin = creerClientAdmin();
