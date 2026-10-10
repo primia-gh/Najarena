@@ -32,16 +32,23 @@ export async function ouvrirLitige(formData: FormData) {
   });
 
   if (error) {
-    redirect(
-      `/lol/tournois/${slug}?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Impossible d'enregistrer ce litige pour l'instant.")}`,
-    );
+    // Un seul litige ouvert par joueur et par match (audit sécurité du
+    // 10/10/2026, M4 : index unique en base).
+    const message = error.message.includes("disputes_un_ouvert_par_joueur_et_match")
+      ? "Tu as déjà un litige ouvert sur ce match : l'organisateur va l'examiner."
+      : (messageModeration(error.message) ?? "Impossible d'enregistrer ce litige pour l'instant.");
+    redirect(`/lol/tournois/${slug}?erreur=${encodeURIComponent(message)}`);
   }
 
-  const { data: t } = await supabase
-    .from("tournaments")
-    .select("nom, organisateur_id")
-    .eq("slug", slug)
+  // L'organisateur prévenu est celui du tournoi du match, pas celui du slug
+  // envoyé par le formulaire (sinon le motif partait chez n'importe quel
+  // organisateur).
+  const { data: matchLitige } = await supabase
+    .from("matches")
+    .select("tournament:tournaments(nom, organisateur_id)")
+    .eq("id", matchId)
     .maybeSingle();
+  const t = matchLitige?.tournament;
 
   if (t) {
     await notifierJoueur(

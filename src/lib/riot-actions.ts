@@ -20,6 +20,18 @@ import { URL_SITE } from "@/lib/notifications";
 const ICONE_MIN = 1;
 const ICONE_MAX = 28; // icônes de niveau classiques, stables sur tout patch/région
 
+const MESSAGE_LIMITE_RIOT =
+  "Trop d'essais en une heure (10 au plus, liaisons et vérifications d'icône comprises) : attends un peu avant de réessayer.";
+
+// Chaque essai interroge l'API Riot, dont le quota est partagé par tout le
+// site : 10 essais par heure et par joueur, comptés par la base (audit
+// sécurité du 10/10/2026, M7 ; consommer_limite). Refus aussi en cas
+// d'erreur, pour ne jamais laisser passer un appel non compté.
+async function reserverEssaiRiot(supabase: Awaited<ReturnType<typeof createClient>>): Promise<boolean> {
+  const { data, error } = await supabase.rpc("consommer_limite", { p_action: "liaison_riot" });
+  return !error && data === true;
+}
+
 function tirerIconeCible(iconeActuelle: number): number {
   let cible = ICONE_MIN + Math.floor(Math.random() * (ICONE_MAX - ICONE_MIN + 1));
   if (cible === iconeActuelle) {
@@ -46,6 +58,10 @@ export async function lierRiotId(formData: FormData) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
     redirect("/connexion");
+  }
+
+  if (!(await reserverEssaiRiot(supabase))) {
+    redirect(`/lier-riot?erreur=${encodeURIComponent(MESSAGE_LIMITE_RIOT)}`);
   }
 
   let compte: CompteRiot;
@@ -138,6 +154,10 @@ export async function verifierRiotId(formData: FormData) {
   const region = trouverRegion(compte.region);
   if (!region) {
     redirect(`/lier-riot?erreur=${encodeURIComponent("Région inconnue, relie ton compte à nouveau.")}`);
+  }
+
+  if (!(await reserverEssaiRiot(supabase))) {
+    redirect(`/lier-riot?erreur=${encodeURIComponent(MESSAGE_LIMITE_RIOT)}`);
   }
 
   let invocateur: InvocateurRiot;
@@ -234,7 +254,7 @@ export async function delierCompteRiot() {
   const { error } = await supabase.rpc("delier_compte_riot", { p_game_id: 1 });
   if (error) {
     const message = error.message.includes("INSCRIT_A_UN_TOURNOI")
-      ? "Tu es inscrit à un tournoi pas encore terminé : ton compte Riot sert à lire tes résultats. Désinscris-toi ou attends la fin du tournoi."
+      ? "Tu es engagé dans un tournoi pas encore terminé (inscrit, aligné dans une équipe ou agent libre) : ton compte Riot sert à lire tes résultats. Attends la fin du tournoi, ou retire-toi d'abord (désinscription, liste des agents libres, ou demande à ton capitaine)."
       : "Impossible de délier ton compte pour l'instant. Réessaie dans un instant.";
     redirect(`/lier-riot?erreur=${encodeURIComponent(message)}`);
   }

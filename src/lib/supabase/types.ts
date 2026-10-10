@@ -2222,6 +2222,7 @@ export type Database = {
         Returns: boolean
       }
       confirmer_presence: { Args: { p_tournament_id: string }; Returns: boolean }
+      consommer_limite: { Args: { p_action: string }; Returns: boolean }
       criteres_tournoi_classe: {
         Args: { p_tournament_id: string }
         Returns: {

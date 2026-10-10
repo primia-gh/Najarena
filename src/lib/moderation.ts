@@ -11,6 +11,10 @@ const MESSAGES: Record<string, string> = {
   TEXTE_INTERDIT: "Ce texte n'est pas accepté : il contient un terme refusé ou un lien.",
   MESSAGE_INTERDIT: "Message refusé : propos haineux ou tentative d'arnaque.",
   MOTIF_INTERDIT: "Motif refusé : propos haineux. Décris simplement ce qui ne va pas dans le résultat.",
+  // Limites d'usage (audit sécurité du 10/10/2026, consommer_limite) :
+  // 5 tournois par 24 h, 10 litiges par 24 h, 30 messages par heure,
+  // 10 liaisons Riot par heure.
+  LIMITE_ATTEINTE: "Trop de demandes en peu de temps : réessaie un peu plus tard.",
 };
 
 /** Message lisible si l'erreur de la base vient de la modération, sinon nul. */
