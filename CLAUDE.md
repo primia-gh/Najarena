@@ -233,6 +233,26 @@ La précision du classement dépend du **nombre de matchs par joueur**, pas du n
 - Évolution de la base : ajoutée à la fin de `docs/schema.sql`, en section datée « À appliquer sur la base AVANT la mise en ligne du code du même commit ». La base se met à jour avant le code (exemple : `docs/mise-en-ligne-2026-09-28.md`).
 - Règlement du 1v1 (carte, mode, étapes d'un match) : `src/lib/reglement.ts`, lu par tous les écrans. Règles de pseudo : `src/lib/pseudo.ts` (mêmes règles en base). CGU modifiées : changer `VERSION_CGU` (`src/lib/cgu.ts`), enregistrée avec le consentement de chaque compte.
 
+---
+
+## 12. Contrôle qualité — obligatoire
+
+Trois agents de vérification sont définis dans `.claude/agents/`. Ils lisent et rapportent, ils ne modifient jamais le code : c'est toi qui corriges.
+
+Une tâche n'est terminée qu'après ces vérifications :
+
+| Si la tâche touche… | Appeler |
+|---|---|
+| la base (`docs/schema.sql`), une action serveur, une route API, l'authentification, les comptes Riot, les verdicts, le classement, le registre, Stripe, les dotations, ou un nouveau champ de texte libre | `securite` |
+| toute fonctionnalité ou correction | `testeur` |
+| une page, un composant, une animation ou un texte affiché | `design` |
+
+Les agents nécessaires se lancent **en parallèle**, une fois le code écrit. Corriger tous les problèmes **Critiques, Élevés et Bloquants** et les « À corriger » du design, puis relancer l'agent concerné pour confirmer. Ne pas boucler plus de deux fois sur un même problème : au-delà, le présenter au porteur du projet comme une décision à prendre.
+
+Ensuite, résumer au porteur du projet, en langage simple : ce qui a été vérifié, ce qui a été corrigé, ce qui reste ouvert (problèmes Moyens, « À améliorer », points non vérifiables depuis le code) et ce qu'il doit décider.
+
+Exception : une modification minime sans effet sur le comportement (faute de frappe dans un commentaire, documentation interne) ne demande aucun agent.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
