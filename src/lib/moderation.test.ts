@@ -8,6 +8,10 @@ describe("modération", () => {
     expect(messageModeration("MESSAGE_INTERDIT")).toMatch(/arnaque/);
   });
 
+  it("traduit le refus d'une limite d'usage", () => {
+    expect(messageModeration("LIMITE_ATTEINTE")).toMatch(/Trop de demandes/);
+  });
+
   it("laisse passer les autres erreurs", () => {
     expect(messageModeration("duplicate key")).toBeNull();
     expect(messageModeration(undefined)).toBeNull();

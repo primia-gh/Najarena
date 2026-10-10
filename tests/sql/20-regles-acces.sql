@@ -97,8 +97,10 @@ select essai('Alice termine un match sans verdict',
   $q$update matches set statut = 'termine' where id = '50000000-0000-0000-0000-000000000001'$q$, 'bloque');
 select essai('Alice désigne elle-même un gagnant',
   $q$update match_participants set est_gagnant = true where match_id = '50000000-0000-0000-0000-000000000001' and profile_id = '00000000-0000-0000-0000-00000000000b'$q$, 'bloque');
-select essai('Génération du bracket : Alice crée un match vide',
-  $q$insert into matches (id, tournament_id, tour, position) values ('50000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000001', 1, 1)$q$, 'passe');
+select essai('Génération du bracket : Alice crée la finale vide (dernier tour)',
+  $q$insert into matches (id, tournament_id, tour, position) values ('50000000-0000-0000-0000-000000000008', '10000000-0000-0000-0000-000000000001', 2, 1)$q$, 'passe');
+select essai('Génération du bracket : Alice crée un match vide du tour 1 qui mène à la finale',
+  $q$insert into matches (id, tournament_id, tour, position, match_suivant_id) values ('50000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000001', 1, 1, '50000000-0000-0000-0000-000000000008')$q$, 'passe');
 select essai('Génération du bracket : Alice place Gina (inscrite, pas confirmée)',
   $q$insert into match_participants (match_id, profile_id, slot) values ('50000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000010', 1)$q$, 'bloque');
 select essai('Génération du bracket : Alice place Eve (confirmée)',

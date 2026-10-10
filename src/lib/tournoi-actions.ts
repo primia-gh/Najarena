@@ -9,6 +9,7 @@ import { chargerOffre } from "@/lib/offres";
 import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 import { echapperDiscord } from "@/lib/echappement";
 import { messageModeration } from "@/lib/moderation";
+import { REGIONS } from "@/lib/regions";
 
 const CAPACITES = [4, 8, 16, 32, 64] as const;
 const CAPACITE_ETENDUE = 128;
@@ -64,7 +65,10 @@ export async function creerTournoi(formData: FormData) {
     redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Format Best-of invalide.")}`);
   }
 
-  if (!region) {
+  // Un code de serveur connu, pas un texte libre : la région part telle
+  // quelle sur le Discord officiel (audit sécurité du 10/10/2026, M6 ; la
+  // base l'exige aussi, contrainte tournaments_region_check).
+  if (!REGIONS.some((r) => r.code === region)) {
     redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Choisis une région.")}`);
   }
 
@@ -137,7 +141,7 @@ export async function creerTournoi(formData: FormData) {
 
   if (publier) {
     await notifierDiscord(
-      `📣 Nouveau tournoi ${format} ouvert — **${echapperDiscord(nom)}** (${capacite} ${format === "5v5" ? "équipes" : "joueurs"}, ${region}), débute le ${formaterDate(debuteLe.toISOString())}.\n${URL_SITE}/lol/tournois/${slug}`,
+      `📣 Nouveau tournoi ${format} ouvert — **${echapperDiscord(nom)}** (${capacite} ${format === "5v5" ? "équipes" : "joueurs"}, ${echapperDiscord(region)}), débute le ${formaterDate(debuteLe.toISOString())}.\n${URL_SITE}/lol/tournois/${slug}`,
     );
     redirect(`/lol/tournois/${slug}`);
   }

@@ -245,11 +245,21 @@ export async function genererBracket(formData: FormData) {
 
 export async function enregistrerResultat(formData: FormData) {
   const matchId = String(formData.get("match_id") ?? "");
-  const tournamentId = String(formData.get("tournament_id") ?? "");
   const gagnantId = String(formData.get("gagnant_id") ?? "");
   const motif = String(formData.get("motif") ?? "").trim();
 
   const supabase = await createClient();
+
+  // Le tournoi est celui du match décidé, jamais celui envoyé par le
+  // formulaire (audit sécurité du 10/10/2026, M3) : sinon un organisateur
+  // pouvait trancher un match de son tournoi A en indiquant son tournoi B,
+  // et faire clôturer B (« terminé » sur sa fiche publique, fausse annonce
+  // du vainqueur sur Discord).
+  const { data: matchVise } = await supabase.from("matches").select("tournament_id").eq("id", matchId).maybeSingle();
+  if (!matchVise) {
+    redirect("/moi");
+  }
+  const tournamentId = matchVise.tournament_id;
   await verifierOrganisateur(supabase, tournamentId);
 
   if (!motif) {
@@ -327,10 +337,22 @@ export async function enregistrerResultat(formData: FormData) {
 
 export async function resoudreLitige(formData: FormData) {
   const disputeId = String(formData.get("dispute_id") ?? "");
-  const tournamentId = String(formData.get("tournament_id") ?? "");
   const resolution = String(formData.get("resolution") ?? "").trim();
 
   const supabase = await createClient();
+
+  // Tournoi lu depuis le litige, pas depuis le formulaire (même raison que
+  // pour enregistrerResultat) : la notification au joueur nomme le bon
+  // tournoi.
+  const { data: litigeVise } = await supabase
+    .from("disputes")
+    .select("match:matches(tournament_id)")
+    .eq("id", disputeId)
+    .maybeSingle();
+  if (!litigeVise?.match) {
+    redirect("/moi");
+  }
+  const tournamentId = litigeVise.match.tournament_id;
   const { utilisateur } = await verifierOrganisateur(supabase, tournamentId);
 
   if (!resolution) {
@@ -396,7 +418,7 @@ export async function publierTournoi(formData: FormData) {
   }
 
   await notifierDiscord(
-    `📣 Nouveau tournoi ouvert — **${echapperDiscord(t.nom)}** (${t.capacite} joueurs, ${t.region}), débute le ${formaterDate(t.debute_le)}.\n${URL_SITE}/lol/tournois/${t.slug}`,
+    `📣 Nouveau tournoi ouvert — **${echapperDiscord(t.nom)}** (${t.capacite} joueurs, ${echapperDiscord(t.region)}), débute le ${formaterDate(t.debute_le)}.\n${URL_SITE}/lol/tournois/${t.slug}`,
   );
 
   redirect(`/moi/organisation/${tournamentId}?message=${encodeURIComponent("Tournoi publié : les inscriptions sont ouvertes.")}`);
