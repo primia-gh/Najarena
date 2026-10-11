@@ -194,6 +194,10 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
             </Panneau>
           ) : null}
 
+          {peutIndiquer && (
+            <p className="-mt-4 text-xs text-muted">Touche une heure pour t&apos;y déclarer disponible, une heure cochée pour la retirer.</p>
+          )}
+
           {jours.map((j) => (
             <div key={j.jour} className="flex flex-col gap-3">
               <h3 className="font-titre text-2xl font-extrabold uppercase">

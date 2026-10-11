@@ -24,6 +24,8 @@ export interface JoueurPreuve {
    * 03/10/2026 ne garde pas le compte joué : partie lue, compte non précisé.
    */
   compteDeLaPartie: boolean;
+  /** La fiche désigne un compte que le joueur a délié depuis : on ne montre pas son compte actuel. */
+  compteDelie: boolean;
   champion: string | null;
 }
 
@@ -101,8 +103,12 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
   const joueurs: JoueurPreuve[] = m.match_participants.map((p) => {
     const s = (stats ?? []).find((x) => x.profile_id === p.profile_id);
     const comptesJoueur = (comptes ?? []).filter((c) => c.profile_id === p.profile_id);
-    const compteJoue = s?.puuid ? comptesJoueur.find((c) => c.puuid === s.puuid) : undefined;
-    const compte = compteJoue ?? comptesJoueur.find((c) => c.est_principal) ?? null;
+    // Une fiche ne compte que derrière un verdict lu chez Riot (jamais un
+    // verdict manuel ni un match sans verdict).
+    const fiche = verdict && verdict.niveau !== "manuel" ? s : undefined;
+    const compteJoue = fiche?.puuid ? comptesJoueur.find((c) => c.puuid === fiche.puuid) : undefined;
+    const compteDelie = Boolean(fiche?.puuid) && !compteJoue;
+    const compte = compteDelie ? null : (compteJoue ?? comptesJoueur.find((c) => c.est_principal) ?? null);
     return {
       profileId: p.profile_id,
       pseudo: p.profile?.pseudo ?? "Joueur supprimé",
@@ -110,9 +116,10 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
       gagnant: verdict ? verdict.gagnant_id === p.profile_id : p.est_gagnant,
       pretLe: p.pret_le,
       riotId: compte ? `${compte.riot_game_name}#${compte.riot_tag_line}` : null,
-      partieLue: Boolean(s),
+      partieLue: Boolean(fiche),
       compteDeLaPartie: Boolean(compteJoue),
-      champion: s?.champion ?? null,
+      compteDelie,
+      champion: fiche?.champion ?? null,
     };
   });
 

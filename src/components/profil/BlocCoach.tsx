@@ -121,13 +121,14 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
                         <form action={terminerCoaching} className="mt-2 flex flex-col items-start gap-2">
                           <input type="hidden" name="slug" value={slug} />
                           <input type="hidden" name="coaching" value={e.coaching_id} />
-                          <span className="text-text-2">Le suivi s&apos;arrête ; sa progression reste affichée.</span>
+                          {/* Étroit : la colonne « Points » reste visible sur téléphone. */}
+                          <span className="max-w-[18ch] text-text-2">Terminer ce suivi ? Sa progression reste affichée.</span>
                           <BoutonEnvoi
                             variante="contour"
-                            libelleEnCours="Fin du suivi…"
+                            libelleEnCours="…"
                             aria-label={`Confirmer la fin du suivi de ${e.eleve_pseudo}`}
                           >
-                            Confirmer
+                            Oui
                           </BoutonEnvoi>
                         </form>
                       </details>

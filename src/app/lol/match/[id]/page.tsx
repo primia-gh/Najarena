@@ -193,6 +193,8 @@ export default async function PreuveMatchPage({ params }: PageProps) {
                                     : "Compte lié — partie non lue chez Riot"}
                             </span>
                           </span>
+                        ) : j.compteDelie ? (
+                          <span className="text-xs text-muted">A joué cette partie avec un compte délié depuis</span>
                         ) : (
                           <span className="text-muted">—</span>
                         )}
@@ -204,9 +206,11 @@ export default async function PreuveMatchPage({ params }: PageProps) {
               </Tableau>
               <p className="text-xs text-muted">
                 Comptes Riot vérifiés par l&apos;icône de profil. « A joué cette partie » et le champion viennent de la
-                fiche officielle de la partie, seulement quand elle a été retrouvée chez Riot. Les parties lues avant le 5
-                octobre 2026 n&apos;ont pas gardé leur détail, et celles d&apos;avant le 3 octobre le compte qui a joué : le
-                compte affiché est alors le compte principal.
+                fiche officielle de la partie, seulement quand elle a été retrouvée chez Riot.
+                {verdict &&
+                  verdict.niveau !== "manuel" &&
+                  preuve.joueurs.some((j) => !j.compteDeLaPartie && !j.compteDelie) &&
+                  " Avant octobre 2026, Najarena ne gardait pas tout le détail des parties (champion, compte joué) : pour ces parties, le compte affiché est le compte principal du joueur."}
               </p>
             </section>
           </Apparition>
