@@ -143,15 +143,34 @@ export function classementPoule(membres: { id: string; ordre: number }[], rencon
 }
 
 /**
- * Le premier monte (sauf en poule 1), le dernier descend (sauf en dernière
- * poule). Dans une poule où aucun match n'a été joué, personne ne bouge
- * (décision du porteur du projet, 11/10/2026) : le classement n'y départage
- * que l'ordre de départ, rien de mérité sur le terrain.
+ * Une poule « a joué » si au moins un de ses matchs a été gagné sur une
+ * partie lue chez Riot : un forfait ou une décision manuelle ne suffit pas
+ * (contrôle de sécurité du 11/10/2026).
  */
-export function mouvementDe(rang: number, taille: number, niveau: number, nbPoules: number, pouleJouee: boolean): Mouvement {
-  if (!pouleJouee) return "reste";
-  if (rang === 1 && niveau > 1) return "monte";
-  if (rang === taille && niveau < nbPoules) return "descend";
+export function pouleJouee(classement: LigneClassement[]): boolean {
+  return classement.some((l) => l.victoiresVerifiees > 0);
+}
+
+/**
+ * Le premier monte (sauf en poule 1), le dernier descend (sauf en dernière
+ * poule). Personne ne bouge dans une poule où aucun match n'a été joué
+ * (décision du porteur du projet, 11/10/2026) : son classement ne
+ * départage que l'ordre de départ, rien de mérité sur le terrain.
+ * L'échange se décide frontière par frontière : entre deux poules
+ * voisines, le premier de celle du dessous monte et le dernier de celle du
+ * dessus descend seulement si les deux ont joué — sinon un « monte »
+ * serait annoncé sans place libérée au-dessus.
+ */
+export function mouvementDe(
+  rang: number,
+  taille: number,
+  niveau: number,
+  nbPoules: number,
+  aJoue: (niveau: number) => boolean,
+): Mouvement {
+  if (!aJoue(niveau)) return "reste";
+  if (rang === 1 && niveau > 1 && aJoue(niveau - 1)) return "monte";
+  if (rang === taille && niveau < nbPoules && aJoue(niveau + 1)) return "descend";
   return "reste";
 }
 

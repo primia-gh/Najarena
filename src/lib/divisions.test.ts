@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { classementPoule, mouvementDe, ordreDepart, repartirPoules, semaineLigue, taillesPoules, type Inscrit } from "./divisions";
+import {
+  classementPoule,
+  mouvementDe,
+  ordreDepart,
+  pouleJouee,
+  repartirPoules,
+  semaineLigue,
+  taillesPoules,
+  type Inscrit,
+} from "./divisions";
 
 const inscrit = (id: string, rating: number | null, jour = 1): Inscrit => ({
   id,
@@ -104,16 +113,46 @@ describe("classementPoule", () => {
 
 describe("mouvementDe", () => {
   it("le premier monte, le dernier descend, sauf aux extrémités", () => {
-    expect(mouvementDe(1, 4, 1, 3, true)).toBe("reste");
-    expect(mouvementDe(1, 4, 2, 3, true)).toBe("monte");
-    expect(mouvementDe(4, 4, 2, 3, true)).toBe("descend");
-    expect(mouvementDe(4, 4, 3, 3, true)).toBe("reste");
-    expect(mouvementDe(2, 4, 2, 3, true)).toBe("reste");
+    const toutes = () => true;
+    expect(mouvementDe(1, 4, 1, 3, toutes)).toBe("reste");
+    expect(mouvementDe(1, 4, 2, 3, toutes)).toBe("monte");
+    expect(mouvementDe(4, 4, 2, 3, toutes)).toBe("descend");
+    expect(mouvementDe(4, 4, 3, 3, toutes)).toBe("reste");
+    expect(mouvementDe(2, 4, 2, 3, toutes)).toBe("reste");
   });
 
   it("personne ne bouge dans une poule où aucun match n'a été joué", () => {
-    expect(mouvementDe(1, 4, 2, 3, false)).toBe("reste");
-    expect(mouvementDe(4, 4, 2, 3, false)).toBe("reste");
+    const aucune = () => false;
+    expect(mouvementDe(1, 4, 2, 3, aucune)).toBe("reste");
+    expect(mouvementDe(4, 4, 2, 3, aucune)).toBe("reste");
+  });
+
+  it("l'échange se fait frontière par frontière : jamais un « monte » sans place libérée au-dessus", () => {
+    // Poules 1 et 3 sans match, poule 2 jouée : personne ne bouge.
+    const seuleLa2 = (n: number) => n === 2;
+    expect(mouvementDe(1, 4, 2, 3, seuleLa2)).toBe("reste");
+    expect(mouvementDe(4, 4, 2, 3, seuleLa2)).toBe("reste");
+    expect(mouvementDe(4, 4, 1, 3, seuleLa2)).toBe("reste");
+    expect(mouvementDe(1, 4, 3, 3, seuleLa2)).toBe("reste");
+    // Poules 1 et 2 jouées, 3 non : échange entre 1 et 2 seulement.
+    const unEtDeux = (n: number) => n <= 2;
+    expect(mouvementDe(4, 4, 1, 3, unEtDeux)).toBe("descend");
+    expect(mouvementDe(1, 4, 2, 3, unEtDeux)).toBe("monte");
+    expect(mouvementDe(4, 4, 2, 3, unEtDeux)).toBe("reste");
+    expect(mouvementDe(1, 4, 3, 3, unEtDeux)).toBe("reste");
+  });
+});
+
+describe("pouleJouee", () => {
+  const membres = ["a", "b", "c", "d"].map((id, ordre) => ({ id, ordre }));
+  it("un forfait ou une décision manuelle ne suffit pas", () => {
+    const forfait = [{ joueurA: "a", joueurB: "b", gagnantId: "b", niveauVerdict: "manuel" }];
+    expect(pouleJouee(classementPoule(membres, forfait))).toBe(false);
+    expect(pouleJouee(classementPoule(membres, []))).toBe(false);
+  });
+  it("une victoire lue chez Riot suffit", () => {
+    const lue = [{ joueurA: "a", joueurB: "b", gagnantId: "b", niveauVerdict: "historique" }];
+    expect(pouleJouee(classementPoule(membres, lue))).toBe(true);
   });
 });
 

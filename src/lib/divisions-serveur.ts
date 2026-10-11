@@ -11,6 +11,7 @@ import {
   classementPoule,
   LIBELLE_MOUVEMENT,
   mouvementDe,
+  pouleJouee,
   repartirPoules,
   semaineLigue,
   SEMAINES_LIGUE,
@@ -163,22 +164,26 @@ async function cloturerLigues(admin: ClientAdmin, maintenant: Date): Promise<str
       admin.rpc("rencontres_ligue", { p_ligue_id: ligue.id }),
     ]);
     const nbPoules = (poules ?? []).length;
-    const classements = (poules ?? []).flatMap((p) => {
-      const lignes = classementPoule(
+    const parPoule = (poules ?? []).map((p) => ({
+      poule: p,
+      lignes: classementPoule(
         p.membres_poule_division.map((m) => ({ id: m.profile_id, ordre: m.ordre })),
         (rencontres ?? [])
           .filter((r) => r.poule_id === p.id)
           .map((r) => ({ joueurA: r.joueur_a, joueurB: r.joueur_b, gagnantId: r.gagnant_id, niveauVerdict: r.niveau_verdict })),
-      );
-      const pouleJouee = lignes.some((l) => l.joues > 0);
-      return lignes.map((l, i) => ({
+      ),
+    }));
+    const jouees = new Map(parPoule.map(({ poule, lignes }) => [poule.niveau, pouleJouee(lignes)]));
+    const aJoue = (niveau: number) => jouees.get(niveau) ?? false;
+    const classements = parPoule.flatMap(({ poule: p, lignes }) =>
+      lignes.map((l, i) => ({
         joueur: l.id,
         poule: p.id,
         niveau: p.niveau,
         rang: i + 1,
-        mouvement: mouvementDe(i + 1, lignes.length, p.niveau, nbPoules, pouleJouee),
-      }));
-    });
+        mouvement: mouvementDe(i + 1, lignes.length, p.niveau, nbPoules, aJoue),
+      })),
+    );
     const { error } = await admin.rpc("cloturer_ligue_division", {
       p_ligue_id: ligue.id,
       p_classements: classements.map(({ joueur, poule, rang, mouvement }) => ({ joueur, poule, rang, mouvement })),
