@@ -238,8 +238,8 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
               <span className="font-texte text-mini font-medium text-muted uppercase">Fin du mois</span>
               <span className="text-sm text-text-2">
                 Classement par victoires, puis victoires lues chez Riot, puis confrontation directe. Le premier monte
-                d&apos;une poule, le dernier descend ; personne ne bouge dans une poule où aucun match n&apos;a été joué.
-                Les nouveaux entrent selon leur rating.
+                d&apos;une poule, le dernier descend. Dans une poule où aucun match n&apos;a été lu chez Riot, personne
+                ne monte ni ne descend. Les nouveaux entrent selon leur rating.
               </span>
             </li>
           </ul>

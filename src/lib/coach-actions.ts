@@ -34,7 +34,15 @@ export async function reglerEleves(formData: FormData) {
   const accepte = formData.get("accepte") === "1";
   const { supabase } = await connecte(slug);
   const { error } = await supabase.rpc("regler_eleves", { p_accepte: accepte });
-  if (error) retour(slug, "erreur", messageRefusCoach(error.message));
+  if (error) {
+    retour(
+      slug,
+      "erreur",
+      error.message.includes("COACH_NON_ELIGIBLE")
+        ? "Tu n'es pas (ou plus) classé Diamant Najarena : cette case ne se coche pas pour l'instant."
+        : messageRefusCoach(error.message),
+    );
+  }
   retour(
     slug,
     "message",

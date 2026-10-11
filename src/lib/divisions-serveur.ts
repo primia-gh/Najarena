@@ -182,6 +182,7 @@ async function cloturerLigues(admin: ClientAdmin, maintenant: Date): Promise<str
         niveau: p.niveau,
         rang: i + 1,
         mouvement: mouvementDe(i + 1, lignes.length, p.niveau, nbPoules, aJoue),
+        pouleJouee: aJoue(p.niveau),
       })),
     );
     const { error } = await admin.rpc("cloturer_ligue_division", {
@@ -197,8 +198,13 @@ async function cloturerLigues(admin: ClientAdmin, maintenant: Date): Promise<str
         envoyerRappel(
           c.joueur,
           "Ta ligue de division est terminée",
-          `${c.rang === 1 ? "1er" : `${c.rang}e`} de la poule ${c.niveau} — ${LIBELLE_MOUVEMENT[c.mouvement].toLowerCase()}${
-            c.mouvement === "reste" ? " dans ta division" : ""
+          // Poule sans match lu chez Riot : le rang n'est que l'ordre de départ.
+          `${
+            c.pouleJouee
+              ? `${c.rang === 1 ? "1er" : `${c.rang}e`} de la poule ${c.niveau} — ${LIBELLE_MOUVEMENT[c.mouvement].toLowerCase()}${
+                  c.mouvement === "reste" ? " dans ta division" : ""
+                }`
+              : `Aucun match lu chez Riot dans la poule ${c.niveau} : tu restes dans ta division`
           }. Inscris-toi à la ligue du mois prochain pour garder ta place.`,
           `${URL_SITE}/lol/divisions`,
         ),
