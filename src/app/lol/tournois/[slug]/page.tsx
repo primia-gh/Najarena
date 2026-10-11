@@ -1479,7 +1479,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 <thead>
                   <tr>
                     <th scope="col">Joueur</th>
-                    <th scope="col" className="text-right">
+                    <th scope="col" className="hidden text-right sm:table-cell">
                       Avant le tournoi
                     </th>
                     <th scope="col" className="text-right">
@@ -1499,7 +1499,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                           l.pseudo
                         )}
                       </td>
-                      <td className="text-right text-muted tabular-nums">{formaterChance(l.avant)}</td>
+                      <td className="hidden text-right text-muted tabular-nums sm:table-cell">{formaterChance(l.avant)}</td>
                       <td className="text-right tabular-nums">
                         {l.maintenant > 0 ? formaterChance(l.maintenant) : <span className="text-faint">Éliminé</span>}
                       </td>

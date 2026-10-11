@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { chimieEquipe, pourcentageVictoires, type Bilan } from "@/lib/chimie-equipe";
-import SectionTitre from "@/components/ui/SectionTitre";
+import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
 
 // Chimie d'équipe (09/10/2026, idée en réserve n°16) : résultats des matchs
@@ -45,8 +45,10 @@ export default async function ChimieEquipe({ teamId }: { teamId: string }) {
     ));
 
   return (
-    <section id="chimie" className="mt-10 scroll-mt-28">
-      <SectionTitre>Chimie d&apos;équipe</SectionTitre>
+    <section id="chimie" className="mt-10 scroll-mt-28" aria-labelledby="titre-chimie">
+      <LibelleSection as="h2" id="titre-chimie" className="border-b border-line-strong pb-4">
+        Chimie d&apos;équipe
+      </LibelleSection>
       <p className="mt-2 max-w-2xl text-sm text-muted">
         Résultats de l&apos;équipe selon les joueurs alignés ensemble, sur ses{" "}
         <span className="tabular-nums">{chimie.total.matchs}</span> matchs 5v5 lus chez Riot (tournois et scrims) :{" "}

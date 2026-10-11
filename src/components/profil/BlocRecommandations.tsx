@@ -12,6 +12,7 @@ import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import Alerte from "@/components/design/Alerte";
+import { Champ } from "@/components/design/Formulaire";
 
 // Recommandations vérifiées (09/10/2026, idée en réserve n°7) : écrites
 // seulement par des joueurs qui ont réellement joué avec ou contre ce
@@ -115,20 +116,23 @@ export default async function BlocRecommandations({ profilId, slug, pseudo, visi
           <form action={recommanderJoueur} className="flex flex-col gap-3">
             <input type="hidden" name="slug" value={slug} />
             <input type="hidden" name="destinataire" value={profilId} />
-            <label htmlFor="texte-recommandation" className="sr-only">
-              Ta recommandation
-            </label>
-            <textarea
-              id="texte-recommandation"
-              name="texte"
-              required
-              minLength={RECOMMANDATION_MIN}
-              maxLength={RECOMMANDATION_MAX}
-              rows={4}
-              defaultValue={maRecommandation?.texte ?? ""}
-              placeholder="Ce que tu as constaté en jouant avec ou contre lui : régularité, communication, ponctualité…"
-              className={classeChamp()}
-            />
+            <Champ
+              libelle="Ta recommandation"
+              idAide="aide-recommandation"
+              aide={`De ${RECOMMANDATION_MIN} à ${RECOMMANDATION_MAX} caractères. Relue par la modération comme tout texte public.`}
+            >
+              <textarea
+                name="texte"
+                required
+                minLength={RECOMMANDATION_MIN}
+                maxLength={RECOMMANDATION_MAX}
+                rows={4}
+                aria-describedby="aide-recommandation"
+                defaultValue={maRecommandation?.texte ?? ""}
+                placeholder="Ce que tu as constaté en jouant avec ou contre ce joueur : régularité, communication, ponctualité…"
+                className={classeChamp()}
+              />
+            </Champ>
             <div className="flex flex-wrap gap-3">
               <BoutonEnvoi libelleEnCours="Envoi…">{maRecommandation ? "Modifier" : "Publier"}</BoutonEnvoi>
               {maRecommandation && (

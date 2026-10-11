@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { LIBELLE_MOUVEMENT, type LigneClassement, type Mouvement } from "@/lib/divisions";
+import type { NiveauVerdict } from "@/lib/tournois";
 import Tableau from "@/components/design/Tableau";
+import { BadgeVerdict } from "@/components/design/Badges";
 
 // Une poule de division (09/10/2026, idée en réserve n°13) : classement et
 // rencontres. Les victoires « vérifiées » sont celles lues chez Riot ; une
@@ -19,7 +21,9 @@ export interface RencontrePoule {
   joueurA: string;
   joueurB: string;
   gagnantId: string | null;
-  verifie: boolean;
+  /** Niveau du verdict définitif (lu chez Riot, ou décision manuelle). */
+  niveau: NiveauVerdict | null;
+  matchId: string | null;
   tournoiSlug: string | null;
   enCours: boolean;
 }
@@ -99,15 +103,20 @@ export default function PouleDivision({
             <span className="text-muted">contre</span>
             <span className={r.gagnantId === r.joueurB ? "font-semibold text-text" : ""}>{nom(r.joueurB)}</span>
             <span className="text-xs text-muted">
-              {r.gagnantId ? (
-                r.tournoiSlug ? (
-                  <Link href={`/lol/tournois/${r.tournoiSlug}`} className="hover:text-text">
-                    {r.verifie ? "✓ vérifié" : "forfait"}
+              {r.gagnantId && r.niveau ? (
+                // Badge officiel du verdict (vert lu chez Riot, gris manuel),
+                // relié à la fiche de preuve du match.
+                r.matchId ? (
+                  <Link
+                    href={`/lol/match/${r.matchId}`}
+                    title="Voir la preuve de ce résultat"
+                    className="relative inline-flex min-h-11 items-center hover:opacity-80"
+                  >
+                    <BadgeVerdict niveau={r.niveau} compact />
+                    <span className="sr-only"> — voir la preuve</span>
                   </Link>
-                ) : r.verifie ? (
-                  "✓ vérifié"
                 ) : (
-                  "forfait"
+                  <BadgeVerdict niveau={r.niveau} compact />
                 )
               ) : r.enCours && r.tournoiSlug ? (
                 <Link href={`/lol/tournois/${r.tournoiSlug}`} className="hover:text-text">

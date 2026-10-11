@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formaterDate } from "@/lib/tournois";
-import { COACH_TOURNOIS_MIN, formaterPoints, progressionMesurable, resumeCoach } from "@/lib/coach";
+import { COACH_MESURES_MIN, COACH_TOURNOIS_MIN, formaterPoints, progressionMesurable, resumeCoach } from "@/lib/coach";
 import { demanderCoaching, repondreCoaching, terminerCoaching } from "@/lib/coach-actions";
 import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
@@ -56,8 +56,8 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
         </LibelleSection>
         <p className="text-sm text-muted">
           {eligible
-            ? `${pseudo} est classé Diamant ou plus et peut suivre des élèves. Leur progression est lue dans le registre des points : variations en tournoi pendant le suivi, rien de déclaré.`
-            : `${pseudo} n'est plus classé Diamant : il ne peut plus accepter d'élève.`}
+            ? `${pseudo} est classé Diamant Najarena (rating officiel de 1750 ou plus) et peut suivre des élèves. Leurs points sont lus dans le registre : variations en tournoi pendant le suivi, rien de déclaré. C'est ce qui s'est passé pendant le suivi, pas une mesure de l'effet du coach.`
+            : `${pseudo} n'est plus classé Diamant Najarena (rating officiel de 1750 ou plus) : pas de nouvel élève possible.`}
         </p>
       </div>
 
@@ -76,7 +76,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
               <span className="font-semibold text-text tabular-nums">{formaterPoints(resume.medianePoints)}</span> points
             </>
           ) : (
-            ` · progression mesurée à partir de ${COACH_TOURNOIS_MIN} tournois pendant le suivi`
+            ` · résumé à partir de ${COACH_MESURES_MIN} élèves ayant joué ${COACH_TOURNOIS_MIN} tournois pendant leur suivi`
           )}
           .
         </p>
@@ -110,9 +110,13 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
                     <form action={terminerCoaching} className="mt-1">
                       <input type="hidden" name="slug" value={slug} />
                       <input type="hidden" name="coaching" value={e.coaching_id} />
-                      <button type="submit" className="text-xs text-muted underline underline-offset-3 hover:text-text">
+                      <BoutonEnvoi
+                        variante="contour"
+                        libelleEnCours="…"
+                        aria-label={`Terminer le suivi de ${e.eleve_pseudo}`}
+                      >
                         Terminer
-                      </button>
+                      </BoutonEnvoi>
                     </form>
                   )}
                 </td>

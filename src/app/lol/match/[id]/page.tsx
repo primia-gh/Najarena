@@ -160,11 +160,8 @@ export default async function PreuveMatchPage({ params }: PageProps) {
                 <thead>
                   <tr>
                     <th scope="col">Joueur</th>
-                    <th scope="col">Compte qui a joué</th>
+                    <th scope="col">Compte Riot</th>
                     <th scope="col">Champion</th>
-                    <th scope="col" className="text-right">
-                      K/D/A
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -182,16 +179,26 @@ export default async function PreuveMatchPage({ params }: PageProps) {
                           {j.gagnant && <span className="text-mini font-semibold text-text-2 uppercase">Vainqueur</span>}
                         </span>
                       </td>
-                      <td className="tabular-nums">{j.riotId ?? <span className="text-muted">—</span>}</td>
+                      <td>
+                        {j.riotId ? (
+                          <span className="flex flex-col">
+                            <span className="tabular-nums">{j.riotId}</span>
+                            <span className="text-xs text-muted">
+                              {j.compteDeLaPartie ? "A joué cette partie" : "Compte lié — partie non lue chez Riot"}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
                       <td>{j.champion ?? <span className="text-muted">—</span>}</td>
-                      <td className="text-right tabular-nums">{j.kda ?? <span className="text-muted">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>
               </Tableau>
               <p className="text-xs text-muted">
-                Comptes Riot vérifiés par l&apos;icône de profil. Champion et K/D/A : lus dans la fiche officielle de la
-                partie, quand elle a été retrouvée.
+                Comptes Riot vérifiés par l&apos;icône de profil. « A joué cette partie » et le champion viennent de la
+                fiche officielle de la partie, seulement quand elle a été retrouvée chez Riot.
               </p>
             </section>
           </Apparition>

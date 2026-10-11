@@ -176,7 +176,7 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
                     key={r.code}
                     href={`/lol/a-la-demande?region=${r.code}#heures`}
                     aria-current={r.code === region ? "true" : undefined}
-                    className={`inline-flex min-h-11 items-center ${r.code === region ? "font-semibold text-text" : "text-muted hover:text-text"}`}
+                    className={`inline-flex min-h-11 min-w-11 items-center justify-center px-1 ${r.code === region ? "font-semibold text-text" : "text-muted hover:text-text"}`}
                   >
                     {r.code}
                   </Link>
@@ -231,10 +231,10 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
                     </>
                   );
                   const classe = `group flex h-full w-full flex-col gap-3 rounded-carte border p-4 text-left transition-colors duration-200 ${
-                    mienne ? "border-text bg-[rgba(245,245,244,0.03)]" : "border-line-strong"
+                    mienne ? "border-text bg-text/[0.03]" : "border-line-strong"
                   }`;
                   const interactif =
-                    "cursor-pointer hover:border-[rgba(245,245,244,0.35)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+                    "cursor-pointer hover:border-text/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
                   return (
                     <li key={h.debut}>
                       {tournoi ? (
@@ -247,7 +247,7 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
                           <button
                             type="submit"
                             aria-pressed={mienne}
-                            aria-label={`${quand}, ${nombre} joueur${nombre > 1 ? "s" : ""} sur ${SEUIL_A_LA_DEMANDE} : ${mienne ? "retirer ma disponibilité" : "je suis disponible"}`}
+                            aria-label={`${quand}, ${nombre} joueur${nombre > 1 ? "s" : ""} sur ${SEUIL_A_LA_DEMANDE} : je suis disponible`}
                             className={`${classe} ${interactif}`}
                           >
                             {contenu}

@@ -14,6 +14,9 @@ import {
 } from "@/lib/divisions";
 import { jeSuisLa, quitterDivision, sInscrireDivision } from "@/lib/division-actions";
 import PouleDivision, { type JoueurPoule, type RencontrePoule } from "@/components/divisions/PouleDivision";
+import type { NiveauVerdict } from "@/lib/tournois";
+import { BadgeVerdict } from "@/components/design/Badges";
+import PastilleResultat from "@/components/design/PastilleResultat";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -113,7 +116,8 @@ async function chargerLigue(supabase: Client, ligue: { id: string; debut_le: str
           joueurA: r.joueur_a,
           joueurB: r.joueur_b,
           gagnantId: r.gagnant_id,
-          verifie: Boolean(r.niveau_verdict && r.niveau_verdict !== "manuel"),
+          niveau: (r.niveau_verdict as NiveauVerdict | null) ?? null,
+          matchId: r.match_id,
           tournoiSlug: r.tournoi_slug,
           enCours: r.tournoi_statut === "en_cours",
         })),
@@ -253,7 +257,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
               key={r.code}
               href={`/lol/divisions?region=${r.code}`}
               aria-current={r.code === region ? "true" : undefined}
-              className={`inline-flex min-h-11 items-center ${r.code === region ? "font-semibold text-text" : "text-muted hover:text-text"}`}
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center px-1 ${r.code === region ? "font-semibold text-text" : "text-muted hover:text-text"}`}
             >
               {r.code}
             </Link>
@@ -330,11 +334,21 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
                         )}
                       </div>
                       {r.gagnant_id ? (
-                        <span className="text-sm">
-                          <span className={`font-semibold uppercase ${r.gagnant_id === moi ? "text-text" : "text-text-2"}`}>
-                            {r.gagnant_id === moi ? "Victoire" : "Défaite"}
-                          </span>{" "}
-                          <span className="text-muted">· {r.niveau_verdict === "manuel" ? "forfait" : "✓ vérifié"}</span>
+                        <span className="flex items-center gap-3">
+                          <PastilleResultat resultat={r.gagnant_id === moi ? "V" : "D"} />
+                          {r.niveau_verdict &&
+                            (r.match_id ? (
+                              <Link
+                                href={`/lol/match/${r.match_id}`}
+                                title="Voir la preuve de ce résultat"
+                                className="relative inline-flex min-h-11 items-center hover:opacity-80"
+                              >
+                                <BadgeVerdict niveau={r.niveau_verdict as NiveauVerdict} compact />
+                                <span className="sr-only"> — voir la preuve</span>
+                              </Link>
+                            ) : (
+                              <BadgeVerdict niveau={r.niveau_verdict as NiveauVerdict} compact />
+                            ))}
                         </span>
                       ) : r.tournoi_statut === "en_cours" && r.tournoi_slug ? (
                         <BoutonLien href={`/lol/tournois/${r.tournoi_slug}#ton-match`}>Salle de match</BoutonLien>

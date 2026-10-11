@@ -176,7 +176,7 @@ export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit
               <Link
                 href={lienPreuve}
                 title="Voir la preuve de ce résultat"
-                className="hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="relative hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <BadgeVerdict niveau={niveau} compact />
                 <span className="sr-only"> — voir la preuve</span>

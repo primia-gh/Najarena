@@ -6,6 +6,8 @@ import { REMPLACANTS_MAX_PAR_EQUIPE } from "@/lib/bourse-remplacants";
 import { proposerRemplacement, quitterRemplacants, remplacerAligne } from "@/lib/bourse-actions";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import Alerte from "@/components/design/Alerte";
+import Panneau from "@/components/design/Panneau";
+import { Champ } from "@/components/design/Formulaire";
 
 // Bourse aux remplaçants (09/10/2026, idée en réserve n°15) : tournoi 5v5.
 // Un joueur vérifié se déclare disponible ; jusqu'au lancement du bracket,
@@ -142,48 +144,48 @@ export default async function BourseRemplacants({ tournoi, utilisateurId, messag
 
       {/* Capitaine d'une équipe inscrite : remplacer un aligné. */}
       {ouverte && monEquipe && remplacablesDeMonEquipe.length > 0 && bourse.length > 0 && (
-        <form action={remplacerAligne} className="flex max-w-xl flex-col gap-3 panneau p-4">
-          <input type="hidden" name="tournament_id" value={tournoi.id} />
-          <input type="hidden" name="slug" value={tournoi.slug} />
-          <p className="text-sm font-semibold text-text">Remplacer un joueur de ton équipe</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-mini text-muted uppercase">Joueur absent</span>
-              <select name="sortant" required className={classeChamp()} defaultValue="">
-                <option value="" disabled>
-                  Choisir
-                </option>
-                {remplacablesDeMonEquipe.map((a) => (
-                  <option key={a.profile_id} value={a.profile_id}>
-                    {nom(a.profile_id)}
-                    {a.remplace_profile_id ? " (remplaçant)" : ""}
+        <Panneau className="max-w-xl p-4">
+          <form action={remplacerAligne} className="flex flex-col gap-3">
+            <input type="hidden" name="tournament_id" value={tournoi.id} />
+            <input type="hidden" name="slug" value={tournoi.slug} />
+            <p className="text-sm font-semibold text-text">Remplacer un joueur de ton équipe</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Champ libelle="Joueur absent">
+                <select name="sortant" required className={classeChamp()} defaultValue="">
+                  <option value="" disabled>
+                    Choisir
                   </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-mini text-muted uppercase">Remplaçant</span>
-              <select name="entrant" required className={classeChamp()} defaultValue="">
-                <option value="" disabled>
-                  Choisir
-                </option>
-                {bourse.map((b) => (
-                  <option key={b.profile_id} value={b.profile_id}>
-                    {b.profile?.pseudo ?? "Joueur"}
-                    {b.role && ROLES.includes(b.role as Role) ? ` · ${LABEL_ROLE[b.role as Role]}` : ""}
+                  {remplacablesDeMonEquipe.map((a) => (
+                    <option key={a.profile_id} value={a.profile_id}>
+                      {nom(a.profile_id)}
+                      {a.remplace_profile_id ? " (remplaçant)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </Champ>
+              <Champ libelle="Remplaçant">
+                <select name="entrant" required className={classeChamp()} defaultValue="">
+                  <option value="" disabled>
+                    Choisir
                   </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <p className="text-xs text-muted">
-            {remplacantsPris} remplaçant{remplacantsPris > 1 ? "s" : ""} sur {REMPLACANTS_MAX_PAR_EQUIPE} dans ton
-            alignement. Les deux joueurs sont prévenus.
-          </p>
-          <BoutonEnvoi variante="contour" libelleEnCours="Remplacement…" className="self-start">
-            Remplacer
-          </BoutonEnvoi>
-        </form>
+                  {bourse.map((b) => (
+                    <option key={b.profile_id} value={b.profile_id}>
+                      {b.profile?.pseudo ?? "Joueur"}
+                      {b.role && ROLES.includes(b.role as Role) ? ` · ${LABEL_ROLE[b.role as Role]}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </Champ>
+            </div>
+            <p className="text-xs text-muted">
+              {remplacantsPris} remplaçant{remplacantsPris > 1 ? "s" : ""} sur {REMPLACANTS_MAX_PAR_EQUIPE} dans ton
+              alignement. Les deux joueurs sont prévenus.
+            </p>
+            <BoutonEnvoi variante="contour" libelleEnCours="Remplacement…" className="self-start">
+              Remplacer
+            </BoutonEnvoi>
+          </form>
+        </Panneau>
       )}
 
       {/* Joueur sans place dans ce tournoi : se proposer, ou se retirer. */}
@@ -203,8 +205,7 @@ export default async function BourseRemplacants({ tournoi, utilisateurId, messag
           <form action={proposerRemplacement} className="flex flex-wrap items-end gap-3">
             <input type="hidden" name="tournament_id" value={tournoi.id} />
             <input type="hidden" name="slug" value={tournoi.slug} />
-            <label className="flex flex-col gap-1">
-              <span className="text-mini text-muted uppercase">Ton rôle</span>
+            <Champ libelle="Ton rôle">
               <select name="role" defaultValue="" className={classeChamp()}>
                 <option value="">Peu importe</option>
                 {ROLES.map((r: Role) => (
@@ -213,7 +214,7 @@ export default async function BourseRemplacants({ tournoi, utilisateurId, messag
                   </option>
                 ))}
               </select>
-            </label>
+            </Champ>
             <BoutonEnvoi variante="contour" libelleEnCours="Envoi…">
               Je peux remplacer
             </BoutonEnvoi>

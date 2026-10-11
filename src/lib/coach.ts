@@ -6,6 +6,8 @@
 // COACH_TOURNOIS_MIN tournois pendant le suivi.
 
 export const COACH_TOURNOIS_MIN = 3;
+/** Élèves mesurés qu'il faut pour résumer (médiane) : un ou deux suivis ne disent rien. */
+export const COACH_MESURES_MIN = 3;
 export const COACH_ELEVES_MAX = 20;
 
 export interface SuiviEleve {
@@ -20,7 +22,7 @@ export interface ResumeCoach {
   /** Suivis avec assez de tournois pour mesurer une progression. */
   mesures: number;
   enProgression: number;
-  /** Médiane des points gagnés, sur les suivis mesurés (null sans mesure). */
+  /** Médiane des points gagnés, sur les suivis mesurés (null sous COACH_MESURES_MIN mesures). */
   medianePoints: number | null;
 }
 
@@ -40,7 +42,7 @@ export function resumeCoach(suivis: SuiviEleve[]): ResumeCoach {
     mesures: points.length,
     enProgression: points.filter((p) => p > 0).length,
     medianePoints:
-      points.length === 0
+      points.length < COACH_MESURES_MIN
         ? null
         : Math.round(points.length % 2 ? points[milieu] : (points[milieu - 1] + points[milieu]) / 2),
   };
@@ -56,7 +58,7 @@ const REFUS: Record<string, string> = {
   NON_CONNECTE: "Connecte-toi d'abord.",
   COACH_SOI_MEME: "Tu ne peux pas être ton propre coach.",
   COMPTE_SUSPENDU: "Ton compte est suspendu.",
-  COACH_NON_ELIGIBLE: "Ce joueur n'est pas classé Diamant ou plus : il ne peut pas suivre d'élève.",
+  COACH_NON_ELIGIBLE: "Ce joueur n'est pas classé Diamant Najarena (rating officiel de 1750 ou plus) : pas de suivi possible.",
   SUIVI_EN_COURS: "Tu as déjà un suivi en cours ou demandé : termine-le d'abord.",
   DEMANDE_RECENTE:
     "Demande impossible pour l'instant : 7 jours d'attente après une demande annulée ou refusée par ce coach, et 5 demandes par jour au plus.",

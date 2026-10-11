@@ -3195,6 +3195,7 @@ export type Database = {
           dispo_b: string | null
           tournoi_slug: string | null
           tournoi_statut: string | null
+          match_id: string | null
           gagnant_id: string | null
           niveau_verdict: string | null
         }[]

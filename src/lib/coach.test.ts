@@ -10,11 +10,17 @@ describe("resumeCoach", () => {
         { statut: "actif", tournois: 2, points: 300 },
         { statut: "demande", tournois: 0, points: 0 },
       ]),
-    ).toEqual({ suivis: 3, mesures: 2, enProgression: 1, medianePoints: 30 });
+    ).toEqual({ suivis: 3, mesures: 2, enProgression: 1, medianePoints: null });
   });
 
-  it("aucune mesure : pas de médiane", () => {
+  it("moins de 3 élèves mesurés : pas de médiane", () => {
     expect(resumeCoach([{ statut: "actif", tournois: 1, points: 10 }]).medianePoints).toBeNull();
+    expect(
+      resumeCoach([
+        { statut: "actif", tournois: 4, points: 10 },
+        { statut: "termine", tournois: 4, points: 50 },
+      ]).medianePoints,
+    ).toBeNull();
   });
 
   it("médiane d'un nombre impair de suivis", () => {

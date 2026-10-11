@@ -110,6 +110,7 @@ set role anon;
 select verifie('Visiteur : les rencontres de la ligue, avec le vainqueur lu chez Riot',
   (select count(*) = 6 from public.rencontres_ligue((select id from ligues_division where region = 'EUW')))
   and (select gagnant_id = '00000000-0000-0000-0000-0000000003f2' and niveau_verdict = 'historique'
+              and match_id is not null
        from public.rencontres_ligue((select id from ligues_division where region = 'EUW')) where tournoi_slug is not null));
 reset role;
 

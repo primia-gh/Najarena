@@ -15,10 +15,11 @@ export interface JoueurPreuve {
   slug: string | null;
   gagnant: boolean | null;
   pretLe: string | null;
-  /** Riot ID du compte qui a joué (celui de la partie lue, sinon le compte principal). */
+  /** Riot ID : celui de la partie lue chez Riot, sinon le compte principal lié. */
   riotId: string | null;
+  /** Vrai seulement si la fiche de la partie lue chez Riot désigne ce compte. */
+  compteDeLaPartie: boolean;
   champion: string | null;
-  kda: string | null;
 }
 
 export interface LigneRegistrePreuve {
@@ -67,7 +68,7 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
   const [{ data: stats }, { data: comptes }, { data: lignes }] = await Promise.all([
     supabase
       .from("stats_match_joueur")
-      .select("profile_id, puuid, champion, kills, deaths, assists, duree_secondes")
+      .select("profile_id, puuid, champion, duree_secondes")
       .eq("match_id", id),
     ids.length > 0
       ? supabase
@@ -95,10 +96,8 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
   const joueurs: JoueurPreuve[] = m.match_participants.map((p) => {
     const s = (stats ?? []).find((x) => x.profile_id === p.profile_id);
     const comptesJoueur = (comptes ?? []).filter((c) => c.profile_id === p.profile_id);
-    const compte =
-      (s?.puuid ? comptesJoueur.find((c) => c.puuid === s.puuid) : undefined) ??
-      comptesJoueur.find((c) => c.est_principal) ??
-      null;
+    const compteJoue = s?.puuid ? comptesJoueur.find((c) => c.puuid === s.puuid) : undefined;
+    const compte = compteJoue ?? comptesJoueur.find((c) => c.est_principal) ?? null;
     return {
       profileId: p.profile_id,
       pseudo: p.profile?.pseudo ?? "Joueur supprimé",
@@ -106,8 +105,8 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
       gagnant: verdict ? verdict.gagnant_id === p.profile_id : p.est_gagnant,
       pretLe: p.pret_le,
       riotId: compte ? `${compte.riot_game_name}#${compte.riot_tag_line}` : null,
+      compteDeLaPartie: Boolean(compteJoue),
       champion: s?.champion ?? null,
-      kda: s ? `${s.kills}/${s.deaths}/${s.assists}` : null,
     };
   });
 

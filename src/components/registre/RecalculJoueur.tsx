@@ -103,11 +103,11 @@ export default function RecalculJoueur({ slug }: { slug: string }) {
             .
           </p>
         ) : (
-          <p className="text-sm text-danger" role="alert">
+          <Alerte type="erreur">
             <span className="tabular-nums">{ecarts}</span> ligne{ecarts > 1 ? "s" : ""} ne concorde
             {ecarts > 1 ? "nt" : ""} pas avec le calcul refait ici. Signale-le-nous sur Discord : un écart n&apos;a pas
             d&apos;explication normale.
-          </p>
+          </Alerte>
         )}
       </Panneau>
 

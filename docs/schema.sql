@@ -10394,7 +10394,9 @@ $$;
 revoke execute on function public.je_suis_la_division(uuid) from public, anon;
 grant execute on function public.je_suis_la_division(uuid) to authenticated;
 
--- Rencontres d'une ligue, avec l'issue de leur duel (verdict définitif).
+-- Rencontres d'une ligue, avec l'issue de leur duel (verdict définitif) et
+-- le match, pour sa fiche de preuve.
+drop function if exists public.rencontres_ligue(uuid);
 create or replace function public.rencontres_ligue(p_ligue_id uuid)
 returns table (
   rencontre_id uuid,
@@ -10406,6 +10408,7 @@ returns table (
   dispo_b timestamptz,
   tournoi_slug text,
   tournoi_statut text,
+  match_id uuid,
   gagnant_id uuid,
   niveau_verdict text
 )
@@ -10414,7 +10417,7 @@ stable
 security definer set search_path = public
 as $$
   select r.id, r.poule_id, r.semaine, r.joueur_a, r.joueur_b, r.dispo_a, r.dispo_b,
-         t.slug, t.statut::text, v.gagnant_id, v.niveau::text
+         t.slug, t.statut::text, m.id, v.gagnant_id, v.niveau::text
   from public.rencontres_division r
   join public.poules_division p on p.id = r.poule_id and p.ligue_id = p_ligue_id
   left join public.tournaments t on t.id = r.tournament_id

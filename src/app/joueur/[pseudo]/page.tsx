@@ -894,7 +894,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                                 <Link
                                   href={`/lol/match/${h.matchId}`}
                                   title="Voir la preuve de ce résultat"
-                                  className="hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                  // relative : le texte caché (sr-only, en position absolue)
+                                  // ne déborde plus de la page sur mobile.
+                                  className="relative inline-flex min-h-11 items-center hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                                 >
                                   <BadgeVerdict niveau={h.niveau} compact />
                                   <span className="sr-only"> — voir la preuve</span>
