@@ -55,6 +55,16 @@ export function siteOfficiel(inscrit = SITE_INSCRIT, variable = process.env.NAJA
   }
 }
 
+/**
+ * Texte sûr à afficher dans une fenêtre de commande : sans caractère de
+ * contrôle (une séquence « ESC[8m » cacherait la suite, dont le verdict),
+ * ni caractère invisible ou qui inverse le sens d'écriture. Les sauts de
+ * ligne restent (contrôle de sécurité du 11/10/2026).
+ */
+export function texteAffichable(texte) {
+  return String(texte).replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff]/g, "�");
+}
+
 /** Code d'un certificat (12 caractères), seul ou dans une adresse ; sinon null. */
 export function codeCertificat(source) {
   const trouve = /(?:^|\/certificats?\/)([0-9a-f]{12})(?:$|[/?#])/.exec(source.trim());
@@ -96,12 +106,12 @@ async function principal() {
     : JSON.parse(await readFile(source, "utf8"));
   const cles = (await lireJson(`${site}/api/public/v1/cle-certificats`)).cles ?? [];
 
-  console.log(certificat.contenu ?? "(pas de contenu)");
-  console.log("");
+  // Le verdict d'abord, le texte ensuite : un texte piégé ne peut ni le
+  // précéder d'un faux verdict, ni le cacher.
   const etat = verifierCertificat(certificat, cles);
   const messages = {
     valide: "SIGNATURE VALIDE : ce certificat est celui que Najarena a émis, sans aucune modification.",
-    invalide: "SIGNATURE INVALIDE : le contenu ne correspond plus à la signature.",
+    invalide: "SIGNATURE INVALIDE : le contenu ne correspond plus à la signature. Ne te fie pas à ce certificat.",
     cle_inconnue: "CLÉ INCONNUE : signé avec une clé que Najarena ne publie pas. Ne te fie pas à ce certificat.",
     absente: "PAS DE SIGNATURE : certificat émis avant la signature numérique.",
   };
@@ -109,16 +119,25 @@ async function principal() {
   // Le pseudo n'est pas dans le texte signé (seul l'identifiant interne du
   // joueur l'est) : on ne le montre que relu sur le site officiel.
   if (depuisLeSite && certificat.joueur?.slug) {
-    console.log(`Joueur, d'après le site officiel : ${certificat.joueur.pseudo} — ${site}/joueur/${certificat.joueur.slug}`);
+    console.log(
+      texteAffichable(
+        `Joueur, d'après le site officiel : ${certificat.joueur.pseudo} — ${site}/joueur/${certificat.joueur.slug}`,
+      ),
+    );
   } else if (!depuisLeSite) {
     console.log(`Le pseudo d'un fichier n'est pas signé : vérifie plutôt ce certificat par son code, sur ${site}.`);
   }
+  console.log("");
+  console.log(etat === "valide" ? "Texte signé :" : "Texte NON VÉRIFIÉ (ne t'y fie pas) :");
+  console.log(texteAffichable(certificat.contenu ?? "(pas de contenu)"));
+  console.log("");
+  console.log(etat === "valide" ? "Résultat : VALIDE." : "Résultat : NON VALIDE.");
   process.exit(etat === "valide" ? 0 : 1);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   principal().catch((erreur) => {
-    console.error(erreur.message);
+    console.error(texteAffichable(erreur.message));
     process.exit(2);
   });
 }

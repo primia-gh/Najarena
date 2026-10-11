@@ -86,3 +86,31 @@ select verifie('Eli met fin au suivi',
 reset role;
 select verifie('Suivi terminé, gardé dans l''historique avec sa date de fin',
   (select statut = 'termine' and fin_le is not null from coachings where eleve_id = '00000000-0000-0000-0000-0000000003e2'));
+
+-- Anti-répétition (contrôle de sécurité du 11/10/2026) : demande annulée
+-- par l'élève, et plafond de 5 demandes par 24 h.
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000003e5', 'c94zb5@test', '{"pseudo":"Hal94","slug":"hal94"}'),
+  ('00000000-0000-0000-0000-0000000003e6', 'c94zb6@test', '{"pseudo":"Ivy94","slug":"ivy94"}');
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003e5');
+select verifie('Hal demande un suivi à Cora puis annule sa demande',
+  public.terminer_coaching(public.demander_coaching('00000000-0000-0000-0000-0000000003e0')));
+reset role;
+select verifie('Demande annulée par l''élève, gardée',
+  (select statut = 'annulee' from coachings where eleve_id = '00000000-0000-0000-0000-0000000003e5'));
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003e5');
+select refus('Hal redemande aussitôt à Cora (7 jours d''attente)',
+  $q$select public.demander_coaching('00000000-0000-0000-0000-0000000003e0')$q$, 'DEMANDE_RECENTE');
+reset role;
+-- Ivy a déjà fait 5 demandes depuis 24 h (à d'autres coachs, annulées).
+insert into coachings (coach_id, eleve_id, statut, demande_le)
+select p.id, '00000000-0000-0000-0000-0000000003e6', 'annulee', now() - interval '1 hour'
+from (select id from profiles
+      where id not in ('00000000-0000-0000-0000-0000000003e6', '00000000-0000-0000-0000-0000000003e0')
+      order by id limit 5) p;
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003e6');
+select refus('Ivy : sixième demande en 24 h, refusée', $q$select public.demander_coaching('00000000-0000-0000-0000-0000000003e0')$q$, 'DEMANDE_RECENTE');
+reset role;

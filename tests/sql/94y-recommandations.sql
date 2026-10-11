@@ -105,6 +105,35 @@ select verifie('Visiteur : la recommandation masquée n''apparaît plus',
   (select count(*) = 0 from public.recommandations_joueur('00000000-0000-0000-0000-0000000003b0')));
 reset role;
 
+-- Plafond de 10 nouvelles recommandations par 24 h : un retrait ne le
+-- remet pas à zéro (contrôle de sécurité du 11/10/2026). Uma a affronté
+-- Quentin dans une partie lue chez Riot.
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000003b5', 'uma94y@test', '{"pseudo":"Uma94y","slug":"uma94y"}');
+insert into matches (id, tournament_id, tour, position, statut) values
+  ('a7e00000-0000-0000-0000-000000000014', 'a7e00000-0000-0000-0000-000000000001', 1, 4, 'termine');
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif) values
+  ('a7e00000-0000-0000-0000-000000000014', 'historique', '00000000-0000-0000-0000-0000000003b5', true);
+insert into stats_match_joueur (match_id, profile_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne) values
+  ('a7e00000-0000-0000-0000-000000000014', '00000000-0000-0000-0000-0000000003b5', 'Ahri', 5, 2, 1, 120, 6000, 900, true),
+  ('a7e00000-0000-0000-0000-000000000014', '00000000-0000-0000-0000-0000000003b1', 'Zed', 2, 5, 1, 110, 5000, 900, false);
+-- Quentin a déjà recommandé 9 autres joueurs depuis 24 h (10 avec Pia),
+-- puis les a tous retirés.
+insert into recommandations_journal (auteur_id, destinataire_id)
+select '00000000-0000-0000-0000-0000000003b1', p.id
+from (select id from profiles
+      where id not in ('00000000-0000-0000-0000-0000000003b0', '00000000-0000-0000-0000-0000000003b1', '00000000-0000-0000-0000-0000000003b5')
+      order by id limit 9) p;
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003b1');
+select public.retirer_recommandation('00000000-0000-0000-0000-0000000003b0');
+select refus('Quentin, 10 recommandations en 24 h puis retirées : une onzième (Uma) est refusée',
+  $q$select public.recommander('00000000-0000-0000-0000-0000000003b5', 'Adversaire redoutable, très propre dans ses échanges.')$q$,
+  'LIMITE_RECOMMANDATIONS');
+select verifie('Réécrire pour un joueur déjà recommandé reste possible (Pia)',
+  not public.recommander('00000000-0000-0000-0000-0000000003b0', 'Joueuse solide et régulière, très bon placement en fin de partie.'));
+reset role;
+
 -- Compte supprimé : ses recommandations disparaissent.
 update profiles set supprime_le = now() where id = '00000000-0000-0000-0000-0000000003b1';
 select verifie('Compte de Quentin supprimé : sa recommandation est effacée',

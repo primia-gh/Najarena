@@ -139,3 +139,45 @@ select en_tant_que('00000000-0000-0000-0000-0000000002d8');
 select essai('Un joueur ne lance pas lui-même l''ouverture des tournois',
   $q$select public.ouvrir_tournois_a_la_demande('00000000-0000-0000-0000-0000000002d8')$q$, 'bloque');
 reset role;
+
+-- Deux régions à la même heure (contrôle de sécurité du 11/10/2026) :
+-- avant, la seconde création échouait et annulait toute la tâche.
+insert into auth.users (id, email, raw_user_meta_data)
+select ('00000000-0000-0000-0000-0000000002' || r || n)::uuid, 'dispo' || r || n || '@test',
+       jsonb_build_object('pseudo', 'Dispo' || r || n, 'slug', 'dispo' || r || n)
+from generate_series(0, 7) n, unnest(array['e', 'f']) r;
+insert into game_accounts (profile_id, game_id, puuid, riot_game_name, riot_tag_line, region, est_principal, verifie_le, methode_verification)
+select ('00000000-0000-0000-0000-0000000002' || r || n)::uuid, 1, 'P-DISPO-' || r || n, 'Dispo' || r || n,
+       case r when 'e' then 'EUW' else 'NA1' end, case r when 'e' then 'EUW' else 'NA' end, true, now(), 'icone_profil'
+from generate_series(0, 7) n, unnest(array['e', 'f']) r;
+select (date_trunc('day', now() at time zone 'Europe/Paris') + interval '2 days 23 hours') at time zone 'Europe/Paris' as h23
+\gset
+set role authenticated;
+do $$
+declare r text; n integer;
+begin
+  foreach r in array array['e', 'f'] loop
+    for n in 0..7 loop
+      perform public.en_tant_que(('00000000-0000-0000-0000-0000000002' || r || n)::uuid);
+      perform public.declarer_disponibilite(
+        (date_trunc('day', now() at time zone 'Europe/Paris') + interval '2 days 23 hours') at time zone 'Europe/Paris');
+    end loop;
+  end loop;
+end $$;
+reset role;
+-- La disponibilité de Nina (NA, 20 h) n'est pas à 23 h : elle ne compte pas.
+set role service_role;
+create temp table ouverts_deux_regions as
+  select * from public.ouvrir_tournois_a_la_demande('00000000-0000-0000-0000-00000000000a');
+reset role;
+-- (Régions lues à part : la requête qui crée les tournois ne les voit pas encore.)
+select verifie('8 joueurs EUW et 8 NA à 23 h : deux tournois, un par région',
+  (select count(*) from ouverts_deux_regions) = 2
+  and (select array_agg(t.region order by t.region) from ouverts_deux_regions o join tournaments t on t.id = o.tournament_id)
+      = array['EUW', 'NA']);
+select verifie('Chacun des deux tournois a ses 8 inscrits',
+  (select bool_and(cardinality(inscrits) = 8) from ouverts_deux_regions)
+  and (select bool_and((select count(*) from registrations g where g.tournament_id = o.tournament_id and g.statut = 'inscrit') = 8)
+       from ouverts_deux_regions o));
+select verifie('Toujours un seul tournoi par créneau, région et heure',
+  (select count(*) from tournaments where creneau_auto = 'a-la-demande' and debute_le = :'h23' and region = 'EUW') = 1);

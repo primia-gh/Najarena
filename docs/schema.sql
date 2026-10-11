@@ -8780,6 +8780,16 @@ create table if not exists public.disponibilites (
   primary key (profile_id, debut)
 );
 create index if not exists disponibilites_creneau_idx on public.disponibilites (region, debut);
+
+-- Un tournoi automatique par créneau, par région et par heure (avant : par
+-- créneau et par heure). Les quotidiens n'ont qu'une région, rien ne change
+-- pour eux ; deux tournois à la demande à la même heure dans deux régions
+-- ne se gênent plus (contrôle de sécurité du 11/10/2026 : la seconde
+-- création échouait et annulait toute la tâche).
+drop index if exists public.tournaments_creneau_auto_debut_key;
+create unique index tournaments_creneau_auto_debut_key
+  on public.tournaments (creneau_auto, region, debute_le)
+  where creneau_auto is not null;
 alter table public.disponibilites enable row level security;
 revoke all on public.disponibilites from anon, authenticated;
 grant select on public.disponibilites to authenticated;
@@ -8930,27 +8940,33 @@ begin
       v_slug := 'a-la-demande-' || lower(v_creneau.region) || '-'
         || to_char(v_creneau.debut at time zone 'Europe/Paris', 'YYYY-MM-DD-HH24') || 'h-'
         || substr(replace(gen_random_uuid()::text, '-', ''), 1, 6);
-      insert into public.tournaments (
-        game_id, season_id, organisateur_id, slug, nom, format, capacite, best_of, region,
-        debute_le, checkin_ouvre_le, statut, creneau_auto, condition_victoire
-      ) values (
-        1,
-        (select id from public.seasons where game_id = 1 and est_courante limit 1),
-        p_organisateur_id,
-        v_slug,
-        'Tournoi à la demande · ' || to_char(v_creneau.debut at time zone 'Europe/Paris', 'DD/MM HH24') || 'h',
-        '1v1',
-        case when v_creneau.nombre <= 12 then 16 when v_creneau.nombre <= 24 then 32 else 64 end,
-        1,
-        v_creneau.region,
-        v_creneau.debut,
-        v_creneau.debut - interval '30 minutes',
-        'ouvert',
-        'a-la-demande',
-        'nexus'
-      )
-      on conflict (slug) do nothing
-      returning id into v_tournoi;
+      begin
+        insert into public.tournaments (
+          game_id, season_id, organisateur_id, slug, nom, format, capacite, best_of, region,
+          debute_le, checkin_ouvre_le, statut, creneau_auto, condition_victoire
+        ) values (
+          1,
+          (select id from public.seasons where game_id = 1 and est_courante limit 1),
+          p_organisateur_id,
+          v_slug,
+          'Tournoi à la demande · ' || to_char(v_creneau.debut at time zone 'Europe/Paris', 'DD/MM HH24') || 'h',
+          '1v1',
+          case when v_creneau.nombre <= 12 then 16 when v_creneau.nombre <= 24 then 32 else 64 end,
+          1,
+          v_creneau.region,
+          v_creneau.debut,
+          v_creneau.debut - interval '30 minutes',
+          'ouvert',
+          'a-la-demande',
+          'nexus'
+        )
+        on conflict (slug) do nothing
+        returning id into v_tournoi;
+      exception when unique_violation then
+        -- Un tournoi de ce créneau existe déjà (annulé, par exemple) : on
+        -- passe au créneau suivant, sans bloquer les autres.
+        v_tournoi := null;
+      end;
       if v_tournoi is null then
         continue;
       end if;
@@ -10137,6 +10153,20 @@ create index if not exists membres_poule_division_profile_idx on public.membres_
 create index if not exists rencontres_division_poule_idx on public.rencontres_division (poule_id);
 create index if not exists rencontres_division_tournoi_idx on public.rencontres_division (tournament_id);
 
+-- Avertissements « ton adversaire est là » envoyés, par rencontre et par
+-- joueur : 3 par 24 h au plus (contrôle de sécurité du 11/10/2026 —
+-- recliquer « Je suis là » toutes les 31 minutes prévenait l'adversaire à
+-- chaque fois). Écrit par je_suis_la_division seule, lu par personne.
+create table if not exists public.avertissements_division (
+  rencontre_id uuid not null references public.rencontres_division(id) on delete cascade,
+  profile_id   uuid not null references public.profiles(id) on delete cascade,
+  envoye_le    timestamptz not null default now()
+);
+create index if not exists avertissements_division_idx
+  on public.avertissements_division (rencontre_id, profile_id, envoye_le);
+alter table public.avertissements_division enable row level security;
+revoke all on public.avertissements_division from anon, authenticated;
+
 alter table public.ligues_division enable row level security;
 alter table public.inscriptions_division enable row level security;
 alter table public.poules_division enable row level security;
@@ -10343,7 +10373,14 @@ begin
   end if;
   if v_autre_dispo is null or v_autre_dispo < now() - interval '30 minutes' then
     slug := null;
-    prevenir := v_ma_dispo is null or v_ma_dispo < now() - interval '30 minutes';
+    -- Prévenu quand la présence commence, et 3 fois par 24 h au plus.
+    prevenir := (v_ma_dispo is null or v_ma_dispo < now() - interval '30 minutes')
+      and (select count(*) from public.avertissements_division a
+           where a.rencontre_id = p_rencontre_id and a.profile_id = v_joueur
+             and a.envoye_le > now() - interval '24 hours') < 3;
+    if prevenir then
+      insert into public.avertissements_division (rencontre_id, profile_id) values (p_rencontre_id, v_joueur);
+    end if;
     return next;
     return;
   end if;

@@ -86,6 +86,33 @@ select verifie('Joueur 0 est là (semaine 1, contre joueur 2) : on attend son ad
   (select slug is null and prevenir from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
 select verifie('Joueur 0 reclique : son adversaire n''est pas reprévenu',
   (select slug is null and not prevenir from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
+-- Présence expirée (31 minutes) puis recommencée : l'adversaire est
+-- reprévenu, 3 fois par 24 h au plus (contrôle de sécurité du 11/10/2026).
+reset role;
+update rencontres_division
+set dispo_a = case when joueur_a = '00000000-0000-0000-0000-0000000003f0' then now() - interval '31 minutes' else dispo_a end,
+    dispo_b = case when joueur_b = '00000000-0000-0000-0000-0000000003f0' then now() - interval '31 minutes' else dispo_b end
+where id = (select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1);
+set role authenticated;
+select verifie('Joueur 0 revient 31 minutes plus tard : deuxième avertissement',
+  (select prevenir from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
+reset role;
+update rencontres_division
+set dispo_a = case when joueur_a = '00000000-0000-0000-0000-0000000003f0' then now() - interval '31 minutes' else dispo_a end,
+    dispo_b = case when joueur_b = '00000000-0000-0000-0000-0000000003f0' then now() - interval '31 minutes' else dispo_b end
+where id = (select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1);
+set role authenticated;
+select verifie('Troisième retour : troisième avertissement',
+  (select prevenir from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
+reset role;
+update rencontres_division
+set dispo_a = case when joueur_a = '00000000-0000-0000-0000-0000000003f0' then now() - interval '31 minutes' else dispo_a end,
+    dispo_b = case when joueur_b = '00000000-0000-0000-0000-0000000003f0' then now() - interval '31 minutes' else dispo_b end
+where id = (select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1);
+set role authenticated;
+select verifie('Quatrième retour dans les 24 h : plus d''avertissement',
+  (select slug is null and not prevenir from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
+select essai('Joueur 0 lit les avertissements', $q$select * from public.avertissements_division$q$, 'bloque');
 select en_tant_que('00000000-0000-0000-0000-0000000003f2');
 select verifie('Joueur 2 est là aussi : le duel est lancé',
   (select slug like 'division-%' from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));

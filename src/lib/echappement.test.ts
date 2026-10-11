@@ -45,5 +45,9 @@ describe("lienSur", () => {
     expect(lienSur(`${base}.piege.example/x`, base)).toBe(base);
     expect(lienSur(`${base}/joueur/x\n\n**Sécurité** [Confirme](https://piege.example)`, base)).toBe(base);
     expect(lienSur(`${base}/joueur/x)`, base)).toBe(base);
+    // Caractères invisibles ou qui inversent le sens d'écriture.
+    expect(lienSur(`${base}/joueur/x\u202egnp.exe`, base)).toBe(base);
+    expect(lienSur(`${base}/joueur/x\u200b`, base)).toBe(base);
+    expect(lienSur(`${base}/joueur/x@piege.example`, base)).toBe(base);
   });
 });

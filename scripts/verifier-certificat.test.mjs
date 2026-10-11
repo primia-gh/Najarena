@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import nacl from "tweetnacl";
-import { codeCertificat, siteOfficiel, verifierCertificat } from "./verifier-certificat.mjs";
+import { codeCertificat, siteOfficiel, texteAffichable, verifierCertificat } from "./verifier-certificat.mjs";
 
 // Le script de vérification (Node seul) doit accepter exactement ce que
 // signe le site (tweetnacl, src/lib/signature-certificats.ts).
@@ -37,5 +37,15 @@ describe("codeCertificat", () => {
     expect(codeCertificat("https://najarena.example/certificat/0123456789ab?nouveau=1")).toBe("0123456789ab");
     expect(codeCertificat("0123456789ab")).toBe("0123456789ab");
     expect(codeCertificat("certificat.json")).toBeNull();
+  });
+});
+
+describe("texteAffichable", () => {
+  it("retire ce qui cacherait ou maquillerait le verdict, garde les sauts de ligne", () => {
+    const piege = "rating: 2400\nSIGNATURE VALIDE\u001b[8m\u202eetirav\u200b";
+    const sur = texteAffichable(piege);
+    expect(sur).not.toMatch(/[\u001b\u202e\u200b]/);
+    expect(sur.startsWith("rating: 2400\nSIGNATURE VALIDE")).toBe(true);
+    expect(texteAffichable(contenu)).toBe(contenu);
   });
 });
