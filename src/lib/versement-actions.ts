@@ -7,6 +7,7 @@ import { URL_SITE } from "@/lib/notifications";
 import { cashPrizesActifs, messageRefusDotation } from "@/lib/dotations";
 import { codePaysVersement } from "@/lib/versements-stripe";
 import { clientStripe } from "@/lib/versements-stripe-serveur";
+import { RETOURS_EXTERNES } from "@/lib/messages-adresse";
 
 // Compte de versement d'un gagnant (04/10/2026, audit N32) : ouvert chez
 // Stripe (Connect Express), qui vérifie l'identité et les coordonnées
@@ -63,7 +64,7 @@ export async function ouvrirCompteVersement(formData: FormData) {
       const lienStripe = await stripe.accountLinks.create({
         account: compteId,
         type: "account_onboarding",
-        refresh_url: `${URL_SITE}/moi/gains?message=${encodeURIComponent("Le lien a expiré : recommence la vérification.")}`,
+        refresh_url: `${URL_SITE}/moi/gains?message=${encodeURIComponent(RETOURS_EXTERNES.lienVersementExpire)}`,
         return_url: `${URL_SITE}/moi/gains/retour`,
       });
       return { ok: true as const, url: lienStripe.url };

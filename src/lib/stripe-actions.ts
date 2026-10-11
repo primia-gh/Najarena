@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { URL_SITE } from "@/lib/notifications";
 import type { Offre } from "@/lib/offres";
+import { RETOURS_EXTERNES } from "@/lib/messages-adresse";
 
 const cleSecrete = process.env.STRIPE_SECRET_KEY;
 const stripe = cleSecrete ? new Stripe(cleSecrete) : null;
@@ -62,7 +63,7 @@ export async function demarrerAbonnement(formData: FormData) {
     // compte Najarena ils correspondent.
     client_reference_id: userData.user.id,
     ...(clientExistant ? { customer: clientExistant } : { customer_email: userData.user.email ?? undefined }),
-    success_url: `${URL_SITE}/moi?message=${encodeURIComponent("Abonnement en cours de confirmation.")}`,
+    success_url: `${URL_SITE}/moi?message=${encodeURIComponent(RETOURS_EXTERNES.abonnementEnCours)}`,
     cancel_url: `${URL_SITE}/tarifs`,
     metadata: { profile_id: userData.user.id, offre },
     subscription_data: { metadata: { profile_id: userData.user.id, offre } },
