@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { envoyerRappel, URL_SITE } from "@/lib/notifications";
 import { messageRefusCoach } from "@/lib/coach";
+import { typographie } from "@/lib/typographie";
 
 // Coach vérifié (09/10/2026, idée en réserve n°8) : demander, accepter ou
 // refuser, terminer un suivi. Règles dans la base (demander_coaching,
@@ -39,7 +40,7 @@ export async function reglerEleves(formData: FormData) {
       slug,
       "erreur",
       error.message.includes("COACH_NON_ELIGIBLE")
-        ? "Tu n'es pas (ou plus) classé Diamant Najarena : cette case ne se coche pas pour l'instant."
+        ? typographie("Ton rating officiel n'atteint pas 1750 (palier Diamant Najarena) : cette case ne se coche pas pour l'instant.")
         : messageRefusCoach(error.message),
     );
   }
@@ -47,8 +48,8 @@ export async function reglerEleves(formData: FormData) {
     slug,
     "message",
     accepte
-      ? "C'est noté : ton CV affiche « Coach vérifié » et les joueurs peuvent te demander un suivi."
-      : "C'est noté : plus de nouvelle demande. Tes suivis en cours continuent et leur progression reste visible.",
+      ? typographie("C'est noté : ton CV affiche « Coach vérifié » et les joueurs peuvent te demander un suivi.")
+      : typographie("C'est noté : plus de nouvelle demande. Tes suivis en cours continuent et leur progression reste visible."),
   );
 }
 

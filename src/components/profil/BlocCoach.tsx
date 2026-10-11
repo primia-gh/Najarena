@@ -9,6 +9,7 @@ import Tableau from "@/components/design/Tableau";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import Alerte from "@/components/design/Alerte";
 import { Choix } from "@/components/design/Formulaire";
+import { typographie } from "@/lib/typographie";
 
 // Coach vérifié (09/10/2026, idée en réserve n°8) : un joueur classé
 // Diamant ou plus et la progression de ses élèves, lue dans le registre
@@ -75,20 +76,24 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
         ? "Coach"
         : "Suivi";
   const lecture =
-    "Leurs points sont lus dans le registre : variations en tournoi pendant le suivi, rien de déclaré. C'est ce qui s'est passé pendant le suivi, pas une mesure de l'effet du coach.";
-  const texte = ouvert
-    ? `${pseudo} est classé Diamant Najarena (rating officiel de 1750 ou plus) et accepte des élèves. ${lecture}`
-    : estProprietaire
-      ? eligible
-        ? suivis.length > 0
-          ? "Tu ne reçois pas de nouvelle demande : coche la case ci-dessous pour accepter des élèves. La progression de tes élèves reste visible sur ton CV."
-          : "Tu es classé Diamant Najarena (rating officiel de 1750 ou plus) : tu peux suivre des élèves. « Coach vérifié » n'apparaît sur ton CV, et tu ne reçois de demandes, que si tu coches la case ci-dessous."
-        : `Tu n'es plus classé Diamant Najarena (rating officiel de 1750 ou plus) : pas de nouvel élève possible.${caseCochee ? " Ta case reste cochée : elle reprendra effet si tu redeviens Diamant ; décoche-la si tu ne le souhaites pas." : ""}`
-      : suiviIci?.statut === "demande"
-        ? `${pseudo} n'accepte plus de nouvelle demande ; la tienne est toujours en attente.`
-        : suiviIci
-          ? `${pseudo} n'accepte plus de nouvel élève ; ton suivi continue. ${lecture}`
-          : `${pseudo} n'accepte pas de nouvel élève ; voici la progression des élèves déjà suivis. ${lecture}`;
+    "Les points des élèves sont lus dans le registre : variations en tournoi pendant le suivi, rien de déclaré. C'est ce qui s'est passé pendant le suivi, pas une mesure de l'effet du coach.";
+  // Accords neutres (« rating officiel de 1750 ou plus ») : le site ne
+  // connaît pas le genre des joueurs.
+  const texte = typographie(
+    ouvert
+      ? `${pseudo} a un rating officiel de 1750 ou plus (palier Diamant Najarena) et accepte des élèves. ${lecture}`
+      : estProprietaire
+        ? eligible
+          ? suivis.length > 0
+            ? "Tu ne reçois pas de nouvelle demande : coche la case ci-dessous pour accepter des élèves. La progression de tes élèves reste visible sur ton CV."
+            : "Ton rating officiel est de 1750 ou plus (palier Diamant Najarena) : tu peux suivre des élèves. « Coach vérifié » n'apparaît sur ton CV, et tu ne reçois de demandes, que si tu coches la case ci-dessous."
+          : `Ton rating officiel est passé sous 1750 (palier Diamant Najarena) : pas de nouvel élève possible.${caseCochee ? " Ta case reste cochée : elle reprendra effet si tu remontes au palier Diamant ; décoche-la si tu ne le souhaites pas." : ""}`
+        : suiviIci?.statut === "demande"
+          ? `${pseudo} n'accepte plus de nouvelle demande ; la tienne est toujours en attente. ${lecture}`
+          : suiviIci
+            ? `${pseudo} n'accepte plus de nouvel élève ; ton suivi continue. ${lecture}`
+            : `${pseudo} n'accepte pas de nouvel élève ; voici la progression des élèves déjà suivis. ${lecture}`,
+  );
 
   return (
     <Panneau as="section" id="coach" className="flex scroll-mt-28 flex-col gap-6 p-6 sm:p-8" aria-labelledby="titre-coach">
@@ -112,7 +117,9 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
             value="1"
             defaultChecked={ouvert}
             titre="J'accepte des élèves"
-            detail="Cochée : ton CV affiche « Coach vérifié » et les joueurs peuvent te demander un suivi. Décochée : plus de demandes ; tes suivis en cours continuent et la progression de tes élèves reste visible sur ton CV, comme preuve."
+            detail={typographie(
+              "Cochée : ton CV affiche « Coach vérifié » et les joueurs peuvent te demander un suivi. Décochée : plus de demandes ; tes suivis en cours continuent et la progression de tes élèves reste visible sur ton CV, comme preuve.",
+            )}
           />
           <BoutonEnvoi variante="contour" libelleEnCours="Enregistrement…" className="self-start">
             Enregistrer
@@ -181,7 +188,9 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
                           <input type="hidden" name="slug" value={slug} />
                           <input type="hidden" name="coaching" value={e.coaching_id} />
                           {/* Étroit : la colonne « Points » reste visible sur téléphone. */}
-                          <span className="max-w-[18ch] text-text-2">Terminer ce suivi ? Sa progression reste affichée.</span>
+                          <span className="max-w-[18ch] text-text-2">
+                            {typographie("Terminer ce suivi ? Sa progression reste affichée.")}
+                          </span>
                           <BoutonEnvoi
                             variante="contour"
                             libelleEnCours="…"
@@ -210,6 +219,11 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
             ))}
           </tbody>
         </Tableau>
+      )}
+      {suivis.some((e) => !progressionMesurable(e)) && (
+        <p className="-mt-3 text-xs text-muted">
+          {typographie(`— : progression affichée à partir de ${COACH_TOURNOIS_MIN} tournois joués pendant le suivi.`)}
+        </p>
       )}
 
       {/* Le coach : demandes en attente. */}
@@ -262,22 +276,44 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
       )}
 
       {/* Un visiteur connecté : demander, annuler ou terminer son suivi. */}
-      {visiteurId && !estProprietaire && (
+      {visiteurId && !estProprietaire && (suiviIci || monSuivi || ouvert) && (
         <div className="flex flex-wrap items-center gap-3 border-t border-line pt-6">
-          {suiviIci ? (
+          {suiviIci?.statut === "demande" ? (
             <form action={terminerCoaching} className="flex flex-wrap items-center gap-3">
               <input type="hidden" name="slug" value={slug} />
               <input type="hidden" name="coaching" value={suiviIci.id} />
-              <input type="hidden" name="demande" value={suiviIci.statut === "demande" ? "1" : "0"} />
-              <span className="text-sm text-text-2">
-                {suiviIci.statut === "demande"
-                  ? `Demande envoyée à ${pseudo}.`
-                  : `${pseudo} te suit : ta progression en tournoi s'affiche ici.`}
-              </span>
+              <input type="hidden" name="demande" value="1" />
+              <span className="text-sm text-text-2">Demande envoyée à {pseudo}.</span>
               <BoutonEnvoi variante="contour" libelleEnCours="…">
-                {suiviIci.statut === "demande" ? "Annuler la demande" : "Terminer le suivi"}
+                Annuler la demande
               </BoutonEnvoi>
             </form>
+          ) : suiviIci ? (
+            <div className="flex flex-col gap-2">
+              <span className="text-sm text-text-2">
+                {typographie(
+                  `${pseudo} te suit : ta progression en tournoi s'affiche ici, avec ton pseudo, et y restera après la fin du suivi.`,
+                )}
+              </span>
+              {/* Deux temps, comme côté coach : un suivi ne se ferme pas d'un
+                  tapotement involontaire. */}
+              <details className="text-sm">
+                <summary className="inline-flex min-h-11 cursor-pointer items-center text-muted underline underline-offset-3 hover:text-text">
+                  Terminer le suivi
+                </summary>
+                <form action={terminerCoaching} className="mt-2 flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="slug" value={slug} />
+                  <input type="hidden" name="coaching" value={suiviIci.id} />
+                  <input type="hidden" name="demande" value="0" />
+                  <span className="text-text-2">
+                    {typographie("Terminer ce suivi ? Ta progression jusqu'ici reste affichée.")}
+                  </span>
+                  <BoutonEnvoi variante="contour" libelleEnCours="…" aria-label={`Confirmer la fin du suivi avec ${pseudo}`}>
+                    Oui
+                  </BoutonEnvoi>
+                </form>
+              </details>
+            </div>
           ) : monSuivi ? (
             <p className="text-sm text-muted">Tu as déjà un suivi en cours avec un autre coach.</p>
           ) : ouvert ? (
@@ -285,7 +321,9 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
               <input type="hidden" name="slug" value={slug} />
               <input type="hidden" name="coach" value={profilId} />
               <span className="text-sm text-text-2">
-                Ta progression en tournoi sera affichée ici pendant le suivi.
+                {typographie(
+                  "Ta progression en tournoi pendant le suivi sera affichée ici, avec ton pseudo, et y restera après la fin du suivi.",
+                )}
               </span>
               <BoutonEnvoi variante="contour" libelleEnCours="Envoi…">
                 Demander un suivi
