@@ -70,6 +70,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
         <LibelleSection as="h2" id="titre-coach">
           {ouvert ? "Coach vérifié" : estProprietaire && eligible ? "Coach" : "Suivi"}
         </LibelleSection>
+        {estProprietaire && !ouvert && <p className="text-mini text-muted uppercase">Visible de toi seul</p>}
         <p className="text-sm text-muted">
           {ouvert
             ? `${pseudo} est classé Diamant Najarena (rating officiel de 1750 ou plus) et accepte des élèves. Leurs points sont lus dans le registre : variations en tournoi pendant le suivi, rien de déclaré. C'est ce qui s'est passé pendant le suivi, pas une mesure de l'effet du coach.`
@@ -106,7 +107,9 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
       {message && <Alerte type="succes">{message}</Alerte>}
       {erreur && <Alerte type="erreur">{erreur}</Alerte>}
 
-      {suivis.length > 0 && (
+      {/* Résumé : seulement quand le bloc est public, ou pour le coach lui-même
+          (un élève d'un coach fermé ne voit que sa propre ligne). */}
+      {suivis.length > 0 && (ouvert || estProprietaire) && (
         <p className="text-sm text-text-2">
           <span className="tabular-nums">{resume.suivis}</span> élève{resume.suivis > 1 ? "s" : ""} suivi
           {resume.suivis > 1 ? "s" : ""}
@@ -236,7 +239,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
         <p className="border-t border-line pt-6 text-sm text-text-2">
           <Link
             href={`/connexion?suite=${encodeURIComponent(`/joueur/${slug}`)}`}
-            className="text-text underline underline-offset-3 hover:text-accent"
+            className="inline-flex min-h-11 items-center text-text underline underline-offset-3 hover:text-accent"
           >
             Connecte-toi
           </Link>{" "}
