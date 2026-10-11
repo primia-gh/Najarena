@@ -152,25 +152,31 @@ export function pouleJouee(classement: LigneClassement[]): boolean {
 }
 
 /**
+ * Y a-t-il un échange entre une poule et celle du dessous ? Seulement si
+ * les deux ont joué (une victoire lue chez Riot au moins) et si le premier
+ * de la poule du dessous a lui-même gagné un match lu chez Riot : personne
+ * ne monte sans victoire, un absent peut descendre (décisions du porteur du
+ * projet, 11/10/2026). L'échange est symétrique : un « monte » d'un côté,
+ * un « descend » de l'autre, jamais l'un sans l'autre.
+ */
+export function echangeEntre(dessus: LigneClassement[], dessous: LigneClassement[]): boolean {
+  return pouleJouee(dessus) && pouleJouee(dessous) && (dessous[0]?.victoiresVerifiees ?? 0) > 0;
+}
+
+/**
  * Le premier monte (sauf en poule 1), le dernier descend (sauf en dernière
- * poule). Personne ne bouge dans une poule où aucun match n'a été joué
- * (décision du porteur du projet, 11/10/2026) : son classement ne
- * départage que l'ordre de départ, rien de mérité sur le terrain.
- * L'échange se décide frontière par frontière : entre deux poules
- * voisines, le premier de celle du dessous monte et le dernier de celle du
- * dessus descend seulement si les deux ont joué — sinon un « monte »
- * serait annoncé sans place libérée au-dessus.
+ * poule), si l'échange a lieu à la frontière concernée. `echange(n)` dit
+ * s'il a lieu entre la poule n et la poule n + 1 (echangeEntre).
  */
 export function mouvementDe(
   rang: number,
   taille: number,
   niveau: number,
   nbPoules: number,
-  aJoue: (niveau: number) => boolean,
+  echange: (frontiere: number) => boolean,
 ): Mouvement {
-  if (!aJoue(niveau)) return "reste";
-  if (rang === 1 && niveau > 1 && aJoue(niveau - 1)) return "monte";
-  if (rang === taille && niveau < nbPoules && aJoue(niveau + 1)) return "descend";
+  if (rang === 1 && niveau > 1 && echange(niveau - 1)) return "monte";
+  if (rang === taille && niveau < nbPoules && echange(niveau)) return "descend";
   return "reste";
 }
 

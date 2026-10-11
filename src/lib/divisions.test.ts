@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classementPoule,
+  echangeEntre,
   mouvementDe,
   ordreDepart,
   pouleJouee,
@@ -113,33 +114,47 @@ describe("classementPoule", () => {
 
 describe("mouvementDe", () => {
   it("le premier monte, le dernier descend, sauf aux extrémités", () => {
-    const toutes = () => true;
-    expect(mouvementDe(1, 4, 1, 3, toutes)).toBe("reste");
-    expect(mouvementDe(1, 4, 2, 3, toutes)).toBe("monte");
-    expect(mouvementDe(4, 4, 2, 3, toutes)).toBe("descend");
-    expect(mouvementDe(4, 4, 3, 3, toutes)).toBe("reste");
-    expect(mouvementDe(2, 4, 2, 3, toutes)).toBe("reste");
+    const toujours = () => true;
+    expect(mouvementDe(1, 4, 1, 3, toujours)).toBe("reste");
+    expect(mouvementDe(1, 4, 2, 3, toujours)).toBe("monte");
+    expect(mouvementDe(4, 4, 2, 3, toujours)).toBe("descend");
+    expect(mouvementDe(4, 4, 3, 3, toujours)).toBe("reste");
+    expect(mouvementDe(2, 4, 2, 3, toujours)).toBe("reste");
   });
 
-  it("personne ne bouge dans une poule où aucun match n'a été joué", () => {
-    const aucune = () => false;
-    expect(mouvementDe(1, 4, 2, 3, aucune)).toBe("reste");
-    expect(mouvementDe(4, 4, 2, 3, aucune)).toBe("reste");
+  it("frontière par frontière : jamais un « monte » sans le « descend » qui lui répond", () => {
+    // Échange entre les poules 1 et 2 seulement.
+    const entreUnEtDeux = (f: number) => f === 1;
+    expect(mouvementDe(4, 4, 1, 3, entreUnEtDeux)).toBe("descend");
+    expect(mouvementDe(1, 4, 2, 3, entreUnEtDeux)).toBe("monte");
+    expect(mouvementDe(4, 4, 2, 3, entreUnEtDeux)).toBe("reste");
+    expect(mouvementDe(1, 4, 3, 3, entreUnEtDeux)).toBe("reste");
+    const jamais = () => false;
+    expect(mouvementDe(1, 4, 2, 3, jamais)).toBe("reste");
+    expect(mouvementDe(4, 4, 2, 3, jamais)).toBe("reste");
+  });
+});
+
+describe("echangeEntre", () => {
+  const poule = (prefixe: string) => ["a", "b", "c", "d"].map((x, ordre) => ({ id: prefixe + x, ordre }));
+  const lue = (a: string, b: string, gagnant: string) => ({ joueurA: a, joueurB: b, gagnantId: gagnant, niveauVerdict: "historique" });
+  const forfait = (a: string, b: string, gagnant: string) => ({ joueurA: a, joueurB: b, gagnantId: gagnant, niveauVerdict: "manuel" });
+  const dessus = classementPoule(poule("h"), [lue("ha", "hb", "ha")]);
+
+  it("échange quand les deux poules ont joué et que le premier du dessous a gagné chez Riot", () => {
+    expect(echangeEntre(dessus, classementPoule(poule("b"), [lue("ba", "bb", "bb")]))).toBe(true);
   });
 
-  it("l'échange se fait frontière par frontière : jamais un « monte » sans place libérée au-dessus", () => {
-    // Poules 1 et 3 sans match, poule 2 jouée : personne ne bouge.
-    const seuleLa2 = (n: number) => n === 2;
-    expect(mouvementDe(1, 4, 2, 3, seuleLa2)).toBe("reste");
-    expect(mouvementDe(4, 4, 2, 3, seuleLa2)).toBe("reste");
-    expect(mouvementDe(4, 4, 1, 3, seuleLa2)).toBe("reste");
-    expect(mouvementDe(1, 4, 3, 3, seuleLa2)).toBe("reste");
-    // Poules 1 et 2 jouées, 3 non : échange entre 1 et 2 seulement.
-    const unEtDeux = (n: number) => n <= 2;
-    expect(mouvementDe(4, 4, 1, 3, unEtDeux)).toBe("descend");
-    expect(mouvementDe(1, 4, 2, 3, unEtDeux)).toBe("monte");
-    expect(mouvementDe(4, 4, 2, 3, unEtDeux)).toBe("reste");
-    expect(mouvementDe(1, 4, 3, 3, unEtDeux)).toBe("reste");
+  it("pas d'échange avec une poule sans match lu chez Riot", () => {
+    expect(echangeEntre(dessus, classementPoule(poule("b"), []))).toBe(false);
+    expect(echangeEntre(classementPoule(poule("h"), []), classementPoule(poule("b"), [lue("ba", "bb", "bb")]))).toBe(false);
+  });
+
+  it("personne ne monte sans victoire lue chez Riot (premier grâce à des forfaits)", () => {
+    // bb : deux victoires par forfait, premier ; bc : une victoire lue chez Riot.
+    const dessous = classementPoule(poule("b"), [forfait("ba", "bb", "bb"), forfait("bd", "bb", "bb"), lue("bc", "ba", "bc")]);
+    expect(dessous[0].id).toBe("bb");
+    expect(echangeEntre(dessus, dessous)).toBe(false);
   });
 });
 

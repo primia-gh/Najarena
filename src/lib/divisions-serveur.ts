@@ -10,6 +10,7 @@ import { envoyerRappel, URL_SITE } from "@/lib/notifications";
 import {
   classementPoule,
   LIBELLE_MOUVEMENT,
+  echangeEntre,
   mouvementDe,
   pouleJouee,
   repartirPoules,
@@ -173,15 +174,17 @@ async function cloturerLigues(admin: ClientAdmin, maintenant: Date): Promise<str
           .map((r) => ({ joueurA: r.joueur_a, joueurB: r.joueur_b, gagnantId: r.gagnant_id, niveauVerdict: r.niveau_verdict })),
       ),
     }));
-    const jouees = new Map(parPoule.map(({ poule, lignes }) => [poule.niveau, pouleJouee(lignes)]));
-    const aJoue = (niveau: number) => jouees.get(niveau) ?? false;
+    const parNiveau = new Map(parPoule.map(({ poule, lignes }) => [poule.niveau, lignes]));
+    const aJoue = (niveau: number) => pouleJouee(parNiveau.get(niveau) ?? []);
+    const echange = (frontiere: number) =>
+      echangeEntre(parNiveau.get(frontiere) ?? [], parNiveau.get(frontiere + 1) ?? []);
     const classements = parPoule.flatMap(({ poule: p, lignes }) =>
       lignes.map((l, i) => ({
         joueur: l.id,
         poule: p.id,
         niveau: p.niveau,
         rang: i + 1,
-        mouvement: mouvementDe(i + 1, lignes.length, p.niveau, nbPoules, aJoue),
+        mouvement: mouvementDe(i + 1, lignes.length, p.niveau, nbPoules, echange),
         pouleJouee: aJoue(p.niveau),
       })),
     );
