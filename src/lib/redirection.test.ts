@@ -18,6 +18,14 @@ describe("destinationInterne", () => {
     expect(destinationInterne("/moi?message=Faux")).toBe("/moi");
   });
 
+  it("jamais un autre site, même par un chemin à points ou encodé", () => {
+    for (const piege of ["/.//evil.example?message=x", "/..//evil.example?message=x", "/%2e//evil.example?message=x", "/.\\/evil.example?message=x", "/a/..//evil.example?message=x", "/.//evil.example"]) {
+      const destination = destinationInterne(piege);
+      expect(destination.startsWith("//")).toBe(false);
+      expect(destination).toBe("/moi");
+    }
+  });
+
   it("sans destination : le tableau de bord", () => {
     expect(destinationInterne(null)).toBe("/moi");
   });

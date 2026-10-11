@@ -76,9 +76,27 @@ export function sansMessagesForges(url: URL, secFetchSite: string | null): URL |
   return retire ? propre : null;
 }
 
-/** Un chemin du site (« /joueur/x?coach=…#coach ») sans aucun paramètre de message. */
+/**
+ * Un chemin du site (« /joueur/x?coach=…#coach ») sans aucun paramètre de
+ * message. Seule la partie après « ? » est réécrite : reconstruire le chemin
+ * (new URL) simplifierait « /.//autre-site » en « //autre-site », lu par le
+ * navigateur comme un autre site (contrôle de sécurité du 11/10/2026).
+ */
 export function cheminSansMessages(chemin: string): string {
-  const url = new URL(chemin, "http://site.invalid");
-  if (!retirer(url, () => false)) return chemin;
-  return `${url.pathname}${url.search}${url.hash}`;
+  const diese = chemin.indexOf("#");
+  const avantAncre = diese === -1 ? chemin : chemin.slice(0, diese);
+  const ancre = diese === -1 ? "" : chemin.slice(diese);
+  const question = avantAncre.indexOf("?");
+  if (question === -1) return chemin;
+  const parametres = new URLSearchParams(avantAncre.slice(question + 1));
+  let retire = false;
+  for (const parametre of PARAMETRES_MESSAGE) {
+    if (parametres.has(parametre)) {
+      parametres.delete(parametre);
+      retire = true;
+    }
+  }
+  if (!retire) return chemin;
+  const reste = parametres.toString();
+  return `${avantAncre.slice(0, question)}${reste ? `?${reste}` : ""}${ancre}`;
 }

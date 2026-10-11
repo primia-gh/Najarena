@@ -13,7 +13,10 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Widgets et API publique (audit N31) : lectures anonymes, sans session
-    // à rafraîchir — exclus pour rester légers et mis en cache.
-    "/((?!_next/static|_next/image|favicon.ico|widget/|api/public/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // à rafraîchir — exclus pour rester légers et mis en cache. Fichiers de
+    // public/ et icônes nommés un à un : exclure toute adresse finissant par
+    // .png laissait « /equipe/x.png?message=… » échapper au filtre des
+    // messages (contrôle de sécurité du 11/10/2026).
+    "/((?!_next/static|_next/image|favicon.ico|widget/|api/public/|avatars/|brand/|icon\\.png|icon-192\\.png|icon-512\\.png|apple-icon\\.png|logo-najarena|sw\\.js).*)",
   ],
 };

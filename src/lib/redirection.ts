@@ -7,7 +7,13 @@ import { cheminSansMessages } from "@/lib/messages-adresse";
 // Les messages éventuels (?coach=, ?message=…) en sont retirés : le site y
 // renverrait lui-même, ils s'afficheraient comme venant de lui (contrôle de
 // sécurité du 11/10/2026, src/lib/messages-adresse.ts).
+// Pas de segment « . » ou « .. » (même encodé) ni d'antislash : un chemin
+// normalisé en « //autre-site » mènerait ailleurs.
+const CHEMIN_DU_SITE = /^\/(?![/\\])[^@\s\\]*$/;
+const SEGMENT_POINT = /(^|\/)(\.|%2e){1,2}(\/|\?|#|$)/i;
+
 export function destinationInterne(demande: string | null, parDefaut = "/moi"): string {
-  if (!demande) return parDefaut;
-  return /^\/(?![/\\])[^@\s]*$/.test(demande) ? cheminSansMessages(demande) : parDefaut;
+  if (!demande || !CHEMIN_DU_SITE.test(demande) || SEGMENT_POINT.test(demande)) return parDefaut;
+  const propre = cheminSansMessages(demande);
+  return CHEMIN_DU_SITE.test(propre) && !SEGMENT_POINT.test(propre) ? propre : parDefaut;
 }
