@@ -213,7 +213,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
           <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Divisions</h1>
           <p className="max-w-2xl text-courant text-text-2">
             Une ligue par mois : des poules de joueurs de ton niveau, un match par semaine contre chacun, résultats lus
-            chez Riot. Le premier de chaque poule monte, le dernier descend.
+            chez Riot. Le premier de chaque poule peut monter, le dernier descendre : les conditions sont plus bas.
           </p>
         </Apparition>
 
@@ -237,10 +237,10 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
             <li className="flex flex-col gap-1.5">
               <span className="font-texte text-mini font-medium text-muted uppercase">Fin du mois</span>
               <span className="text-sm text-text-2">
-                Classement par victoires, puis victoires lues chez Riot, puis confrontation directe. Le premier monte
-                d&apos;une poule, le dernier descend. Une montée et la descente qui lui répond n&apos;ont lieu que si les
-                deux poules concernées ont au moins un match lu chez Riot, et personne ne monte sans y avoir gagné un
-                match lu chez Riot. Les nouveaux entrent selon leur rating.
+                Classement par victoires, puis victoires lues chez Riot, puis confrontation directe. Le premier de
+                chaque poule peut monter, le dernier descendre. Pour qu&apos;un échange ait lieu entre deux poules, les
+                deux doivent avoir joué au moins un match lu chez Riot, et le premier de la poule du dessous doit en
+                avoir gagné un. Sans victoire lue chez Riot, on ne monte pas. Les nouveaux entrent selon leur rating.
               </span>
             </li>
           </ul>

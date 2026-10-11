@@ -114,7 +114,10 @@ export interface LigneClassement {
 /**
  * Classement d'une poule : victoires (lues chez Riot ou par forfait de
  * l'adversaire), puis victoires lues chez Riot, puis confrontation directe
- * entre deux joueurs à égalité, puis ordre de départ.
+ * entre deux joueurs à égalité, puis ordre de départ. À trois joueurs ou
+ * plus à égalité, la confrontation directe peut tourner en rond (A bat B,
+ * B bat C, C bat A) : l'ordre de départ départage alors seul (contrôle du
+ * testeur du 11/10/2026 — le premier dépendait de l'ordre de lecture).
  */
 export function classementPoule(membres: { id: string; ordre: number }[], rencontres: RencontreJouee[]): LigneClassement[] {
   const lignes = new Map(membres.map((m) => [m.id, { id: m.id, joues: 0, victoires: 0, defaites: 0, victoiresVerifiees: 0 }]));
@@ -133,13 +136,24 @@ export function classementPoule(membres: { id: string; ordre: number }[], rencon
     vainqueur.set([r.joueurA, r.joueurB].sort().join("|"), r.gagnantId);
   }
   const ordre = new Map(membres.map((m) => [m.id, m.ordre]));
-  return [...lignes.values()].sort((a, b) => {
-    if (b.victoires !== a.victoires) return b.victoires - a.victoires;
-    if (b.victoiresVerifiees !== a.victoiresVerifiees) return b.victoiresVerifiees - a.victoiresVerifiees;
-    const direct = vainqueur.get([a.id, b.id].sort().join("|"));
-    if (direct) return direct === a.id ? -1 : 1;
-    return (ordre.get(a.id) ?? 0) - (ordre.get(b.id) ?? 0);
-  });
+  const egaux = (a: LigneClassement, b: LigneClassement) =>
+    a.victoires === b.victoires && a.victoiresVerifiees === b.victoiresVerifiees;
+  const tries = [...lignes.values()].sort(
+    (a, b) =>
+      b.victoires - a.victoires ||
+      b.victoiresVerifiees - a.victoiresVerifiees ||
+      (ordre.get(a.id) ?? 0) - (ordre.get(b.id) ?? 0),
+  );
+  // Confrontation directe : seulement entre exactement deux joueurs à égalité.
+  for (let i = 0; i < tries.length; ) {
+    let j = i + 1;
+    while (j < tries.length && egaux(tries[i], tries[j])) j++;
+    if (j - i === 2 && vainqueur.get([tries[i].id, tries[i + 1].id].sort().join("|")) === tries[i + 1].id) {
+      [tries[i], tries[i + 1]] = [tries[i + 1], tries[i]];
+    }
+    i = j;
+  }
+  return tries;
 }
 
 /**

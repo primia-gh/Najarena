@@ -158,6 +158,34 @@ describe("echangeEntre", () => {
   });
 });
 
+describe("classementPoule, égalité à trois", () => {
+  it("un cycle (A bat B, B bat C, C bat A) se départage par l'ordre de départ, quel que soit l'ordre de lecture", () => {
+    const lue = (a: string, b: string, gagnant: string) => ({ joueurA: a, joueurB: b, gagnantId: gagnant, niveauVerdict: "historique" });
+    const rencontres = [lue("a", "b", "a"), lue("b", "c", "b"), lue("c", "a", "c")];
+    const membres = [
+      { id: "a", ordre: 2 },
+      { id: "b", ordre: 1 },
+      { id: "c", ordre: 3 },
+    ];
+    const attendu = ["b", "a", "c"];
+    expect(classementPoule(membres, rencontres).map((l) => l.id)).toEqual(attendu);
+    expect(classementPoule([...membres].reverse(), [...rencontres].reverse()).map((l) => l.id)).toEqual(attendu);
+    expect(classementPoule([membres[2], membres[0], membres[1]], rencontres).map((l) => l.id)).toEqual(attendu);
+  });
+
+  it("deux joueurs à égalité : la confrontation directe départage", () => {
+    const lue = (a: string, b: string, gagnant: string) => ({ joueurA: a, joueurB: b, gagnantId: gagnant, niveauVerdict: "historique" });
+    const membres = [
+      { id: "a", ordre: 1 },
+      { id: "b", ordre: 2 },
+      { id: "c", ordre: 3 },
+    ];
+    // b bat a, a bat c : a et b à 1 victoire, c à 0 ; b devant a (confrontation directe).
+    const rencontres = [lue("a", "b", "b"), lue("a", "c", "a")];
+    expect(classementPoule(membres, rencontres).map((l) => l.id)).toEqual(["b", "a", "c"]);
+  });
+});
+
 describe("pouleJouee", () => {
   const membres = ["a", "b", "c", "d"].map((id, ordre) => ({ id, ordre }));
   it("un forfait ou une décision manuelle ne suffit pas", () => {
