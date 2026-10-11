@@ -10115,12 +10115,11 @@ as $$
       and d.debut >= c.debut_le and d.debut < coalesce(c.fin_le, now())
   ) e on true
   where c.coach_id = p_coach
+    -- Suivis acceptés publics, même quand le coach a décoché « J'accepte
+    -- des élèves » : un coach ne peut pas cacher les résultats de ses élèves
+    -- en décochant (décision du porteur du projet, 11/10/2026). Les
+    -- demandes en attente restent visibles du seul coach.
     and (c.statut in ('actif', 'termine') or (c.statut = 'demande' and auth.uid() = p_coach))
-    -- Public seulement si le coach a coché « J'accepte des élèves » (et
-    -- reste Diamant) ; sinon le coach voit tout, l'élève sa seule ligne
-    -- (contrôle de sécurité du 11/10/2026 : la page seule ne suffit pas).
-    and (auth.uid() = p_coach or auth.uid() = c.eleve_id
-         or (public.accepte_eleves(p_coach) and public.est_coach_eligible(p_coach)))
   order by (c.statut = 'demande') desc, coalesce(c.debut_le, c.demande_le) desc
   limit 100;
 $$;

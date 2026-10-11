@@ -44,11 +44,16 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
   ]);
   const eleves = elevesData ?? [];
   const suiviIci = monSuivi && monSuivi.coach_id === profilId ? monSuivi : null;
-  // « Coach vérifié » seulement si le joueur l'a choisi (case « J'accepte
-  // des élèves », décochée par défaut — décision du 11/10/2026). Sinon le
-  // bloc n'apparaît qu'à lui-même (pour cocher) et à son élève en cours.
+  const demandes = eleves.filter((e) => e.statut === "demande");
+  const suivis = eleves.filter((e) => e.statut !== "demande");
+  const resume = resumeCoach(suivis);
+  // « Coach vérifié » et les demandes seulement si le joueur l'a choisi
+  // (case « J'accepte des élèves », décochée par défaut). L'historique des
+  // suivis reste public même case décochée : un coach ne cache pas les
+  // résultats de ses élèves (décisions du porteur du projet, 11/10/2026).
   const ouvert = Boolean(eligible && caseCochee);
-  const visible = ouvert || suiviIci || (estProprietaire && (eligible || caseCochee || eleves.length > 0));
+  const visible =
+    ouvert || suivis.length > 0 || suiviIci || (estProprietaire && (eligible || caseCochee || demandes.length > 0));
   if (!visible) {
     // Bloc caché (par exemple, le coach vient de décocher) : le message de
     // l'action reste lisible.
@@ -60,30 +65,41 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
     ) : null;
   }
 
-  const demandes = eleves.filter((e) => e.statut === "demande");
-  const suivis = eleves.filter((e) => e.statut !== "demande");
-  const resume = resumeCoach(suivis);
+  const titre = ouvert
+    ? "Coach vérifié"
+    : suivis.length > 0
+      ? suivis.some((s) => s.statut === "actif")
+        ? "Suivis"
+        : "Suivis passés"
+      : estProprietaire && eligible
+        ? "Coach"
+        : "Suivi";
+  const lecture =
+    "Leurs points sont lus dans le registre : variations en tournoi pendant le suivi, rien de déclaré. C'est ce qui s'est passé pendant le suivi, pas une mesure de l'effet du coach.";
+  const texte = ouvert
+    ? `${pseudo} est classé Diamant Najarena (rating officiel de 1750 ou plus) et accepte des élèves. ${lecture}`
+    : estProprietaire
+      ? eligible
+        ? suivis.length > 0
+          ? "Tu ne reçois pas de nouvelle demande : coche la case ci-dessous pour accepter des élèves. La progression de tes élèves reste visible sur ton CV."
+          : "Tu es classé Diamant Najarena (rating officiel de 1750 ou plus) : tu peux suivre des élèves. « Coach vérifié » n'apparaît sur ton CV, et tu ne reçois de demandes, que si tu coches la case ci-dessous."
+        : `Tu n'es plus classé Diamant Najarena (rating officiel de 1750 ou plus) : pas de nouvel élève possible.${caseCochee ? " Ta case reste cochée : elle reprendra effet si tu redeviens Diamant ; décoche-la si tu ne le souhaites pas." : ""}`
+      : suiviIci?.statut === "demande"
+        ? `${pseudo} n'accepte plus de nouvelle demande ; la tienne est toujours en attente.`
+        : suiviIci
+          ? `${pseudo} n'accepte plus de nouvel élève ; ton suivi continue. ${lecture}`
+          : `${pseudo} n'accepte pas de nouvel élève ; voici la progression des élèves déjà suivis. ${lecture}`;
 
   return (
     <Panneau as="section" id="coach" className="flex scroll-mt-28 flex-col gap-6 p-6 sm:p-8" aria-labelledby="titre-coach">
       <div className="flex flex-col gap-2">
         <LibelleSection as="h2" id="titre-coach">
-          {ouvert ? "Coach vérifié" : estProprietaire && eligible ? "Coach" : "Suivi"}
+          {titre}
         </LibelleSection>
-        {estProprietaire && !ouvert && <p className="text-mini text-muted uppercase">Visible de toi seul</p>}
-        <p className="text-sm text-muted">
-          {ouvert
-            ? `${pseudo} est classé Diamant Najarena (rating officiel de 1750 ou plus) et accepte des élèves. Leurs points sont lus dans le registre : variations en tournoi pendant le suivi, rien de déclaré. C'est ce qui s'est passé pendant le suivi, pas une mesure de l'effet du coach.`
-            : estProprietaire
-              ? eligible
-                ? "Tu es classé Diamant Najarena (rating officiel de 1750 ou plus) : tu peux suivre des élèves. « Coach vérifié » n'apparaît sur ton CV, et tu ne reçois de demandes, que si tu coches la case ci-dessous."
-                : `Tu n'es plus classé Diamant Najarena (rating officiel de 1750 ou plus) : pas de nouvel élève possible.${caseCochee ? " Ta case reste cochée : elle reprendra effet si tu redeviens Diamant ; décoche-la si tu ne le souhaites pas." : ""}`
-              : !eligible
-                ? `${pseudo} n'est plus classé Diamant Najarena (rating officiel de 1750 ou plus) : pas de nouvel élève possible.`
-                : suiviIci?.statut === "demande"
-                  ? `${pseudo} n'accepte plus de nouvelle demande ; la tienne est toujours en attente.`
-                  : `${pseudo} n'accepte plus de nouvel élève ; ton suivi continue.`}
-        </p>
+        {estProprietaire && !ouvert && suivis.length === 0 && (
+          <p className="text-mini text-muted uppercase">Visible de toi seul</p>
+        )}
+        <p className="text-sm text-muted">{texte}</p>
       </div>
 
       {/* La case du coach, sur son propre CV. */}
@@ -96,7 +112,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
             value="1"
             defaultChecked={ouvert}
             titre="J'accepte des élèves"
-            detail="Cochée : ton CV affiche « Coach vérifié » et les joueurs peuvent te demander un suivi. Décochée : le bloc disparaît de ton CV public et tu ne reçois plus de demandes ; tes suivis en cours continuent."
+            detail="Cochée : ton CV affiche « Coach vérifié » et les joueurs peuvent te demander un suivi. Décochée : plus de demandes ; tes suivis en cours continuent et la progression de tes élèves reste visible sur ton CV, comme preuve."
           />
           <BoutonEnvoi variante="contour" libelleEnCours="Enregistrement…" className="self-start">
             Enregistrer
@@ -107,9 +123,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
       {message && <Alerte type="succes">{message}</Alerte>}
       {erreur && <Alerte type="erreur">{erreur}</Alerte>}
 
-      {/* Résumé : seulement quand le bloc est public, ou pour le coach lui-même
-          (un élève d'un coach fermé ne voit que sa propre ligne). */}
-      {suivis.length > 0 && (ouvert || estProprietaire) && (
+      {suivis.length > 0 && (
         <p className="text-sm text-text-2">
           <span className="tabular-nums">{resume.suivis}</span> élève{resume.suivis > 1 ? "s" : ""} suivi
           {resume.suivis > 1 ? "s" : ""}

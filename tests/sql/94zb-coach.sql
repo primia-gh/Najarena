@@ -186,13 +186,15 @@ select refus('Jo demande un suivi à Cora, qui a décoché', $q$select public.de
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 set role anon;
-select verifie('Cora a décoché : un visiteur ne lit plus la liste de ses élèves, même par l''API',
-  (select count(*) = 0 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')));
+select verifie('Cora a décoché : l''historique de ses suivis reste public (décision du 11/10/2026)',
+  exists (select 1 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0') where eleve_id = '00000000-0000-0000-0000-0000000003e2'));
+select verifie('… mais aucune demande en attente n''est publique',
+  not exists (select 1 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0') where statut = 'demande'));
 reset role;
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003e2');
-select verifie('Eli, élève de Cora, ne voit que sa propre ligne',
-  (select count(*) >= 1 and bool_and(eleve_id = '00000000-0000-0000-0000-0000000003e2') from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')));
+select verifie('Eli, élève de Cora, voit l''historique (pas de demande)',
+  (select count(*) >= 1 and bool_and(statut <> 'demande') from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')));
 select en_tant_que('00000000-0000-0000-0000-0000000003e0');
 select verifie('Cora voit encore ses suivis (celui d''Eli)',
   exists (select 1 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0') where eleve_id = '00000000-0000-0000-0000-0000000003e2'));

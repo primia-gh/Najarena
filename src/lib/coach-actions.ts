@@ -48,7 +48,7 @@ export async function reglerEleves(formData: FormData) {
     "message",
     accepte
       ? "C'est noté : ton CV affiche « Coach vérifié » et les joueurs peuvent te demander un suivi."
-      : "C'est noté : plus de nouvelle demande. Tes suivis en cours continuent.",
+      : "C'est noté : plus de nouvelle demande. Tes suivis en cours continuent et leur progression reste visible.",
   );
 }
 
