@@ -142,7 +142,9 @@ export async function obtenirCodeLiaisonDiscord(formData: FormData) {
       "#gestion",
     );
   }
-  redirect(`/communaute/${encodeURIComponent(slug)}?code=${encodeURIComponent(code)}#gestion`);
+  // « liaison » (pas « code ») : filtré par le proxy comme un message, un
+  // lien fabriqué ne peut pas faire afficher le code d'une autre communauté.
+  redirect(`/communaute/${encodeURIComponent(slug)}?liaison=${encodeURIComponent(code)}#gestion`);
 }
 
 export async function delierServeurDiscord(formData: FormData) {

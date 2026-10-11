@@ -114,7 +114,7 @@ const chargerCommunaute = cache(async (slug: string) => {
 
 interface CommunautePageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ erreur?: string; message?: string; code?: string; verification?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; liaison?: string; verification?: string }>;
 }
 
 export async function generateMetadata({ params }: CommunautePageProps): Promise<Metadata> {
@@ -133,7 +133,7 @@ export async function generateMetadata({ params }: CommunautePageProps): Promise
 
 export default async function CommunautePage({ params, searchParams }: CommunautePageProps) {
   const { slug } = await params;
-  const { erreur, message, code, verification } = await searchParams;
+  const { erreur, message, liaison: code, verification } = await searchParams;
   const donnees = await chargerCommunaute(slug);
   if (!donnees) notFound();
   const { communaute, moi, membres, tournois, ratings, paliers } = donnees;

@@ -4,8 +4,11 @@
 // le site (texte inventé dans un bandeau de réussite, sur un CV public).
 // Le proxy (src/proxy.ts) ne garde ces textes que s'ils viennent d'une
 // navigation interne au site (en-tête Sec-Fetch-Site: same-origin, posé par
-// le navigateur lui-même), ou s'ils font partie des retours prévus depuis un
-// autre site (Stripe, lien de connexion reçu par e-mail).
+// le navigateur lui-même), ou s'ils sont l'un des retours prévus depuis un
+// autre site (Stripe, lien de connexion), à leur page et sous leur nom.
+// La destination après connexion (?suite=) en est aussi nettoyée
+// (destinationInterne, src/lib/redirection.ts) : sinon le site lui-même y
+// renverrait, en navigation interne.
 
 export const PARAMETRES_MESSAGE = [
   "message",
@@ -16,9 +19,12 @@ export const PARAMETRES_MESSAGE = [
   "recoErreur",
   "bourse",
   "bourseErreur",
+  "liaison",
+  "demande",
+  "ignores",
 ] as const;
 
-/** Textes qu'un retour depuis un autre site peut porter : seuls admis hors navigation interne. */
+/** Textes qu'un retour depuis un autre site peut porter. */
 export const RETOURS_EXTERNES = {
   abonnementEnCours: "Abonnement en cours de confirmation.",
   lienVersementExpire: "Le lien a expiré : recommence la vérification.",
@@ -30,19 +36,49 @@ export const RETOURS_EXTERNES = {
   stripeIndisponible: "Stripe est indisponible pour l'instant : l'état de ta vérification sera mis à jour plus tard.",
 } as const;
 
-const ADMIS = new Set<string>(Object.values(RETOURS_EXTERNES));
+/** Chaque retour externe n'est admis qu'à sa page et sous son nom de paramètre. */
+const RETOURS_ADMIS: { chemin: string; parametre: string; texte: string }[] = [
+  { chemin: "/moi", parametre: "message", texte: RETOURS_EXTERNES.abonnementEnCours },
+  { chemin: "/connexion", parametre: "erreur", texte: RETOURS_EXTERNES.connexionImpossible },
+  { chemin: "/moi/gains", parametre: "message", texte: RETOURS_EXTERNES.lienVersementExpire },
+  { chemin: "/moi/gains", parametre: "message", texte: RETOURS_EXTERNES.identiteVerifiee },
+  { chemin: "/moi/gains", parametre: "message", texte: RETOURS_EXTERNES.verificationIncomplete },
+  { chemin: "/moi/gains", parametre: "erreur", texte: RETOURS_EXTERNES.versementIndisponible },
+  { chemin: "/moi/gains", parametre: "erreur", texte: RETOURS_EXTERNES.aucunCompteVersement },
+  { chemin: "/moi/gains", parametre: "erreur", texte: RETOURS_EXTERNES.stripeIndisponible },
+];
+
+/** Retire les paramètres de message de l'adresse ; vrai si quelque chose a été retiré. */
+function retirer(url: URL, garder: (parametre: string, valeurs: string[]) => boolean): boolean {
+  let retire = false;
+  for (const parametre of PARAMETRES_MESSAGE) {
+    const valeurs = url.searchParams.getAll(parametre);
+    if (valeurs.length > 0 && !garder(parametre, valeurs)) {
+      url.searchParams.delete(parametre);
+      retire = true;
+    }
+  }
+  return retire;
+}
 
 /** L'adresse sans les messages qui ne viennent pas du site, ou null s'il n'y a rien à retirer. */
 export function sansMessagesForges(url: URL, secFetchSite: string | null): URL | null {
   if (secFetchSite === "same-origin") return null;
   const propre = new URL(url);
-  let retire = false;
-  for (const parametre of PARAMETRES_MESSAGE) {
-    const valeur = propre.searchParams.get(parametre);
-    if (valeur !== null && !ADMIS.has(valeur)) {
-      propre.searchParams.delete(parametre);
-      retire = true;
-    }
-  }
+  // Une seule valeur, et prévue pour cette page et ce nom (un doublon
+  // « texte admis + texte piégé » serait affiché bout à bout).
+  const retire = retirer(
+    propre,
+    (parametre, valeurs) =>
+      valeurs.length === 1 &&
+      RETOURS_ADMIS.some((r) => r.chemin === propre.pathname && r.parametre === parametre && r.texte === valeurs[0]),
+  );
   return retire ? propre : null;
+}
+
+/** Un chemin du site (« /joueur/x?coach=…#coach ») sans aucun paramètre de message. */
+export function cheminSansMessages(chemin: string): string {
+  const url = new URL(chemin, "http://site.invalid");
+  if (!retirer(url, () => false)) return chemin;
+  return `${url.pathname}${url.search}${url.hash}`;
 }

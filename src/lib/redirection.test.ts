@@ -13,6 +13,11 @@ describe("destinationInterne", () => {
     }
   });
 
+  it("retire les messages de la destination (le site y renverrait lui-même)", () => {
+    expect(destinationInterne("/joueur/x?coach=Texte%20pi%C3%A9g%C3%A9&onglet=lol#coach")).toBe("/joueur/x?onglet=lol#coach");
+    expect(destinationInterne("/moi?message=Faux")).toBe("/moi");
+  });
+
   it("sans destination : le tableau de bord", () => {
     expect(destinationInterne(null)).toBe("/moi");
   });
