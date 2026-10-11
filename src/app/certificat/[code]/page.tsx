@@ -14,6 +14,8 @@ import LibelleSection from "@/components/design/LibelleSection";
 import IndicateurConfiance from "@/components/design/IndicateurConfiance";
 import BoutonCopier from "@/components/design/BoutonCopier";
 import QrCode from "@/components/design/QrCode";
+import Alerte from "@/components/design/Alerte";
+import { BadgeVerifie } from "@/components/design/Badges";
 import { clesPubliees, etatSignature, type EtatSignature } from "@/lib/signature-certificats";
 
 // Certificat de niveau vérifiable (28/09/2026, audit N9) : instantané daté,
@@ -203,7 +205,16 @@ export default async function CertificatPage({ params, searchParams }: Certifica
         <Apparition delai={0.14}>
           <Panneau as="section" className="mt-4 flex flex-col gap-3 px-6 py-6">
             <LibelleSection as="h2">Signature numérique</LibelleSection>
-            <p className="text-sm text-text-2">{TEXTE_SIGNATURE[signature]}</p>
+            {signature === "valide" ? (
+              <p className="flex flex-col gap-1.5 text-sm text-text-2">
+                <BadgeVerifie>Signature valide</BadgeVerifie>
+                <span>{TEXTE_SIGNATURE.valide}</span>
+              </p>
+            ) : signature === "absente" ? (
+              <p className="text-sm text-muted">{TEXTE_SIGNATURE.absente}</p>
+            ) : (
+              <Alerte type="erreur">{TEXTE_SIGNATURE[signature]}</Alerte>
+            )}
             {c.signature && (
               <dl className="flex flex-col gap-2 text-xs">
                 <div className="flex flex-col gap-0.5">
@@ -227,9 +238,7 @@ export default async function CertificatPage({ params, searchParams }: Certifica
                   télécharge le programme de vérification
                 </a>{" "}
                 puis lance{" "}
-                <code className="break-all text-text">
-                  node verifier-certificat.mjs {URL_SITE}/api/public/v1/certificats/{c.code}
-                </code>
+                <code className="text-text">node verifier-certificat.mjs {c.code}</code>
                 . Il compare la signature au texte du certificat et à la{" "}
                 <a href="/api/public/v1/cle-certificats" className="text-text underline underline-offset-3 hover:text-accent">
                   clé publique de Najarena

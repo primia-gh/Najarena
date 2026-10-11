@@ -2,15 +2,21 @@
 // Vérification indépendante d'un certificat de niveau Najarena (idée en
 // réserve n°2). N'utilise rien du site : seulement Node.js.
 //
-//   node scripts/verifier-certificat.mjs https://<domaine>/api/public/v1/certificats/<code>
-//   node scripts/verifier-certificat.mjs certificat.json [cle-publique-base64]
+//   node verifier-certificat.mjs <code du certificat, ou son adresse>
+//   node verifier-certificat.mjs certificat.json
 //
 // Le certificat contient le texte exact signé (`contenu`), sa signature et
 // la clé publique qui l'a signé (Ed25519, en base64). Le script vérifie que
-// cette clé est bien l'une de celles que Najarena publie
-// (/api/public/v1/cle-certificats, ou la clé passée en second argument),
-// puis que la signature correspond au texte : une seule lettre changée et
-// elle ne correspond plus.
+// cette clé est bien l'une de celles que Najarena publie, puis que la
+// signature correspond au texte : une seule lettre changée et elle ne
+// correspond plus.
+//
+// Certificat et clés sont toujours relus sur le site officiel de Najarena,
+// jamais sur l'adresse donnée (contrôle de sécurité du 10/10/2026) : un
+// site sosie pourrait sinon servir un faux certificat signé avec sa propre
+// clé. L'adresse officielle est inscrite dans ce programme par le site qui
+// le sert (/certificat/verifier-certificat.mjs) ; depuis le dépôt, la
+// donner par NAJARENA_SITE=https://…
 
 import { createPublicKey, verify } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -35,31 +41,60 @@ export function verifierCertificat(certificat, clesPubliees) {
   return signatureValide(certificat.contenu, certificat.signature, certificat.cle_publique) ? "valide" : "invalide";
 }
 
-async function lireJson(source) {
-  if (/^https?:\/\//.test(source)) {
-    const reponse = await fetch(source);
-    if (!reponse.ok) throw new Error(`${source} : ${reponse.status}`);
-    return reponse.json();
+// Remplacé par l'adresse du site quand le site sert ce programme.
+const SITE_INSCRIT = "__SITE_OFFICIEL__";
+
+/** Origine du site officiel (https://domaine), ou null si elle est inconnue. */
+export function siteOfficiel(inscrit = SITE_INSCRIT, variable = process.env.NAJARENA_SITE) {
+  const brut = inscrit.startsWith("__") ? variable : inscrit;
+  if (!brut) return null;
+  try {
+    return new URL(brut).origin;
+  } catch {
+    return null;
   }
-  return JSON.parse(await readFile(source, "utf8"));
+}
+
+/** Code d'un certificat (12 caractères), seul ou dans une adresse ; sinon null. */
+export function codeCertificat(source) {
+  const trouve = /(?:^|\/certificats?\/)([0-9a-f]{12})(?:$|[/?#])/.exec(source.trim());
+  return trouve ? trouve[1] : null;
+}
+
+async function lireJson(adresse) {
+  const reponse = await fetch(adresse);
+  if (!reponse.ok) throw new Error(`${adresse} : ${reponse.status}`);
+  return reponse.json();
 }
 
 async function principal() {
-  const [source, clePassee] = process.argv.slice(2);
+  const [source] = process.argv.slice(2);
   if (!source) {
-    console.error("Usage : node scripts/verifier-certificat.mjs <adresse ou fichier du certificat> [clé publique]");
+    console.error("Usage : node verifier-certificat.mjs <code ou adresse du certificat | certificat.json>");
     process.exit(2);
   }
-  const certificat = await lireJson(source);
-  const cles = clePassee
-    ? [clePassee]
-    : /^https?:\/\//.test(source)
-      ? (await lireJson(new URL("/api/public/v1/cle-certificats", source).toString())).cles ?? []
-      : [];
-  if (cles.length === 0) {
-    console.error("Clé publique inconnue : passe-la en second argument, ou donne l'adresse du certificat.");
+  const site = siteOfficiel();
+  if (!site) {
+    console.error(
+      "Adresse officielle de Najarena inconnue : télécharge ce programme depuis le site de Najarena, ou lance-le avec NAJARENA_SITE=https://…",
+    );
     process.exit(2);
   }
+
+  const estAdresse = /^https?:\/\//.test(source);
+  const code = codeCertificat(source);
+  if (estAdresse && new URL(source).origin !== site) {
+    console.log(`ATTENTION : ${new URL(source).origin} n'est pas le site de Najarena (${site}).`);
+    console.log("Le certificat est relu sur le site officiel ; ne te fie qu'à ce qui suit.");
+    console.log("");
+  }
+  // Par son code, le certificat est relu sur le site officiel ; un fichier
+  // est lu tel quel, mais sa clé doit être l'une de celles du site officiel.
+  const depuisLeSite = Boolean(code);
+  const certificat = depuisLeSite
+    ? await lireJson(`${site}/api/public/v1/certificats/${code}`)
+    : JSON.parse(await readFile(source, "utf8"));
+  const cles = (await lireJson(`${site}/api/public/v1/cle-certificats`)).cles ?? [];
 
   console.log(certificat.contenu ?? "(pas de contenu)");
   console.log("");
@@ -67,10 +102,17 @@ async function principal() {
   const messages = {
     valide: "SIGNATURE VALIDE : ce certificat est celui que Najarena a émis, sans aucune modification.",
     invalide: "SIGNATURE INVALIDE : le contenu ne correspond plus à la signature.",
-    cle_inconnue: "CLÉ INCONNUE : signé avec une clé que Najarena ne publie pas.",
+    cle_inconnue: "CLÉ INCONNUE : signé avec une clé que Najarena ne publie pas. Ne te fie pas à ce certificat.",
     absente: "PAS DE SIGNATURE : certificat émis avant la signature numérique.",
   };
   console.log(messages[etat]);
+  // Le pseudo n'est pas dans le texte signé (seul l'identifiant interne du
+  // joueur l'est) : on ne le montre que relu sur le site officiel.
+  if (depuisLeSite && certificat.joueur?.slug) {
+    console.log(`Joueur, d'après le site officiel : ${certificat.joueur.pseudo} — ${site}/joueur/${certificat.joueur.slug}`);
+  } else if (!depuisLeSite) {
+    console.log(`Le pseudo d'un fichier n'est pas signé : vérifie plutôt ce certificat par son code, sur ${site}.`);
+  }
   process.exit(etat === "valide" ? 0 : 1);
 }
 

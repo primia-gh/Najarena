@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import nacl from "tweetnacl";
-import { verifierCertificat } from "./verifier-certificat.mjs";
+import { codeCertificat, siteOfficiel, verifierCertificat } from "./verifier-certificat.mjs";
 
 // Le script de vérification (Node seul) doit accepter exactement ce que
 // signe le site (tweetnacl, src/lib/signature-certificats.ts).
@@ -20,5 +20,22 @@ describe("verifierCertificat", () => {
     ).toBe("invalide");
     expect(verifierCertificat({ contenu, signature, cle_publique: cle }, ["autre"])).toBe("cle_inconnue");
     expect(verifierCertificat({ contenu, signature: null, cle_publique: null }, [cle])).toBe("absente");
+  });
+});
+
+describe("siteOfficiel", () => {
+  it("prend l'adresse inscrite par le site, sinon NAJARENA_SITE, sinon rien", () => {
+    expect(siteOfficiel("https://najarena.example/", undefined)).toBe("https://najarena.example");
+    expect(siteOfficiel("__SITE_OFFICIEL__", "https://najarena.example")).toBe("https://najarena.example");
+    expect(siteOfficiel("__SITE_OFFICIEL__", undefined)).toBeNull();
+  });
+});
+
+describe("codeCertificat", () => {
+  it("trouve le code dans une adresse de l'API ou de la page, ou seul", () => {
+    expect(codeCertificat("https://sosie.example/api/public/v1/certificats/0123456789ab")).toBe("0123456789ab");
+    expect(codeCertificat("https://najarena.example/certificat/0123456789ab?nouveau=1")).toBe("0123456789ab");
+    expect(codeCertificat("0123456789ab")).toBe("0123456789ab");
+    expect(codeCertificat("certificat.json")).toBeNull();
   });
 });
