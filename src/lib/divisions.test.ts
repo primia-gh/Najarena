@@ -104,11 +104,16 @@ describe("classementPoule", () => {
 
 describe("mouvementDe", () => {
   it("le premier monte, le dernier descend, sauf aux extrémités", () => {
-    expect(mouvementDe(1, 4, 1, 3)).toBe("reste");
-    expect(mouvementDe(1, 4, 2, 3)).toBe("monte");
-    expect(mouvementDe(4, 4, 2, 3)).toBe("descend");
-    expect(mouvementDe(4, 4, 3, 3)).toBe("reste");
-    expect(mouvementDe(2, 4, 2, 3)).toBe("reste");
+    expect(mouvementDe(1, 4, 1, 3, true)).toBe("reste");
+    expect(mouvementDe(1, 4, 2, 3, true)).toBe("monte");
+    expect(mouvementDe(4, 4, 2, 3, true)).toBe("descend");
+    expect(mouvementDe(4, 4, 3, 3, true)).toBe("reste");
+    expect(mouvementDe(2, 4, 2, 3, true)).toBe("reste");
+  });
+
+  it("personne ne bouge dans une poule où aucun match n'a été joué", () => {
+    expect(mouvementDe(1, 4, 2, 3, false)).toBe("reste");
+    expect(mouvementDe(4, 4, 2, 3, false)).toBe("reste");
   });
 });
 

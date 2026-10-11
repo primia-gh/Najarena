@@ -142,8 +142,14 @@ export function classementPoule(membres: { id: string; ordre: number }[], rencon
   });
 }
 
-/** Le premier monte (sauf en poule 1), le dernier descend (sauf en dernière poule). */
-export function mouvementDe(rang: number, taille: number, niveau: number, nbPoules: number): Mouvement {
+/**
+ * Le premier monte (sauf en poule 1), le dernier descend (sauf en dernière
+ * poule). Dans une poule où aucun match n'a été joué, personne ne bouge
+ * (décision du porteur du projet, 11/10/2026) : le classement n'y départage
+ * que l'ordre de départ, rien de mérité sur le terrain.
+ */
+export function mouvementDe(rang: number, taille: number, niveau: number, nbPoules: number, pouleJouee: boolean): Mouvement {
+  if (!pouleJouee) return "reste";
   if (rang === 1 && niveau > 1) return "monte";
   if (rang === taille && niveau < nbPoules) return "descend";
   return "reste";
