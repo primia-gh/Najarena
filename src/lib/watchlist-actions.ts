@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { chargerOffre } from "@/lib/offres";
+import { destinationInterne } from "@/lib/redirection";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -23,7 +24,7 @@ export async function suivreJoueur(formData: FormData) {
   const utilisateur = await verifierOrganisateur(supabase);
 
   const joueurSuiviId = String(formData.get("joueur_suivi_id") ?? "");
-  const retour = String(formData.get("retour") ?? "/lol/recherche");
+  const retour = destinationInterne(String(formData.get("retour") ?? "") || null, "/lol/recherche");
 
   const { error } = await supabase
     .from("watchlist")
@@ -41,7 +42,7 @@ export async function retirerDeLaWatchlist(formData: FormData) {
   const utilisateur = await verifierOrganisateur(supabase);
 
   const joueurSuiviId = String(formData.get("joueur_suivi_id") ?? "");
-  const retour = String(formData.get("retour") ?? "/moi/watchlist");
+  const retour = destinationInterne(String(formData.get("retour") ?? "") || null, "/moi/watchlist");
 
   await supabase
     .from("watchlist")

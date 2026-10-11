@@ -184,6 +184,9 @@ set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003e7');
 select refus('Jo demande un suivi à Cora, qui a décoché', $q$select public.demander_coaching('00000000-0000-0000-0000-0000000003e0')$q$, 'COACH_FERME');
 reset role;
+-- Une demande reçue avant de décocher reste en attente (décocher ne
+-- l'annule pas) : elle ne doit jamais devenir publique.
+insert into coachings (coach_id, eleve_id) values ('00000000-0000-0000-0000-0000000003e0', '00000000-0000-0000-0000-0000000003e7');
 select set_config('request.jwt.claim.sub', '', false);
 set role anon;
 select verifie('Cora a décoché : l''historique de ses suivis reste public (décision du 11/10/2026)',
@@ -196,6 +199,8 @@ select en_tant_que('00000000-0000-0000-0000-0000000003e2');
 select verifie('Eli, élève de Cora, voit l''historique (pas de demande)',
   (select count(*) >= 1 and bool_and(statut <> 'demande') from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')));
 select en_tant_que('00000000-0000-0000-0000-0000000003e0');
+select verifie('Cora voit encore la demande en attente de Jo',
+  exists (select 1 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0') where statut = 'demande' and eleve_id = '00000000-0000-0000-0000-0000000003e7'));
 select verifie('Cora voit encore ses suivis (celui d''Eli)',
   exists (select 1 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0') where eleve_id = '00000000-0000-0000-0000-0000000003e2'));
 -- Cora recoche puis est suspendue : la case ne compte plus.

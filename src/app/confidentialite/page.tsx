@@ -20,7 +20,7 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour : 5 octobre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour : 11 octobre 2026.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
         <section>
@@ -100,6 +100,41 @@ export default function ConfidentialitePage() {
               code y est envoyé. Najarena ne garde que le domaine de l&apos;adresse et une empreinte calculée à partir
               d&apos;elle (qui sert seulement à empêcher qu&apos;une même adresse vérifie deux comptes), jamais
               l&apos;adresse elle-même. Le badge « vérifié » de la liste des membres est public.
+            </li>
+            <li>
+              Coach : un joueur Diamant n&apos;apparaît comme coach que s&apos;il a coché « J&apos;accepte des élèves ».
+              Un suivi accepté est public sur le CV du coach : pseudo de l&apos;élève, dates du suivi, nombre de
+              tournois et somme des points pendant le suivi (ces points sont déjà publics dans le registre). Il le
+              reste après la fin du suivi, même si le coach décoche sa case. Une demande en attente n&apos;est visible
+              que du coach et de l&apos;élève.
+            </li>
+            <li>
+              Recommandations : une recommandation est publique sur le CV du joueur recommandé, avec le pseudo de son
+              auteur ; le joueur recommandé peut la masquer. Najarena garde la liste des joueurs que tu as recommandés,
+              même après un retrait, pour limiter les envois répétés.
+            </li>
+            <li>
+              Divisions : ton inscription, ta poule, tes rencontres (y compris l&apos;heure où tu as cliqué « Je suis
+              là ») et ton classement final sont publics.
+            </li>
+            <li>
+              Tournois à la demande : les heures que tu indiques ne sont visibles que de toi ; seul le nombre de
+              joueurs disponibles par heure est public. Elles sont effacées une fois passées.
+            </li>
+            <li>
+              Bourse aux remplaçants : ton pseudo et ton rôle sont publics sur la page du tournoi tant que tu y es
+              inscrit ; un remplacement est public comme un alignement.
+            </li>
+            <li>
+              Fiabilité : ton taux de check-in, ton délai pour « Je suis prêt », tes forfaits et tes défaites
+              reconnues sont calculés à partir de tes matchs et affichés sur ton CV (à partir de 3 tournois ou 3
+              matchs).
+            </li>
+            <li>
+              Certificats et fiches de preuve : un certificat que tu émets est une page publique par son lien, figée,
+              avec ton pseudo, ton rating et sa signature numérique. La fiche de preuve d&apos;un match montre le
+              verdict, l&apos;identifiant de la partie chez Riot et les Riot ID des comptes liés, déjà publics sur le
+              CV.
             </li>
             <li>
               Pronostics : ton choix pour chaque match n&apos;est visible que de toi ; seule la répartition des
