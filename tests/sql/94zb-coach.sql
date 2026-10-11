@@ -184,3 +184,28 @@ set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003e7');
 select refus('Jo demande un suivi à Cora, qui a décoché', $q$select public.demander_coaching('00000000-0000-0000-0000-0000000003e0')$q$, 'COACH_FERME');
 reset role;
+select set_config('request.jwt.claim.sub', '', false);
+set role anon;
+select verifie('Cora a décoché : un visiteur ne lit plus la liste de ses élèves, même par l''API',
+  (select count(*) = 0 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')));
+reset role;
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003e2');
+select verifie('Eli, élève de Cora, ne voit que sa propre ligne',
+  (select count(*) >= 1 and bool_and(eleve_id = '00000000-0000-0000-0000-0000000003e2') from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')));
+select en_tant_que('00000000-0000-0000-0000-0000000003e0');
+select verifie('Cora voit encore ses suivis (celui d''Eli)',
+  exists (select 1 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0') where eleve_id = '00000000-0000-0000-0000-0000000003e2'));
+-- Cora recoche puis est suspendue : la case ne compte plus.
+select public.regler_eleves(true);
+reset role;
+insert into suspensions (profile_id, motif) values ('00000000-0000-0000-0000-0000000003e0', 'Test de suspension du coach');
+select verifie('Coach suspendue après avoir coché : n''accepte plus d''élèves',
+  not public.accepte_eleves('00000000-0000-0000-0000-0000000003e0'));
+update suspensions set levee_le = now() where profile_id = '00000000-0000-0000-0000-0000000003e0';
+select verifie('Suspension levée : la case compte de nouveau', public.accepte_eleves('00000000-0000-0000-0000-0000000003e0'));
+-- Compte de Cora supprimé : sa case disparaît avec ses suivis.
+update profiles set supprime_le = now() where id = '00000000-0000-0000-0000-0000000003e0';
+select verifie('Compte supprimé : la case est effacée, plus d''élèves acceptés',
+  not exists (select 1 from coachs_ouverts where profile_id = '00000000-0000-0000-0000-0000000003e0')
+  and not public.accepte_eleves('00000000-0000-0000-0000-0000000003e0'));

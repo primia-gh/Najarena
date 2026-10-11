@@ -9925,7 +9925,13 @@ language sql
 stable
 security definer set search_path = public
 as $$
-  select exists (select 1 from public.coachs_ouverts where profile_id = p_profile_id);
+  -- Faux pour un compte supprimé ou suspendu, même s'il avait coché.
+  select exists (
+      select 1 from public.coachs_ouverts o
+      join public.profiles p on p.id = o.profile_id and p.supprime_le is null
+      where o.profile_id = p_profile_id
+    )
+    and not exists (select 1 from public.suspensions where profile_id = p_profile_id and levee_le is null);
 $$;
 revoke execute on function public.accepte_eleves(uuid) from public;
 grant execute on function public.accepte_eleves(uuid) to anon, authenticated, service_role;
@@ -10110,6 +10116,11 @@ as $$
   ) e on true
   where c.coach_id = p_coach
     and (c.statut in ('actif', 'termine') or (c.statut = 'demande' and auth.uid() = p_coach))
+    -- Public seulement si le coach a coché « J'accepte des élèves » (et
+    -- reste Diamant) ; sinon le coach voit tout, l'élève sa seule ligne
+    -- (contrôle de sécurité du 11/10/2026 : la page seule ne suffit pas).
+    and (auth.uid() = p_coach or auth.uid() = c.eleve_id
+         or (public.accepte_eleves(p_coach) and public.est_coach_eligible(p_coach)))
   order by (c.statut = 'demande') desc, coalesce(c.debut_le, c.demande_le) desc
   limit 100;
 $$;
@@ -10124,6 +10135,7 @@ security definer set search_path = public
 as $$
 begin
   delete from public.coachings where coach_id = new.id or eleve_id = new.id;
+  delete from public.coachs_ouverts where profile_id = new.id;
   return null;
 end;
 $$;
