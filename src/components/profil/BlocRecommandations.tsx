@@ -110,14 +110,14 @@ export default async function BlocRecommandations({ profilId, slug, pseudo, visi
             {maRecommandation ? "Ta recommandation" : `Recommander ${pseudo}`}
           </h3>
           <p className="text-xs text-muted">
-            Vous avez joué {libelleMatchsCommuns(communs.ensemble, communs.contre)}. Ce que tu écris est public, avec ton
+            Toi et {pseudo} avez joué {libelleMatchsCommuns(communs.ensemble, communs.contre)}. Ce que tu écris est public, avec ton
             pseudo{maRecommandation?.masquee ? ` ; ${pseudo} l'a masquée de son CV` : ""}.
           </p>
           <form action={recommanderJoueur} className="flex flex-col gap-3">
             <input type="hidden" name="slug" value={slug} />
             <input type="hidden" name="destinataire" value={profilId} />
             <Champ
-              libelle="Ta recommandation"
+              libelle="Ce que tu as constaté"
               idAide="aide-recommandation"
               aide={`De ${RECOMMANDATION_MIN} à ${RECOMMANDATION_MAX} caractères. Relue par la modération comme tout texte public.`}
             >

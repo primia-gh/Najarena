@@ -288,7 +288,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
               <p className="text-sm text-muted">Ton compte Riot est sur {compte?.region} : ta ligue est celle de cette région.</p>
             ) : jeSuisInscrit ? (
               <form action={quitterDivision} className="flex flex-wrap items-center gap-3">
-                <span className="text-sm font-semibold text-accent uppercase">Inscrit</span>
+                <span className="text-sm font-semibold text-text uppercase">Inscrit</span>
                 <BoutonEnvoi variante="contour" libelleEnCours="…">
                   Me désinscrire
                 </BoutonEnvoi>
@@ -341,7 +341,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
                               <Link
                                 href={`/lol/match/${r.match_id}`}
                                 title="Voir la preuve de ce résultat"
-                                className="relative inline-flex min-h-11 items-center hover:opacity-80"
+                                className="relative inline-flex min-h-11 items-center hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                               >
                                 <BadgeVerdict niveau={r.niveau_verdict as NiveauVerdict} compact />
                                 <span className="sr-only"> — voir la preuve</span>

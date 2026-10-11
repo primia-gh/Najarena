@@ -79,7 +79,8 @@ export async function terminerCoaching(formData: FormData) {
   const coaching = String(formData.get("coaching") ?? "");
   const demande = formData.get("demande") === "1";
   const { supabase } = await connecte(slug);
-  await supabase.rpc("terminer_coaching", { p_coaching_id: coaching });
+  const { data: fait, error } = await supabase.rpc("terminer_coaching", { p_coaching_id: coaching });
+  if (error || !fait) retour(slug, "erreur", "Ce suivi n'est plus en cours : rien à terminer.");
   retour(
     slug,
     "message",

@@ -840,7 +840,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                         <th scope="col" className="w-14">
                           Rés.
                         </th>
-                        <th scope="col">Date</th>
+                        <th scope="col" className="hidden sm:table-cell">
+                          Date
+                        </th>
                         <th scope="col">Tournoi</th>
                         <th scope="col" className="text-right">
                           Preuve
@@ -854,11 +856,14 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                             <td>
                               <PastilleResultat resultat={h.estGagnant ? "V" : "D"} />
                             </td>
-                            <td className="text-[13px] tracking-[1px] whitespace-nowrap text-muted tabular-nums">
+                            {/* Sur téléphone, la date passe sous le tournoi : la
+                                colonne « Preuve » garde sa place. */}
+                            <td className="hidden text-[13px] tracking-[1px] whitespace-nowrap text-muted tabular-nums sm:table-cell">
                               {formaterDate(h.creeLe)}
                             </td>
                             <td>
                               <span className="flex flex-col gap-0.5">
+                                <span className="text-xs text-muted tabular-nums sm:hidden">{formaterDate(h.creeLe)}</span>
                                 <span className="font-semibold">
                                   {h.tournoi ? (
                                     <Link

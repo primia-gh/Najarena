@@ -37,6 +37,7 @@ export async function retirerDisponibilite(formData: FormData) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect(`/connexion?suite=${encodeURIComponent(PAGE)}`);
 
-  await supabase.rpc("retirer_disponibilite", { p_debut: debut });
+  const { data: fait, error } = await supabase.rpc("retirer_disponibilite", { p_debut: debut });
+  if (error || !fait) retour("erreur", "Cette heure n'était pas indiquée : rien à retirer.");
   retour("message", "Disponibilité retirée.");
 }

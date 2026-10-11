@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { chimieEquipe, pourcentageVictoires, type Bilan } from "@/lib/chimie-equipe";
+import { CHIMIE_MATCHS_MIN, chimieEquipe, pourcentageVictoires, type Bilan } from "@/lib/chimie-equipe";
 import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
 
@@ -8,11 +8,18 @@ import Tableau from "@/components/design/Tableau";
 // 5v5 lus chez Riot (tournois et scrims) selon les joueurs alignés
 // ensemble. Absent sous 3 matchs vérifiés : jamais de bloc vide.
 
+// Pourcentage seulement à partir de 3 matchs : « 100 % » sur un match ne
+// dit rien.
 function BilanCourt({ bilan, enLigne = false }: { bilan: Bilan; enLigne?: boolean }) {
   return (
     <span className="tabular-nums">
-      {bilan.victoires} V – {bilan.matchs - bilan.victoires} D{" "}
-      <span className={enLigne ? "text-muted" : "block text-muted sm:inline"}>({pourcentageVictoires(bilan)} %)</span>
+      {bilan.victoires} V – {bilan.matchs - bilan.victoires} D
+      {bilan.matchs >= CHIMIE_MATCHS_MIN && (
+        <>
+          {" "}
+          <span className={enLigne ? "text-muted" : "block text-muted sm:inline"}>({pourcentageVictoires(bilan)} %)</span>
+        </>
+      )}
     </span>
   );
 }

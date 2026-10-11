@@ -17,7 +17,12 @@ export interface JoueurPreuve {
   pretLe: string | null;
   /** Riot ID : celui de la partie lue chez Riot, sinon le compte principal lié. */
   riotId: string | null;
-  /** Vrai seulement si la fiche de la partie lue chez Riot désigne ce compte. */
+  /** La fiche de la partie a été lue chez Riot pour ce joueur. */
+  partieLue: boolean;
+  /**
+   * Vrai seulement si cette fiche désigne ce compte. Une fiche lue avant le
+   * 03/10/2026 ne garde pas le compte joué : partie lue, compte non précisé.
+   */
   compteDeLaPartie: boolean;
   champion: string | null;
 }
@@ -105,6 +110,7 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
       gagnant: verdict ? verdict.gagnant_id === p.profile_id : p.est_gagnant,
       pretLe: p.pret_le,
       riotId: compte ? `${compte.riot_game_name}#${compte.riot_tag_line}` : null,
+      partieLue: Boolean(s),
       compteDeLaPartie: Boolean(compteJoue),
       champion: s?.champion ?? null,
     };

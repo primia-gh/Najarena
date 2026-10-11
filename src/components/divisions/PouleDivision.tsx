@@ -110,7 +110,7 @@ export default function PouleDivision({
                   <Link
                     href={`/lol/match/${r.matchId}`}
                     title="Voir la preuve de ce résultat"
-                    className="relative inline-flex min-h-11 items-center hover:opacity-80"
+                    className="relative inline-flex min-h-11 items-center hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     <BadgeVerdict niveau={r.niveau} compact />
                     <span className="sr-only"> — voir la preuve</span>

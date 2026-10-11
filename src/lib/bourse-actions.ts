@@ -37,7 +37,8 @@ export async function quitterRemplacants(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const tournoi = String(formData.get("tournament_id") ?? "");
   const { supabase } = await connecte(slug);
-  await supabase.rpc("quitter_remplacants", { p_tournament_id: tournoi });
+  const { data: fait, error } = await supabase.rpc("quitter_remplacants", { p_tournament_id: tournoi });
+  if (error || !fait) retour(slug, "erreur", "Tu n'étais pas dans la bourse aux remplaçants.");
   retour(slug, "message", "Tu n'es plus dans la bourse aux remplaçants.");
 }
 

@@ -11,15 +11,16 @@ export const COACH_MESURES_MIN = 3;
 export const COACH_ELEVES_MAX = 20;
 
 export interface SuiviEleve {
+  eleve_id: string;
   statut: string;
   tournois: number;
   points: number;
 }
 
 export interface ResumeCoach {
-  /** Suivis acceptés (en cours ou terminés). */
+  /** Élèves distincts dont un suivi a été accepté (en cours ou terminé). */
   suivis: number;
-  /** Suivis avec assez de tournois pour mesurer une progression. */
+  /** Élèves avec assez de tournois, sur l'ensemble de leurs suivis, pour mesurer une progression. */
   mesures: number;
   enProgression: number;
   /** Médiane des points gagnés, sur les suivis mesurés (null sous COACH_MESURES_MIN mesures). */
@@ -31,14 +32,24 @@ export function progressionMesurable(s: SuiviEleve): boolean {
 }
 
 export function resumeCoach(suivis: SuiviEleve[]): ResumeCoach {
-  const acceptes = suivis.filter((s) => s.statut !== "demande");
-  const points = acceptes
+  // Un élève suivi deux fois (suivi terminé puis repris) compte une fois :
+  // ses suivis s'additionnent (tournois et points pendant chacun d'eux).
+  const parEleve = new Map<string, SuiviEleve>();
+  for (const s of suivis.filter((x) => x.statut !== "demande")) {
+    const deja = parEleve.get(s.eleve_id);
+    parEleve.set(
+      s.eleve_id,
+      deja ? { ...deja, tournois: deja.tournois + s.tournois, points: deja.points + s.points } : { ...s },
+    );
+  }
+  const eleves = [...parEleve.values()];
+  const points = eleves
     .filter(progressionMesurable)
     .map((s) => s.points)
     .sort((a, b) => a - b);
   const milieu = Math.floor(points.length / 2);
   return {
-    suivis: acceptes.length,
+    suivis: eleves.length,
     mesures: points.length,
     enProgression: points.filter((p) => p > 0).length,
     medianePoints:

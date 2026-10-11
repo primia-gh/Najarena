@@ -224,7 +224,9 @@ export default async function CertificatPage({ params, searchParams }: Certifica
                   </dd>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <dt className="text-muted uppercase">Clé publique de Najarena</dt>
+                  <dt className="text-muted uppercase">
+                    {signature === "valide" ? "Clé publique de Najarena" : "Clé publique utilisée"}
+                  </dt>
                   <dd>
                     <code className="break-all text-muted">{c.cle_publique}</code>
                   </dd>

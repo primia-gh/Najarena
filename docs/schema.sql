@@ -8845,7 +8845,10 @@ begin
   ) then
     raise exception 'TOURNOI_DEJA_PREVU';
   end if;
-  if (select count(*) from public.disponibilites where profile_id = v_joueur and debut > now()) >= 8
+  -- Les 8 heures comptées sont celles qu'on peut encore retirer (à plus de
+  -- 90 minutes), comme sur la page (contrôle du testeur, 11/10/2026).
+  if (select count(*) from public.disponibilites
+      where profile_id = v_joueur and debut >= now() + interval '90 minutes') >= 8
      and not exists (select 1 from public.disponibilites where profile_id = v_joueur and debut = p_debut) then
     raise exception 'LIMITE_DISPONIBILITES';
   end if;

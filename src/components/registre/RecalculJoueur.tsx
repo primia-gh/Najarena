@@ -89,8 +89,8 @@ export default function RecalculJoueur({ slug }: { slug: string }) {
           Résultat
         </LibelleSection>
         {ecarts === 0 ? (
-          <p className="text-sm text-text-2" role="status">
-            <span className="font-semibold text-accent uppercase">Concorde</span> —{" "}
+          <Alerte type="succes">
+            <span className="font-semibold uppercase">Concorde</span> —{" "}
             <span className="tabular-nums">{concordes}</span> ligne{concordes > 1 ? "s" : ""} sur{" "}
             <span className="tabular-nums">{lignes.length}</span> recalculée{concordes > 1 ? "s" : ""} à l&apos;identique
             dans ton navigateur
@@ -101,7 +101,7 @@ export default function RecalculJoueur({ slug }: { slug: string }) {
               </>
             ) : null}
             .
-          </p>
+          </Alerte>
         ) : (
           <Alerte type="erreur">
             <span className="tabular-nums">{ecarts}</span> ligne{ecarts > 1 ? "s" : ""} ne concorde

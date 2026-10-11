@@ -168,7 +168,7 @@ export default async function PreuveMatchPage({ params }: PageProps) {
                   {preuve.joueurs.map((j) => (
                     <tr key={j.profileId}>
                       <td>
-                        <span className="inline-flex items-center gap-2">
+                        <span className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
                           {j.slug ? (
                             <Link href={`/joueur/${j.slug}`} className="font-semibold hover:text-accent">
                               {j.pseudo}
@@ -184,7 +184,13 @@ export default async function PreuveMatchPage({ params }: PageProps) {
                           <span className="flex flex-col">
                             <span className="tabular-nums">{j.riotId}</span>
                             <span className="text-xs text-muted">
-                              {j.compteDeLaPartie ? "A joué cette partie" : "Compte lié — partie non lue chez Riot"}
+                              {j.compteDeLaPartie
+                                ? "A joué cette partie"
+                                : j.partieLue
+                                  ? "Partie lue chez Riot, compte joué non enregistré"
+                                  : verdict && verdict.niveau !== "manuel"
+                                    ? "Compte lié — détail de la partie non conservé"
+                                    : "Compte lié — partie non lue chez Riot"}
                             </span>
                           </span>
                         ) : (
@@ -198,7 +204,9 @@ export default async function PreuveMatchPage({ params }: PageProps) {
               </Tableau>
               <p className="text-xs text-muted">
                 Comptes Riot vérifiés par l&apos;icône de profil. « A joué cette partie » et le champion viennent de la
-                fiche officielle de la partie, seulement quand elle a été retrouvée chez Riot.
+                fiche officielle de la partie, seulement quand elle a été retrouvée chez Riot. Les parties lues avant le 5
+                octobre 2026 n&apos;ont pas gardé leur détail, et celles d&apos;avant le 3 octobre le compte qui a joué : le
+                compte affiché est alors le compte principal.
               </p>
             </section>
           </Apparition>

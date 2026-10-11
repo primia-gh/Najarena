@@ -32,7 +32,8 @@ export async function sInscrireDivision() {
 
 export async function quitterDivision() {
   const { supabase } = await connecte();
-  await supabase.rpc("quitter_division");
+  const { data: fait, error } = await supabase.rpc("quitter_division");
+  if (error || !fait) retour("erreur", "Tu n'étais pas inscrit à la prochaine ligue.");
   retour("message", "Désinscrit de la prochaine ligue.");
 }
 

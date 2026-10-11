@@ -71,8 +71,9 @@ export function codeCertificat(source) {
   return trouve ? trouve[1] : null;
 }
 
-async function lireJson(adresse) {
+async function lireJson(adresse, introuvable) {
   const reponse = await fetch(adresse);
+  if (reponse.status === 404 && introuvable) throw new Error(introuvable);
   if (!reponse.ok) throw new Error(`${adresse} : ${reponse.status}`);
   return reponse.json();
 }
@@ -102,7 +103,10 @@ async function principal() {
   // est lu tel quel, mais sa clé doit être l'une de celles du site officiel.
   const depuisLeSite = Boolean(code);
   const certificat = depuisLeSite
-    ? await lireJson(`${site}/api/public/v1/certificats/${code}`)
+    ? await lireJson(
+        `${site}/api/public/v1/certificats/${code}`,
+        `Aucun certificat ${code} sur ${site} : vérifie le code (12 caractères, chiffres et lettres de a à f).`,
+      )
     : JSON.parse(await readFile(source, "utf8"));
   const cles = (await lireJson(`${site}/api/public/v1/cle-certificats`)).cles ?? [];
 

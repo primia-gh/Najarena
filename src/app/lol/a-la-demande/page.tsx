@@ -5,6 +5,7 @@ import { REGIONS } from "@/lib/regions";
 import { heureParis, jourLisibleParis, jourParis } from "@/lib/tournois-auto/creneaux";
 import {
   AVANCE_MAX_HEURES,
+  AVANCE_MIN_MINUTES,
   DISPONIBILITES_MAX,
   HEURE_DERNIERE,
   HEURE_PREMIERE,
@@ -93,7 +94,8 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
   const nombreA = new Map((comptes ?? []).map((c) => [cle(c.debut), c.joueurs]));
   const mesHeures = new Set((miennes ?? []).map((d) => cle(d.debut)));
   const tournoiA = new Map((prevus ?? []).map((t) => [cle(t.debute_le), t]));
-  const mesProchaines = [...mesHeures].filter((t) => t > maintenantMs).length;
+  // Comme la base : seules comptent les heures qu'on peut encore retirer.
+  const mesProchaines = [...mesHeures].filter((t) => t >= maintenantMs + AVANCE_MIN_MINUTES * 60_000).length;
   const peutIndiquer = Boolean(moi && compteVerifie);
 
   return (
@@ -225,7 +227,7 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
                       )}
                       {!tournoi && peutIndiquer && (
                         <span className="font-texte text-mini font-semibold text-muted uppercase group-hover:text-text">
-                          {mienne ? "Je suis dispo · retirer" : "+ Je suis dispo"}
+                          Je suis dispo
                         </span>
                       )}
                     </>

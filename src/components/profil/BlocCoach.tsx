@@ -87,7 +87,6 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
           <thead>
             <tr>
               <th scope="col">Élève</th>
-              <th scope="col">Suivi</th>
               <th scope="col" className="text-right">
                 Tournois
               </th>
@@ -99,26 +98,41 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
           <tbody>
             {suivis.map((e) => (
               <tr key={e.coaching_id}>
+                {/* Date et fin du suivi sous le nom : la colonne « Points »
+                    reste visible sur téléphone. */}
                 <td>
-                  <Link href={`/joueur/${e.eleve_slug}`} className="hover:text-accent">
-                    {e.eleve_pseudo}
-                  </Link>
-                </td>
-                <td className="text-xs text-muted tabular-nums">
-                  {e.debut_le ? dateCourte(e.debut_le) : ""} → {e.fin_le ? dateCourte(e.fin_le) : "en cours"}
-                  {estProprietaire && e.statut === "actif" && (
-                    <form action={terminerCoaching} className="mt-1">
-                      <input type="hidden" name="slug" value={slug} />
-                      <input type="hidden" name="coaching" value={e.coaching_id} />
-                      <BoutonEnvoi
-                        variante="contour"
-                        libelleEnCours="…"
-                        aria-label={`Terminer le suivi de ${e.eleve_pseudo}`}
-                      >
-                        Terminer
-                      </BoutonEnvoi>
-                    </form>
-                  )}
+                  <div className="flex flex-col gap-1">
+                    <Link
+                      href={`/joueur/${e.eleve_slug}`}
+                      className="inline-flex min-h-11 items-center self-start font-semibold hover:text-accent"
+                    >
+                      {e.eleve_pseudo}
+                    </Link>
+                    <span className="text-xs text-muted tabular-nums">
+                      {e.debut_le ? dateCourte(e.debut_le) : ""} → {e.fin_le ? dateCourte(e.fin_le) : "en cours"}
+                    </span>
+                    {estProprietaire && e.statut === "actif" && (
+                      // Deux temps (ouvrir, puis confirmer) : un suivi ne se
+                      // ferme pas d'un tapotement involontaire.
+                      <details className="text-xs">
+                        <summary className="inline-flex min-h-11 cursor-pointer items-center text-muted underline underline-offset-3 hover:text-text">
+                          Terminer le suivi
+                        </summary>
+                        <form action={terminerCoaching} className="mt-2 flex flex-col items-start gap-2">
+                          <input type="hidden" name="slug" value={slug} />
+                          <input type="hidden" name="coaching" value={e.coaching_id} />
+                          <span className="text-text-2">Le suivi s&apos;arrête ; sa progression reste affichée.</span>
+                          <BoutonEnvoi
+                            variante="contour"
+                            libelleEnCours="Fin du suivi…"
+                            aria-label={`Confirmer la fin du suivi de ${e.eleve_pseudo}`}
+                          >
+                            Confirmer
+                          </BoutonEnvoi>
+                        </form>
+                      </details>
+                    )}
+                  </div>
                 </td>
                 <td className="text-right tabular-nums">{e.tournois}</td>
                 <td className="text-right tabular-nums">

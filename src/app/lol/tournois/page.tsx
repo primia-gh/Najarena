@@ -135,18 +135,20 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
               Des tournois 1v1 chaque jour et des tournois 5v5 entre équipes. Les résultats sont lus dans la donnée
               officielle de Riot : personne ne déclare son score.
             </p>
-            <Link
-              href="/lol/a-la-demande"
-              className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:text-accent"
-            >
-              Pas de tournoi à ton heure ? Indique quand tu es libre
-            </Link>
-            <Link
-              href="/lol/divisions"
-              className="ml-6 inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:text-accent"
-            >
-              Divisions : un match par semaine, à ton niveau
-            </Link>
+            <div className="mt-3 flex flex-wrap gap-x-6">
+              <Link
+                href="/lol/a-la-demande"
+                className="inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:text-accent"
+              >
+                Pas de tournoi à ton heure ? Indique quand tu es libre
+              </Link>
+              <Link
+                href="/lol/divisions"
+                className="inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:text-accent"
+              >
+                Divisions : un match par semaine, à ton niveau
+              </Link>
+            </div>
           </div>
           <BoutonLien href="/organiser/nouveau" variante="contour">
             Organiser un tournoi

@@ -62,7 +62,8 @@ export async function retirerRecommandation(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const destinataire = String(formData.get("destinataire") ?? "");
   const { supabase } = await connecte(slug);
-  await supabase.rpc("retirer_recommandation", { p_destinataire: destinataire });
+  const { error } = await supabase.rpc("retirer_recommandation", { p_destinataire: destinataire });
+  if (error) retour(slug, "erreur", messageRefusRecommandation(error.message));
   retour(slug, "message", "Recommandation retirée.");
 }
 
@@ -71,6 +72,7 @@ export async function masquerRecommandation(formData: FormData) {
   const auteur = String(formData.get("auteur") ?? "");
   const masquee = formData.get("masquee") === "1";
   const { supabase } = await connecte(slug);
-  await supabase.rpc("masquer_recommandation", { p_auteur: auteur, p_masquee: masquee });
+  const { data: fait, error } = await supabase.rpc("masquer_recommandation", { p_auteur: auteur, p_masquee: masquee });
+  if (error || !fait) retour(slug, "erreur", "Cette recommandation n'existe plus.");
   retour(slug, "message", masquee ? "Recommandation masquée de ton CV." : "Recommandation de nouveau affichée.");
 }
