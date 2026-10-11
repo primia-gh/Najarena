@@ -3159,6 +3159,8 @@ export type Database = {
       quitter_remplacants: { Args: { p_tournament_id: string }; Returns: boolean }
       remplacer_aligne: { Args: { p_tournament_id: string; p_sortant: string; p_entrant: string }; Returns: boolean }
       est_coach_eligible: { Args: { p_profile_id: string }; Returns: boolean }
+      accepte_eleves: { Args: { p_profile_id: string }; Returns: boolean }
+      regler_eleves: { Args: { p_accepte: boolean }; Returns: boolean }
       demander_coaching: { Args: { p_coach: string }; Returns: string }
       repondre_coaching: { Args: { p_coaching_id: string; p_accepter: boolean }; Returns: boolean }
       terminer_coaching: { Args: { p_coaching_id: string }; Returns: boolean }

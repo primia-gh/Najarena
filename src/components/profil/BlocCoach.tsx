@@ -2,12 +2,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formaterDate } from "@/lib/tournois";
 import { COACH_MESURES_MIN, COACH_TOURNOIS_MIN, formaterPoints, progressionMesurable, resumeCoach } from "@/lib/coach";
-import { demanderCoaching, repondreCoaching, terminerCoaching } from "@/lib/coach-actions";
+import { demanderCoaching, reglerEleves, repondreCoaching, terminerCoaching } from "@/lib/coach-actions";
 import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import Alerte from "@/components/design/Alerte";
+import { Choix } from "@/components/design/Formulaire";
 
 // Coach vérifié (09/10/2026, idée en réserve n°8) : un joueur classé
 // Diamant ou plus et la progression de ses élèves, lue dans le registre
@@ -28,8 +29,9 @@ const dateCourte = (iso: string) => formaterDate(iso).split(" ")[0];
 
 export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, estProprietaire, message, erreur }: Props) {
   const supabase = await createClient();
-  const [{ data: eligible }, { data: elevesData }, { data: monSuivi }] = await Promise.all([
+  const [{ data: eligible }, { data: caseCochee }, { data: elevesData }, { data: monSuivi }] = await Promise.all([
     supabase.rpc("est_coach_eligible", { p_profile_id: profilId }),
+    supabase.rpc("accepte_eleves", { p_profile_id: profilId }),
     supabase.rpc("eleves_coach", { p_coach: profilId }),
     visiteurId && !estProprietaire
       ? supabase
@@ -42,7 +44,11 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
   ]);
   const eleves = elevesData ?? [];
   const suiviIci = monSuivi && monSuivi.coach_id === profilId ? monSuivi : null;
-  if (!eligible && !suiviIci && !(estProprietaire && eleves.length > 0)) return null;
+  // « Coach vérifié » seulement si le joueur l'a choisi (case « J'accepte
+  // des élèves », décochée par défaut — décision du 11/10/2026). Sinon le
+  // bloc n'apparaît qu'à lui-même (pour cocher) et à son élève en cours.
+  const ouvert = Boolean(eligible && caseCochee);
+  if (!ouvert && !suiviIci && !(estProprietaire && (eligible || eleves.length > 0))) return null;
 
   const demandes = eleves.filter((e) => e.statut === "demande");
   const suivis = eleves.filter((e) => e.statut !== "demande");
@@ -52,14 +58,36 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
     <Panneau as="section" id="coach" className="flex scroll-mt-28 flex-col gap-6 p-6 sm:p-8" aria-labelledby="titre-coach">
       <div className="flex flex-col gap-2">
         <LibelleSection as="h2" id="titre-coach">
-          {eligible ? "Coach vérifié" : "Suivi"}
+          {ouvert ? "Coach vérifié" : estProprietaire && eligible ? "Coach" : "Suivi"}
         </LibelleSection>
         <p className="text-sm text-muted">
-          {eligible
-            ? `${pseudo} est classé Diamant Najarena (rating officiel de 1750 ou plus) et peut suivre des élèves. Leurs points sont lus dans le registre : variations en tournoi pendant le suivi, rien de déclaré. C'est ce qui s'est passé pendant le suivi, pas une mesure de l'effet du coach.`
-            : `${pseudo} n'est plus classé Diamant Najarena (rating officiel de 1750 ou plus) : pas de nouvel élève possible.`}
+          {ouvert
+            ? `${pseudo} est classé Diamant Najarena (rating officiel de 1750 ou plus) et accepte des élèves. Leurs points sont lus dans le registre : variations en tournoi pendant le suivi, rien de déclaré. C'est ce qui s'est passé pendant le suivi, pas une mesure de l'effet du coach.`
+            : !eligible
+              ? `${pseudo} n'est plus classé Diamant Najarena (rating officiel de 1750 ou plus) : pas de nouvel élève possible.`
+              : estProprietaire
+                ? "Tu es classé Diamant Najarena (rating officiel de 1750 ou plus) : tu peux suivre des élèves. « Coach vérifié » n'apparaît sur ton CV, et tu ne reçois de demandes, que si tu coches la case ci-dessous."
+                : `${pseudo} n'accepte plus de nouvel élève ; ton suivi continue.`}
         </p>
       </div>
+
+      {/* La case du coach, sur son propre CV. */}
+      {estProprietaire && eligible && (
+        <form action={reglerEleves} className="flex max-w-xl flex-col gap-3">
+          <input type="hidden" name="slug" value={slug} />
+          <Choix
+            type="checkbox"
+            name="accepte"
+            value="1"
+            defaultChecked={ouvert}
+            titre="J'accepte des élèves"
+            detail="Ton CV affiche « Coach vérifié » et les joueurs peuvent te demander un suivi. Décoche-la pour ne plus en recevoir : tes suivis en cours continuent."
+          />
+          <BoutonEnvoi variante="contour" libelleEnCours="Enregistrement…" className="self-start">
+            Enregistrer
+          </BoutonEnvoi>
+        </form>
+      )}
 
       {message && <Alerte type="succes">{message}</Alerte>}
       {erreur && <Alerte type="erreur">{erreur}</Alerte>}
@@ -183,7 +211,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
         </div>
       )}
 
-      {estProprietaire && suivis.length === 0 && demandes.length === 0 && (
+      {estProprietaire && ouvert && suivis.length === 0 && demandes.length === 0 && (
         <p className="text-sm text-muted">
           Aucun élève pour l&apos;instant : un joueur peut te demander un suivi depuis ton CV.
         </p>
@@ -208,7 +236,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
             </form>
           ) : monSuivi ? (
             <p className="text-sm text-muted">Tu as déjà un suivi en cours avec un autre coach.</p>
-          ) : eligible ? (
+          ) : ouvert ? (
             <form action={demanderCoaching} className="flex flex-wrap items-center gap-3">
               <input type="hidden" name="slug" value={slug} />
               <input type="hidden" name="coach" value={profilId} />

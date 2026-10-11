@@ -28,6 +28,22 @@ async function pseudoDe(supabase: Awaited<ReturnType<typeof createClient>>, id: 
   return data;
 }
 
+// La case « J'accepte des élèves » (décochée par défaut, 11/10/2026).
+export async function reglerEleves(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const accepte = formData.get("accepte") === "1";
+  const { supabase } = await connecte(slug);
+  const { error } = await supabase.rpc("regler_eleves", { p_accepte: accepte });
+  if (error) retour(slug, "erreur", messageRefusCoach(error.message));
+  retour(
+    slug,
+    "message",
+    accepte
+      ? "C'est noté : ton CV affiche « Coach vérifié » et les joueurs peuvent te demander un suivi."
+      : "C'est noté : plus de nouvelle demande. Tes suivis en cours continuent.",
+  );
+}
+
 export async function demanderCoaching(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const coach = String(formData.get("coach") ?? "");

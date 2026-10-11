@@ -20,6 +20,28 @@ select verifie('Cora (1800, classée) peut être coach ; Dan (1700) non',
   public.est_coach_eligible('00000000-0000-0000-0000-0000000003e0') and not public.est_coach_eligible('00000000-0000-0000-0000-0000000003e1'));
 reset role;
 
+-- Accord du coach (11/10/2026) : la case « J'accepte des élèves » est
+-- décochée par défaut.
+set role anon;
+select verifie('Par défaut, Cora n''accepte pas d''élèves', not public.accepte_eleves('00000000-0000-0000-0000-0000000003e0'));
+select essai('Un visiteur coche la case', $q$select public.regler_eleves(true)$q$, 'bloque');
+reset role;
+
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003e2');
+select refus('Eli demande un suivi à Cora, qui n''a pas coché la case',
+  $q$select public.demander_coaching('00000000-0000-0000-0000-0000000003e0')$q$, 'COACH_FERME');
+select essai('Eli s''inscrit elle-même comme coach ouverte de Cora',
+  $q$insert into coachs_ouverts (profile_id) values ('00000000-0000-0000-0000-0000000003e0')$q$, 'bloque');
+select en_tant_que('00000000-0000-0000-0000-0000000003e1');
+select refus('Dan (pas Diamant) coche la case', $q$select public.regler_eleves(true)$q$, 'COACH_NON_ELIGIBLE');
+select en_tant_que('00000000-0000-0000-0000-0000000003e4');
+select refus('Gus (suspendu) coche la case', $q$select public.regler_eleves(true)$q$, 'COMPTE_SUSPENDU');
+select en_tant_que('00000000-0000-0000-0000-0000000003e0');
+select verifie('Cora coche « J''accepte des élèves »', public.regler_eleves(true));
+reset role;
+select verifie('Cora accepte maintenant des élèves', public.accepte_eleves('00000000-0000-0000-0000-0000000003e0'));
+
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003e2');
 select refus('Eli demande un suivi à Dan (pas Diamant)',
@@ -149,4 +171,16 @@ from (select id from profiles
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003e6');
 select refus('Ivy : sixième demande en 24 h, refusée', $q$select public.demander_coaching('00000000-0000-0000-0000-0000000003e0')$q$, 'DEMANDE_RECENTE');
+reset role;
+
+-- Cora décoche la case : plus de nouvelle demande, l'historique reste.
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003e0');
+select verifie('Cora décoche la case', not public.regler_eleves(false));
+reset role;
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000003e7', 'c94zb7@test', '{"pseudo":"Jo94","slug":"jo94"}');
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003e7');
+select refus('Jo demande un suivi à Cora, qui a décoché', $q$select public.demander_coaching('00000000-0000-0000-0000-0000000003e0')$q$, 'COACH_FERME');
 reset role;

@@ -9907,6 +9907,58 @@ $$;
 revoke execute on function public.est_coach_eligible(uuid) from public;
 grant execute on function public.est_coach_eligible(uuid) to anon, authenticated, service_role;
 
+-- Accord du coach (décision du porteur du projet, 11/10/2026) : un joueur
+-- Diamant n'est « Coach vérifié » et ne reçoit de demandes que s'il a coché
+-- « J'accepte des élèves » (décoché par défaut). Une ligne = la case cochée.
+-- Décocher n'arrête pas les suivis en cours ; aucune nouvelle demande.
+create table if not exists public.coachs_ouverts (
+  profile_id uuid primary key references public.profiles(id) on delete cascade,
+  ouvert_le  timestamptz not null default now()
+);
+alter table public.coachs_ouverts enable row level security;
+revoke all on public.coachs_ouverts from anon, authenticated;
+
+-- Le coach a-t-il coché la case ? (public : c'est ce qui affiche le bloc.)
+create or replace function public.accepte_eleves(p_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (select 1 from public.coachs_ouverts where profile_id = p_profile_id);
+$$;
+revoke execute on function public.accepte_eleves(uuid) from public;
+grant execute on function public.accepte_eleves(uuid) to anon, authenticated, service_role;
+
+-- Cocher (Diamant seulement, compte non suspendu) ou décocher la case.
+create or replace function public.regler_eleves(p_accepte boolean)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if not p_accepte then
+    delete from public.coachs_ouverts where profile_id = v_moi;
+    return false;
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if not public.est_coach_eligible(v_moi) then
+    raise exception 'COACH_NON_ELIGIBLE';
+  end if;
+  insert into public.coachs_ouverts (profile_id) values (v_moi) on conflict do nothing;
+  return true;
+end;
+$$;
+revoke execute on function public.regler_eleves(boolean) from public, anon;
+grant execute on function public.regler_eleves(boolean) to authenticated;
+
 create or replace function public.demander_coaching(p_coach uuid)
 returns uuid
 language plpgsql
@@ -9929,6 +9981,9 @@ begin
      or not public.est_coach_eligible(p_coach)
      or exists (select 1 from public.suspensions where profile_id = p_coach and levee_le is null) then
     raise exception 'COACH_NON_ELIGIBLE';
+  end if;
+  if not public.accepte_eleves(p_coach) then
+    raise exception 'COACH_FERME';
   end if;
   if exists (select 1 from public.coachings where eleve_id = v_eleve and statut in ('demande', 'actif')) then
     raise exception 'SUIVI_EN_COURS';
