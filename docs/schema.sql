@@ -10038,16 +10038,20 @@ as $$
   from public.coachings c
   join public.profiles p on p.id = c.eleve_id and p.supprime_le is null
   left join lateral (
-    -- Un tournoi compte s'il a COMMENCÉ pendant le suivi, quelle que soit
-    -- la date de sa clôture : terminer le suivi pendant un tournoi n'en
-    -- efface pas la défaite, l'accepter en cours n'en capte pas la victoire
-    -- (contrôle de sécurité du 11/10/2026).
+    -- Un tournoi compte s'il a COMMENCÉ pendant le suivi (heure annoncée,
+    -- ou premier match lancé si plus tôt), quelle que soit la date de sa
+    -- clôture : terminer le suivi pendant un tournoi n'en efface pas la
+    -- défaite, l'accepter en cours n'en capte pas la victoire (contrôle de
+    -- sécurité du 11/10/2026).
     select count(*)::integer as tournois, sum(re.rating_apres - re.rating_avant) as points
     from public.rating_events re
     join public.tournaments t on t.id = re.tournament_id
+    cross join lateral (
+      select least(t.debute_le, (select min(m.demarre_le) from public.matches m where m.tournament_id = t.id)) as debut
+    ) d
     where re.profile_id = c.eleve_id and re.motif = 'tournoi' and re.game_id = 1
       and c.debut_le is not null
-      and t.debute_le >= c.debut_le and t.debute_le < coalesce(c.fin_le, now())
+      and d.debut >= c.debut_le and d.debut < coalesce(c.fin_le, now())
   ) e on true
   where c.coach_id = p_coach
     and (c.statut in ('actif', 'termine') or (c.statut = 'demande' and auth.uid() = p_coach))
@@ -10509,19 +10513,21 @@ grant execute on function public.cloturer_ligue_division(uuid, jsonb) to service
 -- Contrôle de sécurité du 11/10/2026 : l'adresse du tournoi quotidien est
 -- prévisible (najarena-<créneau>-<AAAA-MM-JJ>) ; un joueur pouvait créer un
 -- brouillon à cette adresse et empêcher le tournoi officiel du jour. Les
--- adresses en najarena-, a-la-demande- et division- sont désormais
--- réservées au serveur (le site n'en produit jamais : nom + suffixe
--- aléatoire, et la modération refuse « Najarena » dans un nom).
+-- adresses en najarena- sont désormais réservées au serveur (le site n'en
+-- produit jamais : nom + suffixe aléatoire, et la modération refuse
+-- « Najarena » dans un nom). Les adresses a-la-demande- et division- ont
+-- une partie aléatoire : impossibles à deviner, elles restent libres (un
+-- tournoi « Division Diamant » reste possible).
 -- Avant la mise en ligne, lister les adresses déjà prises par des joueurs :
 --   select slug, organisateur_id, statut from public.tournaments
---   where slug ~ '^(najarena|a-la-demande|division)-' and creneau_auto is null and nature = 'tournoi';
+--   where slug like 'najarena-%' and creneau_auto is null;
 create or replace function public.controler_adresse_tournoi()
 returns trigger
 language plpgsql
 set search_path = public
 as $$
 begin
-  if current_user = 'authenticated' and new.slug ~ '^(najarena|a-la-demande|division)-' then
+  if current_user = 'authenticated' and new.slug like 'najarena-%' then
     raise exception 'ADRESSE_RESERVEE';
   end if;
   return new;

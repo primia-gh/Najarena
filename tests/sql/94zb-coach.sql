@@ -109,6 +109,20 @@ select verifie('Tournoi commencé pendant le suivi, clos après sa fin : compté
   (select tournois = 4 and points = 40 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')
    where eleve_id = '00000000-0000-0000-0000-0000000003e2'));
 
+-- Tournoi annoncé APRÈS la fin du suivi, mais lancé plus tôt (premier match
+-- pendant le suivi) : compté aussi.
+insert into tournaments (game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut)
+values (1, (select id from seasons where est_courante), '00000000-0000-0000-0000-0000000003e1', 'coach-94zb-6', 'Coach 94zb 6',
+        '1v1', 8, 'EUW', now() + interval '2 hours', now() - interval '2 hours', 'termine');
+insert into matches (tournament_id, tour, position, statut, demarre_le)
+values ((select id from tournaments where slug = 'coach-94zb-6'), 1, 1, 'termine', now() - interval '45 minutes');
+insert into rating_events (profile_id, game_id, season_id, motif, tournament_id, rating_avant, rd_avant, rating_apres, rd_apres)
+values ('00000000-0000-0000-0000-0000000003e2', 1, (select id from seasons where est_courante), 'tournoi',
+        (select id from tournaments where slug = 'coach-94zb-6'), 1490, 270, 1470, 265);
+select verifie('Tournoi lancé avant son heure annoncée, pendant le suivi : compté (5 tournois, +20 points)',
+  (select tournois = 5 and points = 20 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')
+   where eleve_id = '00000000-0000-0000-0000-0000000003e2'));
+
 -- Anti-répétition (contrôle de sécurité du 11/10/2026) : demande annulée
 -- par l'élève, et plafond de 5 demandes par 24 h.
 insert into auth.users (id, email, raw_user_meta_data) values

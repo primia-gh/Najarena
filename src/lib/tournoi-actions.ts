@@ -138,11 +138,13 @@ export async function creerTournoi(formData: FormData) {
   if (error) {
     redirect(
       `/organiser/nouveau?erreur=${encodeURIComponent(
-        error.message.includes("COMMUNAUTE_INTERDITE")
-          ? "Seuls le fondateur et les administrateurs publient des tournois dans cette communauté."
-          : error.message.includes("RESERVE_SANS_COMMUNAUTE")
-            ? "Choisis la communauté dont les membres pourront s'inscrire."
-            : (messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant."),
+        error.message.includes("ADRESSE_RESERVEE")
+          ? "Ce nom est réservé aux tournois de Najarena : choisis-en un autre."
+          : error.message.includes("COMMUNAUTE_INTERDITE")
+            ? "Seuls le fondateur et les administrateurs publient des tournois dans cette communauté."
+            : error.message.includes("RESERVE_SANS_COMMUNAUTE")
+              ? "Choisis la communauté dont les membres pourront s'inscrire."
+              : (messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant."),
       )}`,
     );
   }
