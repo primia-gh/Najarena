@@ -181,3 +181,55 @@ select verifie('Chacun des deux tournois a ses 8 inscrits',
        from ouverts_deux_regions o));
 select verifie('Toujours un seul tournoi par créneau, région et heure',
   (select count(*) from tournaments where creneau_auto = 'a-la-demande' and debute_le = :'h23' and region = 'EUW') = 1);
+
+-- Un tournoi à la demande annulé occupe déjà le créneau EUW de 13 h : EUW
+-- est sauté sans erreur, NA s'ouvre quand même (contrôle de sécurité du
+-- 11/10/2026, bloc « exception when unique_violation »).
+insert into tournaments (game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, creneau_auto)
+values (1, (select id from seasons where est_courante), '00000000-0000-0000-0000-00000000000a', 'a-la-demande-annule-13h', 'Annulé 13h',
+        '1v1', 16, 'EUW',
+        (date_trunc('day', now() at time zone 'Europe/Paris') + interval '2 days 13 hours') at time zone 'Europe/Paris',
+        (date_trunc('day', now() at time zone 'Europe/Paris') + interval '2 days 12 hours 30 minutes') at time zone 'Europe/Paris',
+        'annule', 'a-la-demande');
+set role authenticated;
+do $$
+declare r text; n integer;
+begin
+  foreach r in array array['e', 'f'] loop
+    for n in 0..7 loop
+      perform public.en_tant_que(('00000000-0000-0000-0000-0000000002' || r || n)::uuid);
+      perform public.declarer_disponibilite(
+        (date_trunc('day', now() at time zone 'Europe/Paris') + interval '2 days 13 hours') at time zone 'Europe/Paris');
+    end loop;
+  end loop;
+end $$;
+reset role;
+set role service_role;
+create temp table ouverts_13h as
+  select * from public.ouvrir_tournois_a_la_demande('00000000-0000-0000-0000-00000000000a');
+reset role;
+select verifie('Créneau EUW déjà pris par un tournoi annulé : sauté sans erreur, le tournoi NA s''ouvre avec ses 8 inscrits',
+  (select count(*) from ouverts_13h) = 1
+  and (select t.region = 'NA' and cardinality(o.inscrits) = 8 from ouverts_13h o join tournaments t on t.id = o.tournament_id));
+select verifie('Les disponibilités EUW de 13 h restent (aucune perdue)',
+  (select count(*) from disponibilites where region = 'EUW' and profile_id::text like '00000000-0000-0000-0000-0000000002e_'
+     and debut = (date_trunc('day', now() at time zone 'Europe/Paris') + interval '2 days 13 hours') at time zone 'Europe/Paris') = 8);
+
+-- Plafond de 8 heures : seules comptent les heures à plus de 90 minutes
+-- (celles qu'on peut encore retirer sur la page).
+delete from disponibilites where profile_id = '00000000-0000-0000-0000-0000000002e0';
+insert into disponibilites (profile_id, region, debut)
+select '00000000-0000-0000-0000-0000000002e0', 'EUW', date_trunc('hour', now()) + interval '1 hour';
+insert into disponibilites (profile_id, region, debut)
+select '00000000-0000-0000-0000-0000000002e0', 'EUW',
+       (date_trunc('day', now() at time zone 'Europe/Paris') + make_interval(days => 2, hours => h)) at time zone 'Europe/Paris'
+from generate_series(14, 20) h;
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000002e0');
+select essai('Une heure dans moins de 90 minutes ne compte pas : une huitième heure reste possible',
+  format($q$select public.declarer_disponibilite(%L)$q$,
+         (date_trunc('day', now() at time zone 'Europe/Paris') + interval '2 days 21 hours') at time zone 'Europe/Paris'), 'passe');
+select refus('Neuvième heure retirable : refusée',
+  format($q$select public.declarer_disponibilite(%L)$q$,
+         (date_trunc('day', now() at time zone 'Europe/Paris') + interval '2 days 12 hours') at time zone 'Europe/Paris'), 'LIMITE_DISPONIBILITES');
+reset role;

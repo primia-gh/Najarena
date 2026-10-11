@@ -369,30 +369,50 @@ async function creer(
     .eq("est_courante", true)
     .maybeSingle();
 
-  const slug = slugTournoi(creneau, jour);
-  const { data, error } = await admin
-    .from("tournaments")
-    .upsert(
-      {
-        game_id: JEU_LOL,
-        season_id: saison?.id ?? null,
-        organisateur_id: organisateurId,
-        slug,
-        nom: nomTournoi(creneau, jour),
-        format: "1v1",
-        capacite: creneau.capacite,
-        best_of: creneau.bestOf,
-        region: creneau.region,
-        debute_le: debuteLe,
-        checkin_ouvre_le: checkinOuvreLe,
-        statut: "ouvert",
-        creneau_auto: creneau.cle,
-        condition_victoire: creneau.conditionVictoire,
-        reserve_non_classes: creneau.reserveNonClasses ?? false,
-      },
-      { onConflict: "slug", ignoreDuplicates: true },
-    )
-    .select("id");
+  const inserer = (slug: string) =>
+    admin
+      .from("tournaments")
+      .upsert(
+        {
+          game_id: JEU_LOL,
+          season_id: saison?.id ?? null,
+          organisateur_id: organisateurId,
+          slug,
+          nom: nomTournoi(creneau, jour),
+          format: "1v1",
+          capacite: creneau.capacite,
+          best_of: creneau.bestOf,
+          region: creneau.region,
+          debute_le: debuteLe,
+          checkin_ouvre_le: checkinOuvreLe,
+          statut: "ouvert",
+          creneau_auto: creneau.cle,
+          condition_victoire: creneau.conditionVictoire,
+          reserve_non_classes: creneau.reserveNonClasses ?? false,
+        },
+        { onConflict: "slug", ignoreDuplicates: true },
+      )
+      .select("id");
+
+  let slug = slugTournoi(creneau, jour);
+  let { data, error } = await inserer(slug);
+  if (!error && !data?.length) {
+    // Adresse déjà prise : par ce même tournoi (déjà créé), ou par un autre
+    // (contrôle de sécurité du 11/10/2026 : un brouillon à cette adresse
+    // empêchait le tournoi officiel). Dans ce cas, une adresse à suffixe
+    // aléatoire ; « un tournoi par créneau » reste tenu par la base.
+    const { data: occupant } = await admin
+      .from("tournaments")
+      .select("creneau_auto, debute_le")
+      .eq("slug", slug)
+      .maybeSingle();
+    const memeTournoi =
+      occupant?.creneau_auto === creneau.cle && new Date(occupant.debute_le).getTime() === new Date(debuteLe).getTime();
+    if (occupant && !memeTournoi) {
+      slug = `${slug}-${crypto.randomUUID().slice(0, 6)}`;
+      ({ data, error } = await inserer(slug));
+    }
+  }
 
   if (error) return `création ${slug} : ${error.code === "23505" ? "existe déjà" : "échec"}`;
   return `création ${slug} : ${data?.length ? "fait" : "existe déjà"}`;

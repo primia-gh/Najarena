@@ -64,14 +64,21 @@ select en_tant_que('00000000-0000-0000-0000-0000000003e0');
 reset role;
 
 -- Le suivi d'Eli a commencé il y a 10 jours : un tournoi avant (ignoré), trois pendant.
+-- Chaque ligne « tournoi » du registre est reliée à son tournoi (commencé
+-- une heure avant la clôture).
 update coachings set debut_le = now() - interval '10 days' where eleve_id = '00000000-0000-0000-0000-0000000003e2';
-insert into rating_events (profile_id, game_id, season_id, motif, rating_avant, rd_avant, rating_apres, rd_apres, cree_le)
-select '00000000-0000-0000-0000-0000000003e2', 1, (select id from seasons where est_courante), v.motif, v.av, 300, v.ap, 280, now() - v.il_y_a
-from (values ('tournoi', 1400, 1450, interval '20 days'),
-             ('tournoi', 1450, 1480, interval '8 days'),
-             ('inactivite', 1480, 1480, interval '7 days'),
-             ('tournoi', 1480, 1470, interval '5 days'),
-             ('tournoi', 1470, 1530, interval '2 days')) v(motif, av, ap, il_y_a);
+insert into tournaments (game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut)
+select 1, (select id from seasons where est_courante), '00000000-0000-0000-0000-0000000003e1', 'coach-94zb-' || n, 'Coach 94zb ' || n,
+       '1v1', 8, 'EUW', now() - v.il_y_a - interval '1 hour', now() - v.il_y_a - interval '90 minutes', 'termine'
+from (values (1, interval '20 days'), (2, interval '8 days'), (3, interval '5 days'), (4, interval '2 days')) v(n, il_y_a);
+insert into rating_events (profile_id, game_id, season_id, motif, tournament_id, rating_avant, rd_avant, rating_apres, rd_apres, cree_le)
+select '00000000-0000-0000-0000-0000000003e2', 1, (select id from seasons where est_courante), v.motif,
+       (select id from tournaments where slug = v.tournoi), v.av, 300, v.ap, 280, now() - v.il_y_a
+from (values ('tournoi', 'coach-94zb-1', 1400, 1450, interval '20 days'),
+             ('tournoi', 'coach-94zb-2', 1450, 1480, interval '8 days'),
+             ('inactivite', null, 1480, 1480, interval '7 days'),
+             ('tournoi', 'coach-94zb-3', 1480, 1470, interval '5 days'),
+             ('tournoi', 'coach-94zb-4', 1470, 1530, interval '2 days')) v(motif, tournoi, av, ap, il_y_a);
 
 select set_config('request.jwt.claim.sub', '', false);
 set role anon;
@@ -86,6 +93,21 @@ select verifie('Eli met fin au suivi',
 reset role;
 select verifie('Suivi terminé, gardé dans l''historique avec sa date de fin',
   (select statut = 'termine' and fin_le is not null from coachings where eleve_id = '00000000-0000-0000-0000-0000000003e2'));
+
+-- Suivi terminé PENDANT un tournoi perdu : la défaite, écrite à la clôture
+-- (après la fin du suivi), compte quand même (contrôle de sécurité du
+-- 11/10/2026 — sinon un coach pouvait terminer avant la clôture et effacer
+-- les défaites de son élève).
+update coachings set fin_le = now() - interval '30 minutes' where eleve_id = '00000000-0000-0000-0000-0000000003e2';
+insert into tournaments (game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut)
+values (1, (select id from seasons where est_courante), '00000000-0000-0000-0000-0000000003e1', 'coach-94zb-5', 'Coach 94zb 5',
+        '1v1', 8, 'EUW', now() - interval '1 hour', now() - interval '90 minutes', 'termine');
+insert into rating_events (profile_id, game_id, season_id, motif, tournament_id, rating_avant, rd_avant, rating_apres, rd_apres)
+values ('00000000-0000-0000-0000-0000000003e2', 1, (select id from seasons where est_courante), 'tournoi',
+        (select id from tournaments where slug = 'coach-94zb-5'), 1530, 280, 1490, 270);
+select verifie('Tournoi commencé pendant le suivi, clos après sa fin : compté (4 tournois, +40 points)',
+  (select tournois = 4 and points = 40 from public.eleves_coach('00000000-0000-0000-0000-0000000003e0')
+   where eleve_id = '00000000-0000-0000-0000-0000000003e2'));
 
 -- Anti-répétition (contrôle de sécurité du 11/10/2026) : demande annulée
 -- par l'élève, et plafond de 5 demandes par 24 h.

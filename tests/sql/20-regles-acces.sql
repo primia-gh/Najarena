@@ -83,6 +83,13 @@ select essai('Alice crée un tournoi normal de 8 places',
   $q$insert into tournaments (game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut) values (1, '00000000-0000-0000-0000-00000000000a', 'normal-alice', 'Normal', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert')$q$, 'passe');
 select essai('Alice se fait passer pour un tournoi automatique',
   $q$insert into tournaments (game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, creneau_auto) values (1, '00000000-0000-0000-0000-00000000000a', 'faux-auto', 'Faux', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', 'quotidien-21h')$q$, 'bloque');
+-- Contrôle de sécurité du 11/10/2026 : l'adresse prévisible du quotidien
+-- de demain, prise par un brouillon, bloquait le tournoi officiel.
+select refus('Alice réserve l''adresse du quotidien de demain',
+  format($q$insert into tournaments (game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut) values (1, '00000000-0000-0000-0000-00000000000a', %L, 'Squat', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'brouillon')$q$,
+         'najarena-quotidien-21h-' || to_char(now() + interval '1 day', 'YYYY-MM-DD')), 'ADRESSE_RESERVEE');
+select refus('Alice réserve une adresse de division',
+  $q$insert into tournaments (game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut) values (1, '00000000-0000-0000-0000-00000000000a', 'division-0123456789', 'Squat', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'brouillon')$q$, 'ADRESSE_RESERVEE');
 select en_tant_que(:dave);
 select essai('Dave (offre Organisateur) crée un tournoi 128 places en Bo3',
   $q$insert into tournaments (game_id, organisateur_id, slug, nom, format, capacite, best_of, region, debute_le, checkin_ouvre_le, statut) values (1, '00000000-0000-0000-0000-00000000000d', 'gros-dave', 'Gros', '1v1', 128, 3, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert')$q$, 'passe');

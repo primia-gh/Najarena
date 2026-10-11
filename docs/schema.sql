@@ -10038,11 +10038,16 @@ as $$
   from public.coachings c
   join public.profiles p on p.id = c.eleve_id and p.supprime_le is null
   left join lateral (
+    -- Un tournoi compte s'il a COMMENCÉ pendant le suivi, quelle que soit
+    -- la date de sa clôture : terminer le suivi pendant un tournoi n'en
+    -- efface pas la défaite, l'accepter en cours n'en capte pas la victoire
+    -- (contrôle de sécurité du 11/10/2026).
     select count(*)::integer as tournois, sum(re.rating_apres - re.rating_avant) as points
     from public.rating_events re
+    join public.tournaments t on t.id = re.tournament_id
     where re.profile_id = c.eleve_id and re.motif = 'tournoi' and re.game_id = 1
       and c.debut_le is not null
-      and re.cree_le >= c.debut_le and re.cree_le < coalesce(c.fin_le, now())
+      and t.debute_le >= c.debut_le and t.debute_le < coalesce(c.fin_le, now())
   ) e on true
   where c.coach_id = p_coach
     and (c.statut in ('actif', 'termine') or (c.statut = 'demande' and auth.uid() = p_coach))
@@ -10498,3 +10503,32 @@ end;
 $$;
 revoke execute on function public.cloturer_ligue_division(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.cloturer_ligue_division(uuid, jsonb) to service_role;
+
+-- ---------- Adresses réservées aux tournois automatiques (2026-10-11) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Contrôle de sécurité du 11/10/2026 : l'adresse du tournoi quotidien est
+-- prévisible (najarena-<créneau>-<AAAA-MM-JJ>) ; un joueur pouvait créer un
+-- brouillon à cette adresse et empêcher le tournoi officiel du jour. Les
+-- adresses en najarena-, a-la-demande- et division- sont désormais
+-- réservées au serveur (le site n'en produit jamais : nom + suffixe
+-- aléatoire, et la modération refuse « Najarena » dans un nom).
+-- Avant la mise en ligne, lister les adresses déjà prises par des joueurs :
+--   select slug, organisateur_id, statut from public.tournaments
+--   where slug ~ '^(najarena|a-la-demande|division)-' and creneau_auto is null and nature = 'tournoi';
+create or replace function public.controler_adresse_tournoi()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user = 'authenticated' and new.slug ~ '^(najarena|a-la-demande|division)-' then
+    raise exception 'ADRESSE_RESERVEE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_adresse_tournoi() from public, anon, authenticated;
+drop trigger if exists controle_adresse_tournoi on public.tournaments;
+create trigger controle_adresse_tournoi
+  before insert or update of slug on public.tournaments
+  for each row execute function public.controler_adresse_tournoi();
