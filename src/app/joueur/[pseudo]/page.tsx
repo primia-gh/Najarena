@@ -11,6 +11,8 @@ import { chargerOffre, LABEL_OFFRE, COULEUR_OFFRE, ORDRE_OFFRE } from "@/lib/off
 import { mettreAJourBioProfile } from "@/lib/offres-actions";
 import { libelleLienExterne, lienExterneSur } from "@/lib/lien-externe";
 import Icone from "@/components/design/Icone";
+import Alerte from "@/components/design/Alerte";
+import { Champ } from "@/components/design/Formulaire";
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { demarrerConversation } from "@/lib/messagerie-actions";
 import { chargerMoyennes, genererRevue, type StatsMatch } from "@/lib/revue-match";
@@ -60,7 +62,15 @@ const LABEL_MOTIF: Record<string, string> = {
 
 interface JoueurPageProps {
   params: Promise<{ pseudo: string }>;
-  searchParams?: Promise<{ revue?: string; reco?: string; recoErreur?: string; coach?: string; coachErreur?: string }>;
+  searchParams?: Promise<{
+    revue?: string;
+    reco?: string;
+    recoErreur?: string;
+    coach?: string;
+    coachErreur?: string;
+    message?: string;
+    erreur?: string;
+  }>;
 }
 
 // Réponse à « Analyse détaillée » (audit N25, src/lib/revue-ia-actions.ts).
@@ -332,6 +342,8 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
     recoErreur: retourRecoErreur,
     coach: retourCoach,
     coachErreur: retourCoachErreur,
+    message: retourProfil,
+    erreur: retourProfilErreur,
   } = (await searchParams) ?? {};
   const donnees = await chargerJoueur(pseudo);
 
@@ -428,7 +440,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
       libelle: "Classement national",
       valeur: complements.rangNational ? `#${complements.rangNational}` : "—",
       sous: complements.rangNational
-        ? `sur ${complements.totalClasses} joueur${complements.totalClasses > 1 ? "s" : ""} classé${complements.totalClasses > 1 ? "s" : ""}`
+        ? `sur ${complements.totalClasses}\u00a0joueur${complements.totalClasses > 1 ? "s" : ""} classé${complements.totalClasses > 1 ? "s" : ""}`
         : "Classé à partir de RD ≤ 150",
     },
     {
@@ -440,6 +452,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
           ? "Palier maximal"
           : "Après le premier tournoi",
       couleur: couleurPalier,
+      // Un mot, pas un chiffre : composé plus petit, sinon « CHAMPION »
+      // débordait sur la case voisine (relecture design du 12/10/2026).
+      mot: true,
     },
     {
       libelle: "Victoires",
@@ -778,7 +793,13 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               } lg:border-r lg:px-8 ${i === kpis.length - 1 ? "lg:border-r-0 lg:pr-0" : ""}`}
             >
               <span className="text-mini text-muted uppercase">{k.libelle}</span>
-              <span className="flex items-center gap-2.5 font-titre text-[clamp(2.25rem,3.6vw,3.25rem)] leading-[0.9] font-black uppercase tabular-nums">
+              <span
+                className={`flex items-center gap-2.5 font-titre leading-[0.9] font-black uppercase tabular-nums ${
+                  "mot" in k
+                    ? "min-h-[calc(0.9*clamp(2.25rem,3.6vw,3.25rem))] text-[clamp(1.125rem,1.9vw,2rem)]"
+                    : "text-[clamp(2.25rem,3.6vw,3.25rem)]"
+                }`}
+              >
                 {k.couleur && (
                   <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full" style={{ background: k.couleur }} />
                 )}
@@ -1257,9 +1278,13 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                   <h2 id="personnaliser" className="scroll-mt-28 font-texte text-libelle font-medium text-muted uppercase">
                     Personnaliser mon profil
                   </h2>
+                  {/* Retour de l'enregistrement, ici plutôt que sur /moi : le
+                      joueur voit son formulaire et son CV (relecture design
+                      du 12/10/2026). */}
+                  {retourProfil && <Alerte type="succes">{retourProfil}</Alerte>}
+                  {retourProfilErreur && <Alerte type="erreur">{retourProfilErreur}</Alerte>}
                   <form action={mettreAJourBioProfile} className="flex flex-col gap-4">
-                    <label className="flex flex-col gap-2">
-                      <span className="text-mini text-muted uppercase">Bio (140 caractères max)</span>
+                    <Champ libelle="Bio (140 caractères max)">
                       <textarea
                         name="bio"
                         rows={3}
@@ -1268,22 +1293,21 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                         placeholder="Ex. « Mid laner, dispo le soir, cherche une équipe compétitive »"
                         className={`${CHAMP} resize-none`}
                       />
-                    </label>
-                    <label className="flex flex-col gap-2">
-                      <span className="text-mini text-muted uppercase">Lien externe (réseaux, sponsor…)</span>
+                    </Champ>
+                    <Champ
+                      libelle="Lien externe (réseaux, sponsor…)"
+                      idAide="aide-lien-externe"
+                      aide="Adresse complète (https://…), 300 caractères au plus. Ton CV affiche le nom du site."
+                    >
                       <input
                         name="lien_externe"
                         type="url"
-                        maxLength={300}
                         defaultValue={infoOffre.lien_externe ?? ""}
                         placeholder="https://…"
                         aria-describedby="aide-lien-externe"
                         className={CHAMP}
                       />
-                      <span id="aide-lien-externe" className="text-xs text-muted">
-                        Adresse complète (https://…), 300&nbsp;caractères au plus. Ton CV affiche le nom du site.
-                      </span>
-                    </label>
+                    </Champ>
                     <BoutonEnvoi libelleEnCours="Enregistrement…" className="self-start">
                       Enregistrer
                     </BoutonEnvoi>

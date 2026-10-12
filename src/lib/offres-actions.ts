@@ -95,6 +95,16 @@ export async function mettreAJourBioProfile(formData: FormData) {
     redirect(`/moi?erreur=${encodeURIComponent("La personnalisation du profil demande l'offre Vérifié ou plus.")}`);
   }
 
+  // Retour sur le CV, au formulaire (relecture design du 12/10/2026 : sur
+  // /moi, le joueur perdait son formulaire de vue).
+  const { data: profil } = await supabase.from("profiles").select("slug").eq("id", userData.user.id).maybeSingle();
+  const retour = (type: "message" | "erreur", texte: string): never =>
+    redirect(
+      profil?.slug
+        ? `/joueur/${profil.slug}?${type}=${encodeURIComponent(texte)}#personnaliser`
+        : `/moi?${type}=${encodeURIComponent(texte)}`,
+    );
+
   const bio = String(formData.get("bio") ?? "").trim().slice(0, 140);
   // Adresse web complète seulement, sans message d'adresse (src/lib/lien-externe.ts).
   const lienSaisi = String(formData.get("lien_externe") ?? "").trim();
@@ -102,12 +112,12 @@ export async function mettreAJourBioProfile(formData: FormData) {
   // Bio et lien s'enregistrent ensemble : un refus le dit (relecture
   // design du 12/10/2026, la bio semblait perdue sans explication).
   if (lienSaisi && !lienExterne) {
-    redirect(`/moi?erreur=${encodeURIComponent(`Rien n'a été enregistré. ${MESSAGE_LIEN_INVALIDE}`)}`);
+    return retour("erreur", `Rien n'a été enregistré. ${MESSAGE_LIEN_INVALIDE}`);
   }
 
   const admin = creerClientAdmin();
   if (!admin) {
-    redirect(`/moi?erreur=${encodeURIComponent("Mise à jour indisponible pour l'instant.")}`);
+    return retour("erreur", "Mise à jour indisponible pour l'instant.");
   }
 
   const { error } = await admin
@@ -116,10 +126,8 @@ export async function mettreAJourBioProfile(formData: FormData) {
     .eq("profile_id", userData.user.id);
   if (error) {
     const refus = messageModeration(error.message);
-    redirect(
-      `/moi?erreur=${encodeURIComponent(refus ? `Rien n'a été enregistré. ${refus}` : "Mise à jour indisponible pour l'instant.")}`,
-    );
+    return retour("erreur", refus ? `Rien n'a été enregistré. ${refus}` : "Mise à jour indisponible pour l'instant.");
   }
 
-  redirect("/moi?message=" + encodeURIComponent("Profil mis à jour."));
+  return retour("message", "Profil mis à jour.");
 }
