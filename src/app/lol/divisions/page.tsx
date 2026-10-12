@@ -212,8 +212,8 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
           <LibelleSection>League of Legends · 1v1</LibelleSection>
           <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Divisions</h1>
           <p className="max-w-2xl text-courant text-text-2">
-            Une ligue par mois : des poules de joueurs de ton niveau, un match par semaine contre chacun, résultats lus
-            chez Riot. Le premier de chaque poule peut monter, le dernier descendre : les conditions sont plus bas.
+            Une ligue par mois&nbsp;: des poules de joueurs de ton niveau, un match par semaine contre chacun, résultats lus
+            chez Riot. Le premier de chaque poule peut monter, le dernier descendre&nbsp;: les conditions sont plus bas.
           </p>
         </Apparition>
 
@@ -229,9 +229,9 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
             <li className="flex flex-col gap-1.5">
               <span className="font-texte text-mini font-medium text-muted uppercase">Matchs</span>
               <span className="text-sm text-text-2">
-                Poules de 4 (ou 3) : un adversaire par semaine, la 4ᵉ semaine pour rattraper. Mettez-vous d&apos;accord sur
-                l&apos;heure, puis cliquez tous les deux « Je suis là » à moins de {DELAI_PRESENCE_MINUTES} minutes
-                d&apos;écart : le duel se lance, lu chez Riot, classé comme un défi.
+                Poules de 4 (ou 3)&nbsp;: un adversaire par semaine, la 4ᵉ semaine pour rattraper. Mettez-vous d&apos;accord sur
+                l&apos;heure, puis cliquez tous les deux «&nbsp;Je suis là&nbsp;» à moins de {DELAI_PRESENCE_MINUTES} minutes
+                d&apos;écart&nbsp;: le duel se lance, lu chez Riot, classé comme un défi.
               </span>
             </li>
             <li className="flex flex-col gap-1.5">
@@ -240,7 +240,8 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
                 Classement par victoires, puis victoires lues chez Riot, puis confrontation directe. Le premier de
                 chaque poule peut monter, le dernier descendre. Pour qu&apos;un échange ait lieu entre deux poules, les
                 deux doivent avoir joué au moins un match lu chez Riot, et le premier de la poule du dessous doit en
-                avoir gagné un. Sans victoire lue chez Riot, on ne monte pas. Les nouveaux entrent selon leur rating.
+                avoir gagné un. Sans victoire lue chez Riot, on ne monte pas. La poule 1 réunit les ratings les plus hauts&nbsp;;
+                les nouveaux entrent selon leur rating.
               </span>
             </li>
           </ul>
@@ -384,6 +385,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
               <p className="text-sm text-muted">
                 Du {dateCourte(ligueEnCours.debutLe)} au{" "}
                 {dateCourte(new Date(Date.parse(ligueEnCours.finLe) - 60_000).toISOString())}.
+                {ligueEnCours.poules.length > 1 && " La poule 1 réunit les ratings les plus hauts."}
               </p>
               <div className="grid gap-10 xl:grid-cols-2">
                 {ligueEnCours.poules.map((p) => (

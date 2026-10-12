@@ -196,7 +196,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
                             libelleEnCours="…"
                             aria-label={`Confirmer la fin du suivi de ${e.eleve_pseudo}`}
                           >
-                            Oui
+                            Oui, terminer
                           </BoutonEnvoi>
                         </form>
                       </details>
@@ -309,7 +309,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
                     {typographie("Terminer ce suivi ? Ta progression jusqu'ici reste affichée.")}
                   </span>
                   <BoutonEnvoi variante="contour" libelleEnCours="…" aria-label={`Confirmer la fin du suivi avec ${pseudo}`}>
-                    Oui
+                    Oui, terminer
                   </BoutonEnvoi>
                 </form>
               </details>
