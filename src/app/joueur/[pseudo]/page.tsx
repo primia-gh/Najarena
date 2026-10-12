@@ -25,7 +25,7 @@ import { emettreCertificat } from "@/lib/profil-actions";
 import { lancerDefi } from "@/lib/defi-actions";
 import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { COULEUR_PALIER } from "@/lib/paliers";
-import { classeBoutonContour, classeBoutonPrincipal } from "@/lib/design";
+import { classeBoutonContour, classeBoutonPrincipal, classeChamp } from "@/lib/design";
 import BoutonLien from "@/components/design/BoutonLien";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import { BadgeChercheEquipe, BadgeVerdict, BadgeVerifie } from "@/components/design/Badges";
@@ -437,7 +437,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
 
   const kpis = [
     {
-      libelle: "Classement national",
+      libelle: "Rang national",
       valeur: complements.rangNational ? `#${complements.rangNational}` : "—",
       sous: complements.rangNational
         ? `sur ${complements.totalClasses}\u00a0joueur${complements.totalClasses > 1 ? "s" : ""} classé${complements.totalClasses > 1 ? "s" : ""}`
@@ -529,8 +529,8 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
     { cle: "Membre depuis", valeur: moisAnnee.format(new Date(profil.created_at)) },
   ].filter((i): i is { cle: string; valeur: string } => i !== null);
 
-  const CHAMP =
-    "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  // 16 px sur téléphone (sinon iOS zoome la page au toucher d'un champ).
+  const CHAMP = classeChamp();
   const SOMMAIRE = "list-none [&::-webkit-details-marker]:hidden";
 
   return (
@@ -570,7 +570,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
           className="pointer-events-none absolute -top-14 right-[4%] -z-10 hidden h-[420px] w-auto opacity-[0.04] lg:block"
         />
 
-        <div className="mx-auto flex max-w-contenu flex-col gap-8 lg:flex-row lg:items-end lg:gap-10">
+        <div className="mx-auto flex max-w-contenu flex-col gap-8 lg:flex-row lg:flex-wrap lg:items-end lg:gap-10">
           <AvatarJoueur
             pseudo={profil.pseudo}
             src={complements.avatarUrl}
@@ -578,7 +578,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
             className="h-24! w-24! text-5xl! shadow-[0_30px_60px_rgba(0,0,0,.6)] sm:h-[150px]! sm:w-[150px]! sm:text-7xl!"
           />
 
-          <div className="flex min-w-0 flex-1 flex-col gap-3.5">
+          {/* Largeur minimale du nom : les boutons passent à la ligne avant
+              d'écraser le pseudo (jusqu'à 5 boutons pour le propriétaire). */}
+          <div className="flex min-w-0 flex-1 flex-col gap-3.5 lg:min-w-[20rem]">
             <div className="flex flex-wrap items-center gap-3">
               {compteRiot?.verifie_le ? (
                 <BadgeVerifie>Profil vérifié</BadgeVerifie>
@@ -636,7 +638,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
             )}
           </div>
 
-          <div className="flex flex-wrap items-start gap-3.5 lg:justify-end">
+          <div className="flex flex-wrap items-start gap-3.5 lg:ml-auto lg:justify-end">
             {estProprietaire ? (
               <>
                 <BoutonPartager
@@ -796,7 +798,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               <span
                 className={`flex items-center gap-2.5 font-titre leading-[0.9] font-black uppercase tabular-nums ${
                   "mot" in k
-                    ? "min-h-[calc(0.9*clamp(2.25rem,3.6vw,3.25rem))] text-[clamp(1.125rem,1.9vw,2rem)]"
+                    ? "min-h-[calc(0.9*clamp(2.25rem,3.6vw,3.25rem))] text-[clamp(1.25rem,6vw,1.75rem)] lg:text-[clamp(1.125rem,1.9vw,2rem)]"
                     : "text-[clamp(2.25rem,3.6vw,3.25rem)]"
                 }`}
               >
@@ -1140,7 +1142,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 <Panneau className="flex flex-col gap-4 p-7">
                   <LibelleSection as="h2">Disponibilité</LibelleSection>
                   <p className="text-sm text-text-2">
-                    Tu cherches une équipe ? Publie une annonce : le badge « Cherche une équipe » s&apos;affichera sur
+                    Tu cherches une équipe&nbsp;? Publie une annonce&nbsp;: le badge «&nbsp;Cherche une équipe&nbsp;» s&apos;affichera sur
                     ton profil.
                   </p>
                   <BoutonLien href="/lol/coequipiers" variante="secondaire" className="self-start text-sm">
