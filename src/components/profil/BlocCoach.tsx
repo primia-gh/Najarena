@@ -272,6 +272,9 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
             Connecte-toi
           </Link>{" "}
           pour demander un suivi.
+          <span className="block text-muted">
+            {typographie("Pendant un suivi, ta progression en tournoi s'affiche ici, avec ton pseudo.")}
+          </span>
         </p>
       )}
 

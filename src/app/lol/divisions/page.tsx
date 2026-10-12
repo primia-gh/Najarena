@@ -213,7 +213,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
           <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Divisions</h1>
           <p className="max-w-2xl text-courant text-text-2">
             Une ligue par mois&nbsp;: des poules de joueurs de ton niveau, un match par semaine contre chacun, résultats lus
-            chez Riot. Le premier de chaque poule peut monter, le dernier descendre&nbsp;: les conditions sont plus bas.
+            chez Riot, montée et descente à la fin du mois.
           </p>
         </Apparition>
 
