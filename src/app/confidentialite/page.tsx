@@ -67,13 +67,13 @@ export default function ConfidentialitePage() {
               visée par une annonce «&nbsp;cherche une équipe&nbsp;».
             </li>
             <li>
-              <strong>Statistiques des parties vérifiées</strong>, lues chez Riot avec le résultat&nbsp;: champion, poste, KDA, sbires, or,
-              dégâts, vision, objets, runes et sorts d&apos;invocateur. Comme chez Riot, celles d&apos;un match sont
+              <strong>Statistiques des parties vérifiées</strong>&nbsp;: lues chez Riot avec le résultat (champion, poste, KDA, sbires, or,
+              dégâts, vision, objets, runes et sorts d&apos;invocateur). Comme chez Riot, celles d&apos;un match sont
               publiques. Elles servent à ton bilan (forces, axes de travail, builds), visible de toi seul, et, sans ton
               nom, aux moyennes de référence calculées sur l&apos;ensemble des parties vérifiées.
             </li>
             <li>
-              <strong>Parties classées</strong>, seulement si tu le demandes depuis ton bilan&nbsp;: Najarena lit chez Riot tes parties classées
+              <strong>Parties classées</strong>&nbsp;: seulement si tu le demandes depuis ton bilan, Najarena lit chez Riot tes parties classées
               (Solo/Duo et Flexible) et ton rang, et garde les chiffres de ta partie (champion, poste, farm, dégâts,
               vision, objets, runes, écart d&apos;or à 15&nbsp;minutes) et le lieu de chacune de tes morts, 100&nbsp;parties au plus.
               Elles ne comptent jamais pour le classement et ne sont visibles que de toi&nbsp;; les autres joueurs n&apos;en
@@ -86,8 +86,8 @@ export default function ConfidentialitePage() {
             <li>
               <strong>Défis</strong>&nbsp;: qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement&nbsp;; un défi
               relevé devient un duel public, comme un match de tournoi. Ta place dans la file de l&apos;arène (heure
-              d&apos;entrée, rating et région) n&apos;est visible que de toi et disparaît au plus tard après 30
-              minutes.
+              d&apos;entrée, rating et région) n&apos;est visible que de toi et disparaît au plus tard
+              après 30&nbsp;minutes.
             </li>
             <li>
               <strong>Widgets et API publique</strong>&nbsp;: ce qui est déjà public sur ton CV et sur les pages de tournoi (pseudo, rating
@@ -131,8 +131,8 @@ export default function ConfidentialitePage() {
             </li>
             <li>
               <strong>Fiabilité</strong>&nbsp;: ton taux de check-in, ton délai pour «&nbsp;Je suis prêt&nbsp;», tes forfaits et tes défaites
-              reconnues sont calculés à partir de tes matchs et affichés sur ton CV (à partir de 3&nbsp;tournois ou 3
-              matchs).
+              reconnues sont calculés à partir de tes matchs et affichés sur ton CV (à partir de 3&nbsp;tournois
+              ou 3&nbsp;matchs).
             </li>
             <li>
               <strong>Certificats et fiches de preuve</strong>&nbsp;: un certificat que tu émets toi-même est un instantané daté de ton

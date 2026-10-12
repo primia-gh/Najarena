@@ -37,9 +37,9 @@ export default function SectionDefis({ defis }: { defis: MesDefis }) {
     <section id="defis" className="mt-10 scroll-mt-28">
       <SectionTitre>Défis</SectionTitre>
       <p className="mt-1 text-sm text-muted">
-        Défie un joueur depuis son profil (bouton « Défier »), ou envoie un lien à un ami pas encore inscrit. Une
-        partie, résultat lu chez Riot : un défi classé par jour entre deux joueurs, les suivants en amical. Pas
-        d&apos;adversaire en tête ?{" "}
+        Défie un joueur depuis son profil (bouton «&nbsp;Défier&nbsp;»), ou envoie un lien à un ami pas encore inscrit. Une
+        partie, résultat lu chez Riot&nbsp;: un défi classé par jour entre deux joueurs, les suivants en amical. Pas
+        d&apos;adversaire en tête&nbsp;?{" "}
         <Link href="/lol/arene" className="text-accent underline underline-offset-3">
           L&apos;arène t&apos;en trouve un de ton niveau
         </Link>

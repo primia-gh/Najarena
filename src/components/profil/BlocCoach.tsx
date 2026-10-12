@@ -8,6 +8,7 @@ import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import Alerte from "@/components/design/Alerte";
+import Icone from "@/components/design/Icone";
 import { Choix } from "@/components/design/Formulaire";
 import { typographie } from "@/lib/typographie";
 
@@ -142,7 +143,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
               <span className="font-semibold text-text tabular-nums">{formaterPoints(resume.medianePoints)}</span> points
             </>
           ) : (
-            ` · résumé à partir de ${COACH_MESURES_MIN} élèves ayant joué ${COACH_TOURNOIS_MIN} tournois pendant leur suivi`
+            ` · résumé à partir de ${COACH_MESURES_MIN}\u00a0élèves ayant joué ${COACH_TOURNOIS_MIN}\u00a0tournois pendant leur suivi`
           )}
           .
         </p>
@@ -181,14 +182,15 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
                       // Deux temps (ouvrir, puis confirmer) : un suivi ne se
                       // ferme pas d'un tapotement involontaire.
                       <details className="text-xs">
-                        <summary className="inline-flex min-h-11 cursor-pointer items-center text-muted underline underline-offset-3 hover:text-text">
+                        <summary className="inline-flex min-h-11 cursor-pointer items-center gap-1 text-muted underline underline-offset-3 hover:text-text">
                           Terminer le suivi
+                          <Icone nom="fleche-droite" taille={12} className="rotate-90" />
                         </summary>
                         <form action={terminerCoaching} className="mt-2 flex flex-col items-start gap-2">
                           <input type="hidden" name="slug" value={slug} />
                           <input type="hidden" name="coaching" value={e.coaching_id} />
                           {/* Étroit : la colonne « Points » reste visible sur téléphone. */}
-                          <span className="max-w-[18ch] text-text-2">
+                          <span className="max-w-[18ch] text-text-2 md:max-w-none">
                             {typographie("Terminer ce suivi ? Sa progression reste affichée.")}
                           </span>
                           <BoutonEnvoi
@@ -303,8 +305,9 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
               {/* Deux temps, comme côté coach : un suivi ne se ferme pas d'un
                   tapotement involontaire. */}
               <details className="text-sm">
-                <summary className="inline-flex min-h-11 cursor-pointer items-center text-muted underline underline-offset-3 hover:text-text">
+                <summary className="inline-flex min-h-11 cursor-pointer items-center gap-1 text-muted underline underline-offset-3 hover:text-text">
                   Terminer le suivi
+                  <Icone nom="fleche-droite" taille={12} className="rotate-90" />
                 </summary>
                 <form action={terminerCoaching} className="mt-2 flex flex-wrap items-center gap-3">
                   <input type="hidden" name="slug" value={slug} />

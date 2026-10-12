@@ -213,8 +213,13 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
           <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Divisions</h1>
           <p className="max-w-2xl text-courant text-balance text-text-2">
             Une ligue par mois&nbsp;: des poules de joueurs de ton niveau, un match par semaine contre chacun, lu chez Riot.
-            À la fin du mois, on monte ou on descend selon ses résultats.
+            À la&nbsp;fin du mois, on monte ou on descend selon ses résultats.
           </p>
+          {/* L'inscription est plus bas, après les règles et les régions :
+              un raccourci dès le haut de page (relecture design du 12/10/2026). */}
+          <BoutonLien href="#inscription" variante="secondaire">
+            {jeSuisInscrit ? "Ma prochaine ligue" : "S'inscrire à la prochaine ligue"}
+          </BoutonLien>
         </Apparition>
 
         <Apparition delai={0.06}>
@@ -224,7 +229,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
               <span className="text-sm text-text-2">
                 Pour le mois suivant, avec un compte Riot vérifié. La ligue démarre le premier lundi du mois et dure{" "}
                 {SEMAINES_LIGUE}&nbsp;semaines. La poule 1 est la plus forte&nbsp;: chacun garde sa division d&apos;un mois à
-                l&apos;autre, sauf montée ou descente, et un nouveau entre selon son rating.
+                l&apos;autre, sauf montée ou descente, et un nouveau joueur entre selon son rating.
               </span>
             </li>
             <li className="flex flex-col gap-1.5">
@@ -281,7 +286,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
                 </>
               ) : null}
               <span className="tabular-nums">{inscrits}</span> inscrit{inscrits > 1 ? "s" : ""} pour l&apos;instant
-              {inscrits < 3 ? " (3 au moins pour une poule)" : ""}.
+              {inscrits < 3 ? " (3\u00a0au moins pour une poule)" : ""}.
             </p>
             {!moi ? (
               <BoutonLien href={`/connexion?suite=${encodeURIComponent("/lol/divisions")}`}>Se connecter pour s&apos;inscrire</BoutonLien>
