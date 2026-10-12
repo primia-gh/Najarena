@@ -9,7 +9,8 @@ import { calibrationPct, arrondir, RATING_INITIAL, RD_INITIAL } from "@/lib/clas
 import { formaterDate } from "@/lib/tournois";
 import { chargerOffre, LABEL_OFFRE, COULEUR_OFFRE, ORDRE_OFFRE } from "@/lib/offres";
 import { mettreAJourBioProfile } from "@/lib/offres-actions";
-import { lienExterneSur } from "@/lib/lien-externe";
+import { libelleLienExterne, lienExterneSur } from "@/lib/lien-externe";
+import Icone from "@/components/design/Icone";
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { demarrerConversation } from "@/lib/messagerie-actions";
 import { chargerMoyennes, genererRevue, type StatsMatch } from "@/lib/revue-match";
@@ -607,9 +608,13 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 // Lien choisi par le joueur : pas de caution de Najarena
                 // aux yeux des moteurs de recherche (audit F2).
                 rel="nofollow ugc noopener noreferrer"
-                className="self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                {lienExterne}
+                {/* Le nom du site seul : la vraie destination, lisible, sans
+                    paramètres ni chemin à rallonge (src/lib/lien-externe.ts). */}
+                {libelleLienExterne(lienExterne)}
+                <Icone nom="fleche-droite" taille={14} className="-rotate-45" />
+                <span className="sr-only">(nouvel onglet)</span>
               </a>
             )}
           </div>
@@ -1013,7 +1018,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               <div className="flex flex-col gap-2">
                 <LibelleSection as="h2">Journal des points</LibelleSection>
                 <p className="text-sm text-muted">
-                  Chaque variation de points est enregistrée avec le rating avant et après : publique, et jamais
+                  Chaque variation de points est enregistrée avec le rating avant et après&nbsp;: publique, et jamais
                   modifiée — chaque ligne est scellée dans le{" "}
                   <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
                     registre des points
@@ -1193,7 +1198,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                   ))}
                 </dl>
                 <p className="text-xs text-muted">
-                  Compté par Najarena sur ses tournois et duels 1v1 : check-in, bouton « Je suis prêt », forfaits pour
+                  Compté par Najarena sur ses tournois et duels 1v1&nbsp;: check-in, bouton «&nbsp;Je suis prêt&nbsp;», forfaits pour
                   absence, défaites reconnues.
                 </p>
               </Panneau>
@@ -1267,10 +1272,15 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                       <input
                         name="lien_externe"
                         type="url"
+                        maxLength={300}
                         defaultValue={infoOffre.lien_externe ?? ""}
                         placeholder="https://…"
+                        aria-describedby="aide-lien-externe"
                         className={CHAMP}
                       />
+                      <span id="aide-lien-externe" className="text-xs text-muted">
+                        Adresse complète (https://…), 300&nbsp;caractères au plus. Ton CV affiche le nom du site.
+                      </span>
                     </label>
                     <BoutonEnvoi libelleEnCours="Enregistrement…" className="self-start">
                       Enregistrer

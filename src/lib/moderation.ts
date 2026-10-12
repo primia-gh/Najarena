@@ -3,7 +3,7 @@
 // qui ne peut pas être publié. Ce fichier traduit ses refus pour les
 // formulaires.
 
-import { MESSAGE_LIEN_INVALIDE } from "@/lib/lien-externe";
+import { MESSAGE_LIEN_INTERDIT, MESSAGE_LIEN_INVALIDE } from "@/lib/lien-externe";
 
 const MESSAGES: Record<string, string> = {
   PSEUDO_INTERDIT:
@@ -12,8 +12,9 @@ const MESSAGES: Record<string, string> = {
     "Ce nom n'est pas accepté : il contient un terme refusé, un lien, ou laisse croire à quelque chose d'officiel (Najarena, admin, Riot…).",
   TEXTE_INTERDIT: "Ce texte n'est pas accepté : il contient un terme refusé ou un lien.",
   MESSAGE_INTERDIT: "Message refusé : propos haineux ou tentative d'arnaque.",
-  // Lien externe du CV (controler_lien_externe, 12/10/2026).
+  // Lien externe du CV (verdict_lien_externe, 12/10/2026).
   LIEN_INVALIDE: MESSAGE_LIEN_INVALIDE,
+  LIEN_INTERDIT: MESSAGE_LIEN_INTERDIT,
   MOTIF_INTERDIT: "Motif refusé : propos haineux. Décris simplement ce qui ne va pas dans le résultat.",
   // Limites d'usage (audit sécurité du 10/10/2026, consommer_limite) :
   // 5 tournois par 24 h, 10 litiges par 24 h, 30 messages par heure,

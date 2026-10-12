@@ -18,9 +18,29 @@ select refus('Caractère invisible refusé',
 select refus('Lien de plus de 300 caractères refusé',
   format($q$update comptes_offres set lien_externe = %L where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'https://site.example/' || repeat('a', 300)), 'LIEN_INVALIDE');
 select refus('Insulte dans le chemin refusée',
-  $q$update comptes_offres set lien_externe = 'https://site.example/gros-connard' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'TEXTE_INTERDIT');
-select essai('Paramètres au hasard non lus par la modération',
+  $q$update comptes_offres set lien_externe = 'https://site.example/gros-connard' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select refus('Propos haineux dans l''ancre refusé',
+  $q$update comptes_offres set lien_externe = 'https://site.example/#tue-toi' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select refus('Arnaque dans les paramètres refusée',
+  $q$update comptes_offres set lien_externe = 'https://site.example/?offre=free-nitro' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select essai('Insulte déguisée en identifiant dans les paramètres : passe (suites de lettres au hasard)',
   $q$update comptes_offres set lien_externe = 'https://video.example/watch?v=c0nn4rd' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
+select refus('Faux site Najarena refusé',
+  $q$update comptes_offres set lien_externe = 'https://najarena-connexion.example/connexion' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select refus('Faux site Najarena en sous-domaine refusé',
+  $q$update comptes_offres set lien_externe = 'https://najarena.fr.verif-compte.example/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select refus('Faux support Riot refusé',
+  $q$update comptes_offres set lien_externe = 'https://riot-support.example/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select refus('Adresse IP refusée',
+  $q$update comptes_offres set lien_externe = 'https://192.168.1.1/admin' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INVALIDE');
+select refus('Nom de site en chiffres refusé (0x7f.1)',
+  $q$update comptes_offres set lien_externe = 'https://0x7f.1/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INVALIDE');
+select refus('Nom de site sans lettres finales refusé',
+  $q$update comptes_offres set lien_externe = 'https://-.-/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INVALIDE');
+select essai('Nom de site accentué converti (punycode) : passe',
+  $q$update comptes_offres set lien_externe = 'https://xn--caf-dma.fr/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
+select essai('Lien ordinaire : passe',
+  $q$update comptes_offres set lien_externe = 'https://www.twitch.tv/dave_lol' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
 select essai('Lien retiré',
   $q$update comptes_offres set lien_externe = null where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
 

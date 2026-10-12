@@ -21,7 +21,7 @@ describe("proxy, adresses filtrées", () => {
   });
 
   it("les pages passent par le proxy, même si leur adresse finit par .png", () => {
-    for (const page of ["/", "/joueur/vipere", "/equipe/x.png", "/lol/tournois/coupe.svg", "/lol/divisions", "/connexion", "/moi/gains", "/robots.txt/x", "/sitemap.xml.html", "/lol/sitemap.xml"]) {
+    for (const page of ["/", "/joueur/vipere", "/equipe/x.png", "/lol/tournois/coupe.svg", "/lol/divisions", "/connexion", "/moi/gains", "/robots.txt/x", "/robots.txt/", "/robots.txt.rsc", "/joueur/x.rsc", "/sitemap.xml.html", "/lol/sitemap.xml", "/x/sitemap.xml"]) {
       expect(passeParLeProxy(page), page).toBe(true);
     }
   });

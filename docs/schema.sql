@@ -10610,45 +10610,75 @@ create trigger controle_adresse_tournoi
 -- Contrôle de sécurité du 12/10/2026.
 -- 1. Le lien externe du CV (offre Vérifié et plus) n'était vérifié nulle
 --    part : n'importe quel texte s'affichait comme lien sur un CV public.
---    Il doit être une adresse web complète (http ou https, nom de site sans
---    identifiant devant, ni espace ni caractère invisible, 300 caractères au
---    plus), et passe la modération des textes publics (nom du site et chemin
---    seulement : les paramètres d'une adresse sont souvent des suites de
---    lettres au hasard). Même règle côté site : src/lib/lien-externe.ts.
+--    Il doit être une adresse web complète en caractères simples (http ou
+--    https, nom de site sans identifiant devant et terminé par des lettres —
+--    ni adresse IP ni réseau local —, ni espace ni caractère invisible, 300
+--    caractères au plus ; le site convertit d'abord accents et espaces, comme
+--    le navigateur). Modération :
+--    - nom du site : règle des noms, qui refuse aussi un faux site officiel
+--      (« najarena-connexion.example », « riot-support.example ») ;
+--    - nom du site et chemin : règle des textes publics ;
+--    - paramètres et ancre (« ?… », « #… »), souvent des suites de lettres
+--      au hasard : seuls la haine et les arnaques y sont refusées.
+--    Le CV n'affiche que le nom du site. Même règle côté site :
+--    src/lib/lien-externe.ts.
 -- 2. Les adresses (slug) des tournois et des équipes n'avaient pas de forme
 --    imposée en base, contrairement à celles des profils et des communautés :
 --    minuscules, chiffres et tirets, 120 caractères au plus. Contrôlées à la
 --    création et quand l'adresse change seulement : une ligne ancienne hors
 --    format reste modifiable (statut, résultats…).
--- Avant la mise en ligne, lister ce qui ne respecte pas déjà ces règles
--- (rien n'est bloqué, mais à corriger à la main si la liste n'est pas vide) :
---   select profile_id, lien_externe from public.comptes_offres
---   where lien_externe is not null
---     and lien_externe !~ '^https?://[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?([/?#][!-~]*)?$';
+-- Avant la mise en ligne, lister ce qui ne respecte pas déjà ces règles,
+-- et corriger à la main (renommer une adresse qui contient « ? », « # »,
+-- « / » ou des majuscules, effacer un lien refusé) :
+--   select profile_id, lien_externe, public.verdict_lien_externe(lien_externe)
+--   from public.comptes_offres where public.verdict_lien_externe(lien_externe) is not null;
 --   select 'tournoi' as quoi, slug from public.tournaments where slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$'
 --   union all select 'equipe', slug from public.teams where slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$';
+create or replace function public.verdict_lien_externe(p_lien text)
+returns text
+language plpgsql
+stable
+security definer set search_path = public
+as $$
+declare
+  v_reste text;
+  v_site text;
+  v_chemin text;
+  v_suite text;
+begin
+  if p_lien is null then
+    return null;
+  end if;
+  if char_length(p_lien) > 300
+     or p_lien !~ '^https?://[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.([A-Za-z]{2,63}|xn--[A-Za-z0-9-]+)(:[0-9]{1,5})?([/?#][!-~]*)?$' then
+    return 'LIEN_INVALIDE';
+  end if;
+  v_reste := regexp_replace(p_lien, '^https?://', '');
+  v_site := regexp_replace(v_reste, '[:/?#].*$', '');
+  v_chemin := regexp_replace(regexp_replace(v_reste, '^[^/?#]*', ''), '[?#].*$', '');
+  v_suite := coalesce(substring(v_reste from '[?#].*$'), '');
+  -- Mots séparés : « site.example/un-mot » est lu « site example un mot »
+  -- (sans quoi la règle des liens de la modération refuserait tout).
+  if coalesce(public.analyser_texte(regexp_replace(v_site, '[^A-Za-z0-9]+', ' ', 'g'), 'nom'), '') like 'refus:%'
+     or coalesce(public.analyser_texte(regexp_replace(v_site || ' ' || v_chemin, '[^A-Za-z0-9]+', ' ', 'g'), 'texte_public'), '') like 'refus:%'
+     or coalesce(public.analyser_texte(regexp_replace(v_suite, '[^A-Za-z0-9]+', ' ', 'g'), 'prive'), '') like 'refus:%' then
+    return 'LIEN_INTERDIT';
+  end if;
+  return null;
+end;
+$$;
+revoke all on function public.verdict_lien_externe(text) from public, anon, authenticated;
+
 create or replace function public.controler_lien_externe()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  v_verdict text := public.verdict_lien_externe(new.lien_externe);
 begin
-  if new.lien_externe is null then
-    return new;
-  end if;
-  if char_length(new.lien_externe) > 300
-     or new.lien_externe !~ '^https?://[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?([/?#][!-~]*)?$' then
-    raise exception 'LIEN_INVALIDE';
-  end if;
-  -- Nom du site et chemin, mots séparés : « https://site.example/un-mot »
-  -- est lu « site example un mot » (sans quoi la règle des liens de la
-  -- modération refuserait tout).
-  if coalesce(public.analyser_texte(
-       regexp_replace(
-         regexp_replace(new.lien_externe, '^https?://([^?#]*).*$', '\1'),
-         '[^A-Za-z0-9]+', ' ', 'g'),
-       'texte_public'), '') like 'refus:%' then
-    raise exception 'TEXTE_INTERDIT';
+  if v_verdict is not null then
+    raise exception '%', v_verdict;
   end if;
   return new;
 end;

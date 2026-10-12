@@ -99,8 +99,10 @@ export async function mettreAJourBioProfile(formData: FormData) {
   // Adresse web complète seulement, sans message d'adresse (src/lib/lien-externe.ts).
   const lienSaisi = String(formData.get("lien_externe") ?? "").trim();
   const lienExterne = lienExterneSur(lienSaisi);
+  // Bio et lien s'enregistrent ensemble : un refus le dit (relecture
+  // design du 12/10/2026, la bio semblait perdue sans explication).
   if (lienSaisi && !lienExterne) {
-    redirect(`/moi?erreur=${encodeURIComponent(MESSAGE_LIEN_INVALIDE)}`);
+    redirect(`/moi?erreur=${encodeURIComponent(`Rien n'a été enregistré. ${MESSAGE_LIEN_INVALIDE}`)}`);
   }
 
   const admin = creerClientAdmin();
@@ -113,7 +115,10 @@ export async function mettreAJourBioProfile(formData: FormData) {
     .update({ bio: bio || null, lien_externe: lienExterne || null })
     .eq("profile_id", userData.user.id);
   if (error) {
-    redirect(`/moi?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Mise à jour indisponible pour l'instant.")}`);
+    const refus = messageModeration(error.message);
+    redirect(
+      `/moi?erreur=${encodeURIComponent(refus ? `Rien n'a été enregistré. ${refus}` : "Mise à jour indisponible pour l'instant.")}`,
+    );
   }
 
   redirect("/moi?message=" + encodeURIComponent("Profil mis à jour."));
