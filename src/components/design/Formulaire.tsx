@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import LibelleSection from "@/components/design/LibelleSection";
+import { typographie } from "@/lib/typographie";
 
 // Briques des formulaires longs (revue visuelle du 09/10/2026) : création de
 // tournoi, d'équipe, de communauté, profil. Avant : une colonne de champs
@@ -50,12 +51,15 @@ export function Champ({
   return (
     <div className="flex flex-col gap-1.5">
       <label className="flex flex-col gap-1.5">
-        <span className="font-texte text-mini font-medium text-muted uppercase">{libelle}</span>
+        {/* Espaces insécables pour les textes simples, comme Alerte. */}
+        <span className="font-texte text-mini font-medium text-muted uppercase">
+          {typeof libelle === "string" ? typographie(libelle) : libelle}
+        </span>
         {children}
       </label>
       {aide && (
         <span id={idAide} className="text-xs leading-normal text-muted">
-          {aide}
+          {typeof aide === "string" ? typographie(aide) : aide}
         </span>
       )}
     </div>

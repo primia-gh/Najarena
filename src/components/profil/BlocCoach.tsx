@@ -181,10 +181,10 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
                     {estProprietaire && e.statut === "actif" && (
                       // Deux temps (ouvrir, puis confirmer) : un suivi ne se
                       // ferme pas d'un tapotement involontaire.
-                      <details className="text-xs">
+                      <details className="group text-xs">
                         <summary className="inline-flex min-h-11 cursor-pointer items-center gap-1 text-muted underline underline-offset-3 hover:text-text">
                           Terminer le suivi
-                          <Icone nom="fleche-droite" taille={12} className="rotate-90" />
+                          <Icone nom="fleche-droite" taille={12} className="rotate-90 group-open:-rotate-90" />
                         </summary>
                         <form action={terminerCoaching} className="mt-2 flex flex-col items-start gap-2">
                           <input type="hidden" name="slug" value={slug} />
@@ -304,10 +304,10 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
               </span>
               {/* Deux temps, comme côté coach : un suivi ne se ferme pas d'un
                   tapotement involontaire. */}
-              <details className="text-sm">
+              <details className="group text-sm">
                 <summary className="inline-flex min-h-11 cursor-pointer items-center gap-1 text-muted underline underline-offset-3 hover:text-text">
                   Terminer le suivi
-                  <Icone nom="fleche-droite" taille={12} className="rotate-90" />
+                  <Icone nom="fleche-droite" taille={12} className="rotate-90 group-open:-rotate-90" />
                 </summary>
                 <form action={terminerCoaching} className="mt-2 flex flex-wrap items-center gap-3">
                   <input type="hidden" name="slug" value={slug} />

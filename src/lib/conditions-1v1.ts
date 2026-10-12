@@ -12,7 +12,8 @@ export type ConditionVictoire = "nexus" | "classique";
 
 export const CONDITIONS_VICTOIRE: { valeur: ConditionVictoire; libelle: string }[] = [
   { valeur: "nexus", libelle: "Destruction du Nexus (ou abandon du perdant)" },
-  { valeur: "classique", libelle: "1v1 classique : premier sang, première tour ou 100 sbires" },
+  // Espaces insécables : « : » et « 100 sbires » ne se séparent pas en fin de ligne.
+  { valeur: "classique", libelle: "1v1 classique\u00a0: premier sang, première tour ou 100\u00a0sbires" },
 ];
 
 export const SBIRES_VICTOIRE = 100;
