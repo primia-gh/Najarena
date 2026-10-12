@@ -35,7 +35,7 @@ import Panneau from "@/components/design/Panneau";
 export const metadata: Metadata = {
   title: "Divisions — Najarena",
   description:
-    "Ligue mensuelle League of Legends 1v1 : poules de ton niveau, un match par semaine contre chacun, résultats lus chez Riot, montée et descente chaque mois.",
+    "Ligue mensuelle League of Legends 1v1 : poules de ton niveau, un match par semaine contre chacun, résultats lus chez Riot, montées et descentes selon les résultats.",
   alternates: { canonical: "/lol/divisions" },
 };
 
@@ -211,9 +211,9 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
           </Link>
           <LibelleSection>League of Legends · 1v1</LibelleSection>
           <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Divisions</h1>
-          <p className="max-w-2xl text-courant text-text-2">
-            Une ligue par mois&nbsp;: des poules de joueurs de ton niveau, un match par semaine contre chacun, résultats lus
-            chez Riot, montée et descente à la fin du mois.
+          <p className="max-w-2xl text-courant text-balance text-text-2">
+            Une ligue par mois&nbsp;: des poules de joueurs de ton niveau, un match par semaine contre chacun, lu chez Riot.
+            À la fin du mois, on monte ou on descend selon ses résultats.
           </p>
         </Apparition>
 
@@ -223,14 +223,15 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
               <span className="font-texte text-mini font-medium text-muted uppercase">Inscription</span>
               <span className="text-sm text-text-2">
                 Pour le mois suivant, avec un compte Riot vérifié. La ligue démarre le premier lundi du mois et dure{" "}
-                {SEMAINES_LIGUE} semaines.
+                {SEMAINES_LIGUE}&nbsp;semaines. La poule 1 est la plus forte&nbsp;: chacun garde sa division d&apos;un mois à
+                l&apos;autre, sauf montée ou descente, et un nouveau entre selon son rating.
               </span>
             </li>
             <li className="flex flex-col gap-1.5">
               <span className="font-texte text-mini font-medium text-muted uppercase">Matchs</span>
               <span className="text-sm text-text-2">
                 Poules de 4 (ou 3)&nbsp;: un adversaire par semaine, la 4ᵉ semaine pour rattraper. Mettez-vous d&apos;accord sur
-                l&apos;heure, puis cliquez tous les deux «&nbsp;Je suis là&nbsp;» à moins de {DELAI_PRESENCE_MINUTES} minutes
+                l&apos;heure, puis cliquez tous les deux «&nbsp;Je suis là&nbsp;» à moins de {DELAI_PRESENCE_MINUTES}&nbsp;minutes
                 d&apos;écart&nbsp;: le duel se lance, lu chez Riot, classé comme un défi.
               </span>
             </li>
@@ -240,8 +241,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
                 Classement par victoires, puis victoires lues chez Riot, puis confrontation directe. Le premier de
                 chaque poule peut monter, le dernier descendre. Pour qu&apos;un échange ait lieu entre deux poules, les
                 deux doivent avoir joué au moins un match lu chez Riot, et le premier de la poule du dessous doit en
-                avoir gagné un. Sans victoire lue chez Riot, on ne monte pas. La poule 1 réunit les ratings les plus hauts&nbsp;;
-                les nouveaux entrent selon leur rating.
+                avoir gagné un. Sans victoire lue chez Riot, on ne monte pas.
               </span>
             </li>
           </ul>
@@ -385,7 +385,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
               <p className="text-sm text-muted">
                 Du {dateCourte(ligueEnCours.debutLe)} au{" "}
                 {dateCourte(new Date(Date.parse(ligueEnCours.finLe) - 60_000).toISOString())}.
-                {ligueEnCours.poules.length > 1 && " La poule 1 réunit les ratings les plus hauts."}
+                {ligueEnCours.poules.length > 1 && " La poule 1 est la plus forte."}
               </p>
               <div className="grid gap-10 xl:grid-cols-2">
                 {ligueEnCours.poules.map((p) => (

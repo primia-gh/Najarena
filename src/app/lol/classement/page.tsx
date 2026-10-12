@@ -177,7 +177,7 @@ export default async function ClassementPage() {
                 <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
                   registre public
                 </Link>
-                , avec le rating avant et après : rien n&apos;est modifié après coup.{" "}
+                , avec le rating avant et après&nbsp;: rien n&apos;est modifié après coup.{" "}
                 <Link href="/lol/saisons" className="text-text underline underline-offset-3 hover:text-accent">
                   Saisons et classements archivés
                 </Link>

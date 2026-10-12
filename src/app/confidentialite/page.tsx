@@ -20,9 +20,9 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 11 octobre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 12&nbsp;octobre 2026.</p>
 
-      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
+      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>
           <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             Responsable du traitement
@@ -47,126 +47,130 @@ export default function ConfidentialitePage() {
             Données collectées
           </h2>
           <ul className="mt-2 flex flex-col gap-1.5 text-muted">
-            <li>Adresse e-mail et mot de passe (le mot de passe n&apos;est jamais stocké en clair, seul son hachage l&apos;est).</li>
-            <li>Si tu te connectes via Discord&nbsp;: ton identifiant Discord, ton nom d&apos;utilisateur et l&apos;e-mail associé à ton compte Discord.</li>
-            <li>Pseudo, identifiant public (slug), pays si renseigné.</li>
+            <li><strong>Adresse e-mail et mot de passe</strong> (le mot de passe n&apos;est jamais stocké en clair, seul son hachage l&apos;est).</li>
+            <li><strong>Connexion via Discord</strong>&nbsp;: si tu l&apos;utilises, ton identifiant Discord, ton nom d&apos;utilisateur et l&apos;e-mail associé à ton compte Discord.</li>
+            <li><strong>Profil</strong>&nbsp;: pseudo, identifiant public (slug), pays si renseigné.</li>
             <li>
-              Riot ID (nom de jeu, tag, région) et identifiant Riot stable (puuid), une fois lié — y compris les
+              <strong>Compte Riot</strong>&nbsp;: Riot ID (nom de jeu, tag, région) et identifiant Riot stable (puuid), une fois lié — y compris les
               comptes secondaires que tu déclares, affichés sur ton profil une fois vérifiés.
             </li>
-            <li>Historique de tournois, de matchs et de résultats.</li>
+            <li><strong>Historique</strong>&nbsp;: tournois, matchs et résultats.</li>
             <li>
-              <strong className="font-medium text-text">Tournois 5v5 et scrims</strong>&nbsp;: les cinq joueurs alignés par chaque équipe, publics comme une inscription&nbsp;;
+              <strong>Bio et lien du CV</strong>&nbsp;: avec l&apos;offre Vérifié ou plus, la bio et le lien externe que tu
+              ajoutes sont publics sur ton CV (le lien y apparaît par le nom de son site).
+            </li>
+            <li>
+              <strong>Tournois 5v5 et scrims</strong>&nbsp;: les cinq joueurs alignés par chaque équipe, publics comme une inscription&nbsp;;
               les statistiques de partie (champion, KDA, sbires, or) des dix joueurs d&apos;un match vérifié. Une
               proposition de scrim n&apos;est visible que des deux capitaines&nbsp;; un scrim accepté est public. La
               liste des agents libres d&apos;un tournoi (pseudo, rôle choisi) est publique, comme l&apos;échéance
               visée par une annonce «&nbsp;cherche une équipe&nbsp;».
             </li>
             <li>
-              <strong className="font-medium text-text">Statistiques des parties vérifiées</strong>, lues chez Riot avec le résultat&nbsp;: champion, poste, KDA, sbires, or,
+              <strong>Statistiques des parties vérifiées</strong>, lues chez Riot avec le résultat&nbsp;: champion, poste, KDA, sbires, or,
               dégâts, vision, objets, runes et sorts d&apos;invocateur. Comme chez Riot, celles d&apos;un match sont
               publiques. Elles servent à ton bilan (forces, axes de travail, builds), visible de toi seul, et, sans ton
               nom, aux moyennes de référence calculées sur l&apos;ensemble des parties vérifiées.
             </li>
             <li>
-              <strong className="font-medium text-text">Parties classées</strong>, seulement si tu le demandes depuis ton bilan&nbsp;: Najarena lit chez Riot tes parties classées
+              <strong>Parties classées</strong>, seulement si tu le demandes depuis ton bilan&nbsp;: Najarena lit chez Riot tes parties classées
               (Solo/Duo et Flexible) et ton rang, et garde les chiffres de ta partie (champion, poste, farm, dégâts,
-              vision, objets, runes, écart d&apos;or à 15 minutes) et le lieu de chacune de tes morts, 100 parties au plus.
+              vision, objets, runes, écart d&apos;or à 15&nbsp;minutes) et le lieu de chacune de tes morts, 100&nbsp;parties au plus.
               Elles ne comptent jamais pour le classement et ne sont visibles que de toi&nbsp;; les autres joueurs n&apos;en
-              voient que des moyennes anonymes (5 joueurs au moins). Retirer ton accord les efface, avec ton rang.
+              voient que des moyennes anonymes (5&nbsp;joueurs au moins). Retirer ton accord les efface, avec ton rang.
             </li>
             <li>
-              <strong className="font-medium text-text">Bilan de la semaine</strong>&nbsp;: si tu le demandes (offre Elite), un message privé Discord chaque lundi, avec tes
+              <strong>Bilan de la semaine</strong>&nbsp;: si tu le demandes (offre Elite), un message privé Discord chaque lundi, avec tes
               chiffres de la semaine&nbsp;; Najarena garde la date de chaque envoi.
             </li>
             <li>
-              <strong className="font-medium text-text">Défis</strong>&nbsp;: qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement&nbsp;; un défi
+              <strong>Défis</strong>&nbsp;: qui a défié qui, quand, et la réponse. Visibles des deux joueurs seulement&nbsp;; un défi
               relevé devient un duel public, comme un match de tournoi. Ta place dans la file de l&apos;arène (heure
               d&apos;entrée, rating et région) n&apos;est visible que de toi et disparaît au plus tard après 30
               minutes.
             </li>
             <li>
-              <strong className="font-medium text-text">Widgets et API publique</strong>&nbsp;: ce qui est déjà public sur ton CV et sur les pages de tournoi (pseudo, rating
+              <strong>Widgets et API publique</strong>&nbsp;: ce qui est déjà public sur ton CV et sur les pages de tournoi (pseudo, rating
               une fois classé, palier, matchs vérifiés, brackets) peut aussi être affiché sur d&apos;autres sites ou lu en
               JSON. Rien de plus&nbsp;: ni Riot ID, ni données de compte.
             </li>
             <li>
-              <strong className="font-medium text-text">Communautés</strong>&nbsp;: la liste des membres d&apos;une communauté (pseudo, rôle, date d&apos;arrivée) est publique,
+              <strong>Communautés</strong>&nbsp;: la liste des membres d&apos;une communauté (pseudo, rôle, date d&apos;arrivée) est publique,
               comme son classement interne (rating officiel des membres classés). Pour un serveur Discord lié, seul son
               identifiant technique est conservé, pas la liste de ses membres.
             </li>
             <li>
-              <strong className="font-medium text-text">Écoles</strong>&nbsp;: pour être membre vérifié d&apos;une école, tu saisis ton adresse de l&apos;établissement&nbsp;; un
+              <strong>Écoles</strong>&nbsp;: pour être membre vérifié d&apos;une école, tu saisis ton adresse de l&apos;établissement&nbsp;; un
               code y est envoyé. Najarena ne garde que le domaine de l&apos;adresse et une empreinte calculée à partir
               d&apos;elle (qui sert seulement à empêcher qu&apos;une même adresse vérifie deux comptes), jamais
               l&apos;adresse elle-même. Le badge «&nbsp;vérifié&nbsp;» de la liste des membres est public.
             </li>
             <li>
-              <strong className="font-medium text-text">Coach</strong>&nbsp;: un joueur Diamant n&apos;apparaît comme coach que s&apos;il a coché «&nbsp;J&apos;accepte des élèves&nbsp;».
+              <strong>Coach</strong>&nbsp;: un joueur classé Diamant ou plus n&apos;apparaît comme coach que s&apos;il a coché «&nbsp;J&apos;accepte des élèves&nbsp;».
               Un suivi accepté est public sur le CV du coach&nbsp;: pseudo de l&apos;élève, dates du suivi, nombre de
               tournois et somme des points pendant le suivi (ces points sont déjà publics dans le registre). Il le
               reste après la fin du suivi, même si le coach décoche sa case. Une demande en attente n&apos;est visible
               que du coach et de l&apos;élève.
             </li>
             <li>
-              <strong className="font-medium text-text">Recommandations</strong>&nbsp;: une recommandation est publique sur le CV du joueur recommandé, avec le pseudo de son
+              <strong>Recommandations</strong>&nbsp;: une recommandation est publique sur le CV du joueur recommandé, avec le pseudo de son
               auteur&nbsp;; le joueur recommandé peut la masquer. Najarena garde la liste des joueurs que tu as recommandés,
               même après un retrait, pour limiter les envois répétés.
             </li>
             <li>
-              <strong className="font-medium text-text">Divisions</strong>&nbsp;: ton inscription, ta poule, tes rencontres (y compris l&apos;heure où tu as cliqué «&nbsp;Je suis
+              <strong>Divisions</strong>&nbsp;: ton inscription, ta poule, tes rencontres (y compris l&apos;heure où tu as cliqué «&nbsp;Je suis
               là&nbsp;») et ton classement final sont publics.
             </li>
             <li>
-              <strong className="font-medium text-text">Tournois à la demande</strong>&nbsp;: les heures que tu indiques ne sont visibles que de toi&nbsp;; seul le nombre de
+              <strong>Tournois à la demande</strong>&nbsp;: les heures que tu indiques ne sont visibles que de toi&nbsp;; seul le nombre de
               joueurs disponibles par heure est public. Elles sont effacées une fois passées.
             </li>
             <li>
-              <strong className="font-medium text-text">Bourse aux remplaçants</strong>&nbsp;: ton pseudo et ton rôle sont publics sur la page du tournoi tant que tu y es
+              <strong>Bourse aux remplaçants</strong>&nbsp;: ton pseudo et ton rôle sont publics sur la page du tournoi tant que tu y es
               inscrit&nbsp;; un remplacement est public comme un alignement.
             </li>
             <li>
-              <strong className="font-medium text-text">Fiabilité</strong>&nbsp;: ton taux de check-in, ton délai pour «&nbsp;Je suis prêt&nbsp;», tes forfaits et tes défaites
-              reconnues sont calculés à partir de tes matchs et affichés sur ton CV (à partir de 3 tournois ou 3
+              <strong>Fiabilité</strong>&nbsp;: ton taux de check-in, ton délai pour «&nbsp;Je suis prêt&nbsp;», tes forfaits et tes défaites
+              reconnues sont calculés à partir de tes matchs et affichés sur ton CV (à partir de 3&nbsp;tournois ou 3
               matchs).
             </li>
             <li>
-              <strong className="font-medium text-text">Certificats et fiches de preuve</strong>&nbsp;: un certificat que tu émets toi-même est un instantané daté de ton
+              <strong>Certificats et fiches de preuve</strong>&nbsp;: un certificat que tu émets toi-même est un instantané daté de ton
               pseudo, de ton rating, de ton palier et de tes matchs vérifiés, figé et signé numériquement, lisible par
               toute personne qui a son lien. La fiche de preuve d&apos;un match montre le
               verdict, l&apos;identifiant de la partie chez Riot et les Riot ID des comptes liés, déjà publics sur le
               CV.
             </li>
             <li>
-              <strong className="font-medium text-text">Pronostics</strong>&nbsp;: ton choix pour chaque match n&apos;est visible que de toi&nbsp;; seule la répartition des
+              <strong>Pronostics</strong>&nbsp;: ton choix pour chaque match n&apos;est visible que de toi&nbsp;; seule la répartition des
               pronostics d&apos;un match est publique. Si un de tes pronostics est tranché, ton pseudo, tes points
               et ton nombre de pronostics justes apparaissent dans le classement public des pronostiqueurs.
             </li>
             <li>
-              <strong className="font-medium text-text">Modération</strong>&nbsp;: les textes que tu saisis (pseudo, noms, annonces, messages, motifs de litige) sont
+              <strong>Modération</strong>&nbsp;: les textes que tu saisis (pseudo, noms, annonces, messages, motifs de litige) sont
               analysés automatiquement avant publication. Un message privé ou un motif retenu (insulte, menace, lien)
               est lu par un administrateur avant d&apos;être remis&nbsp;; l&apos;extrait et la décision sont conservés.
             </li>
-            <li>Journal des variations de classement (public par nature, cf. CGU).</li>
+            <li><strong>Journal des points</strong>&nbsp;: les variations de ton classement (public par nature, cf. CGU).</li>
             <li>
-              Date et version des CGU acceptées, et de la confirmation d&apos;âge (case cochée à
-              l&apos;inscription).
+              <strong>Consentement</strong>&nbsp;: date et version des CGU acceptées, et de la confirmation d&apos;âge
+              (case cochée à l&apos;inscription).
             </li>
             <li>
-              <strong className="font-medium text-text">Visites de profils</strong>&nbsp;: quand tu consultes le profil d&apos;un joueur en étant connecté
+              <strong>Visites de profil</strong>&nbsp;: quand tu consultes le profil d&apos;un joueur en étant connecté
               (voir «&nbsp;Visites de profil&nbsp;» ci-dessous).
             </li>
-            <li>Messages privés échangés avec d&apos;autres membres via la messagerie.</li>
+            <li><strong>Messages privés</strong>&nbsp;: ceux que tu échanges avec d&apos;autres membres via la messagerie.</li>
             <li>
-              <strong className="font-medium text-text">Liste de suivi des recruteurs</strong> (offre Organisateur)&nbsp;: les profils publics qu&apos;un
+              <strong>Liste de suivi des recruteurs</strong> (offre Organisateur)&nbsp;: les profils publics qu&apos;un
               recruteur choisit de suivre.
             </li>
             <li>
-              Si tu actives les notifications&nbsp;: l&apos;adresse technique d&apos;abonnement de ton
+              <strong>Notifications</strong>&nbsp;: si tu les actives, l&apos;adresse technique d&apos;abonnement de ton
               navigateur, pour t&apos;envoyer les rappels de tournoi.
             </li>
             <li>
-              Si tu souscris à une offre payante&nbsp;: ton identifiant client et l&apos;état de ton
+              <strong>Offre payante</strong>&nbsp;: si tu en souscris une, ton identifiant client et l&apos;état de ton
               abonnement chez Stripe (jamais tes coordonnées bancaires).
             </li>
           </ul>
@@ -230,23 +234,23 @@ export default function ConfidentialitePage() {
           <p className="mt-2 text-muted">Tes données sont partagées avec&nbsp;:</p>
           <ul className="mt-2 flex flex-col gap-1.5 text-muted">
             <li>
-              <strong className="text-text">Supabase</strong> — hébergement de la base de
+              <strong>Supabase</strong> — hébergement de la base de
               données et de l&apos;authentification, dans l&apos;Union
               européenne (région Paris).
             </li>
             <li>
-              <strong className="text-text">Riot Games, Inc.</strong> (États-Unis) — pour
+              <strong>Riot Games, Inc.</strong> (États-Unis) — pour
               résoudre ton Riot ID et lire les données de jeu officielles. Sur les pages de bilan et de
               liaison du Riot ID, les icônes du jeu (champions, objets, runes, sorts, icône de profil) sont
               chargées par ton navigateur directement depuis Data Dragon, le serveur d&apos;images public de
               Riot&nbsp;: il reçoit ton adresse IP, comme tout site dont une page affiche une image.
             </li>
             <li>
-              <strong className="text-text">Vercel Inc.</strong> — hébergement du site (voir
+              <strong>Vercel Inc.</strong> — hébergement du site (voir
               les mentions légales).
             </li>
             <li>
-              <strong className="text-text">Discord Inc.</strong> (États-Unis) — uniquement si
+              <strong>Discord Inc.</strong> (États-Unis) — uniquement si
               tu utilises la connexion via Discord. Par ailleurs, l&apos;annonce d&apos;un
               nouveau tournoi ou de son vainqueur peut être publiée sur un
               serveur Discord communautaire&nbsp;; ce message ne contient que des
@@ -254,7 +258,7 @@ export default function ConfidentialitePage() {
               pseudo, résultat), jamais ton e-mail ni tes données de compte.
             </li>
             <li>
-              <strong className="text-text">Stripe</strong> — uniquement si tu souscris à un
+              <strong>Stripe</strong> — uniquement si tu souscris à un
               palier payant&nbsp;: ton identifiant Najarena et ton e-mail lui sont transmis. Tes
               coordonnées bancaires sont saisies directement chez Stripe et ne passent jamais
               par Najarena.
@@ -262,7 +266,7 @@ export default function ConfidentialitePage() {
             {/* Cash prizes (audit N32) : seulement une fois activés. */}
             {cashPrizesActifs() && (
               <li>
-                <strong className="text-text">Stripe (versement des cash prizes)</strong> — uniquement si
+                <strong>Stripe (versement des cash prizes)</strong> — uniquement si
                 tu gagnes une dotation et en demandes le versement&nbsp;: ton identifiant Najarena, ton e-mail et
                 ton pays de résidence lui sont transmis, et Stripe vérifie lui-même ton identité et tes
                 coordonnées bancaires. Najarena ne garde que l&apos;identifiant de ton compte Stripe et
@@ -270,22 +274,22 @@ export default function ConfidentialitePage() {
               </li>
             )}
             <li>
-              <strong className="text-text">Resend</strong> — envoi des e-mails de notification
+              <strong>Resend</strong> — envoi des e-mails de notification
               liés à ton activité (invitation d&apos;équipe, inscription confirmée, résultat,
               litige, message reçu) et du code de vérification d&apos;une adresse d&apos;école&nbsp;:
               l&apos;adresse e-mail et le contenu du message lui sont transmis.
             </li>
             <li>
-              <strong className="text-text">Vercel Web Analytics et Speed Insights</strong> —
+              <strong>Vercel Web Analytics et Speed Insights</strong> —
               mesure d&apos;audience et de performance des pages, anonymisée et sans cookie.
             </li>
             <li>
-              <strong className="text-text">Sentry</strong> (États-Unis) — suivi des erreurs
+              <strong>Sentry</strong> (États-Unis) — suivi des erreurs
               techniques du site&nbsp;: page concernée, navigateur, message d&apos;erreur. Ni ton
               e-mail ni ton mot de passe ne lui sont transmis.
             </li>
             <li>
-              <strong className="text-text">Anthropic</strong> (États-Unis) — uniquement quand une
+              <strong>Anthropic</strong> (États-Unis) — uniquement quand une
               fonction d&apos;IA est utilisée&nbsp;: le texte saisi dans l&apos;assistant de création de
               tournoi ou dans la recherche de joueurs&nbsp;; les statistiques Riot d&apos;un match
               (champion, KDA, sbires, or, durée) pour son analyse détaillée, demandée par le joueur
@@ -319,7 +323,7 @@ export default function ConfidentialitePage() {
           <p className="mt-2 text-muted">
             Najarena utilise uniquement des cookies strictement nécessaires
             au fonctionnement du site&nbsp;: ceux qui maintiennent ta session
-            connectée, et un cookie temporaire (10 minutes) qui garde ta
+            connectée, et un cookie temporaire (10&nbsp;minutes) qui garde ta
             confirmation d&apos;âge et d&apos;acceptation des CGU pendant une
             connexion via Discord. Aucun cookie publicitaire ou de mesure
             d&apos;audience n&apos;est déposé&nbsp;: la mesure d&apos;audience de
@@ -345,13 +349,13 @@ export default function ConfidentialitePage() {
             même que les messages déjà envoyés à d&apos;autres membres.
           </p>
           <ul className="mt-2 flex flex-col gap-1.5 text-muted">
-            <li><strong className="font-medium text-text">Visites de profil</strong>&nbsp;: jusqu&apos;à ce que tu passes en visites anonymes, ou jusqu&apos;à la suppression de ton compte.</li>
-            <li><strong className="font-medium text-text">Messages privés</strong>&nbsp;: tant que ton compte existe.</li>
-            <li><strong className="font-medium text-text">Certificats de niveau</strong>&nbsp;: tant que ton compte existe (effacés avec lui).</li>
-            <li><strong className="font-medium text-text">Abonnements aux notifications</strong>&nbsp;: jusqu&apos;à leur désactivation, ou dès que ton navigateur les révoque.</li>
-            <li><strong className="font-medium text-text">Tentatives de connexion échouées</strong> (adresse e-mail et adresse IP, protection contre les essais de mots de passe)&nbsp;: 24 heures.</li>
-            <li><strong className="font-medium text-text">Demandes à l&apos;assistant de création de tournoi</strong>&nbsp;: la date de chaque demande seulement, 7 jours (limite de 10 demandes par jour).</li>
-            <li><strong className="font-medium text-text">Vérification d&apos;une adresse d&apos;école</strong>&nbsp;: la demande en attente (domaine, empreinte de l&apos;adresse et du code) est effacée dès la vérification, ou au plus tard 24 heures après l&apos;expiration du code&nbsp;; une fois vérifié, le domaine et l&apos;empreinte restent tant que tu es membre de l&apos;école.</li>
+            <li><strong>Visites de profil</strong>&nbsp;: jusqu&apos;à ce que tu passes en visites anonymes, ou jusqu&apos;à la suppression de ton compte.</li>
+            <li><strong>Messages privés</strong>&nbsp;: tant que ton compte existe.</li>
+            <li><strong>Certificats de niveau</strong>&nbsp;: tant que ton compte existe (effacés avec lui).</li>
+            <li><strong>Abonnements aux notifications</strong>&nbsp;: jusqu&apos;à leur désactivation, ou dès que ton navigateur les révoque.</li>
+            <li><strong>Tentatives de connexion échouées</strong> (adresse e-mail et adresse IP, protection contre les essais de mots de passe)&nbsp;: 24&nbsp;heures.</li>
+            <li><strong>Demandes à l&apos;assistant de création de tournoi</strong>&nbsp;: la date de chaque demande seulement, 7&nbsp;jours (limite de 10&nbsp;demandes par jour).</li>
+            <li><strong>Vérification d&apos;une adresse d&apos;école</strong>&nbsp;: la demande en attente (domaine, empreinte de l&apos;adresse et du code) est effacée dès la vérification, ou au plus tard 24&nbsp;heures après l&apos;expiration du code&nbsp;; une fois vérifié, le domaine et l&apos;empreinte restent tant que tu es membre de l&apos;école.</li>
           </ul>
         </section>
 
