@@ -9,6 +9,7 @@ import { calibrationPct, arrondir, RATING_INITIAL, RD_INITIAL } from "@/lib/clas
 import { formaterDate } from "@/lib/tournois";
 import { chargerOffre, LABEL_OFFRE, COULEUR_OFFRE, ORDRE_OFFRE } from "@/lib/offres";
 import { mettreAJourBioProfile } from "@/lib/offres-actions";
+import { lienExterneSur } from "@/lib/lien-externe";
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { demarrerConversation } from "@/lib/messagerie-actions";
 import { chargerMoyennes, genererRevue, type StatsMatch } from "@/lib/revue-match";
@@ -375,6 +376,8 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
     after(() => enregistrerVisite(profil.id, visiteurId));
   }
   const peutPersonnaliser = ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie;
+  // Lien choisi par le joueur : adresse web seulement, sans message d'adresse.
+  const lienExterne = lienExterneSur(infoOffre.lien_externe);
   const visiteurEstOrganisateur = offreVisiteur === "organisateur";
   const pct = rating ? calibrationPct(rating.rd) : 0;
   const matchsCalibres = historique.length;
@@ -597,16 +600,16 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               ))}
             </dl>
             {infoOffre.bio && <p className="max-w-xl text-text-2">{infoOffre.bio}</p>}
-            {infoOffre.lien_externe && (
+            {lienExterne && (
               <a
-                href={infoOffre.lien_externe}
+                href={lienExterne}
                 target="_blank"
                 // Lien choisi par le joueur : pas de caution de Najarena
                 // aux yeux des moteurs de recherche (audit F2).
                 rel="nofollow ugc noopener noreferrer"
                 className="self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                {infoOffre.lien_externe}
+                {lienExterne}
               </a>
             )}
           </div>

@@ -5,6 +5,7 @@ import { messageModeration } from "@/lib/moderation";
 import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
+import { lienExterneSur, MESSAGE_LIEN_INVALIDE } from "@/lib/lien-externe";
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -95,7 +96,12 @@ export async function mettreAJourBioProfile(formData: FormData) {
   }
 
   const bio = String(formData.get("bio") ?? "").trim().slice(0, 140);
-  const lienExterne = String(formData.get("lien_externe") ?? "").trim().slice(0, 300);
+  // Adresse web complète seulement, sans message d'adresse (src/lib/lien-externe.ts).
+  const lienSaisi = String(formData.get("lien_externe") ?? "").trim();
+  const lienExterne = lienExterneSur(lienSaisi);
+  if (lienSaisi && !lienExterne) {
+    redirect(`/moi?erreur=${encodeURIComponent(MESSAGE_LIEN_INVALIDE)}`);
+  }
 
   const admin = creerClientAdmin();
   if (!admin) {

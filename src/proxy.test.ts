@@ -15,13 +15,13 @@ describe("proxy, adresses filtrées", () => {
     const publics = readdirSync(join(process.cwd(), "public"), { withFileTypes: true }).map((f) =>
       f.isDirectory() ? `/${f.name}/x.svg` : `/${f.name}`,
     );
-    for (const fichier of [...publics, "/icon.png", "/apple-icon.png", "/_next/static/x.js", "/widget/top10", "/api/public/v1/classement"]) {
+    for (const fichier of [...publics, "/icon.png", "/apple-icon.png", "/_next/static/x.js", "/widget/top10", "/api/public/v1/classement", "/robots.txt", "/sitemap.xml"]) {
       expect(passeParLeProxy(fichier), fichier).toBe(false);
     }
   });
 
   it("les pages passent par le proxy, même si leur adresse finit par .png", () => {
-    for (const page of ["/", "/joueur/vipere", "/equipe/x.png", "/lol/tournois/coupe.svg", "/lol/divisions", "/connexion", "/moi/gains"]) {
+    for (const page of ["/", "/joueur/vipere", "/equipe/x.png", "/lol/tournois/coupe.svg", "/lol/divisions", "/connexion", "/moi/gains", "/robots.txt/x", "/sitemap.xml.html", "/lol/sitemap.xml"]) {
       expect(passeParLeProxy(page), page).toBe(true);
     }
   });

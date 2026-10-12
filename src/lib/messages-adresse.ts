@@ -4,7 +4,8 @@
 // le site (texte inventé dans un bandeau de réussite, sur un CV public).
 // Le proxy (src/proxy.ts) ne garde ces textes que s'ils viennent d'une
 // navigation interne au site (en-tête Sec-Fetch-Site: same-origin, posé par
-// le navigateur lui-même), ou s'ils sont l'un des retours prévus depuis un
+// le navigateur lui-même ; à défaut, chez les navigateurs anciens qui ne
+// l'envoient pas, l'en-tête Referer d'une page du site), ou s'ils sont l'un des retours prévus depuis un
 // autre site (Stripe, lien de connexion), à leur page et sous leur nom.
 // La destination après connexion (?suite=) en est aussi nettoyée
 // (destinationInterne, src/lib/redirection.ts) : sinon le site lui-même y
@@ -61,9 +62,24 @@ function retirer(url: URL, garder: (parametre: string, valeurs: string[]) => boo
   return retire;
 }
 
+/** Vrai si l'adresse de la page précédente (Referer) est sur le même site. */
+function memeOrigine(referer: string | null, url: URL): boolean {
+  if (!referer) return false;
+  try {
+    return new URL(referer).origin === url.origin;
+  } catch {
+    return false;
+  }
+}
+
 /** L'adresse sans les messages qui ne viennent pas du site, ou null s'il n'y a rien à retirer. */
-export function sansMessagesForges(url: URL, secFetchSite: string | null): URL | null {
+export function sansMessagesForges(url: URL, secFetchSite: string | null, referer: string | null = null): URL | null {
   if (secFetchSite === "same-origin") return null;
+  // Navigateur sans Sec-Fetch-Site (Safari avant la version 16.4, par
+  // exemple) : la page d'où vient la visite fait foi. Un autre site ne peut
+  // pas poser un Referer du nôtre (c'est le navigateur qui l'écrit). Si
+  // l'en-tête Sec-Fetch-Site est présent, lui seul compte.
+  if (secFetchSite === null && memeOrigine(referer, url)) return null;
   const propre = new URL(url);
   // Une seule valeur, et prévue pour cette page et ce nom (un doublon
   // « texte admis + texte piégé » serait affiché bout à bout).

@@ -100,7 +100,9 @@ export async function creerTournoi(formData: FormData) {
     );
   }
 
-  const slug = `${slugifier(nom)}-${Math.random().toString(36).slice(2, 7)}`;
+  // Forme imposée par la base (controler_forme_adresse) : un nom fait
+  // seulement de symboles donnerait une adresse vide.
+  const slug = `${slugifier(nom).slice(0, 60).replace(/-+$/, "") || "tournoi"}-${Math.random().toString(36).slice(2, 7)}`;
 
   // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
   // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre

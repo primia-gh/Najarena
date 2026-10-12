@@ -150,6 +150,8 @@ Schéma de base de données : `docs/schema.sql`.
 
 *Mise à jour du 02/10/2026 (audit N27) : **modération automatique en base** — tout texte saisi (pseudo, équipe, tag, rôle, nom de tournoi, annonce, bio, message privé, motif de litige) passe par `analyser_texte` (insultes, haine, menaces, arnaques, liens, usurpation « Najarena/admin/modo/Riot »), avec déguisements défaits (accents, chiffres, lettres séparées ou répétées). Noms : refus ; textes publics : refus sauf usurpation ; messages et motifs : haine et arnaques refusées, insultes/menaces/liens relus par un administrateur (`/admin#moderation`, un message relu n'est remis qu'après validation). Liste des termes : table `moderation_termes`, lisible par personne, complétée par SQL. Messages d'erreur : `src/lib/moderation.ts`. Un nouveau champ de texte libre = un nouveau déclencheur de modération.*
 
+*Mise à jour du 12/10/2026 (contrôles de sécurité) : **messages d'adresse** (`?message=`, `?erreur=`, `?coach=`…) affichés seulement après une navigation venue du site (`Sec-Fetch-Site: same-origin`, à défaut un `Referer` du site), sinon retirés par le proxy (`src/lib/messages-adresse.ts`) ; **lien externe du CV** : adresse web complète en http(s), modérée, sans message d'adresse (`controler_lien_externe`, `src/lib/lien-externe.ts`) ; **adresses (slug) des tournois et équipes** : minuscules, chiffres et tirets, 120 caractères au plus (`controler_forme_adresse`).*
+
 ---
 
 ## 7. Direction artistique

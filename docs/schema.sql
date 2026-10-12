@@ -10604,3 +10604,80 @@ drop trigger if exists controle_adresse_tournoi on public.tournaments;
 create trigger controle_adresse_tournoi
   before insert or update of slug on public.tournaments
   for each row execute function public.controler_adresse_tournoi();
+
+-- ---------- Lien externe du CV et adresses d'équipes et de tournois (2026-10-12) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Contrôle de sécurité du 12/10/2026.
+-- 1. Le lien externe du CV (offre Vérifié et plus) n'était vérifié nulle
+--    part : n'importe quel texte s'affichait comme lien sur un CV public.
+--    Il doit être une adresse web complète (http ou https, nom de site sans
+--    identifiant devant, ni espace ni caractère invisible, 300 caractères au
+--    plus), et passe la modération des textes publics (nom du site et chemin
+--    seulement : les paramètres d'une adresse sont souvent des suites de
+--    lettres au hasard). Même règle côté site : src/lib/lien-externe.ts.
+-- 2. Les adresses (slug) des tournois et des équipes n'avaient pas de forme
+--    imposée en base, contrairement à celles des profils et des communautés :
+--    minuscules, chiffres et tirets, 120 caractères au plus. Contrôlées à la
+--    création et quand l'adresse change seulement : une ligne ancienne hors
+--    format reste modifiable (statut, résultats…).
+-- Avant la mise en ligne, lister ce qui ne respecte pas déjà ces règles
+-- (rien n'est bloqué, mais à corriger à la main si la liste n'est pas vide) :
+--   select profile_id, lien_externe from public.comptes_offres
+--   where lien_externe is not null
+--     and lien_externe !~ '^https?://[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?([/?#][!-~]*)?$';
+--   select 'tournoi' as quoi, slug from public.tournaments where slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+--   union all select 'equipe', slug from public.teams where slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$';
+create or replace function public.controler_lien_externe()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.lien_externe is null then
+    return new;
+  end if;
+  if char_length(new.lien_externe) > 300
+     or new.lien_externe !~ '^https?://[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?([/?#][!-~]*)?$' then
+    raise exception 'LIEN_INVALIDE';
+  end if;
+  -- Nom du site et chemin, mots séparés : « https://site.example/un-mot »
+  -- est lu « site example un mot » (sans quoi la règle des liens de la
+  -- modération refuserait tout).
+  if coalesce(public.analyser_texte(
+       regexp_replace(
+         regexp_replace(new.lien_externe, '^https?://([^?#]*).*$', '\1'),
+         '[^A-Za-z0-9]+', ' ', 'g'),
+       'texte_public'), '') like 'refus:%' then
+    raise exception 'TEXTE_INTERDIT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_lien_externe() from public, anon, authenticated;
+drop trigger if exists controle_lien_externe on public.comptes_offres;
+create trigger controle_lien_externe
+  before insert or update of lien_externe on public.comptes_offres
+  for each row execute function public.controler_lien_externe();
+
+create or replace function public.controler_forme_adresse()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if (tg_op = 'INSERT' or new.slug is distinct from old.slug)
+     and (new.slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$' or char_length(new.slug) > 120) then
+    raise exception 'ADRESSE_INVALIDE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_forme_adresse() from public, anon, authenticated;
+drop trigger if exists controle_forme_adresse on public.tournaments;
+create trigger controle_forme_adresse
+  before insert or update of slug on public.tournaments
+  for each row execute function public.controler_forme_adresse();
+drop trigger if exists controle_forme_adresse on public.teams;
+create trigger controle_forme_adresse
+  before insert or update of slug on public.teams
+  for each row execute function public.controler_forme_adresse();

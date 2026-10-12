@@ -15,6 +15,19 @@ describe("sansMessagesForges", () => {
     expect(sansMessagesForges(new URL(`${cv}?reco=Faux`), null)?.searchParams.has("reco")).toBe(false);
   });
 
+  it("navigateur sans Sec-Fetch-Site : garde le message si la visite vient d'une page du site", () => {
+    const adresse = new URL(`${cv}?coach=Suivi%20termin%C3%A9#coach`);
+    expect(sansMessagesForges(adresse, null, "https://najarena.example/joueur/vipere")).toBeNull();
+    // Venue d'ailleurs, sans page d'origine, ou d'un site qui commence pareil.
+    for (const referer of ["https://piege.example/", null, "", "pas une adresse", "https://najarena.example.piege.example/"]) {
+      expect(sansMessagesForges(adresse, null, referer)?.searchParams.has("coach"), String(referer)).toBe(false);
+    }
+    // Si Sec-Fetch-Site est présent, lui seul compte (un Referer du site ne
+    // rattrape pas une navigation venue d'ailleurs).
+    expect(sansMessagesForges(adresse, "cross-site", "https://najarena.example/")?.searchParams.has("coach")).toBe(false);
+    expect(sansMessagesForges(adresse, "none", "https://najarena.example/")?.searchParams.has("coach")).toBe(false);
+  });
+
   it("garde les retours prévus depuis Stripe ou un lien de connexion", () => {
     const retour = new URL(`https://najarena.example/moi?message=${encodeURIComponent(RETOURS_EXTERNES.abonnementEnCours)}`);
     expect(sansMessagesForges(retour, "cross-site")).toBeNull();
