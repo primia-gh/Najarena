@@ -39,6 +39,24 @@ select refus('Nom de site sans lettres finales refusé',
   $q$update comptes_offres set lien_externe = 'https://-.-/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INVALIDE');
 select essai('Nom de site accentué converti (punycode) : passe',
   $q$update comptes_offres set lien_externe = 'https://xn--caf-dma.fr/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
+select refus('Insulte accentuée écrite en codes %XX refusée',
+  $q$update comptes_offres set lien_externe = 'https://site.example/sale-p%C3%A9d%C3%A9' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select refus('Insulte écrite en codes %XX refusée (%63onnard)',
+  $q$update comptes_offres set lien_externe = 'https://site.example/%63onnard' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select refus('Arnaque écrite en codes %XX dans les paramètres refusée',
+  $q$update comptes_offres set lien_externe = 'https://site.example/?q=fr%65e-nitro' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select essai('Accent légitime en codes %XX : passe',
+  $q$update comptes_offres set lien_externe = 'https://fr.wikipedia.org/wiki/%C3%89toile' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
+select essai('Code %XX invalide en UTF-8 : lu tel quel, passe',
+  $q$update comptes_offres set lien_externe = 'https://site.example/%FF%FE' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
+select refus('Faux site Riot en un seul mot refusé',
+  $q$update comptes_offres set lien_externe = 'https://riotsupport.example/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select refus('Faux site Riot en sous-domaine refusé (chiffres déguisés)',
+  $q$update comptes_offres set lien_externe = 'https://r1otaccount.verify.example/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'LIEN_INTERDIT');
+select essai('« patriot » n''est pas « riot » : passe',
+  $q$update comptes_offres set lien_externe = 'https://patriot.example/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
+select essai('« chariot » n''est pas « riot » : passe',
+  $q$update comptes_offres set lien_externe = 'https://www.chariot.fr/' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
 select essai('Lien ordinaire : passe',
   $q$update comptes_offres set lien_externe = 'https://www.twitch.tv/dave_lol' where profile_id = '00000000-0000-0000-0000-00000000000d'$q$, 'passe');
 select essai('Lien retiré',

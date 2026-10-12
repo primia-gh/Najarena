@@ -8,8 +8,8 @@ import { cheminSansMessages } from "@/lib/messages-adresse";
 // - converti comme le ferait le navigateur (accents, espaces, nom de site
 //   accentué en punycode) : https://fr.wikipedia.org/wiki/Étoile est admis ;
 // - http ou https seulement (ni « javascript: », ni « data: », ni chemin
-//   relatif), nom de site terminé par des lettres (ni adresse IP ni réseau
-//   local), sans identifiant devant (« https://najarena.fr@piege.example »
+//   relatif), nom de site terminé par des lettres (pas d'adresse IP), sans
+//   identifiant devant (« https://najarena.fr@piege.example »
 //   mène à piege.example) ;
 // - sans paramètre de message (?message=, ?erreur=…) : cliqué depuis le CV,
 //   un lien vers le site lui-même ferait afficher un texte inventé
@@ -27,7 +27,7 @@ export const MESSAGE_LIEN_INVALIDE =
   "Lien refusé : indique l'adresse complète d'un site, qui commence par https:// (300 caractères au plus).";
 
 export const MESSAGE_LIEN_INTERDIT =
-  "Lien refusé : l'adresse contient un terme interdit, ou imite un site officiel (Najarena, Riot…). Choisis-en une autre.";
+  "Lien refusé : l'adresse contient un terme interdit, ou le nom de Najarena ou de Riot (refusé même pour leurs vrais sites). Choisis-en une autre.";
 
 /** Le lien tel qu'il peut être enregistré et affiché, ou null s'il est refusé. */
 export function lienExterneSur(lien: string | null | undefined): string | null {

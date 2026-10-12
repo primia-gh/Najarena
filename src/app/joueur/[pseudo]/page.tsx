@@ -608,11 +608,13 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 // Lien choisi par le joueur : pas de caution de Najarena
                 // aux yeux des moteurs de recherche (audit F2).
                 rel="nofollow ugc noopener noreferrer"
-                className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-11 max-w-full items-center gap-1.5 self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {/* Le nom du site seul : la vraie destination, lisible, sans
                     paramètres ni chemin à rallonge (src/lib/lien-externe.ts). */}
-                {libelleLienExterne(lienExterne)}
+                {/* Un nom de site très long passe à la ligne : sa vraie fin
+                    (le site réel) reste visible sur téléphone. */}
+                <span className="min-w-0 [overflow-wrap:anywhere]">{libelleLienExterne(lienExterne)}</span>
                 <Icone nom="fleche-droite" taille={14} className="-rotate-45" />
                 <span className="sr-only">(nouvel onglet)</span>
               </a>

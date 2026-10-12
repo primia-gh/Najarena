@@ -10612,11 +10612,13 @@ create trigger controle_adresse_tournoi
 --    part : n'importe quel texte s'affichait comme lien sur un CV public.
 --    Il doit être une adresse web complète en caractères simples (http ou
 --    https, nom de site sans identifiant devant et terminé par des lettres —
---    ni adresse IP ni réseau local —, ni espace ni caractère invisible, 300
---    caractères au plus ; le site convertit d'abord accents et espaces, comme
---    le navigateur). Modération :
+--    pas d'adresse IP —, ni espace ni caractère invisible, 300 caractères au
+--    plus ; le site convertit d'abord accents et espaces, comme le
+--    navigateur). Modération, codes %XX décodés (« %63onnard ») :
 --    - nom du site : règle des noms, qui refuse aussi un faux site officiel
---      (« najarena-connexion.example », « riot-support.example ») ;
+--      (« najarena-connexion.example », « riot-support.example »), et toute
+--      partie du nom qui commence par « riot » (« riotsupport.example » ;
+--      « patriot » et « chariot » restent admis) ;
 --    - nom du site et chemin : règle des textes publics ;
 --    - paramètres et ancre (« ?… », « #… »), souvent des suites de lettres
 --      au hasard : seuls la haine et les arnaques y sont refusées.
@@ -10634,6 +10636,35 @@ create trigger controle_adresse_tournoi
 --   from public.comptes_offres where public.verdict_lien_externe(lien_externe) is not null;
 --   select 'tournoi' as quoi, slug from public.tournaments where slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$'
 --   union all select 'equipe', slug from public.teams where slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$';
+-- Décode les %XX d'une adresse (« %C3%A9 » → « é ») ; texte inchangé si
+-- le résultat n'est pas de l'UTF-8 valide.
+create or replace function public.decoder_pourcents(p_texte text)
+returns text
+language plpgsql
+immutable
+set search_path = public
+as $$
+declare
+  v_octets bytea := ''::bytea;
+  m text[];
+begin
+  if p_texte is null or position('%' in p_texte) = 0 then
+    return p_texte;
+  end if;
+  for m in select regexp_matches(p_texte, '%([0-9A-Fa-f]{2})|([^%]+)|(%)', 'g') loop
+    v_octets := v_octets || case
+      when m[1] is not null then decode(m[1], 'hex')
+      when m[2] is not null then convert_to(m[2], 'UTF8')
+      else convert_to('%', 'UTF8')
+    end;
+  end loop;
+  return convert_from(v_octets, 'UTF8');
+exception when others then
+  return p_texte;
+end;
+$$;
+revoke all on function public.decoder_pourcents(text) from public, anon, authenticated;
+
 create or replace function public.verdict_lien_externe(p_lien text)
 returns text
 language plpgsql
@@ -10655,13 +10686,19 @@ begin
   end if;
   v_reste := regexp_replace(p_lien, '^https?://', '');
   v_site := regexp_replace(v_reste, '[:/?#].*$', '');
+  -- Découpés avant de décoder les %XX (un « %2F » ou « %3F » décodé
+  -- déplacerait la frontière entre chemin et paramètres).
   v_chemin := regexp_replace(regexp_replace(v_reste, '^[^/?#]*', ''), '[?#].*$', '');
   v_suite := coalesce(substring(v_reste from '[?#].*$'), '');
   -- Mots séparés : « site.example/un-mot » est lu « site example un mot »
-  -- (sans quoi la règle des liens de la modération refuserait tout).
+  -- (sans quoi la règle des liens de la modération refuserait tout). Les
+  -- accents décodés restent : la modération les ramène à la lettre simple.
+  v_chemin := regexp_replace(public.decoder_pourcents(v_chemin), '[./:@\\]+', ' ', 'g');
+  v_suite := regexp_replace(public.decoder_pourcents(v_suite), '[./:@\\]+', ' ', 'g');
   if coalesce(public.analyser_texte(regexp_replace(v_site, '[^A-Za-z0-9]+', ' ', 'g'), 'nom'), '') like 'refus:%'
-     or coalesce(public.analyser_texte(regexp_replace(v_site || ' ' || v_chemin, '[^A-Za-z0-9]+', ' ', 'g'), 'texte_public'), '') like 'refus:%'
-     or coalesce(public.analyser_texte(regexp_replace(v_suite, '[^A-Za-z0-9]+', ' ', 'g'), 'prive'), '') like 'refus:%' then
+     or public.normaliser_moderation(v_site) ~ '(^|[.-])riot'
+     or coalesce(public.analyser_texte(regexp_replace(v_site, '[^A-Za-z0-9]+', ' ', 'g') || ' ' || v_chemin, 'texte_public'), '') like 'refus:%'
+     or coalesce(public.analyser_texte(v_suite, 'prive'), '') like 'refus:%' then
     return 'LIEN_INTERDIT';
   end if;
   return null;
