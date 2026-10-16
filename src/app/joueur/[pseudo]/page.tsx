@@ -581,7 +581,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
           {/* Largeur minimale du nom : les boutons passent à la ligne avant
               d'écraser le pseudo (jusqu'à 5 boutons pour le propriétaire). */}
           <div
-            className={`flex min-w-0 flex-1 flex-col gap-3.5 ${profil.pseudo.length > 10 ? "lg:min-w-[28rem]" : "lg:min-w-[20rem]"}`}
+            className={`flex min-w-0 flex-1 flex-col gap-3.5 ${profil.pseudo.length > 6 ? "lg:min-w-[28rem]" : "lg:min-w-[20rem]"}`}
           >
             <div className="flex flex-wrap items-center gap-3">
               {compteRiot?.verifie_le ? (
@@ -612,7 +612,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               className={`font-titre leading-[0.85] font-black tracking-[1px] break-words ${
                 profil.pseudo.length > 15
                   ? "text-[clamp(2.25rem,3.6vw,3.5rem)]"
-                  : profil.pseudo.length > 10
+                  : profil.pseudo.length > 8
                     ? "text-[clamp(2.5rem,4.8vw,4.5rem)]"
                     : "text-[clamp(3.25rem,6.7vw,6rem)]"
               }`}
@@ -659,7 +659,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 />
                 {peutRevue && (
                   <BoutonLien href={`/joueur/${profil.slug}/cv`} variante="contour">
-                    Exporter<span className="lg:max-xl:sr-only"> mon CV</span>
+                    <span>
+                      Exporter<span className="lg:max-xl:sr-only"> mon CV</span>
+                    </span>
                   </BoutonLien>
                 )}
                 {compteRiot?.verifie_le && (
@@ -671,7 +673,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                   // Instantané daté et figé à envoyer (audit N9).
                   <form action={emettreCertificat}>
                     <BoutonEnvoi variante="contour" libelleEnCours="Émission…">
-                      Certificat<span className="lg:max-xl:sr-only"> daté</span>
+                      <span>
+                        Certificat<span className="lg:max-xl:sr-only"> daté</span>
+                      </span>
                     </BoutonEnvoi>
                   </form>
                 )}

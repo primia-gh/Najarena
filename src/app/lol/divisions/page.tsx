@@ -217,7 +217,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
           </p>
           {/* L'inscription est plus bas, après les règles et les régions :
               un raccourci dès le haut de page (relecture design du 12/10/2026). */}
-          <BoutonLien href="#inscription" className="self-start">
+          <BoutonLien href="#inscription" className="self-start text-balance">
             {jeSuisInscrit ? "Ma prochaine ligue" : "S'inscrire à la prochaine ligue"}
           </BoutonLien>
         </Apparition>
