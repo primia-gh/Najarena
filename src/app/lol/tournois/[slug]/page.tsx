@@ -75,6 +75,7 @@ import { chargerPronosticsTournoi } from "@/lib/pronostics-serveur";
 import { pronostiquer } from "@/lib/pronostic-actions";
 import { cashPrizesActifs, formaterEuros, LIBELLE_RANG } from "@/lib/dotations";
 import { publicReserve, typeCommunaute } from "@/lib/ecoles";
+import { classeChamp } from "@/lib/design";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
@@ -774,8 +775,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     { libelle: "Niveau", valeur: complements.niveau, grand: false, accent: false },
   ];
 
-  const CHAMP =
-    "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  // 16 px sur téléphone (sinon iOS zoome la page au toucher d'un champ).
+  const CHAMP = classeChamp();
 
   const lienDiscret =
     "text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";

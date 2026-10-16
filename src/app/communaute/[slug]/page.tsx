@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { classeBoutonContour } from "@/lib/design";
+import { classeBoutonContour, classeChamp } from "@/lib/design";
 import { arrondir, trouverPalier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { formaterDate, LABEL_STATUT, type StatutPublic } from "@/lib/tournois";
@@ -38,8 +38,8 @@ import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 // (leur rating officiel, jamais un rating à part) et ses membres. Une école
 // (04/10/2026) y ajoute la vérification des adresses de l'établissement.
 
-const CHAMP =
-  "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+// 16 px sur téléphone (sinon iOS zoome la page au toucher d'un champ).
+const CHAMP = classeChamp();
 const LIEN_ACTION = "inline-flex min-h-11 items-center text-mini font-semibold uppercase underline underline-offset-3";
 
 const chargerCommunaute = cache(async (slug: string) => {

@@ -14,6 +14,7 @@ import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 import IndicateurConfiance from "@/components/design/IndicateurConfiance";
+import { classeChamp } from "@/lib/design";
 
 // Arène 1v1 à la demande (03/10/2026, audit N19) : un duel tout de suite
 // contre un joueur de sa région au rating proche. Appariement par la base
@@ -26,8 +27,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/lol/arene" },
 };
 
-const CHAMP =
-  "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+// 16 px sur téléphone (sinon iOS zoome la page au toucher d'un champ).
+const CHAMP = classeChamp();
 
 // Hors du composant (règle de pureté du rendu).
 function minutesDepuis(entreeLe: string): number {
