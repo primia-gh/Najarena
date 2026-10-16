@@ -580,7 +580,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
 
           {/* Largeur minimale du nom : les boutons passent à la ligne avant
               d'écraser le pseudo (jusqu'à 5 boutons pour le propriétaire). */}
-          <div className="flex min-w-0 flex-1 flex-col gap-3.5 lg:min-w-[20rem]">
+          <div
+            className={`flex min-w-0 flex-1 flex-col gap-3.5 ${profil.pseudo.length > 10 ? "lg:min-w-[28rem]" : "lg:min-w-[20rem]"}`}
+          >
             <div className="flex flex-wrap items-center gap-3">
               {compteRiot?.verifie_le ? (
                 <BadgeVerifie>Profil vérifié</BadgeVerifie>
@@ -606,7 +608,15 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 </>
               )}
             </div>
-            <h1 className="font-titre text-[clamp(3.25rem,6.7vw,6rem)] leading-[0.85] font-black tracking-[1px] [overflow-wrap:anywhere]">
+            <h1
+              className={`font-titre leading-[0.85] font-black tracking-[1px] break-words ${
+                profil.pseudo.length > 15
+                  ? "text-[clamp(2.25rem,3.6vw,3.5rem)]"
+                  : profil.pseudo.length > 10
+                    ? "text-[clamp(2.5rem,4.8vw,4.5rem)]"
+                    : "text-[clamp(3.25rem,6.7vw,6rem)]"
+              }`}
+            >
               {profil.pseudo}
             </h1>
             <dl className="flex flex-wrap gap-x-7 gap-y-1.5 text-base text-text-2">
@@ -638,7 +648,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
             )}
           </div>
 
-          <div className="flex flex-wrap items-start gap-3.5 lg:ml-auto lg:justify-end">
+          <div className="flex flex-wrap items-start gap-3.5 lg:ml-auto lg:justify-end lg:max-xl:gap-2.5">
             {estProprietaire ? (
               <>
                 <BoutonPartager
@@ -649,7 +659,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 />
                 {peutRevue && (
                   <BoutonLien href={`/joueur/${profil.slug}/cv`} variante="contour">
-                    Exporter mon CV
+                    Exporter<span className="lg:max-xl:sr-only"> mon CV</span>
                   </BoutonLien>
                 )}
                 {compteRiot?.verifie_le && (
@@ -661,7 +671,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                   // Instantané daté et figé à envoyer (audit N9).
                   <form action={emettreCertificat}>
                     <BoutonEnvoi variante="contour" libelleEnCours="Émission…">
-                      Certificat daté
+                      Certificat<span className="lg:max-xl:sr-only"> daté</span>
                     </BoutonEnvoi>
                   </form>
                 )}
@@ -792,7 +802,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               key={k.libelle}
               className={`flex flex-col gap-2.5 border-line py-8 ${i % 2 === 0 ? "border-r pr-4" : "pl-4"} ${
                 i < 2 ? "border-b lg:border-b-0" : ""
-              } lg:border-r lg:px-8 ${i === kpis.length - 1 ? "lg:border-r-0 lg:pr-0" : ""}`}
+              } lg:border-r lg:px-5 xl:px-8 ${i === kpis.length - 1 ? "lg:border-r-0 lg:pr-0" : ""}`}
             >
               <span className="text-mini text-muted uppercase">{k.libelle}</span>
               <span
