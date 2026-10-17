@@ -664,24 +664,37 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
             )}
           </div>
 
-          <div className="flex flex-wrap items-start gap-3.5 lg:ml-auto lg:justify-end lg:max-xl:gap-2.5 lg:max-xl:[&_a]:px-5 lg:max-xl:[&_button]:px-5">
+          <div
+            className={`flex flex-wrap items-start gap-3.5 lg:ml-auto lg:justify-end lg:max-xl:gap-2.5 lg:max-xl:[&_a]:px-5 lg:max-xl:[&_button]:px-5 ${
+              // Téléphone : boutons secondaires du propriétaire deux par deux,
+              // libellés courts ; le rating remonte dans le premier écran
+              // (relecture design du 17/10/2026).
+              estProprietaire
+                ? "max-sm:grid max-sm:grid-cols-2 max-sm:gap-2.5 max-sm:[&_a]:w-full max-sm:[&_a]:px-3 max-sm:[&_button]:w-full max-sm:[&_button]:px-3"
+                : ""
+            }`}
+          >
             {estProprietaire ? (
               <>
                 {/* Action principale : en tête sur téléphone (sinon sous quatre
                     boutons), en bout de rangée sur ordinateur. Deux copies, une
                     seule affichée : l'ordre au clavier suit l'ordre à l'écran
                     (relecture design du 17/10/2026, WCAG 2.4.3). */}
-                {actionPrincipale("lg:hidden")}
+                {actionPrincipale("lg:hidden max-sm:col-span-2")}
                 <BoutonPartager
                   chemin={`/joueur/${profil.slug}`}
                   titre={`${profil.pseudo} — CV e-sport Najarena`}
-                  libelle="Partager mon CV"
+                  libelle={
+                    <span>
+                      Partager<span className="max-sm:sr-only"> mon CV</span>
+                    </span>
+                  }
                   className={classeBoutonContour()}
                 />
                 {peutRevue && (
                   <BoutonLien href={`/joueur/${profil.slug}/cv`} variante="contour">
                     <span>
-                      Exporter<span className="lg:max-xl:sr-only"> mon CV</span>
+                      Exporter<span className="max-sm:sr-only lg:max-xl:sr-only"> mon CV</span>
                     </span>
                   </BoutonLien>
                 )}
@@ -695,7 +708,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                   <form action={emettreCertificat}>
                     <BoutonEnvoi variante="contour" libelleEnCours="Émission…">
                       <span>
-                        Certificat<span className="lg:max-xl:sr-only"> daté</span>
+                        Certificat<span className="max-sm:sr-only lg:max-xl:sr-only"> daté</span>
                       </span>
                     </BoutonEnvoi>
                   </form>
