@@ -49,16 +49,30 @@ export async function POST(request: Request) {
   const corpsBrut = await request.text();
   const signature = request.headers.get("stripe-signature");
 
-  const evenement = [secretWebhook, secretWebhookConnect].reduce<Stripe.Event | null>((trouve, secret) => {
-    if (trouve || !secret) return trouve;
+  // Quel secret a signé l'événement : chacun n'ouvre que ses propres
+  // événements (contrôle de sécurité du 17/10/2026). Le secret Connect ne
+  // sert qu'à la vérification des comptes de versement, jamais aux
+  // abonnements ; le secret principal ne touche pas aux comptes Connect.
+  const verifier = (secret: string | undefined): Stripe.Event | null => {
+    if (!secret) return null;
     try {
       return stripe.webhooks.constructEvent(corpsBrut, signature ?? "", secret);
     } catch {
       return null;
     }
-  }, null);
+  };
+  const principal = verifier(secretWebhook);
+  const connect = principal ? null : verifier(secretWebhookConnect);
+  const evenement = principal ?? connect;
   if (!evenement) {
     return NextResponse.json({ erreur: "Signature invalide." }, { status: 400 });
+  }
+  const evenementAdmis = principal
+    ? evenement.type !== "account.updated"
+    : evenement.type === "account.updated" && Boolean(evenement.account);
+  if (!evenementAdmis) {
+    // Reçu mais ignoré : Stripe n'a pas à le renvoyer.
+    return NextResponse.json({ recu: true });
   }
 
   const admin = creerClientAdmin();

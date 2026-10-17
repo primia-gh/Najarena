@@ -1,13 +1,23 @@
 import { creerClientPublic } from "@/lib/supabase/public";
 import { chargerDonneesRecalcul } from "@/lib/recalcul-donnees";
-import { lirePublic, reponseApi, reponseIndisponible, reponseOptions } from "@/lib/reponses-publiques";
+import {
+  lirePublic,
+  redirectionCanonique,
+  reponseApi,
+  reponseIndisponible,
+  reponseOptions,
+} from "@/lib/reponses-publiques";
 
 // API publique (09/10/2026, idée en réserve n°4) : tout ce qu'il faut pour
 // refaire soi-même le calcul Glicko-2 d'un joueur — ses lignes du registre,
 // ses matchs avec leur verdict, et l'état de départ de ses adversaires dans
 // chaque tournoi. Le calcul lui-même : lib/recalcul.ts, page
 // /joueur/<adresse>/recalcul.
-export async function GET(_request: Request, { params }: { params: Promise<{ pseudo: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ pseudo: string }> }) {
+  // Lecture lourde (tout le registre et tous les matchs du joueur) : une
+  // seule adresse par joueur, servie par le cache.
+  const canonique = redirectionCanonique(request);
+  if (canonique) return canonique;
   const { pseudo } = await params;
   const lecture = await lirePublic(() => chargerDonneesRecalcul(creerClientPublic(), pseudo));
   if (!lecture.ok) return reponseIndisponible();
