@@ -7503,13 +7503,14 @@ revoke all on public.verifications_ecole from anon, authenticated;
 -- (adresses à volonté) — contrôle de sécurité du 17/10/2026. Le nom de la
 -- messagerie suivi de son extension seulement (gmail.com, yahoo.co.uk) :
 -- « mail.ens.fr » ou « me.univ.fr » sont des domaines d'établissement.
+-- Et tout « *.fr.nf » (domaines de secours de messageries jetables).
 create or replace function public.domaine_grand_public(p_domaine text)
 returns boolean
 language sql
 immutable
 set search_path = public
 as $$
-  select p_domaine ~ '^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|rocketmail|icloud|me|mac|aol|gmx|web|t-online|posteo|proton|protonmail|pm|laposte|orange|wanadoo|free|sfr|neuf|bbox|numericable|yandex|mail|inbox|rambler|seznam|libero|virgilio|tiscali|qq|163|126|sina|zoho|tutanota|tuta|hey|fastmail|mailo|caramail|aliceadsl|club-internet|yopmail|jetable|mailinator|guerrillamail|sharklasers|10minutemail|tempmail|temp-mail|trashmail|getnada|dispostable|maildrop|mohmal|mailnesia|throwawaymail|fakeinbox|burnermail|duck|mozmail|simplelogin|anonaddy|addy)\.((co|com|net|org|ne|or)\.)?[a-z]+$';
+  select p_domaine ~ '(^|\.)fr\.nf$' or p_domaine ~ '^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|rocketmail|icloud|me|mac|aol|gmx|web|t-online|posteo|proton|protonmail|pm|laposte|orange|wanadoo|free|sfr|neuf|bbox|numericable|yandex|mail|inbox|rambler|seznam|libero|virgilio|tiscali|qq|163|126|sina|zoho|tutanota|tuta|hey|fastmail|mailo|caramail|aliceadsl|club-internet|yopmail|jetable|mailinator|guerrillamail|sharklasers|10minutemail|tempmail|temp-mail|trashmail|getnada|dispostable|maildrop|mohmal|mailnesia|throwawaymail|fakeinbox|burnermail|duck|mozmail|simplelogin|anonaddy|addy)\.((co|com|net|org|ne|or)\.)?[a-z]+$';
 $$;
 
 -- Le fondateur fait de sa communauté une école (ou change ses domaines).
@@ -7533,10 +7534,13 @@ begin
     raise exception 'DOMAINES_ECOLE';
   end if;
   foreach v_domaine in array v_domaines loop
-    -- Une extension en chiffres est une adresse IP, pas un domaine.
+    -- Une extension en chiffres est une adresse IP, pas un domaine ; un
+    -- suffixe nu (« co.uk », « ac.uk ») couvrirait toutes les adresses du
+    -- pays, messageries comprises (contrôle du 17/10/2026).
     if char_length(v_domaine) > 100
        or v_domaine !~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-       or v_domaine ~ '\.[0-9]+$' then
+       or v_domaine ~ '\.[0-9]+$'
+       or v_domaine ~ '^(co|com|net|org|ne|or|ac|edu|gov|gouv|asso|nom)\.[a-z]+$' then
       raise exception 'DOMAINE_INVALIDE';
     end if;
     if public.domaine_grand_public(v_domaine) then
@@ -7597,7 +7601,10 @@ begin
     raise exception 'EMAIL_INVALIDE';
   end if;
   v_domaine := split_part(v_email, '@', 2);
-  if not exists (select 1 from unnest(v_communaute.domaines_email) d where v_domaine = d or v_domaine like '%.' || d) then
+  -- Le domaine réel de l'adresse, pas seulement celui déclaré par l'école :
+  -- une messagerie n'est jamais une adresse d'établissement.
+  if public.domaine_grand_public(v_domaine)
+     or not exists (select 1 from unnest(v_communaute.domaines_email) d where v_domaine = d or v_domaine like '%.' || d) then
     raise exception 'DOMAINE_NON_ACCEPTE';
   end if;
   if coalesce(p_code, '') !~ '^[0-9]{6}$' then
@@ -7794,8 +7801,9 @@ revoke all on function public.eligible_tournoi_reserve(uuid, uuid) from public, 
 -- Inscription individuelle (1v1) ; une inscription d'équipe est contrôlée
 -- joueur par joueur, à l'alignement. Revérifié au check-in (contrôle du
 -- 17/10/2026) : un joueur qui a quitté la communauté, ou perdu sa
--- vérification d'école, depuis son inscription ne confirme plus sa place ;
--- en 5v5, chacun des alignés.
+-- vérification d'école, depuis son inscription ne confirme plus sa place,
+-- ni par lui-même ni par l'organisateur (aussi après « absent ») ; en 5v5,
+-- chacun des alignés.
 create or replace function public.controler_inscription_reservee()
 returns trigger
 language plpgsql
@@ -7807,7 +7815,7 @@ begin
      and not coalesce(public.eligible_tournoi_reserve(new.tournament_id, new.profile_id), true) then
     raise exception 'RESERVE_MEMBRES';
   end if;
-  if tg_op = 'UPDATE' and old.statut = 'inscrit' and new.statut = 'confirme'
+  if tg_op = 'UPDATE' and old.statut is distinct from 'confirme' and new.statut = 'confirme'
      and ((new.equipe_nom is null
            and not coalesce(public.eligible_tournoi_reserve(new.tournament_id, new.profile_id), true))
           or exists (select 1 from public.alignements a

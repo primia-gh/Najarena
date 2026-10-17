@@ -8,7 +8,7 @@
 >
 > **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 > `master`, puis la migration ci-dessous en un seul bloc ; la migration
-> passe, elle se rejoue une seconde fois sans erreur, et les 1001
+> passe, elle se rejoue une seconde fois sans erreur, et les 1022
 > vérifications de `tests/sql/` passent ensuite (comme sur une base
 > construite d'un coup).
 
