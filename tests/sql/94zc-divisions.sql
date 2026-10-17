@@ -113,6 +113,25 @@ set role authenticated;
 select verifie('Quatrième retour dans les 24 h : plus d''avertissement',
   (select slug is null and not prevenir from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
 select essai('Joueur 0 lit les avertissements', $q$select * from public.avertissements_division$q$, 'bloque');
+-- Un match déjà ouvert entre joueur 0 et joueur 2 (tournoi) : le duel de
+-- division attend qu'il soit joué (contrôle de sécurité du 17/10/2026).
+reset role;
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut)
+values ('10000000-0000-0000-0000-00000000094c', 1, '00000000-0000-0000-0000-00000000000d', 'tournoi-croise-94zc', 'Tournoi croisé', '1v1', 4, 'EUW', now(), now(), 'en_cours');
+insert into matches (id, tournament_id, tour, position, statut, demarre_le)
+values ('50000000-0000-0000-0000-00000000094c', '10000000-0000-0000-0000-00000000094c', 1, 1, 'en_cours', now());
+insert into match_participants (match_id, profile_id, slot) values
+  ('50000000-0000-0000-0000-00000000094c', '00000000-0000-0000-0000-0000000003f0', 1),
+  ('50000000-0000-0000-0000-00000000094c', '00000000-0000-0000-0000-0000000003f2', 2);
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003f2');
+select refus('Joueur 2 est là, mais un match de tournoi contre joueur 0 est en cours',
+  $q$select public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))$q$,
+  'MATCH_OUVERT_ENTRE_VOUS');
+reset role;
+update matches set statut = 'termine' where id = '50000000-0000-0000-0000-00000000094c';
+update tournaments set statut = 'termine' where id = '10000000-0000-0000-0000-00000000094c';
+set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003f2');
 select verifie('Joueur 2 est là aussi : le duel est lancé',
   (select slug like 'division-%' from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));

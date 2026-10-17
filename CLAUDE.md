@@ -152,6 +152,8 @@ Schéma de base de données : `docs/schema.sql`.
 
 *Mise à jour du 12/10/2026 (contrôles de sécurité) : **messages d'adresse** (`?message=`, `?erreur=`, `?coach=`…) affichés seulement après une navigation venue du site (`Sec-Fetch-Site: same-origin`, à défaut un `Referer` du site), sinon retirés par le proxy (`src/lib/messages-adresse.ts`) ; **lien externe du CV** : adresse web complète en http(s), nom de site en lettres (pas d'adresse IP), modérée après décodage des %XX — un faux site officiel « najarena… », « riot… » est refusé, et le vrai aussi (décision du porteur du 17/10/2026 : seule protection simple contre l'hameçonnage) —, sans message d'adresse ; le CV n'en affiche que le nom du site (`verdict_lien_externe`, `src/lib/lien-externe.ts`) ; **adresses (slug) des tournois et équipes** : minuscules, chiffres et tirets, 120 caractères au plus (`controler_forme_adresse`).*
 
+*Mise à jour du 17/10/2026 (contrôle de sécurité) : **une partie Riot ne compte qu'une fois** — chaque partie retenue pour un verdict est inscrite dans `parties_utilisees` ; une partie déjà prise par un autre match est refusée par la base (`PARTIE_DEJA_UTILISEE`) et ignorée par la recherche des résultats. Un duel de division n'est pas lancé tant qu'un autre match est ouvert entre les deux joueurs (`MATCH_OUVERT_ENTRE_VOUS`).*
+
 ---
 
 ## 7. Direction artistique

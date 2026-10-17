@@ -10464,6 +10464,26 @@ begin
   end if;
 
   -- Les deux sont là : duel ordinaire, mêmes règles que creer_duel.
+  -- Un match déjà ouvert entre eux (tournoi, défi) se joue d'abord : une
+  -- même partie Riot ne sert jamais à deux matchs (contrôle de sécurité du
+  -- 17/10/2026 ; voir aussi parties_utilisees).
+  if exists (
+    select 1 from public.match_participants pa
+    join public.match_participants pb on pb.match_id = pa.match_id and pb.profile_id = v_r.joueur_b
+    join public.matches m on m.id = pa.match_id
+    where pa.profile_id = v_r.joueur_a and m.statut in ('en_attente', 'en_cours', 'litige')
+  ) then
+    raise exception 'MATCH_OUVERT_ENTRE_VOUS';
+  end if;
+  -- Trois défis en cours au plus par joueur, comme creer_duel.
+  if exists (
+    select 1 from (values (v_r.joueur_a), (v_r.joueur_b)) as j(id)
+    where (select count(*) from public.registrations rg
+           join public.tournaments t on t.id = rg.tournament_id
+           where rg.profile_id = j.id and t.nature = 'defi' and t.statut = 'en_cours') >= 3
+  ) then
+    raise exception 'TROP_DE_DEFIS_EN_COURS';
+  end if;
   v_region := public.region_compte_verifie(v_r.joueur_a);
   if v_region is null or public.region_compte_verifie(v_r.joueur_b) is distinct from v_region then
     raise exception 'COMPTE_RIOT_REQUIS';
@@ -10748,3 +10768,79 @@ drop trigger if exists controle_forme_adresse on public.teams;
 create trigger controle_forme_adresse
   before insert or update of slug on public.teams
   for each row execute function public.controler_forme_adresse();
+
+-- ---------- Une partie Riot ne compte qu'une fois (2026-10-17) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Contrôle de sécurité du 17/10/2026 (élevé) : deux matchs ouverts en même
+-- temps entre les mêmes joueurs (un match de tournoi et un duel de
+-- division, un défi…) pouvaient être tranchés tous les deux par la même
+-- partie Riot : deux lignes au registre pour une seule partie jouée. Chaque
+-- partie retenue est désormais inscrite ici, une seule fois : une partie
+-- déjà prise par un autre match est refusée (PARTIE_DEJA_UTILISEE), et la
+-- recherche des résultats l'ignore (src/lib/rapprochement.ts). Les parties
+-- déjà retenues avant cette section y sont recopiées (la plus ancienne
+-- garde la partie).
+create table if not exists public.parties_utilisees (
+  riot_match_id  text primary key,
+  match_id       uuid not null references public.matches(id) on delete cascade,
+  utilisee_le    timestamptz not null default now()
+);
+create index if not exists parties_utilisees_match_idx on public.parties_utilisees (match_id);
+alter table public.parties_utilisees enable row level security;
+revoke all on public.parties_utilisees from anon, authenticated;
+
+insert into public.parties_utilisees (riot_match_id, match_id, utilisee_le)
+select distinct on (btrim(p.id)) btrim(p.id), v.match_id, v.cree_le
+from public.match_verdicts v
+cross join lateral unnest(string_to_array(v.riot_match_id, ',')) as p(id)
+where v.riot_match_id is not null and btrim(p.id) <> ''
+order by btrim(p.id), v.cree_le
+on conflict (riot_match_id) do nothing;
+
+create or replace function public.enregistrer_verdict_historique(
+  p_match_id uuid,
+  p_gagnant_id uuid,
+  p_riot_match_id text
+)
+returns boolean -- true si écrit, false si déjà décidé (idempotence)
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_partie text;
+begin
+  if exists (
+    select 1 from match_verdicts where match_id = p_match_id and est_definitif
+  ) then
+    return false;
+  end if;
+
+  if not exists (
+    select 1 from match_participants
+    where match_id = p_match_id and profile_id = p_gagnant_id
+  ) then
+    raise exception 'GAGNANT_INVALIDE';
+  end if;
+
+  -- Chaque partie de la série (« id1,id2,… ») est réservée à ce match. Une
+  -- exécution simultanée pour un autre match attend la fin de celle-ci,
+  -- puis voit la partie prise.
+  foreach v_partie in array coalesce(string_to_array(p_riot_match_id, ','), '{}'::text[]) loop
+    v_partie := btrim(v_partie);
+    continue when v_partie = '';
+    insert into parties_utilisees (riot_match_id, match_id) values (v_partie, p_match_id)
+    on conflict (riot_match_id) do nothing;
+    if (select match_id from parties_utilisees where riot_match_id = v_partie) <> p_match_id then
+      raise exception 'PARTIE_DEJA_UTILISEE';
+    end if;
+  end loop;
+
+  insert into match_verdicts (match_id, niveau, gagnant_id, riot_match_id, est_definitif)
+  values (p_match_id, 'historique', p_gagnant_id, p_riot_match_id, true);
+
+  perform avancer_vainqueur(p_match_id, p_gagnant_id);
+
+  return true;
+end;
+$$;
+revoke execute on function public.enregistrer_verdict_historique(uuid, uuid, text) from public, anon, authenticated;

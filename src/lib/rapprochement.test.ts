@@ -150,6 +150,18 @@ describe("trouverSerieCorrespondante", () => {
     expect(serie?.parties.map((p) => p.riotMatchId)).toEqual(["m1", "m2", "m3"]);
   });
 
+  it("ignore une partie déjà retenue pour un autre match entre les mêmes joueurs", async () => {
+    ajouterPartie("deja", { debutMinutes: 5, gagnant: "A" });
+    const dejaUtilisees = async (ids: string[]) => new Set(ids.filter((id) => id === "deja"));
+    expect(
+      await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true, new Map(), "nexus", undefined, dejaUtilisees),
+    ).toBeNull();
+    ajouterPartie("nouvelle", { debutMinutes: 40, gagnant: "B" });
+    const serie = await trouverSerieCorrespondante("A", "B", "europe", OUVERTURE, 1, true, new Map(), "nexus", undefined, dejaUtilisees);
+    expect(serie?.parties.map((p) => p.riotMatchId)).toEqual(["nouvelle"]);
+    expect(riot.recupererDetailsMatch).not.toHaveBeenCalledWith("deja", "europe");
+  });
+
   it("une partie déjà lue n'est pas redemandée à Riot pendant le même passage", async () => {
     ajouterPartie("EUW1_1", { debutMinutes: 5, gagnant: "A" });
     const cache = new Map();

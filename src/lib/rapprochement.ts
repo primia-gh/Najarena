@@ -93,13 +93,20 @@ export async function trouverSerieCorrespondante(
   cache: CacheDetails = new Map(),
   condition: ConditionVictoire = "nexus",
   alignements?: Alignements,
+  // Parties déjà retenues pour un autre match (contrôle de sécurité du
+  // 17/10/2026) : deux matchs ouverts entre les mêmes joueurs ne comptent
+  // jamais la même partie deux fois. La base le refuse aussi
+  // (parties_utilisees, PARTIE_DEJA_UTILISEE).
+  dejaUtilisees?: (ids: string[]) => Promise<Set<string>>,
 ): Promise<SerieTrouvee | null> {
-  const ids = await recupererIdsMatchsRecents(
+  const tous = await recupererIdsMatchsRecents(
     puuidA,
     continent,
     Math.floor(ouvertureLe.getTime() / 1000),
     QUEUE_ID_PERSONNALISEE,
   );
+  const prises = dejaUtilisees && tous.length > 0 ? await dejaUtilisees(tous) : new Set<string>();
+  const ids = tous.filter((id) => !prises.has(id));
 
   // 1v1 classique (audit N5) : le vainqueur est lu dans la chronologie de
   // la partie (premier sang, première tour, 100 sbires), pas dans son issue.
@@ -476,6 +483,17 @@ export async function traiterRechercheResultats(): Promise<{
             cache,
             m.tournament.condition_victoire === "classique" ? "classique" : "nexus",
             equipesDuMatch ? { a: [...equipesDuMatch.a.keys()], b: [...equipesDuMatch.b.keys()] } : undefined,
+            async (ids) => {
+              const { data, error } = await admin
+                .from("parties_utilisees")
+                .select("riot_match_id")
+                .in("riot_match_id", ids)
+                .neq("match_id", m.id);
+              // Lecture impossible : on ne retient rien plutôt que de risquer
+              // un double compte (retenté au passage suivant).
+              if (error) throw error;
+              return new Set((data ?? []).map((p) => p.riot_match_id));
+            },
           );
           if (serie && (await enregistrerSerie(admin, m, serie, compteA, compteB, equipesDuMatch))) {
             trouves += 1;

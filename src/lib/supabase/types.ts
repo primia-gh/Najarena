@@ -408,6 +408,24 @@ export type Database = {
           },
         ]
       }
+      parties_utilisees: {
+        Row: {
+          match_id: string
+          riot_match_id: string
+          utilisee_le: string
+        }
+        Insert: {
+          match_id: string
+          riot_match_id: string
+          utilisee_le?: string
+        }
+        Update: {
+          match_id?: string
+          riot_match_id?: string
+          utilisee_le?: string
+        }
+        Relationships: []
+      }
       parties_classees: {
         Row: {
           assists: number | null

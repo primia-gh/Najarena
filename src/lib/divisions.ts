@@ -216,6 +216,9 @@ const REFUS: Record<string, string> = {
   RENCONTRE_HORS_DELAI: "Ce match ne se joue pas maintenant : attends sa semaine (la ligue dure quatre semaines).",
   MATCH_DEJA_LANCE: "Ce match est déjà lancé : rejoins la salle de match.",
   RENCONTRE_JOUEE: "Ce match est déjà joué.",
+  MATCH_OUVERT_ENTRE_VOUS:
+    "Vous avez déjà un match en cours l'un contre l'autre (tournoi ou défi) : jouez-le d'abord, une même partie ne compte qu'une fois.",
+  TROP_DE_DEFIS_EN_COURS: "L'un de vous a déjà 3 défis en cours : jouez-les d'abord.",
   AUCUN_ARBITRE: "Aucun arbitre disponible pour l'instant : réessaie plus tard.",
 };
 
