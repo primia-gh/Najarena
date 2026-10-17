@@ -398,7 +398,14 @@ export async function traiterRechercheResultats(): Promise<{
     // Un match en litige n'est plus cherché au-delà de 24 h (RECHERCHE_APRES_LITIGE_HEURES).
     .or(`statut.eq.en_cours,demarre_le.gte.${new Date(Date.now() - (RECHERCHE_APRES_LITIGE_HEURES + 1) * 3_600_000).toISOString()}`);
 
-  const candidats = (candidatsData ?? []) as MatchCandidat[];
+  // Une partie Riot ne sert qu'à un match (parties_utilisees) : si deux
+  // matchs ouverts entre les mêmes joueurs la retrouvent, le tournoi passe
+  // avant le défi, puis le plus ancien (contrôle de sécurité du 17/10/2026).
+  const candidats = ((candidatsData ?? []) as MatchCandidat[]).sort(
+    (a, b) =>
+      Number(a.tournament?.nature === "defi") - Number(b.tournament?.nature === "defi") ||
+      Date.parse(a.demarre_le ?? "") - Date.parse(b.demarre_le ?? ""),
+  );
 
   // Tournois 5v5 (audit N21) : l'équipe et ses cinq joueurs alignés
   // derrière chaque capitaine du bracket.

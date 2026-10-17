@@ -8,7 +8,7 @@
 >
 > **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 > `master`, puis la migration ci-dessous en un seul bloc ; la migration
-> passe, elle se rejoue une seconde fois sans erreur, et les 988
+> passe, elle se rejoue une seconde fois sans erreur, et les 994
 > vérifications de `tests/sql/` passent ensuite (comme sur une base
 > construite d'un coup).
 
@@ -51,10 +51,21 @@ where slug like 'najarena-%' and creneau_auto is null;
 select 'tournoi' as quoi, slug from public.tournaments where slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$'
 union all
 select 'equipe', slug from public.teams where slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$';
+
+-- c) Parties Riot déjà retenues par deux matchs différents (la faille
+--    corrigée par la section 57). Une ligne = deux résultats tirés de la
+--    même partie : à examiner (le registre, lui, ne se modifie pas).
+select btrim(p.id) as partie, array_agg(distinct v.match_id) as matchs
+from public.match_verdicts v
+cross join lateral unnest(string_to_array(v.riot_match_id, ',')) as p(id)
+where v.riot_match_id is not null and btrim(p.id) <> ''
+group by btrim(p.id) having count(distinct v.match_id) > 1;
 ```
 
 Une ligne renvoyée par a) ou b) se corrige à la main avant la migration
-(changer l'adresse, ou supprimer un brouillon).
+(changer l'adresse, ou supprimer un brouillon). Pour c), noter les matchs
+concernés et me les transmettre : la migration passe quand même (le plus
+ancien garde la partie).
 
 ## 2. Appliquer la migration
 
@@ -157,6 +168,14 @@ from public.comptes_offres where public.verdict_lien_externe(lien_externe) is no
 -- b) Joueurs qui peuvent devenir coach (Diamant ou plus) : les prévenir
 --    qu'ils doivent cocher « J'accepte des élèves » sur leur CV.
 select p.pseudo from public.profiles p where public.est_coach_eligible(p.id);
+
+-- c) Parties retenues pendant la migration et pas encore recopiées dans
+--    parties_utilisees (doit renvoyer 0 ; sinon relancer le dernier bloc
+--    de la section 57, « Recopie des parties déjà retenues »).
+select count(*) from public.match_verdicts v
+cross join lateral unnest(string_to_array(v.riot_match_id, ',')) as p(id)
+where v.riot_match_id is not null and btrim(p.id) <> ''
+  and not exists (select 1 from public.parties_utilisees u where u.riot_match_id = btrim(p.id));
 ```
 
 Parcours à vérifier sur le site :

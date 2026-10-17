@@ -128,13 +128,47 @@ select en_tant_que('00000000-0000-0000-0000-0000000003f2');
 select refus('Joueur 2 est là, mais un match de tournoi contre joueur 0 est en cours',
   $q$select public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))$q$,
   'MATCH_OUVERT_ENTRE_VOUS');
+-- Un litige récent entre eux bloque aussi (la recherche des résultats le
+-- suit encore).
+reset role;
+update matches set statut = 'litige', demarre_le = now() - interval '2 hours' where id = '50000000-0000-0000-0000-00000000094c';
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003f2');
+select refus('Litige récent (2 h) entre eux : bloqué',
+  $q$select public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))$q$,
+  'MATCH_OUVERT_ENTRE_VOUS');
+-- Tournoi annulé : ses matchs restent « en attente », sans bloquer ; mais
+-- joueur 0 a trois défis en cours, le maximum.
+reset role;
+update matches set statut = 'en_attente' where id = '50000000-0000-0000-0000-00000000094c';
+update tournaments set statut = 'annule' where id = '10000000-0000-0000-0000-00000000094c';
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, nature)
+select ('10000000-0000-0000-0000-0000000009d' || n)::uuid, 1, '00000000-0000-0000-0000-00000000000d',
+       'defi-94zc-' || n, 'Défi ' || n, '1v1', 2, 'EUW', now(), now(), 'en_cours', 'defi'
+from generate_series(1, 3) n;
+insert into registrations (tournament_id, profile_id, statut, confirme_le)
+select ('10000000-0000-0000-0000-0000000009d' || n)::uuid, '00000000-0000-0000-0000-0000000003f0', 'confirme', now()
+from generate_series(1, 3) n;
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003f2');
+select refus('Tournoi annulé ignoré, mais joueur 0 a déjà 3 défis en cours',
+  $q$select public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))$q$,
+  'TROP_DE_DEFIS_EN_COURS');
+-- Défis terminés ; le tournoi reprend avec un litige de 26 h, que la
+-- recherche des résultats ne suit plus : il ne bloque pas.
+reset role;
+update tournaments set statut = 'termine' where slug like 'defi-94zc-%';
+update tournaments set statut = 'en_cours' where id = '10000000-0000-0000-0000-00000000094c';
+update matches set statut = 'litige', demarre_le = now() - interval '26 hours' where id = '50000000-0000-0000-0000-00000000094c';
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-0000000003f2');
+select verifie('Joueur 2 est là aussi : le duel est lancé',
+  (select slug like 'division-%' from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
 reset role;
 update matches set statut = 'termine' where id = '50000000-0000-0000-0000-00000000094c';
 update tournaments set statut = 'termine' where id = '10000000-0000-0000-0000-00000000094c';
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003f2');
-select verifie('Joueur 2 est là aussi : le duel est lancé',
-  (select slug like 'division-%' from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
 select refus('Joueur 2 relance la même rencontre',
   $q$select public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))$q$,
   'MATCH_DEJA_LANCE');

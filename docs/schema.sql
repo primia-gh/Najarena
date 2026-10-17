@@ -10477,12 +10477,19 @@ begin
   -- Les deux sont là : duel ordinaire, mêmes règles que creer_duel.
   -- Un match déjà ouvert entre eux (tournoi, défi) se joue d'abord : une
   -- même partie Riot ne sert jamais à deux matchs (contrôle de sécurité du
-  -- 17/10/2026 ; voir aussi parties_utilisees).
+  -- 17/10/2026 ; voir aussi parties_utilisees). Seulement dans un tournoi
+  -- en cours (un tournoi annulé laisse ses matchs tels quels), et un litige
+  -- seulement tant que la recherche des résultats le suit encore (25 h,
+  -- RECHERCHE_APRES_LITIGE_HEURES + 1) : un vieux litige ne bloque pas la
+  -- division.
   if exists (
     select 1 from public.match_participants pa
     join public.match_participants pb on pb.match_id = pa.match_id and pb.profile_id = v_r.joueur_b
     join public.matches m on m.id = pa.match_id
-    where pa.profile_id = v_r.joueur_a and m.statut in ('en_attente', 'en_cours', 'litige')
+    join public.tournaments t on t.id = m.tournament_id and t.statut = 'en_cours'
+    where pa.profile_id = v_r.joueur_a
+      and (m.statut in ('en_attente', 'en_cours')
+           or (m.statut = 'litige' and m.demarre_le > now() - interval '25 hours'))
   ) then
     raise exception 'MATCH_OUVERT_ENTRE_VOUS';
   end if;
@@ -10800,14 +10807,6 @@ create index if not exists parties_utilisees_match_idx on public.parties_utilise
 alter table public.parties_utilisees enable row level security;
 revoke all on public.parties_utilisees from anon, authenticated;
 
-insert into public.parties_utilisees (riot_match_id, match_id, utilisee_le)
-select distinct on (btrim(p.id)) btrim(p.id), v.match_id, v.cree_le
-from public.match_verdicts v
-cross join lateral unnest(string_to_array(v.riot_match_id, ',')) as p(id)
-where v.riot_match_id is not null and btrim(p.id) <> ''
-order by btrim(p.id), v.cree_le
-on conflict (riot_match_id) do nothing;
-
 create or replace function public.enregistrer_verdict_historique(
   p_match_id uuid,
   p_gagnant_id uuid,
@@ -10855,3 +10854,15 @@ begin
 end;
 $$;
 revoke execute on function public.enregistrer_verdict_historique(uuid, uuid, text) from public, anon, authenticated;
+
+-- Recopie des parties déjà retenues, en dernier, au plus près de la
+-- validation : un verdict écrit pendant la migration par l'ancienne
+-- fonction a le moins de chances d'y échapper (requête de contrôle dans
+-- docs/mise-en-ligne-2026-10-12.md, § 5 ; relancer cette recopie suffit).
+insert into public.parties_utilisees (riot_match_id, match_id, utilisee_le)
+select distinct on (btrim(p.id)) btrim(p.id), v.match_id, v.cree_le
+from public.match_verdicts v
+cross join lateral unnest(string_to_array(v.riot_match_id, ',')) as p(id)
+where v.riot_match_id is not null and btrim(p.id) <> ''
+order by btrim(p.id), v.cree_le
+on conflict (riot_match_id) do nothing;

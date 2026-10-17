@@ -2,7 +2,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { arrondir } from "@/lib/classement";
-import { classementEcoles, ETUDIANTS_CLASSEMENT_ECOLES } from "@/lib/ecoles";
+import {
+  classementEcoles,
+  ETUDIANTS_CLASSEMENT_ECOLES,
+  libelleDomaines,
+} from "@/lib/ecoles";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
 import BoutonLien from "@/components/design/BoutonLien";
@@ -14,7 +18,9 @@ import Tableau from "@/components/design/Tableau";
 // Battlefy). Les écoles sont des communautés dont les membres prouvent
 // leur adresse d'établissement ; elles sont classées par la moyenne des 5
 // meilleurs ratings officiels de leurs membres vérifiés (classement_ecoles,
-// docs/schema.sql) — jamais un rating à part.
+// docs/schema.sql) — jamais un rating à part. Les domaines des adresses
+// sont affichés : une « école » au domaine douteux se voit (contrôle de
+// sécurité du 17/10/2026).
 
 export const metadata: Metadata = {
   title: "Ligue des écoles — League of Legends — Najarena",
@@ -26,7 +32,26 @@ export const metadata: Metadata = {
 export default async function EcolesPage() {
   const supabase = await createClient();
   const { data } = await supabase.rpc("classement_ecoles");
-  const { classees, enConstitution } = classementEcoles(data ?? []);
+  const lignes = data ?? [];
+  const { data: domainesData } =
+    lignes.length > 0
+      ? await supabase
+          .from("communautes")
+          .select("id, domaines_email")
+          .in(
+            "id",
+            lignes.map((l) => l.communaute_id),
+          )
+      : { data: [] };
+  const domaines = new Map(
+    (domainesData ?? []).map((c) => [c.id, c.domaines_email]),
+  );
+  const { classees, enConstitution } = classementEcoles(
+    lignes.map((l) => ({
+      ...l,
+      domaines: domaines.get(l.communaute_id) ?? [],
+    })),
+  );
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -39,23 +64,33 @@ export default async function EcolesPage() {
           >
             ← League of Legends
           </Link>
-          <h1 className="mt-6 font-titre text-section font-black tracking-[1px] uppercase">Ligue des écoles</h1>
+          <h1 className="mt-6 font-titre text-section font-black tracking-[1px] uppercase">
+            Ligue des écoles
+          </h1>
           <p className="mt-3 max-w-2xl text-courant text-text-2">
-            Les écoles et universités, classées par la moyenne des {ETUDIANTS_CLASSEMENT_ECOLES} meilleurs ratings
-            officiels de leurs membres vérifiés — des joueurs qui ont prouvé leur adresse de l&apos;établissement.
-            Aucun point à part : chacun gagne son rating dans les tournois classés, résultats lus chez Riot.
+            Les écoles et universités, classées par la moyenne des{" "}
+            {ETUDIANTS_CLASSEMENT_ECOLES} meilleurs ratings officiels de leurs
+            membres vérifiés — des joueurs qui ont prouvé leur adresse de
+            l&apos;établissement. Aucun point à part : chacun gagne son rating
+            dans les tournois classés, résultats lus chez Riot.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
             <BoutonLien href="/communaute/nouvelle" variante="contour">
               Inscrire mon école
             </BoutonLien>
-            <Link href="/communautes" className="text-sm text-muted underline underline-offset-3 hover:text-text">
+            <Link
+              href="/communautes"
+              className="text-sm text-muted underline underline-offset-3 hover:text-text"
+            >
               Toutes les communautés
             </Link>
           </div>
           <p className="mt-3 max-w-2xl text-xs text-muted">
-            Une association étudiante crée la communauté de son école (offre Organisateur), puis indique le domaine
-            des adresses de l&apos;établissement ; ses membres vérifient la leur depuis la page de l&apos;école.
+            Une association étudiante crée la communauté de son école (offre
+            Organisateur), puis indique le domaine des adresses de
+            l&apos;établissement ; ses membres vérifient la leur depuis la page
+            de l&apos;école. Ce domaine est affiché sous chaque école :
+            c&apos;est lui qui dit quel établissement elle représente.
           </p>
         </Apparition>
 
@@ -64,8 +99,10 @@ export default async function EcolesPage() {
           {classees.length === 0 ? (
             <Panneau className="p-6">
               <p className="text-sm text-muted">
-                Aucune école classée pour l&apos;instant : il faut {ETUDIANTS_CLASSEMENT_ECOLES} membres vérifiés
-                entrés au classement (une dizaine de matchs vérifiés chacun) pour y figurer.
+                Aucune école classée pour l&apos;instant : il faut{" "}
+                {ETUDIANTS_CLASSEMENT_ECOLES} membres vérifiés entrés au
+                classement (une dizaine de matchs vérifiés chacun) pour y
+                figurer.
               </p>
             </Panneau>
           ) : (
@@ -74,7 +111,9 @@ export default async function EcolesPage() {
                 <tr>
                   <th scope="col">Rang</th>
                   <th scope="col">École</th>
-                  <th scope="col">Moyenne des {ETUDIANTS_CLASSEMENT_ECOLES} meilleurs</th>
+                  <th scope="col">
+                    Moyenne des {ETUDIANTS_CLASSEMENT_ECOLES} meilleurs
+                  </th>
                   <th scope="col">Classés</th>
                   <th scope="col">Vérifiés</th>
                 </tr>
@@ -91,6 +130,11 @@ export default async function EcolesPage() {
                       >
                         {e.nom}
                       </Link>
+                      {e.domaines.length > 0 && (
+                        <span className="mt-1 block pl-3 text-xs break-all text-muted">
+                          {libelleDomaines(e.domaines)}
+                        </span>
+                      )}
                     </td>
                     <td className="tabular-nums">{arrondir(e.moyenne ?? 0)}</td>
                     <td className="tabular-nums">{e.classes}</td>
@@ -106,7 +150,8 @@ export default async function EcolesPage() {
           <section className="flex flex-col gap-4">
             <LibelleSection as="h2">En constitution</LibelleSection>
             <p className="max-w-2xl text-sm text-muted">
-              Ces écoles entreront au classement avec {ETUDIANTS_CLASSEMENT_ECOLES} membres vérifiés et classés.
+              Ces écoles entreront au classement avec{" "}
+              {ETUDIANTS_CLASSEMENT_ECOLES} membres vérifiés et classés.
             </p>
             <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {enConstitution.map((e) => (
@@ -116,10 +161,18 @@ export default async function EcolesPage() {
                     className="panneau flex h-full flex-col gap-2 border-l-4 p-5 transition-colors hover:border-accent/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
                     style={{ borderLeftColor: e.couleur }}
                   >
-                    <span className="font-titre text-2xl font-extrabold uppercase">{e.nom}</span>
+                    <span className="font-titre text-2xl font-extrabold uppercase">
+                      {e.nom}
+                    </span>
+                    {e.domaines.length > 0 && (
+                      <span className="text-xs break-all text-muted">
+                        {libelleDomaines(e.domaines)}
+                      </span>
+                    )}
                     <span className="mt-auto text-mini text-muted uppercase tabular-nums">
-                      {e.verifies} vérifié{e.verifies > 1 ? "s" : ""} · {e.classes}/{ETUDIANTS_CLASSEMENT_ECOLES}{" "}
-                      classé{e.classes > 1 ? "s" : ""}
+                      {e.verifies} vérifié{e.verifies > 1 ? "s" : ""} ·{" "}
+                      {e.classes}/{ETUDIANTS_CLASSEMENT_ECOLES} classé
+                      {e.classes > 1 ? "s" : ""}
                     </span>
                   </Link>
                 </li>

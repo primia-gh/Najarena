@@ -67,8 +67,10 @@ export async function POST(request: Request) {
   if (!evenement) {
     return NextResponse.json({ erreur: "Signature invalide." }, { status: 400 });
   }
+  // Un événement d'un compte connecté (evenement.account) n'est jamais un
+  // abonnement : seul le secret Connect l'ouvre.
   const evenementAdmis = principal
-    ? evenement.type !== "account.updated"
+    ? evenement.type !== "account.updated" && !evenement.account
     : evenement.type === "account.updated" && Boolean(evenement.account);
   if (!evenementAdmis) {
     // Reçu mais ignoré : Stripe n'a pas à le renvoyer.
