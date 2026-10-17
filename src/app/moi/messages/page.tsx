@@ -109,7 +109,7 @@ export default async function MessagesPage() {
                             {autre?.pseudo ?? "Joueur inconnu"}
                           </span>
                           {dernier?.nonLu && (
-                            <span className="inline-flex items-center gap-1.5 rounded-bouton bg-accent px-1.5 py-px font-texte text-[10px] font-bold tracking-[2px] text-on-accent uppercase">
+                            <span className="inline-flex items-center gap-1.5 rounded-bouton bg-accent px-1.5 py-px font-texte text-mini font-bold tracking-[2px] text-on-accent uppercase">
                               Nouveau
                             </span>
                           )}

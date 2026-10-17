@@ -561,6 +561,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       : null;
 
   const complements = await chargerComplementsTournoi(tournoi.id);
+  // Tournois créés par la plateforme (quotidiens, à la demande).
+  const organisateurPlateforme = complements.estQuotidien || complements.estALaDemande;
 
   // Pronostics gratuits (audit N20) : demi-finales et finale d'un tournoi
   // (jamais d'un défi ni d'un scrim), dès que les deux adversaires sont
@@ -1070,7 +1072,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               </>
             )}
             {(estDefi || estScrim) && " · Arbitré par Najarena"}
-            {organisateur && !estDefi && !estScrim && (
+            {/* Tournois créés par la plateforme (quotidiens, à la demande) :
+                Najarena, pas le compte administrateur qui les porte, dont la
+                fiche d'organisateur exclut ces tournois (relecture design du
+                17/10/2026). */}
+            {organisateurPlateforme && " · Organisé par Najarena"}
+            {organisateur && !estDefi && !estScrim && !organisateurPlateforme && (
               <>
                 {" "}
                 · Organisé par{" "}
@@ -1307,7 +1314,14 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         <div className="mx-auto flex max-w-contenu flex-col gap-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <LibelleSection as="h2">Bracket</LibelleSection>
-            <LegendeBracket avecEstimations />
+            {/* Pas de légende tant qu'il n'y a pas de bracket ; en 5v5, ni
+                estimation ni exploit (le capitaine représente l'équipe). */}
+            {toursOrdonnes.length > 0 && (
+              <LegendeBracket
+                avecEstimations={!estEquipes}
+                portee={estEquipes ? "equipe" : classement.statut === "non_classe" ? "aucune" : "classement"}
+              />
+            )}
           </div>
 
           {toursOrdonnes.length === 0 ? (
@@ -1761,7 +1775,11 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             <Deroulement etapes={etapes} />
             {statut !== "annule" && <CriteresClassement evaluation={classement} />}
           </div>
-          <EssentielReglement organisateur={organisateur?.pseudo} condition={condition} equipes={estEquipes} />
+          <EssentielReglement
+            organisateur={estDefi || estScrim || organisateurPlateforme ? "Najarena" : organisateur?.pseudo}
+            condition={condition}
+            equipes={estEquipes}
+          />
         </div>
       </section>
     </main>

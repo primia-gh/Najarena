@@ -34,7 +34,9 @@ export default function CourbeIndicateur({ serie }: { serie: SerieProgression })
     haut = 1;
   } else {
     const marge = (haut - bas) * 0.12 || Math.max(Math.abs(haut) * 0.1, 1);
-    bas = Math.max(0, bas - marge);
+    // Un indicateur signé (écart d'or à 15 minutes) descend sous zéro : le
+    // borner à 0 cachait les parties perdues (relecture design du 17/10/2026).
+    bas = def.signe ? bas - marge : Math.max(0, bas - marge);
     haut += marge;
   }
   const largeurUtile = LARGEUR - 2 * MARGE_X;

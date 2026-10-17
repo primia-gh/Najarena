@@ -16,7 +16,7 @@ export type { TournoiListe };
 
 function Etiquette({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-bouton border border-line-strong px-1.5 py-0.5 font-texte text-[10px] font-semibold tracking-[2px] whitespace-nowrap text-text-2 uppercase">
+    <span className="inline-flex items-center rounded-bouton border border-line-strong px-1.5 py-0.5 font-texte text-mini font-semibold tracking-[2px] whitespace-nowrap text-text-2 uppercase">
       {children}
     </span>
   );
@@ -62,9 +62,9 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
       }`}
     >
       <time dateTime={t.debute_le} className="flex flex-col items-center rounded-carte border border-line-strong py-2 leading-none">
-        <span className="font-texte text-[10px] font-medium tracking-[2px] text-muted uppercase">{d.jourSemaine.replace(".", "")}</span>
+        <span className="font-texte text-mini font-medium tracking-[2px] text-muted uppercase">{d.jourSemaine.replace(".", "")}</span>
         <span className="mt-1 font-titre text-[2rem] font-black tabular-nums">{d.jour}</span>
-        <span className="mt-1 font-texte text-[10px] font-medium tracking-[2px] text-muted uppercase">{d.mois.replace(".", "")}</span>
+        <span className="mt-1 font-texte text-mini font-medium tracking-[2px] text-muted uppercase">{d.mois.replace(".", "")}</span>
       </time>
 
       <div className="flex min-w-0 flex-col gap-2">
@@ -80,8 +80,8 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
           {t.officiel && <Etiquette>Officiel</Etiquette>}
           {t.amical && <Etiquette>Amical</Etiquette>}
           {t.statut === "termine" && t.classe === true && <Etiquette>Classé</Etiquette>}
-          {t.reserve_membres && <Etiquette>Membres</Etiquette>}
-          {t.reserve_non_classes && <Etiquette>Non classés</Etiquette>}
+          {t.reserve_membres && <Etiquette>Réservé aux membres</Etiquette>}
+          {t.reserve_non_classes && <Etiquette>Réservé aux nouveaux</Etiquette>}
         </span>
       </div>
 

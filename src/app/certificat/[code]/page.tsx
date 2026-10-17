@@ -255,7 +255,9 @@ export default async function CertificatPage({ params, searchParams }: Certifica
         <Apparition delai={0.16}>
           <Panneau as="section" className="mt-4 flex flex-wrap items-center gap-6 px-6 py-6">
             <QrCode texte={lien} libelle={`QR code du certificat de ${c.pseudo}`} />
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {/* Au moins 14rem : sur téléphone, le texte passe sous le QR code
+                au lieu d'être écrasé à côté. */}
+            <div className="flex min-w-[14rem] flex-1 basis-56 flex-col gap-2">
               <LibelleSection as="h2">Vérifier ce certificat</LibelleSection>
               <p className="text-sm text-text-2">
                 Scanne ce code ou ouvre le lien : la page vient de Najarena, avec sa date d&apos;émission. Une capture

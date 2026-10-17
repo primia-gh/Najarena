@@ -217,8 +217,8 @@ const REFUS: Record<string, string> = {
   MATCH_DEJA_LANCE: "Ce match est déjà lancé : rejoins la salle de match.",
   RENCONTRE_JOUEE: "Ce match est déjà joué.",
   MATCH_OUVERT_ENTRE_VOUS:
-    "Vous avez déjà un match en cours l'un contre l'autre (tournoi ou défi) : jouez-le d'abord, une même partie ne compte qu'une fois.",
-  TROP_DE_DEFIS_EN_COURS: "L'un de vous a déjà 3 défis en cours : jouez-les d'abord.",
+    "Toi et ton adversaire avez déjà un match en cours l'un contre l'autre (tournoi ou défi) : jouez-le d'abord, une même partie ne compte qu'une fois.",
+  TROP_DE_DEFIS_EN_COURS: "Toi ou ton adversaire avez déjà 3 défis en cours (le maximum) : terminez-les avant d'en lancer un autre.",
   AUCUN_ARBITRE: "Aucun arbitre disponible pour l'instant : réessaie plus tard.",
 };
 

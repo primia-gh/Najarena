@@ -50,7 +50,7 @@ export default async function NouvelleCommunautePage({ searchParams }: NouvelleC
           <LibelleSection className="mt-6">Offre Organisateur</LibelleSection>
           <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Créer une communauté</h1>
           <p className="mt-4 text-text-2">
-            Une page pour ton serveur Discord ou ton association : vos tournois, votre classement interne et vos
+            Une page pour ton serveur Discord ou ton association : tes tournois, ton classement interne et tes
             membres. {COMMUNAUTES_MAX_PAR_ORGANISATEUR} communautés au plus.
           </p>
           <p className="mt-3 text-sm text-muted">

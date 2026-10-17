@@ -64,7 +64,7 @@ export default function CarteJoueurDisponible({
               {region && <span>{region}</span>}
               {offre && (
                 <span
-                  className="ml-1 rounded-bouton border border-line-strong px-1.5 py-px font-texte text-[10px] font-semibold tracking-[2px] uppercase"
+                  className="ml-1 rounded-bouton border border-line-strong px-1.5 py-px font-texte text-mini font-semibold tracking-[2px] uppercase"
                   style={{ color: COULEUR_OFFRE[offre] }}
                 >
                   {LABEL_OFFRE[offre]}

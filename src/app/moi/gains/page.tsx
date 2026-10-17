@@ -10,6 +10,9 @@ import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
+import Alerte from "@/components/design/Alerte";
+import Icone from "@/components/design/Icone";
+import { classeChamp } from "@/lib/design";
 
 // Mes gains (04/10/2026, audit N32) : les cash prizes gagnés et leur
 // versement par Stripe, après vérification de l'identité par Stripe. Page
@@ -20,8 +23,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const CHAMP =
-  "min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+// 16 px sur téléphone (sinon iOS zoome au toucher), largeur du contenu.
+const CHAMP = `${classeChamp()} w-auto`;
 
 interface GainsPageProps {
   searchParams: Promise<{ erreur?: string; message?: string }>;
@@ -65,16 +68,8 @@ export default async function GainsPage({ searchParams }: GainsPageProps) {
           </p>
         </Apparition>
 
-        {erreur && (
-          <p role="alert" className="rounded-bouton border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {erreur}
-          </p>
-        )}
-        {message && (
-          <p role="status" className="rounded-bouton border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent">
-            {message}
-          </p>
-        )}
+        {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+        {message && <Alerte type="succes">{message}</Alerte>}
 
         <section className="flex flex-col gap-4">
           <LibelleSection as="h2">Gains</LibelleSection>
@@ -121,8 +116,9 @@ export default async function GainsPage({ searchParams }: GainsPageProps) {
             <LibelleSection as="h2">Vérification d&apos;identité</LibelleSection>
             {compte?.verifie ? (
               <Panneau className="p-5">
-                <p className="text-sm text-text-2">
-                  <span className="text-accent">✓</span> Identité vérifiée par Stripe. Tes gains te sont versés par un
+                <p className="flex items-start gap-2 text-sm text-text-2">
+                  <Icone nom="coche" taille={14} epaisseur={3} className="mt-0.5 text-accent" />
+                  Identité vérifiée par Stripe. Tes gains te sont versés par un
                   administrateur, sur le compte bancaire que tu as indiqué à Stripe.
                 </p>
               </Panneau>

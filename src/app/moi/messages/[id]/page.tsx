@@ -119,7 +119,7 @@ export default async function ConversationPage({ params, searchParams }: Convers
                     {!estMoi && <AvatarJoueur pseudo={autre?.pseudo ?? "?"} src={autre?.avatar_url ?? null} taille={32} />}
                     <div
                       className={`max-w-[80%] rounded-panneau px-4 py-3 ${
-                        estMoi ? "rounded-br-none bg-[#1d201d] text-text" : "rounded-bl-none border border-line-strong text-text"
+                        estMoi ? "rounded-br-none bg-surface text-text" : "rounded-bl-none border border-line-strong text-text"
                       }`}
                     >
                       <p className="whitespace-pre-line [overflow-wrap:anywhere]">{m.contenu}</p>

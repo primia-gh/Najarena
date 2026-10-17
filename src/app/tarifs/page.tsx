@@ -72,7 +72,7 @@ const GRILLE_CARTES: Record<number, string> = {
 // encore tenue n'a pas à attirer l'œil plus qu'une fonction livrée.
 function PastilleBientot() {
   return (
-    <span className="ml-2 inline-block rounded-bouton border border-line-strong px-1.5 py-px align-[1px] font-texte text-[10px] font-medium tracking-[2px] text-muted uppercase">
+    <span className="ml-2 inline-block rounded-bouton border border-line-strong px-1.5 py-px align-[1px] font-texte text-mini font-medium tracking-[2px] text-muted uppercase">
       Bientôt
     </span>
   );
@@ -346,7 +346,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                         return (
                           <td key={p.nom} className="py-3.5! text-center">
                             {inclus && BIENTOT.has(ligne.fonctionnalite) ? (
-                              <span className="font-texte text-[10px] font-medium tracking-[2px] text-muted uppercase">
+                              <span className="font-texte text-mini font-medium tracking-[2px] text-muted uppercase">
                                 Bientôt
                               </span>
                             ) : inclus ? (

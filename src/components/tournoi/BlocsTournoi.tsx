@@ -125,16 +125,29 @@ export function EnTeteTournoi({ nom, etiquettes, details, infos, action }: EnTet
 export function LegendeBracket({
   avecLitige = true,
   avecEstimations = false,
+  portee = "classement",
 }: {
   avecLitige?: boolean;
-  /** Chances estimées et exploits (page d'un vrai tournoi). */
+  /** Chances estimées et exploits (page d'un vrai tournoi 1v1). */
   avecEstimations?: boolean;
+  /**
+   * Ce que compte un verdict vérifié ici (relecture design du 17/10/2026 :
+   * « compte pour le classement » était faux en 5v5 et sur un tournoi non
+   * classé).
+   */
+  portee?: "classement" | "equipe" | "aucune";
 }) {
+  const verifie =
+    portee === "equipe"
+      ? "Vérifié — lu chez Riot, compte au palmarès de l'équipe"
+      : portee === "aucune"
+        ? "Vérifié — lu chez Riot (ce tournoi ne compte pas au classement)"
+        : "Vérifié — compte pour le classement";
   return (
     <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">
       <li className="inline-flex items-center gap-1.5">
         <Icone nom="coche" taille={12} epaisseur={3} className="text-accent" />
-        Vérifié — compte pour le classement
+        {verifie}
       </li>
       <li className="inline-flex items-center gap-1.5">
         <Icone nom="crayon" taille={12} epaisseur={2.2} />

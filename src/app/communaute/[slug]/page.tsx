@@ -31,6 +31,8 @@ import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 import Tableau from "@/components/design/Tableau";
+import Alerte from "@/components/design/Alerte";
+import Icone from "@/components/design/Icone";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 
 // Espace communauté (03/10/2026, audit N30) : la page d'un serveur Discord
@@ -228,25 +230,14 @@ export default async function CommunautePage({ params, searchParams }: Communaut
           </div>
         </Apparition>
 
-        {erreur && (
-          <p role="alert" className="rounded-bouton border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {erreur}
-          </p>
-        )}
-        {message && (
-          <p
-            role="status"
-            className="rounded-bouton border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent"
-          >
-            {message}
-          </p>
-        )}
+        {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+        {message && <Alerte type="succes">{message}</Alerte>}
 
         {estEcole && (
           <section id="ecole" className="flex scroll-mt-28 flex-col gap-4 *:max-w-xl">
             <LibelleSection as="h2">Membres vérifiés</LibelleSection>
             <p className="text-sm text-muted">
-              Un membre vérifié a prouvé qu&apos;il possède une adresse de l&apos;établissement (
+              Un membre vérifié a une adresse de l&apos;établissement prouvée (
               {libelleDomaines(communaute.domaines_email)}, sous-domaines compris) : il compte dans la{" "}
               <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
                 ligue des écoles
@@ -256,9 +247,9 @@ export default async function CommunautePage({ params, searchParams }: Communaut
             </p>
             {moiMembre?.verifieLe ? (
               <Panneau className="p-5">
-                <p className="text-sm text-text-2">
-                  <span className="text-accent">✓</span> Ton adresse d&apos;établissement est vérifiée : tu comptes
-                  pour l&apos;école.
+                <p className="flex items-start gap-2 text-sm text-text-2">
+                  <Icone nom="coche" taille={14} epaisseur={3} className="mt-0.5 text-accent" />
+                  Ton adresse d&apos;établissement est vérifiée&nbsp;: tu comptes pour l&apos;école.
                 </p>
               </Panneau>
             ) : moiMembre ? (
@@ -383,8 +374,9 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                           {m.pseudo}
                         </Link>
                         {estEcole && verifies.has(m.profileId) && (
-                          <span className="ml-2 text-accent" title="Adresse de l'établissement vérifiée">
-                            ✓<span className="sr-only"> membre vérifié</span>
+                          <span className="ml-2 inline-flex items-center gap-1 text-mini text-muted uppercase">
+                            <Icone nom="coche" taille={12} epaisseur={3} className="text-accent" />
+                            Adresse vérifiée
                           </span>
                         )}
                       </td>
@@ -418,8 +410,9 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                     <span className="text-mini text-muted uppercase">{LIBELLE_ROLE_COMMUNAUTE[m.role]}</span>
                   )}
                   {estEcole && m.verifieLe && (
-                    <span className="text-mini text-muted uppercase" title="Adresse de l'établissement vérifiée">
-                      <span className="text-accent">✓</span> Vérifié
+                    <span className="inline-flex items-center gap-1 text-mini text-muted uppercase">
+                      <Icone nom="coche" taille={12} epaisseur={3} className="text-accent" />
+                      Adresse vérifiée
                     </span>
                   )}
                   {monRole === "proprietaire" && m.role !== "proprietaire" && (
@@ -500,7 +493,7 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                 {communaute.discord_guild_id ? (
                   <>
                     <p className="text-sm text-text-2">
-                      Un serveur Discord est lié : la commande <code>/communaute</code> du bot y affiche cette page, vos
+                      Un serveur Discord est lié : la commande <code>/communaute</code> du bot y affiche cette page, tes
                       prochains tournois et le haut du classement interne.
                     </p>
                     <form action={delierServeurDiscord}>

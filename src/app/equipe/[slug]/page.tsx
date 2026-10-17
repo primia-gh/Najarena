@@ -346,7 +346,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 <span className="flex items-center justify-between gap-3">
                   <AvatarJoueur pseudo={j.pseudo} src={j.avatar} taille={48} />
                   {j.estCapitaine && (
-                    <span className="rounded-bouton border border-line-strong px-1.5 py-px font-texte text-[10px] font-semibold tracking-[2px] text-text-2 uppercase">
+                    <span className="rounded-bouton border border-line-strong px-1.5 py-px font-texte text-mini font-semibold tracking-[2px] text-text-2 uppercase">
                       Capitaine
                     </span>
                   )}

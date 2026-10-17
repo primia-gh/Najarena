@@ -114,7 +114,7 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
           <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Tournois à la demande</h1>
           <p className="max-w-2xl text-courant text-text-2">
             Indique les heures où tu peux jouer. Dès que {SEUIL_A_LA_DEMANDE} joueurs de ta région sont libres à la même
-            heure, un tournoi 1v1 s&apos;ouvre et vous y êtes inscrits. Personne ne voit qui est disponible : seulement
+            heure, un tournoi 1v1 s&apos;ouvre et tu y es inscrit d&apos;office. Personne ne voit qui est disponible : seulement
             combien.
           </p>
         </Apparition>
@@ -131,7 +131,7 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
             <li className="flex flex-col gap-1.5">
               <span className="font-texte text-mini font-medium text-muted uppercase">Ensuite</span>
               <span className="text-sm text-text-2">
-                Tu es prévenu à l&apos;ouverture (notification, Discord). Le tournoi reste ouvert à tous ; le check-in
+                Une notification t&apos;arrive à l&apos;ouverture (navigateur, Discord). Le tournoi reste ouvert à tous ; le check-in
                 ouvre 30 minutes avant.
               </span>
             </li>

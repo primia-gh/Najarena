@@ -490,7 +490,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                         <span className="font-semibold">
                           <span className="text-muted">{e.tag}</span> {e.nom}
                         </span>
-                        <span className="font-texte text-[10px] font-semibold tracking-[2px] text-text-2 uppercase">Capitaine</span>
+                        <span className="font-texte text-mini font-semibold tracking-[2px] text-text-2 uppercase">Capitaine</span>
                       </Link>
                     </li>
                   ))}
@@ -503,7 +503,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                         <span className="font-semibold">
                           <span className="text-muted">{a.team!.tag}</span> {a.team!.nom}
                         </span>
-                        <span className="font-texte text-[10px] font-semibold tracking-[2px] text-muted uppercase">Membre</span>
+                        <span className="font-texte text-mini font-semibold tracking-[2px] text-muted uppercase">Membre</span>
                       </Link>
                     </li>
                   ))}
