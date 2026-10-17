@@ -92,7 +92,8 @@ const MESSAGES_REFUS: Record<string, string> = {
   NON_CONNECTE: "Connecte-toi d'abord.",
   GESTION_RESERVEE: "Seul le fondateur de la communauté indique les adresses de l'établissement.",
   DOMAINES_ECOLE: `Indique de 1 à ${DOMAINES_ECOLE_MAX} noms de domaine.`,
-  DOMAINE_INVALIDE: "Un des domaines n'est pas valide (exemple attendu : etu.univ-exemple.fr).",
+  DOMAINE_INVALIDE:
+    "Un des domaines n'est pas valide (exemple attendu : etu.univ-exemple.fr ; pas d'adresse IP, et un domaine accentué s'écrit sous sa forme « xn-- »).",
   DOMAINE_GRAND_PUBLIC:
     "Une messagerie grand public (Gmail, Outlook, Orange…) ne prouve rien : indique le domaine des adresses de l'établissement.",
   NOM_INTERDIT: "Un des domaines n'est pas accepté (propos interdits).",

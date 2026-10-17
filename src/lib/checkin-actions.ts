@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { heureParis } from "@/lib/tournois-auto/creneaux";
 
+const REFUS_RESERVE_CHECKIN =
+  "Ce tournoi est réservé aux membres de sa communauté (vérifiés, pour une école) : toi ou un joueur de ton alignement n'en fait plus partie. Rejoins-la, ou remplace ce joueur, avant de confirmer.";
+
 // Check-in fait par le joueur lui-même (24/09/2026) — jusqu'ici, seul
 // l'organisateur pouvait confirmer une inscription (confirmerInscription,
 // organisation-actions.ts), ce qui rendait impossible un tournoi sans
@@ -60,6 +63,11 @@ export async function confirmerMaPresence(formData: FormData) {
     redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
   }
 
+  // Tournoi réservé aux membres : revérifié au check-in (17/10/2026).
+  if (error?.message.includes("RESERVE_MEMBRES")) {
+    redirect(`${page}?erreur=${encodeURIComponent(REFUS_RESERVE_CHECKIN)}`);
+  }
+
   if (!confirmee) {
     redirect(`${page}?erreur=${encodeURIComponent("Aucune inscription en attente de check-in.")}`);
   }
@@ -87,6 +95,9 @@ export async function confirmerAgentLibre(formData: FormData) {
   }
   if (error?.message.includes("CHECKIN_FERME")) {
     redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
+  }
+  if (error?.message.includes("RESERVE_MEMBRES")) {
+    redirect(`${page}?erreur=${encodeURIComponent(REFUS_RESERVE_CHECKIN)}`);
   }
   if (!confirme) {
     redirect(`${page}?erreur=${encodeURIComponent("Aucune inscription d'agent libre en attente de check-in.")}`);

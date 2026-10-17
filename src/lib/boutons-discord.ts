@@ -97,6 +97,8 @@ const REFUS_CHECKIN: Record<string, string> = {
   TOURNOI_INTROUVABLE: "Ce tournoi n'existe plus.",
   ALIGNEMENT_INCOMPLET:
     "Ton alignement n'a plus cinq joueurs : complète-le sur le site avant de confirmer la présence de l'équipe.",
+  RESERVE_MEMBRES:
+    "Ce tournoi est réservé aux membres de sa communauté : toi ou un joueur de ton alignement n'en fait plus partie.",
 };
 
 const REFUS_PRET: Record<string, string> = {

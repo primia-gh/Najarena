@@ -7500,14 +7500,16 @@ revoke all on public.verifications_ecole from anon, authenticated;
 
 -- Messageries grand public : n'importe qui y ouvre une adresse. Aussi les
 -- messageries jetables (boîtes lisibles par tous) et les relais d'alias
--- (adresses à volonté) — contrôle de sécurité du 17/10/2026.
+-- (adresses à volonté) — contrôle de sécurité du 17/10/2026. Le nom de la
+-- messagerie suivi de son extension seulement (gmail.com, yahoo.co.uk) :
+-- « mail.ens.fr » ou « me.univ.fr » sont des domaines d'établissement.
 create or replace function public.domaine_grand_public(p_domaine text)
 returns boolean
 language sql
 immutable
 set search_path = public
 as $$
-  select p_domaine ~ '^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|rocketmail|icloud|me|mac|aol|gmx|web|t-online|posteo|proton|protonmail|pm|laposte|orange|wanadoo|free|sfr|neuf|bbox|numericable|yandex|mail|inbox|rambler|seznam|libero|virgilio|tiscali|qq|163|126|sina|zoho|tutanota|tuta|hey|fastmail|mailo|caramail|aliceadsl|club-internet|yopmail|jetable|mailinator|guerrillamail|sharklasers|10minutemail|tempmail|temp-mail|trashmail|getnada|dispostable|maildrop|mohmal|mailnesia|throwawaymail|fakeinbox|burnermail|duck|mozmail|simplelogin|anonaddy|addy)\.[a-z.]+$';
+  select p_domaine ~ '^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|rocketmail|icloud|me|mac|aol|gmx|web|t-online|posteo|proton|protonmail|pm|laposte|orange|wanadoo|free|sfr|neuf|bbox|numericable|yandex|mail|inbox|rambler|seznam|libero|virgilio|tiscali|qq|163|126|sina|zoho|tutanota|tuta|hey|fastmail|mailo|caramail|aliceadsl|club-internet|yopmail|jetable|mailinator|guerrillamail|sharklasers|10minutemail|tempmail|temp-mail|trashmail|getnada|dispostable|maildrop|mohmal|mailnesia|throwawaymail|fakeinbox|burnermail|duck|mozmail|simplelogin|anonaddy|addy)\.((co|com|net|org|ne|or)\.)?[a-z]+$';
 $$;
 
 -- Le fondateur fait de sa communauté une école (ou change ses domaines).
@@ -7531,8 +7533,10 @@ begin
     raise exception 'DOMAINES_ECOLE';
   end if;
   foreach v_domaine in array v_domaines loop
+    -- Une extension en chiffres est une adresse IP, pas un domaine.
     if char_length(v_domaine) > 100
-       or v_domaine !~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$' then
+       or v_domaine !~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+       or v_domaine ~ '\.[0-9]+$' then
       raise exception 'DOMAINE_INVALIDE';
     end if;
     if public.domaine_grand_public(v_domaine) then
@@ -7788,7 +7792,10 @@ $$;
 revoke all on function public.eligible_tournoi_reserve(uuid, uuid) from public, anon, authenticated;
 
 -- Inscription individuelle (1v1) ; une inscription d'équipe est contrôlée
--- joueur par joueur, à l'alignement.
+-- joueur par joueur, à l'alignement. Revérifié au check-in (contrôle du
+-- 17/10/2026) : un joueur qui a quitté la communauté, ou perdu sa
+-- vérification d'école, depuis son inscription ne confirme plus sa place ;
+-- en 5v5, chacun des alignés.
 create or replace function public.controler_inscription_reservee()
 returns trigger
 language plpgsql
@@ -7798,6 +7805,14 @@ begin
   if new.equipe_nom is null and new.statut in ('inscrit', 'confirme')
      and (tg_op = 'INSERT' or old.statut = 'retire')
      and not coalesce(public.eligible_tournoi_reserve(new.tournament_id, new.profile_id), true) then
+    raise exception 'RESERVE_MEMBRES';
+  end if;
+  if tg_op = 'UPDATE' and old.statut = 'inscrit' and new.statut = 'confirme'
+     and ((new.equipe_nom is null
+           and not coalesce(public.eligible_tournoi_reserve(new.tournament_id, new.profile_id), true))
+          or exists (select 1 from public.alignements a
+                     where a.registration_id = new.id
+                       and not coalesce(public.eligible_tournoi_reserve(new.tournament_id, a.profile_id), true))) then
     raise exception 'RESERVE_MEMBRES';
   end if;
   return new;
@@ -7830,13 +7845,15 @@ create trigger controle_alignement_reserve
   before insert on public.alignements
   for each row execute function public.controler_alignement_reserve();
 
+-- Agent libre : à l'inscription et au check-in.
 create or replace function public.controler_agent_reserve()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 begin
-  if not coalesce(public.eligible_tournoi_reserve(new.tournament_id, new.profile_id), true) then
+  if (tg_op = 'INSERT' or (old.statut = 'inscrit' and new.statut = 'confirme'))
+     and not coalesce(public.eligible_tournoi_reserve(new.tournament_id, new.profile_id), true) then
     raise exception 'RESERVE_MEMBRES';
   end if;
   return new;
@@ -7845,7 +7862,7 @@ $$;
 revoke execute on function public.controler_agent_reserve() from public, anon, authenticated;
 drop trigger if exists controle_agent_reserve on public.agents_libres;
 create trigger controle_agent_reserve
-  before insert on public.agents_libres
+  before insert or update of statut on public.agents_libres
   for each row execute function public.controler_agent_reserve();
 
 -- ---------- Revue de match rédigée automatiquement (2026-10-04, audit N25) ----------
@@ -10451,30 +10468,8 @@ begin
     end if;
   end if;
 
-  if v_joueur = v_r.joueur_a then
-    update public.rencontres_division set dispo_a = now() where id = p_rencontre_id;
-    v_autre_dispo := v_r.dispo_b;
-    v_ma_dispo := v_r.dispo_a;
-  else
-    update public.rencontres_division set dispo_b = now() where id = p_rencontre_id;
-    v_autre_dispo := v_r.dispo_a;
-    v_ma_dispo := v_r.dispo_b;
-  end if;
-  if v_autre_dispo is null or v_autre_dispo < now() - interval '30 minutes' then
-    slug := null;
-    -- Prévenu quand la présence commence, et 3 fois par 24 h au plus.
-    prevenir := (v_ma_dispo is null or v_ma_dispo < now() - interval '30 minutes')
-      and (select count(*) from public.avertissements_division a
-           where a.rencontre_id = p_rencontre_id and a.profile_id = v_joueur
-             and a.envoye_le > now() - interval '24 hours') < 3;
-    if prevenir then
-      insert into public.avertissements_division (rencontre_id, profile_id) values (p_rencontre_id, v_joueur);
-    end if;
-    return next;
-    return;
-  end if;
-
-  -- Les deux sont là : duel ordinaire, mêmes règles que creer_duel.
+  -- Contrôlé dès le premier clic : sinon le premier arrivé attendrait un
+  -- duel qui ne peut pas partir (contrôle du 17/10/2026).
   -- Un match déjà ouvert entre eux (tournoi, défi) se joue d'abord : une
   -- même partie Riot ne sert jamais à deux matchs (contrôle de sécurité du
   -- 17/10/2026 ; voir aussi parties_utilisees). Seulement dans un tournoi
@@ -10503,6 +10498,30 @@ begin
   ) then
     raise exception 'TROP_DE_DEFIS_EN_COURS';
   end if;
+  if v_joueur = v_r.joueur_a then
+    update public.rencontres_division set dispo_a = now() where id = p_rencontre_id;
+    v_autre_dispo := v_r.dispo_b;
+    v_ma_dispo := v_r.dispo_a;
+  else
+    update public.rencontres_division set dispo_b = now() where id = p_rencontre_id;
+    v_autre_dispo := v_r.dispo_a;
+    v_ma_dispo := v_r.dispo_b;
+  end if;
+  if v_autre_dispo is null or v_autre_dispo < now() - interval '30 minutes' then
+    slug := null;
+    -- Prévenu quand la présence commence, et 3 fois par 24 h au plus.
+    prevenir := (v_ma_dispo is null or v_ma_dispo < now() - interval '30 minutes')
+      and (select count(*) from public.avertissements_division a
+           where a.rencontre_id = p_rencontre_id and a.profile_id = v_joueur
+             and a.envoye_le > now() - interval '24 hours') < 3;
+    if prevenir then
+      insert into public.avertissements_division (rencontre_id, profile_id) values (p_rencontre_id, v_joueur);
+    end if;
+    return next;
+    return;
+  end if;
+
+  -- Les deux sont là : duel ordinaire, mêmes règles que creer_duel.
   v_region := public.region_compte_verifie(v_r.joueur_a);
   if v_region is null or public.region_compte_verifie(v_r.joueur_b) is distinct from v_region then
     raise exception 'COMPTE_RIOT_REQUIS';

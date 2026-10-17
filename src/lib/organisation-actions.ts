@@ -55,6 +55,13 @@ export async function confirmerInscription(formData: FormData) {
     );
   }
 
+  // Tournoi réservé aux membres : revérifié au check-in (17/10/2026).
+  if (erreurConfirmation?.message.includes("RESERVE_MEMBRES")) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce joueur (ou un joueur de cette équipe) n'est plus membre de la communauté : sa présence ne peut pas être confirmée.")}`,
+    );
+  }
+
   // Tournoi 5v5 (audit N21) : la base refuse une équipe à moins de cinq.
   if (erreurConfirmation?.message.includes("ALIGNEMENT_INCOMPLET")) {
     redirect(

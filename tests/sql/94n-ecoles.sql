@@ -40,6 +40,11 @@ select refus('Flora indique une messagerie grand public', format($q$select publi
 select refus('Flora indique une messagerie jetable (boîtes lisibles par tous)', format($q$select public.definir_ecole(%L, array['yopmail.com'])$q$, :'ecole'), 'DOMAINE_GRAND_PUBLIC');
 select refus('Flora indique un relais d''alias', format($q$select public.definir_ecole(%L, array['duck.com'])$q$, :'ecole'), 'DOMAINE_GRAND_PUBLIC');
 select refus('Flora indique un domaine invalide', format($q$select public.definir_ecole(%L, array['pas un domaine'])$q$, :'ecole'), 'DOMAINE_INVALIDE');
+select refus('Flora indique une adresse IP', format($q$select public.definir_ecole(%L, array['192.168.0.1'])$q$, :'ecole'), 'DOMAINE_INVALIDE');
+select refus('Flora indique une messagerie à extension double', format($q$select public.definir_ecole(%L, array['yahoo.co.uk'])$q$, :'ecole'), 'DOMAINE_GRAND_PUBLIC');
+select verifie('« mail.ens.fr » et « me.univ.fr » sont des domaines d''établissement, pas des messageries',
+  not public.domaine_grand_public('mail.ens.fr') and not public.domaine_grand_public('me.univ.fr')
+  and public.domaine_grand_public('mail.ru') and public.domaine_grand_public('outlook.com.br'));
 select refus('Flora n''indique aucun domaine', format($q$select public.definir_ecole(%L, array['  '])$q$, :'ecole'), 'DOMAINES_ECOLE');
 select essai('Flora en fait une école : @etu.univ-954.fr et univ-954.fr',
   format($q$select public.definir_ecole(%L, array['@Etu.Univ-954.fr', 'univ-954.fr'])$q$, :'ecole'), 'passe');
@@ -213,6 +218,17 @@ select en_tant_que('00000000-0000-0000-0000-000000000134');
 select refus('Côme, pas membre du club, s''inscrit', $q$select public.s_inscrire_tournoi('9e000000-0000-0000-0000-000000000004')$q$, 'RESERVE_MEMBRES');
 select verifie('Côme rejoint le club', (select public.rejoindre_communaute(:'club')));
 select essai('Côme, membre, s''inscrit', $q$select public.s_inscrire_tournoi('9e000000-0000-0000-0000-000000000004')$q$, 'passe');
+-- Revérifié au check-in (contrôle du 17/10/2026) : parti du club depuis
+-- son inscription, il ne confirme plus sa place ; revenu, il la confirme.
+select verifie('Côme quitte le club', (select public.quitter_communaute(:'club') is not false));
+reset role;
+update tournaments set checkin_ouvre_le = now() - interval '1 minute' where id = '9e000000-0000-0000-0000-000000000004';
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-000000000134');
+select refus('Côme, sorti du club, confirme sa présence', $q$select public.confirmer_presence('9e000000-0000-0000-0000-000000000004')$q$, 'RESERVE_MEMBRES');
+select verifie('Côme revient au club', (select public.rejoindre_communaute(:'club')));
+select verifie('Côme, de nouveau membre, confirme sa présence',
+  (select public.confirmer_presence('9e000000-0000-0000-0000-000000000004')));
 reset role;
 
 -- Classement inter-écoles : moyenne des 5 meilleurs ratings des étudiants

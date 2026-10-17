@@ -74,6 +74,7 @@ export default function ReglagesAnalyse({
               {rang && <p className="text-sm text-muted">Rang Riot (classée) : {rang}.</p>}
               <form action={reglerAnalyse}>
                 {champs(false, etat.bilanHebdo)}
+                <input type="hidden" name="arret" value="oui" />
                 <BoutonConfirmation
                   type="submit"
                   className={classeBoutonContour()}

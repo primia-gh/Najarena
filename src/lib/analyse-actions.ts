@@ -41,6 +41,10 @@ export async function reglerAnalyse(formData: FormData) {
       "classees",
     );
   }
-  if (!classees && etaitActive) versBilan("message", "Analyse arrêtée : tes parties classées et ton rang ont été effacés.", format);
+  // Le bouton d'arrêt le dit même sur un second clic (l'accord était déjà
+  // retiré par le premier).
+  if (!classees && (etaitActive || formData.get("arret") === "oui")) {
+    versBilan("message", "Analyse arrêtée : tes parties classées et ton rang ont été effacés.", format);
+  }
   versBilan("message", bilanHebdo ? "Bilan de la semaine activé : il arrive chaque lundi sur Discord." : "Réglages enregistrés.", format);
 }
