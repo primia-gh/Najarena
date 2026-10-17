@@ -37,6 +37,8 @@ select en_tant_que('00000000-0000-0000-0000-000000000132');
 select verifie('Basile rejoint la communauté', (select public.rejoindre_communaute(:'ecole')));
 select en_tant_que('00000000-0000-0000-0000-000000000130');
 select refus('Flora indique une messagerie grand public', format($q$select public.definir_ecole(%L, array['gmail.com'])$q$, :'ecole'), 'DOMAINE_GRAND_PUBLIC');
+select refus('Flora indique une messagerie jetable (boîtes lisibles par tous)', format($q$select public.definir_ecole(%L, array['yopmail.com'])$q$, :'ecole'), 'DOMAINE_GRAND_PUBLIC');
+select refus('Flora indique un relais d''alias', format($q$select public.definir_ecole(%L, array['duck.com'])$q$, :'ecole'), 'DOMAINE_GRAND_PUBLIC');
 select refus('Flora indique un domaine invalide', format($q$select public.definir_ecole(%L, array['pas un domaine'])$q$, :'ecole'), 'DOMAINE_INVALIDE');
 select refus('Flora n''indique aucun domaine', format($q$select public.definir_ecole(%L, array['  '])$q$, :'ecole'), 'DOMAINES_ECOLE');
 select essai('Flora en fait une école : @etu.univ-954.fr et univ-954.fr',
@@ -86,6 +88,8 @@ select verifie('Alix vérifiée, demande en attente effacée',
 
 set role service_role;
 select refus('Serveur : Basile reprend l''adresse d''Alix', format($q$select public.preparer_verification_ecole('00000000-0000-0000-0000-000000000132', %L, 'alix.dupont@etu.univ-954.fr', '111111')$q$, :'ecole'), 'EMAIL_DEJA_UTILISE');
+select refus('Serveur : Basile reprend la boîte d''Alix par un alias « + »', format($q$select public.preparer_verification_ecole('00000000-0000-0000-0000-000000000132', %L, 'alix.dupont+2@etu.univ-954.fr', '111111')$q$, :'ecole'), 'EMAIL_DEJA_UTILISE');
+select refus('Serveur : adresse faite d''un alias seul', format($q$select public.preparer_verification_ecole('00000000-0000-0000-0000-000000000132', %L, '+basile@univ-954.fr', '111111')$q$, :'ecole'), 'EMAIL_INVALIDE');
 select essai('Serveur : 1er code pour Basile', format($q$select public.preparer_verification_ecole('00000000-0000-0000-0000-000000000132', %L, 'basile@univ-954.fr', '111111')$q$, :'ecole'), 'passe');
 select essai('Serveur : 2e code pour Basile', format($q$select public.preparer_verification_ecole('00000000-0000-0000-0000-000000000132', %L, 'basile@univ-954.fr', '222222')$q$, :'ecole'), 'passe');
 select essai('Serveur : 3e code pour Basile', format($q$select public.preparer_verification_ecole('00000000-0000-0000-0000-000000000132', %L, 'basile@univ-954.fr', '333333')$q$, :'ecole'), 'passe');

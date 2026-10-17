@@ -7498,14 +7498,16 @@ create index if not exists verifications_ecole_profile_idx on public.verificatio
 alter table public.verifications_ecole enable row level security;
 revoke all on public.verifications_ecole from anon, authenticated;
 
--- Messageries grand public : n'importe qui y ouvre une adresse.
+-- Messageries grand public : n'importe qui y ouvre une adresse. Aussi les
+-- messageries jetables (boîtes lisibles par tous) et les relais d'alias
+-- (adresses à volonté) — contrôle de sécurité du 17/10/2026.
 create or replace function public.domaine_grand_public(p_domaine text)
 returns boolean
 language sql
 immutable
 set search_path = public
 as $$
-  select p_domaine ~ '^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|icloud|me|mac|aol|gmx|proton|protonmail|pm|laposte|orange|wanadoo|free|sfr|neuf|bbox|numericable|yandex|mail|zoho|tutanota|tuta|hey|fastmail|mailo|caramail|aliceadsl|club-internet)\.[a-z.]+$';
+  select p_domaine ~ '^(gmail|googlemail|outlook|hotmail|live|msn|yahoo|ymail|rocketmail|icloud|me|mac|aol|gmx|web|t-online|posteo|proton|protonmail|pm|laposte|orange|wanadoo|free|sfr|neuf|bbox|numericable|yandex|mail|inbox|rambler|seznam|libero|virgilio|tiscali|qq|163|126|sina|zoho|tutanota|tuta|hey|fastmail|mailo|caramail|aliceadsl|club-internet|yopmail|jetable|mailinator|guerrillamail|sharklasers|10minutemail|tempmail|temp-mail|trashmail|getnada|dispostable|maildrop|mohmal|mailnesia|throwawaymail|fakeinbox|burnermail|duck|mozmail|simplelogin|anonaddy|addy)\.[a-z.]+$';
 $$;
 
 -- Le fondateur fait de sa communauté une école (ou change ses domaines).
@@ -7597,7 +7599,16 @@ begin
   if coalesce(p_code, '') !~ '^[0-9]{6}$' then
     raise exception 'CODE_INVALIDE';
   end if;
-  v_empreinte := encode(sha256(convert_to(p_communaute_id::text || ':' || v_email, 'UTF8')), 'hex');
+  -- Empreinte de la boîte, pas de l'adresse tapée : « prenom.nom+2@… »
+  -- arrive dans la boîte de « prenom.nom@… ». Sans cela, une seule boîte
+  -- vérifiait autant de comptes que d'alias (contrôle de sécurité du
+  -- 17/10/2026).
+  if regexp_replace(split_part(v_email, '@', 1), '\+.*$', '') = '' then
+    raise exception 'EMAIL_INVALIDE';
+  end if;
+  v_empreinte := encode(sha256(convert_to(
+    p_communaute_id::text || ':' || regexp_replace(split_part(v_email, '@', 1), '\+.*$', '') || '@' || v_domaine,
+    'UTF8')), 'hex');
   if exists (select 1 from public.membres_communaute
              where communaute_id = p_communaute_id and email_empreinte = v_empreinte and profile_id <> p_profile_id) then
     raise exception 'EMAIL_DEJA_UTILISE';
