@@ -679,12 +679,20 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                     </BoutonEnvoi>
                   </form>
                 )}
+                {/* Action principale : en tête sur téléphone (sinon sous quatre
+                    boutons), à sa place en bout de rangée sur ordinateur. */}
                 {!compteRiot?.verifie_le ? (
-                  <BoutonLien href="/lier-riot">Lier mon Riot ID</BoutonLien>
+                  <BoutonLien href="/lier-riot" className="max-lg:order-first">
+                    Lier mon Riot ID
+                  </BoutonLien>
                 ) : peutPersonnaliser ? (
-                  <BoutonLien href="#personnaliser">Modifier le profil</BoutonLien>
+                  <BoutonLien href="#personnaliser" className="max-lg:order-first">
+                    Modifier le profil
+                  </BoutonLien>
                 ) : (
-                  <BoutonLien href="/moi">Mon espace</BoutonLien>
+                  <BoutonLien href="/moi" className="max-lg:order-first">
+                    Mon espace
+                  </BoutonLien>
                 )}
               </>
             ) : (
