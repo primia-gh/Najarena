@@ -44,7 +44,11 @@ export async function reglerAnalyse(formData: FormData) {
   // Le bouton d'arrêt le dit même sur un second clic (l'accord était déjà
   // retiré par le premier).
   if (!classees && (etaitActive || formData.get("arret") === "oui")) {
-    versBilan("message", "Analyse arrêtée : tes parties classées et ton rang ont été effacés.", format);
+    versBilan(
+      "message",
+      `Analyse arrêtée : tes parties classées et ton rang Riot ont été effacés.${bilanHebdo ? " Ton bilan de la semaine reste activé." : ""}`,
+      format,
+    );
   }
   versBilan("message", bilanHebdo ? "Bilan de la semaine activé : il arrive chaque lundi sur Discord." : "Réglages enregistrés.", format);
 }

@@ -98,7 +98,7 @@ const REFUS_CHECKIN: Record<string, string> = {
   ALIGNEMENT_INCOMPLET:
     "Ton alignement n'a plus cinq joueurs : complète-le sur le site avant de confirmer la présence de l'équipe.",
   RESERVE_MEMBRES:
-    "Ce tournoi est réservé aux membres de sa communauté : toi ou un joueur de ton alignement n'en fait plus partie.",
+    "Ce tournoi est réservé aux membres de sa communauté (aux membres vérifiés, pour une école) : au moins un des joueurs inscrits, toi compris, ne remplit plus cette condition. Règle-le depuis le site, puis confirme à nouveau.",
 };
 
 const REFUS_PRET: Record<string, string> = {

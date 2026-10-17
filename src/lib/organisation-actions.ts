@@ -58,7 +58,7 @@ export async function confirmerInscription(formData: FormData) {
   // Tournoi réservé aux membres : revérifié au check-in (17/10/2026).
   if (erreurConfirmation?.message.includes("RESERVE_MEMBRES")) {
     redirect(
-      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce joueur (ou un joueur de cette équipe) n'est plus membre de la communauté : sa présence ne peut pas être confirmée.")}`,
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce joueur (ou un joueur de cette équipe) n'est plus membre de la communauté, ou n'a plus son adresse d'école vérifiée : sa présence ne peut pas être confirmée.")}`,
     );
   }
 
