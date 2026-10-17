@@ -155,18 +155,27 @@ select refus('Tournoi annulé ignoré, mais joueur 0 a déjà 3 défis en cours'
   $q$select public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))$q$,
   'TROP_DE_DEFIS_EN_COURS');
 -- Défis terminés ; le tournoi reprend avec un litige de 26 h, que la
--- recherche des résultats ne suit plus : il ne bloque pas.
+-- recherche des résultats ne suit plus : il ne bloque pas. Un match 5v5
+-- (scrim) en cours entre eux non plus : une partie 5v5 ne tranche jamais
+-- un duel.
 reset role;
 update tournaments set statut = 'termine' where slug like 'defi-94zc-%';
 update tournaments set statut = 'en_cours' where id = '10000000-0000-0000-0000-00000000094c';
 update matches set statut = 'litige', demarre_le = now() - interval '26 hours' where id = '50000000-0000-0000-0000-00000000094c';
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut)
+values ('10000000-0000-0000-0000-00000000095c', 1, '00000000-0000-0000-0000-00000000000d', 'scrim-94zc', 'Scrim croisé', '5v5', 2, 'EUW', now() + interval '3 days', now(), 'en_cours');
+insert into matches (id, tournament_id, tour, position, statut, demarre_le)
+values ('50000000-0000-0000-0000-00000000095c', '10000000-0000-0000-0000-00000000095c', 1, 1, 'en_cours', now() + interval '3 days');
+insert into match_participants (match_id, profile_id, slot) values
+  ('50000000-0000-0000-0000-00000000095c', '00000000-0000-0000-0000-0000000003f0', 1),
+  ('50000000-0000-0000-0000-00000000095c', '00000000-0000-0000-0000-0000000003f2', 2);
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003f2');
 select verifie('Joueur 2 est là aussi : le duel est lancé',
   (select slug like 'division-%' from public.je_suis_la_division((select r.id from rencontres_division r join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1))));
 reset role;
-update matches set statut = 'termine' where id = '50000000-0000-0000-0000-00000000094c';
-update tournaments set statut = 'termine' where id = '10000000-0000-0000-0000-00000000094c';
+update matches set statut = 'termine' where id in ('50000000-0000-0000-0000-00000000094c', '50000000-0000-0000-0000-00000000095c');
+update tournaments set statut = 'termine' where id in ('10000000-0000-0000-0000-00000000094c', '10000000-0000-0000-0000-00000000095c');
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000003f2');
 select refus('Joueur 2 relance la même rencontre',

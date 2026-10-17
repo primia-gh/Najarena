@@ -10478,7 +10478,8 @@ begin
   -- Un match déjà ouvert entre eux (tournoi, défi) se joue d'abord : une
   -- même partie Riot ne sert jamais à deux matchs (contrôle de sécurité du
   -- 17/10/2026 ; voir aussi parties_utilisees). Seulement dans un tournoi
-  -- en cours (un tournoi annulé laisse ses matchs tels quels), et un litige
+  -- 1v1 en cours (un tournoi annulé laisse ses matchs tels quels ; une
+  -- partie 5v5, un scrim, ne tranche jamais un duel), et un litige
   -- seulement tant que la recherche des résultats le suit encore (25 h,
   -- RECHERCHE_APRES_LITIGE_HEURES + 1) : un vieux litige ne bloque pas la
   -- division.
@@ -10486,7 +10487,7 @@ begin
     select 1 from public.match_participants pa
     join public.match_participants pb on pb.match_id = pa.match_id and pb.profile_id = v_r.joueur_b
     join public.matches m on m.id = pa.match_id
-    join public.tournaments t on t.id = m.tournament_id and t.statut = 'en_cours'
+    join public.tournaments t on t.id = m.tournament_id and t.statut = 'en_cours' and t.format = '1v1'
     where pa.profile_id = v_r.joueur_a
       and (m.statut in ('en_attente', 'en_cours')
            or (m.statut = 'litige' and m.demarre_le > now() - interval '25 hours'))

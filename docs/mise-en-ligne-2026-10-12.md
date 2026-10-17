@@ -171,7 +171,10 @@ select p.pseudo from public.profiles p where public.est_coach_eligible(p.id);
 
 -- c) Parties retenues pendant la migration et pas encore recopiées dans
 --    parties_utilisees (doit renvoyer 0 ; sinon relancer le dernier bloc
---    de la section 57, « Recopie des parties déjà retenues »).
+--    de la section 57, « Recopie des parties déjà retenues »). Relancer
+--    aussi la requête c) du § 1 : elle doit renvoyer la même liste
+--    qu'avant la migration (une ligne de plus = une partie prise deux fois
+--    pendant la migration, à me transmettre).
 select count(*) from public.match_verdicts v
 cross join lateral unnest(string_to_array(v.riot_match_id, ',')) as p(id)
 where v.riot_match_id is not null and btrim(p.id) <> ''

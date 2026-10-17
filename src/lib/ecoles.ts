@@ -13,9 +13,7 @@ export const CODES_ECOLE_PAR_HEURE = 3;
 
 export type TypeCommunaute = "communaute" | "ecole";
 
-export function typeCommunaute(
-  type: string | null | undefined,
-): TypeCommunaute {
+export function typeCommunaute(type: string | null | undefined): TypeCommunaute {
   return type === "ecole" ? "ecole" : "communaute";
 }
 
@@ -43,11 +41,7 @@ export function libelleDomaines(domaines: string[]): string {
  */
 export function adresseAcceptee(email: string, domaines: string[]): boolean {
   const adresse = email.trim().toLowerCase();
-  if (
-    adresse.length > 200 ||
-    !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(adresse)
-  )
-    return false;
+  if (adresse.length > 200 || !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(adresse)) return false;
   const domaine = adresse.split("@")[1];
   return domaines.some((d) => domaine === d || domaine.endsWith(`.${d}`));
 }
@@ -78,10 +72,7 @@ export function classementEcoles(
     moyenne_top5: number | string | null;
     domaines?: string[];
   }[],
-): {
-  classees: (EcoleClassee & { rang: number })[];
-  enConstitution: EcoleClassee[];
-} {
+): { classees: (EcoleClassee & { rang: number })[]; enConstitution: EcoleClassee[] } {
   const ecoles = lignes.map((l) => ({
     domaines: l.domaines ?? [],
     slug: l.slug,
@@ -92,20 +83,16 @@ export function classementEcoles(
     moyenne: l.moyenne_top5 === null ? null : Number(l.moyenne_top5),
   }));
   return {
-    classees: ecoles
-      .filter((e) => e.moyenne !== null)
-      .map((e, i) => ({ ...e, rang: i + 1 })),
+    classees: ecoles.filter((e) => e.moyenne !== null).map((e, i) => ({ ...e, rang: i + 1 })),
     enConstitution: ecoles.filter((e) => e.moyenne === null),
   };
 }
 
 const MESSAGES_REFUS: Record<string, string> = {
   NON_CONNECTE: "Connecte-toi d'abord.",
-  GESTION_RESERVEE:
-    "Seul le fondateur de la communauté indique les adresses de l'établissement.",
+  GESTION_RESERVEE: "Seul le fondateur de la communauté indique les adresses de l'établissement.",
   DOMAINES_ECOLE: `Indique de 1 à ${DOMAINES_ECOLE_MAX} noms de domaine.`,
-  DOMAINE_INVALIDE:
-    "Un des domaines n'est pas valide (exemple attendu : etu.univ-exemple.fr).",
+  DOMAINE_INVALIDE: "Un des domaines n'est pas valide (exemple attendu : etu.univ-exemple.fr).",
   DOMAINE_GRAND_PUBLIC:
     "Une messagerie grand public (Gmail, Outlook, Orange…) ne prouve rien : indique le domaine des adresses de l'établissement.",
   NOM_INTERDIT: "Un des domaines n'est pas accepté (propos interdits).",
@@ -113,8 +100,7 @@ const MESSAGES_REFUS: Record<string, string> = {
   NON_MEMBRE: "Rejoins d'abord la communauté.",
   COMPTE_SUSPENDU: "Ton compte est suspendu.",
   EMAIL_INVALIDE: "Cette adresse e-mail n'est pas valide.",
-  DOMAINE_NON_ACCEPTE:
-    "Ce n'est pas une adresse de l'établissement : regarde les adresses acceptées.",
+  DOMAINE_NON_ACCEPTE: "Ce n'est pas une adresse de l'établissement : regarde les adresses acceptées.",
   EMAIL_DEJA_UTILISE: "Cette adresse a déjà servi à vérifier un autre compte.",
   TROP_DE_CODES: `Trop de codes demandés : ${CODES_ECOLE_PAR_HEURE} par heure au plus. Réessaie plus tard.`,
   AUCUNE_VERIFICATION: "Aucun code en attente : demande d'abord un code.",
@@ -128,10 +114,7 @@ export function messageRefusEcole(erreur: string, parDefaut: string): string {
 }
 
 /** À qui un tournoi réservé est ouvert : « membres de X » ou « membres vérifiés de X ». */
-export function publicReserve(communaute: {
-  nom: string;
-  type: string | null;
-}): string {
+export function publicReserve(communaute: { nom: string; type: string | null }): string {
   return typeCommunaute(communaute.type) === "ecole"
     ? `membres vérifiés de ${communaute.nom} (adresse de l'établissement)`
     : `membres de ${communaute.nom}`;
