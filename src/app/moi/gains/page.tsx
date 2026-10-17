@@ -23,8 +23,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// 16 px sur téléphone (sinon iOS zoome au toucher), largeur du contenu.
-const CHAMP = `${classeChamp()} w-auto`;
+// 16 px sur téléphone (sinon iOS zoome au toucher).
+const CHAMP = classeChamp();
 
 interface GainsPageProps {
   searchParams: Promise<{ erreur?: string; message?: string }>;

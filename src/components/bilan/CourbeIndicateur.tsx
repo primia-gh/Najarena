@@ -43,6 +43,9 @@ export default function CourbeIndicateur({ serie }: { serie: SerieProgression })
   const x = (i: number) => MARGE_X + (points.length === 1 ? largeurUtile : (i / (points.length - 1)) * largeurUtile);
   const y = (v: number) => MARGE_Y + (1 - (v - bas) / (haut - bas)) * (HAUTEUR - 2 * MARGE_Y);
   const enPourcent = (v: number) => `${((y(v) / HAUTEUR) * 100).toFixed(2)}%`;
+  const zeroVisible = Boolean(def.signe) && bas < 0 && haut > 0;
+  // Libellé « 0 » seulement loin des bornes (sinon il les chevauche).
+  const zeroLibelle = zeroVisible && Math.min(y(0) - y(haut), y(bas) - y(0)) > HAUTEUR * 0.12;
   const fmt = (v: number) => formaterIndicateur(serie.indicateur, v);
   const moyennes = points.flatMap((p, i) => (p.moyenne === null ? [] : [{ i, v: p.moyenne }]));
   const trace = moyennes.map(({ i, v }) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
@@ -62,6 +65,10 @@ export default function CourbeIndicateur({ serie }: { serie: SerieProgression })
           {/* Bas et haut de l'échelle : traits fins, en retrait. */}
           <line x1={0} x2={LARGEUR} y1={y(bas)} y2={y(bas)} className="stroke-line-strong" strokeWidth="1" />
           <line x1={0} x2={LARGEUR} y1={y(haut)} y2={y(haut)} className="stroke-line" strokeWidth="1" />
+          {/* Indicateur signé (écart d'or) : le zéro sépare avance et retard. */}
+          {zeroVisible && (
+            <line x1={0} x2={LARGEUR} y1={y(0)} y2={y(0)} className="stroke-line-strong" strokeWidth="1" />
+          )}
           {serie.repere !== null && (
             <line
               x1={0}
@@ -105,7 +112,7 @@ export default function CourbeIndicateur({ serie }: { serie: SerieProgression })
           ))}
         </svg>
         <div aria-hidden="true">
-          {[bas, haut].map((v, n) => (
+          {(zeroLibelle ? [bas, 0, haut] : [bas, haut]).map((v, n) => (
             <span
               key={n}
               className={`${LIBELLE} -left-10 w-8 -translate-y-1/2 text-right text-faint`}

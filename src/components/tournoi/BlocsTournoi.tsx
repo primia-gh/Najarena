@@ -141,7 +141,7 @@ export function LegendeBracket({
     portee === "equipe"
       ? "Vérifié — lu chez Riot, compte au palmarès de l'équipe"
       : portee === "aucune"
-        ? "Vérifié — lu chez Riot (ce tournoi ne compte pas au classement)"
+        ? "Vérifié — lu chez Riot (aucun point de classement en jeu ici)"
         : "Vérifié — compte pour le classement";
   return (
     <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted">

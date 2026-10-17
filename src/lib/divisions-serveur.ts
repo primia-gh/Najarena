@@ -9,6 +9,7 @@ import { creerClientAdmin } from "@/lib/supabase/admin";
 import { envoyerRappel, URL_SITE } from "@/lib/notifications";
 import {
   classementPoule,
+  DELAI_PRESENCE_MINUTES,
   LIBELLE_MOUVEMENT,
   echangeEntre,
   mouvementDe,
@@ -85,7 +86,7 @@ async function formerPoules(admin: ClientAdmin, maintenant: Date): Promise<strin
           envoyerRappel(
             id,
             "Ta poule de division est prête",
-            `Poule ${i + 1}, ${poule.length - 1} adversaires : un match par semaine contre chacun. Mettez-vous d'accord sur l'heure, puis cliquez tous les deux « Je suis là ».`,
+            `Poule ${i + 1}, ${poule.length - 1} adversaires : un match par semaine contre chacun. Accorde-toi avec chacun sur l'heure, puis clique « Je suis là » à moins de ${DELAI_PRESENCE_MINUTES} minutes de son clic.`,
             lien,
           ),
         ),
@@ -133,7 +134,7 @@ async function annoncerSemaine(admin: ClientAdmin, maintenant: Date): Promise<st
             moi,
             semaine <= 3 ? `Division, semaine ${semaine}` : "Division : semaine de rattrapage",
             semaine <= 3
-              ? `Ton match de la semaine : contre ${noms.get(adversaire) ?? "ton adversaire"}. Mettez-vous d'accord sur l'heure, puis cliquez tous les deux « Je suis là ».`
+              ? `Ton match de la semaine : contre ${noms.get(adversaire) ?? "ton adversaire"}. Accorde-toi avec ton adversaire sur l'heure, puis clique « Je suis là » à moins de ${DELAI_PRESENCE_MINUTES} minutes de son clic.`
               : `Ton match contre ${noms.get(adversaire) ?? "ton adversaire"} n'est pas encore joué : dernière semaine pour le jouer.`,
             lien,
           ),

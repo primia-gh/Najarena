@@ -63,9 +63,9 @@ export default async function EcolesPage() {
             </Link>
           </div>
           <p className="mt-3 max-w-2xl text-xs text-muted">
-            Une association étudiante crée la communauté de son école (offre Organisateur), puis indique le domaine
-            des adresses de l&apos;établissement ; ses membres vérifient la leur depuis la page de l&apos;école. Ce
-            domaine est affiché sous chaque école : c&apos;est lui qui dit quel établissement elle représente.
+            Une association étudiante crée la communauté de son école (offre Organisateur), puis indique le ou les
+            domaines des adresses de l&apos;établissement ; ses membres vérifient la leur depuis la page de l&apos;école.
+            Ces domaines sont affichés sous chaque école : ce sont eux qui disent quel établissement elle représente.
           </p>
         </Apparition>
 
@@ -93,7 +93,7 @@ export default async function EcolesPage() {
                 {classees.map((e) => (
                   <tr key={e.slug}>
                     <td className="tabular-nums">#{e.rang}</td>
-                    <td>
+                    <td className="min-w-48">
                       <Link
                         href={`/communaute/${e.slug}`}
                         className="border-l-4 pl-2 hover:text-accent"
@@ -102,8 +102,10 @@ export default async function EcolesPage() {
                         {e.nom}
                       </Link>
                       {e.domaines.length > 0 && (
-                        <span className="mt-1 block pl-3 text-xs break-all text-muted">
-                          {libelleDomaines(e.domaines)}
+                        <span className="mt-1 flex flex-col pl-3 text-xs break-all text-muted">
+                          {e.domaines.map((d) => (
+                            <span key={d}>@{d}</span>
+                          ))}
                         </span>
                       )}
                     </td>

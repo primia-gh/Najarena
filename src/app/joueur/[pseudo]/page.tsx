@@ -1210,7 +1210,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                       <span className="w-px flex-1 bg-[rgba(245,245,244,0.1)]" />
                     </span>
                     <span className="flex flex-col gap-1 pb-1">
-                      <span className="text-[11px] tracking-[2px] text-faint uppercase">{p.quand}</span>
+                      <span className="text-mini tracking-[2px] text-faint uppercase">{p.quand}</span>
                       <span className="text-[15px] font-semibold">
                         {p.lien ? (
                           <Link
@@ -1264,7 +1264,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 <dl className="flex flex-col gap-3">
                   {complements.fiabilite.map((ligne) => (
                     <div key={ligne.libelle} className="flex flex-col gap-0.5">
-                      <dt className="text-[11px] tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
+                      <dt className="text-mini tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
                       <dd className="text-sm text-text tabular-nums">{ligne.valeur}</dd>
                     </div>
                   ))}
@@ -1283,7 +1283,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 <dl className="flex flex-col gap-3">
                   {complements.ficheOrganisateur.map((ligne) => (
                     <div key={ligne.libelle} className="flex flex-col gap-0.5">
-                      <dt className="text-[11px] tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
+                      <dt className="text-mini tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
                       <dd className="text-sm text-text tabular-nums">{ligne.valeur}</dd>
                     </div>
                   ))}

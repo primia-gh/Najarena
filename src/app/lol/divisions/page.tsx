@@ -236,8 +236,8 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
               <span className="font-texte text-mini font-medium text-muted uppercase">Matchs</span>
               <span className="text-sm text-text-2">
                 Poules de 4 (ou 3)&nbsp;: un adversaire par semaine, la 4ᵉ semaine pour rattraper. Accorde-toi avec ton
-                adversaire sur l&apos;heure, puis cliquez chacun «&nbsp;Je suis là&nbsp;» à moins de{" "}
-                {DELAI_PRESENCE_MINUTES}&nbsp;minutes d&apos;écart&nbsp;: le duel se lance, lu chez Riot, classé comme un
+                adversaire sur l&apos;heure, puis clique «&nbsp;Je suis là&nbsp;» à moins de{" "}
+                {DELAI_PRESENCE_MINUTES}&nbsp;minutes de son clic&nbsp;: le duel se lance, lu chez Riot, classé comme un
                 défi.
               </span>
             </li>

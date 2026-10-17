@@ -32,7 +32,7 @@ export default function LigneTournoiCompacte({ href, nom, debuteLe, details, sta
     >
       <time dateTime={debuteLe} className="flex flex-col items-center rounded-carte border border-line-strong py-1.5 leading-none">
         <span className="font-titre text-xl font-black tabular-nums">{d.jour}</span>
-        <span className="mt-1 font-texte text-[9px] font-medium tracking-[2px] text-muted uppercase">{d.mois.replace(".", "")}</span>
+        <span className="mt-1 font-texte text-mini font-medium tracking-[2px] text-muted uppercase">{d.mois.replace(".", "")}</span>
       </time>
       <span className="flex min-w-0 flex-col gap-1">
         <span className="truncate font-titre text-xl leading-none font-black uppercase group-hover:text-accent">{nom}</span>

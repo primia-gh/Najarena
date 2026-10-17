@@ -898,9 +898,10 @@ export function MethodeBilan() {
         <li>
           Repère : la moyenne des vainqueurs des parties vérifiées des autres joueurs, dans le même format (et au même
           poste en 5v5), dès {PARTIES_MIN_REPERE} parties. Un indicateur qui ne sépare pas vainqueurs et perdants
-          n&apos;est jamais donné comme force ou comme axe. Le KDA et l&apos;or gagné par minute, qui suivent surtout
-          l&apos;issue de la partie, sont montrés mais jamais donnés comme conseil&nbsp;; l&apos;écart d&apos;or à
-          15&nbsp;minutes, lui, se travaille en début de partie.
+          n&apos;est jamais donné comme force ou comme axe. Le KDA et l&apos;or gagné par minute suivent surtout
+          l&apos;issue de la partie&nbsp;: le KDA est montré, l&apos;or par minute n&apos;est pas affiché, et aucun des
+          deux n&apos;est donné comme conseil&nbsp;; l&apos;écart d&apos;or à 15&nbsp;minutes, lui, se travaille en
+          début de partie.
         </li>
         <li>
           Un constat est « indicatif » sous {PARTIES_FIABLE} parties. Il faut {PARTIES_MIN_BILAN} parties vérifiées
