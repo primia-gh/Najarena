@@ -668,9 +668,11 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
             className={`flex flex-wrap items-start gap-3.5 lg:ml-auto lg:justify-end lg:max-xl:gap-2.5 lg:max-xl:[&_a]:px-5 lg:max-xl:[&_button]:px-5 ${
               // Téléphone : boutons secondaires du propriétaire deux par deux,
               // libellés courts ; le rating remonte dans le premier écran
-              // (relecture design du 17/10/2026).
+              // (relecture design du 17/10/2026). Le dernier enfant est la
+              // copie masquée de l'action principale : un dernier bouton
+              // seul sur sa rangée prend les deux colonnes.
               estProprietaire
-                ? "max-sm:grid max-sm:grid-cols-2 max-sm:gap-2.5 max-sm:[&_a]:w-full max-sm:[&_a]:px-3 max-sm:[&_button]:w-full max-sm:[&_button]:px-3"
+                ? "max-sm:grid max-sm:grid-cols-2 max-sm:gap-2.5 max-sm:[&_a]:w-full max-sm:[&_a]:px-3 max-sm:[&_button]:w-full max-sm:[&_button]:px-3 max-sm:[&>:nth-last-child(2):nth-child(even)]:col-span-2"
                 : ""
             }`}
           >
@@ -689,7 +691,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                       Partager<span className="max-sm:sr-only"> mon CV</span>
                     </span>
                   }
-                  className={classeBoutonContour()}
+                  className={`${classeBoutonContour()} sm:min-w-[12.5rem]`}
                 />
                 {peutRevue && (
                   <BoutonLien href={`/joueur/${profil.slug}/cv`} variante="contour">
