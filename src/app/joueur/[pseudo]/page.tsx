@@ -391,6 +391,22 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
   const peutPersonnaliser = ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie;
   // Lien choisi par le joueur : adresse web seulement, sans message d'adresse.
   const lienExterne = lienExterneSur(infoOffre.lien_externe);
+
+  // Action principale du propriétaire sur son CV.
+  const actionPrincipale = (className: string) =>
+    !compteRiot?.verifie_le ? (
+      <BoutonLien href="/lier-riot" className={className}>
+        Lier mon Riot ID
+      </BoutonLien>
+    ) : peutPersonnaliser ? (
+      <BoutonLien href="#personnaliser" className={className}>
+        Modifier le profil
+      </BoutonLien>
+    ) : (
+      <BoutonLien href="/moi" className={className}>
+        Mon espace
+      </BoutonLien>
+    );
   const visiteurEstOrganisateur = offreVisiteur === "organisateur";
   const pct = rating ? calibrationPct(rating.rd) : 0;
   const matchsCalibres = historique.length;
@@ -648,9 +664,14 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
             )}
           </div>
 
-          <div className="flex flex-wrap items-start gap-3.5 lg:ml-auto lg:justify-end lg:max-xl:gap-2.5">
+          <div className="flex flex-wrap items-start gap-3.5 lg:ml-auto lg:justify-end lg:max-xl:gap-2.5 lg:max-xl:[&_a]:px-5 lg:max-xl:[&_button]:px-5">
             {estProprietaire ? (
               <>
+                {/* Action principale : en tête sur téléphone (sinon sous quatre
+                    boutons), en bout de rangée sur ordinateur. Deux copies, une
+                    seule affichée : l'ordre au clavier suit l'ordre à l'écran
+                    (relecture design du 17/10/2026, WCAG 2.4.3). */}
+                {actionPrincipale("lg:hidden")}
                 <BoutonPartager
                   chemin={`/joueur/${profil.slug}`}
                   titre={`${profil.pseudo} — CV e-sport Najarena`}
@@ -679,21 +700,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                     </BoutonEnvoi>
                   </form>
                 )}
-                {/* Action principale : en tête sur téléphone (sinon sous quatre
-                    boutons), à sa place en bout de rangée sur ordinateur. */}
-                {!compteRiot?.verifie_le ? (
-                  <BoutonLien href="/lier-riot" className="max-lg:order-first">
-                    Lier mon Riot ID
-                  </BoutonLien>
-                ) : peutPersonnaliser ? (
-                  <BoutonLien href="#personnaliser" className="max-lg:order-first">
-                    Modifier le profil
-                  </BoutonLien>
-                ) : (
-                  <BoutonLien href="/moi" className="max-lg:order-first">
-                    Mon espace
-                  </BoutonLien>
-                )}
+                {actionPrincipale("max-lg:hidden")}
               </>
             ) : (
               <>
@@ -1067,13 +1074,16 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 <p className="text-sm text-muted">
                   Chaque variation de points est enregistrée avec le rating avant et après&nbsp;: publique, et jamais
                   modifiée — chaque ligne est scellée dans le{" "}
-                  <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
+                  <Link
+                    href="/registre"
+                    className="text-text underline underline-offset-3 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
                     registre des points
                   </Link>
                   , vérifiable par tous. Chaque ligne peut aussi être{" "}
                   <Link
                     href={`/joueur/${profil.slug}/recalcul`}
-                    className="text-text underline underline-offset-3 hover:text-accent"
+                    className="text-text underline underline-offset-3 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     recalculée dans ton navigateur
                   </Link>
