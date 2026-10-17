@@ -20,6 +20,10 @@
 > adresse d'école part par e-mail : `RESEND_API_KEY` et
 > `RESEND_FROM_EMAIL` (domaine vérifié chez Resend) doivent être définies
 > sur Vercel.
+>
+> **Suite (17/10/2026)** : les sections 37 à 56 (04 au 12/10/2026) ont
+> leur propre guide, `docs/mise-en-ligne-2026-10-12.md`, essayé sur le
+> schéma de `master` : c'est lui qu'il faut suivre.
 
 Branche : `claude/nice-faraday-nsoe9q`. Ce document dit **dans quel ordre**
 mettre en ligne ces changements. L'ordre compte : le code s'appuie sur des
