@@ -13,8 +13,10 @@ import {
   retirerEcheance,
   suspendreCompte,
   traiterSignalement,
+  validerEcole,
   verserParStripe,
 } from "@/lib/admin-actions";
+import { libelleDomaines } from "@/lib/ecoles";
 import { LIBELLE_RAISON } from "@/lib/moderation";
 import { attribuerOffreAdmin } from "@/lib/offres-actions";
 import { LABEL_OFFRE, chargerOffres, type Offre } from "@/lib/offres";
@@ -158,6 +160,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: suspensionsData },
     { data: signalementsData },
     { data: echeancesData },
+    { data: ecolesData },
   ] = await Promise.all([
     supabase
       .from("disputes")
@@ -203,7 +206,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .gte("debut_le", hier())
       .order("debut_le", { ascending: true })
       .limit(40),
+    // Écoles (17/11/2026) : celles qui attendent la validation d'abord.
+    supabase
+      .from("communautes")
+      .select(
+        "id, slug, nom, domaines_email, ecole_validee_le, proprietaire:profiles!communautes_proprietaire_id_fkey(pseudo)",
+      )
+      .eq("type", "ecole")
+      .order("ecole_validee_le", { ascending: true, nullsFirst: true })
+      .limit(100),
   ]);
+  const ecoles = ecolesData ?? [];
+  const ecolesAValider = ecoles.filter((e) => !e.ecole_validee_le);
 
   // Cash prizes (audit N32) : rien n'est lu tant qu'ils sont désactivés.
   const { data: dotationsData } = cashPrizesActifs()
@@ -284,6 +298,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { href: "#moderation", libelle: "Textes à relire", valeur: signalements.length },
     { href: "#litiges", libelle: "Litiges ouverts", valeur: litigesOuverts.length },
     { href: "#signaux", libelle: "Signaux (30 jours)", valeur: nbSignaux },
+    { href: "#ecoles", libelle: "Écoles à valider", valeur: ecolesAValider.length },
   ];
 
   return (
@@ -714,6 +729,59 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     </BoutonConfirmation>
                   </form>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section id="ecoles" className="mt-10 scroll-mt-28" aria-labelledby="titre-ecoles">
+        <SectionTitre>
+          <span id="titre-ecoles">Écoles ({ecolesAValider.length} à valider)</span>
+        </SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Une école n&apos;entre dans la ligue des écoles qu&apos;une fois validée ici. Vérifie que chaque domaine
+          appartient bien à l&apos;établissement (site officiel, adresses de ses étudiants). Changer ses domaines la
+          remet en attente.
+        </p>
+        {ecoles.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">Aucune école déclarée pour l&apos;instant.</p>
+        ) : (
+          <ul className="mt-3 flex max-w-3xl flex-col gap-2">
+            {ecoles.map((e) => (
+              <li key={e.id} className={"flex flex-wrap items-center justify-between gap-3 " + classeCarte("none")}>
+                <span className="flex min-w-0 flex-col gap-0.5 text-sm">
+                  <Link
+                    href={`/communaute/${e.slug}`}
+                    className="font-semibold text-text underline underline-offset-3 hover:text-accent"
+                  >
+                    {e.nom}
+                  </Link>
+                  <span className="break-all text-text-2">{libelleDomaines(e.domaines_email)}</span>
+                  <span className="text-xs text-muted">
+                    Fondée par {e.proprietaire?.pseudo ?? "un compte supprimé"} ·{" "}
+                    {e.ecole_validee_le ? (
+                      <span className="tabular-nums">validée le {formaterDate(e.ecole_validee_le)}</span>
+                    ) : (
+                      "en attente de validation"
+                    )}
+                  </span>
+                </span>
+                <form action={validerEcole}>
+                  <input type="hidden" name="communaute_id" value={e.id} />
+                  <input type="hidden" name="valider" value={e.ecole_validee_le ? "non" : "oui"} />
+                  {e.ecole_validee_le ? (
+                    <BoutonConfirmation
+                      type="submit"
+                      confirmation={`Retirer la validation de « ${e.nom} » ? Elle sortira de la ligue des écoles.`}
+                      className="inline-flex min-h-11 items-center font-texte text-mini text-danger underline underline-offset-3"
+                    >
+                      Retirer la validation
+                    </BoutonConfirmation>
+                  ) : (
+                    <Bouton libelleEnCours="Validation…">Valider</Bouton>
+                  )}
+                </form>
               </li>
             ))}
           </ul>

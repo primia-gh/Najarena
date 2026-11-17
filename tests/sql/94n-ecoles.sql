@@ -256,6 +256,9 @@ insert into membres_communaute (communaute_id, profile_id, verifie_le, domaine, 
 select :'ecole2', p, now(), 'deux-954.fr', md5('deux' || p::text)
 from unnest(array['00000000-0000-0000-0000-000000000134', '00000000-0000-0000-0000-000000000135']::uuid[]) p;
 
+-- Seules les écoles validées par un administrateur entrent dans la ligue
+-- (17/11/2026 ; règles dans 99e-ecoles-validees.sql).
+update communautes set ecole_validee_le = now() where slug in ('esport-univ-954', 'ecole-deux-954');
 set role anon;
 select set_config('request.jwt.claim.sub', '', false);
 select verifie('Classement inter-écoles : 1 600 de moyenne (5 meilleurs), 6 vérifiés classés ; Basile, non vérifié, ne compte pas',

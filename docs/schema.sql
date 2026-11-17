@@ -10883,8 +10883,8 @@ end;
 $$;
 revoke execute on function public.enregistrer_verdict_historique(uuid, uuid, text) from public, anon, authenticated;
 
--- Recopie des parties déjà retenues, en dernier, au plus près de la
--- validation : un verdict écrit pendant la migration par l'ancienne
+-- Recopie des parties déjà retenues, en fin de section, au plus près de la
+-- validation (la section suivante ne touche pas aux verdicts) : un verdict écrit pendant la migration par l'ancienne
 -- fonction a le moins de chances d'y échapper (requête de contrôle dans
 -- docs/mise-en-ligne-2026-10-12.md, § 5 ; relancer cette recopie suffit).
 insert into public.parties_utilisees (riot_match_id, match_id, utilisee_le)
@@ -10894,3 +10894,93 @@ cross join lateral unnest(string_to_array(v.riot_match_id, ',')) as p(id)
 where v.riot_match_id is not null and btrim(p.id) <> ''
 order by btrim(p.id), v.cree_le
 on conflict (riot_match_id) do nothing;
+
+-- ---------- Écoles validées par un administrateur (2026-11-17) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Décision du porteur du projet (17/11/2026) : une école n'entre dans la
+-- ligue des écoles qu'après qu'un administrateur a vérifié que ses domaines
+-- appartiennent bien à l'établissement. Sans cela, un fondateur qui achète
+-- un nom de domaine pour quelques euros pourrait « vérifier » qui il veut.
+-- Changer les domaines remet l'école en attente. La vérification des
+-- adresses des membres et les tournois réservés marchent dès la
+-- déclaration : seule la ligue attend la validation.
+alter table public.communautes add column if not exists ecole_validee_le timestamptz;
+alter table public.communautes add column if not exists ecole_validee_par uuid references public.profiles(id) on delete set null;
+grant select (ecole_validee_le) on public.communautes to anon, authenticated;
+
+create or replace function public.reinitialiser_validation_ecole()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.domaines_email is distinct from old.domaines_email or new.type is distinct from old.type then
+    new.ecole_validee_le := null;
+    new.ecole_validee_par := null;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.reinitialiser_validation_ecole() from public, anon, authenticated;
+drop trigger if exists reinitialiser_validation_ecole on public.communautes;
+create trigger reinitialiser_validation_ecole
+  before update of domaines_email, type on public.communautes
+  for each row execute function public.reinitialiser_validation_ecole();
+
+-- Un administrateur valide une école (ou retire sa validation).
+create or replace function public.valider_ecole(p_communaute_id uuid, p_valider boolean)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if not exists (select 1 from public.admins where profile_id = auth.uid()) then
+    raise exception 'NON_AUTORISE';
+  end if;
+  update public.communautes
+  set ecole_validee_le = case when p_valider then now() end,
+      ecole_validee_par = case when p_valider then auth.uid() end
+  where id = p_communaute_id and type = 'ecole';
+  if not found then
+    raise exception 'PAS_UNE_ECOLE';
+  end if;
+  return p_valider;
+end;
+$$;
+revoke execute on function public.valider_ecole(uuid, boolean) from public, anon;
+grant execute on function public.valider_ecole(uuid, boolean) to authenticated;
+
+-- Ligue des écoles : les écoles validées seulement.
+create or replace function public.classement_ecoles()
+returns table (
+  communaute_id uuid, slug text, nom text, couleur text,
+  verifies integer, classes integer, moyenne_top5 numeric
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with verifies as (
+    select m.communaute_id, m.profile_id
+    from public.membres_communaute m
+    join public.communautes c on c.id = m.communaute_id and c.type = 'ecole'
+    join public.profiles p on p.id = m.profile_id and p.supprime_le is null
+    where m.verifie_le is not null
+  ),
+  classes as (
+    select v.communaute_id, r.rating,
+           row_number() over (partition by v.communaute_id order by r.rating desc) as rang
+    from verifies v
+    join public.ratings r on r.profile_id = v.profile_id and r.game_id = 1 and r.est_classe
+    join public.seasons s on s.id = r.season_id and s.est_courante
+  )
+  select c.id, c.slug, c.nom, c.couleur,
+         (select count(*)::integer from verifies v where v.communaute_id = c.id),
+         (select count(*)::integer from classes k where k.communaute_id = c.id),
+         (select round(avg(k.rating), 2) from classes k
+          where k.communaute_id = c.id and k.rang <= 5 having count(*) = 5)
+  from public.communautes c
+  where c.type = 'ecole' and c.ecole_validee_le is not null
+  order by 7 desc nulls last, 5 desc, c.nom;
+$$;
+grant execute on function public.classement_ecoles() to anon, authenticated;

@@ -49,7 +49,7 @@ const chargerCommunaute = cache(async (slug: string) => {
   const { data: communaute } = await supabase
     .from("communautes")
     .select(
-      "id, slug, nom, description, couleur, lien_discord, discord_guild_id, proprietaire_id, cree_le, type, domaines_email",
+      "id, slug, nom, description, couleur, lien_discord, discord_guild_id, proprietaire_id, cree_le, type, domaines_email, ecole_validee_le",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -188,6 +188,13 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                 <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
                   Ligue des écoles
                 </Link>
+                {!communaute.ecole_validee_le && (
+                  <>
+                    {" "}
+                    · en attente de validation par Najarena&nbsp;: l&apos;école entrera dans la ligue une fois ses
+                    domaines vérifiés
+                  </>
+                )}
               </p>
             )}
           </div>

@@ -39,7 +39,11 @@ export async function definirEcole(formData: FormData) {
   if (error) versEcole(slug, "erreur", messageRefusEcole(error.message, "Enregistrement impossible pour l'instant."));
   revalidatePath(`/communaute/${slug}`);
   revalidatePath("/lol/ecoles");
-  versEcole(slug, "message", "Adresses de l'établissement enregistrées : tes membres peuvent maintenant vérifier la leur.");
+  versEcole(
+    slug,
+    "message",
+    "Adresses de l'établissement enregistrées : tes membres peuvent maintenant vérifier la leur. L'école entrera dans la ligue des écoles une fois ses domaines vérifiés par Najarena.",
+  );
 }
 
 // Un membre demande un code à son adresse d'école. Le code est tiré ici,

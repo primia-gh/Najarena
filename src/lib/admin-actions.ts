@@ -288,6 +288,25 @@ export async function retirerEcheance(formData: FormData) {
   redirect(`/admin?message=${encodeURIComponent("Échéance retirée.")}#echeances`);
 }
 
+// Écoles validées par un administrateur (décision du 17/11/2026) : une
+// école n'entre dans la ligue qu'après vérification de ses domaines. La
+// base réserve la validation aux administrateurs (valider_ecole).
+export async function validerEcole(formData: FormData) {
+  const supabase = await createClient();
+  await verifierAdmin(supabase);
+  const valider = formData.get("valider") === "oui";
+  const { error } = await supabase.rpc("valider_ecole", {
+    p_communaute_id: String(formData.get("communaute_id") ?? ""),
+    p_valider: valider,
+  });
+  if (error) {
+    redirect(`/admin?erreur=${encodeURIComponent("Validation impossible : cette école n'existe plus.")}#ecoles`);
+  }
+  redirect(
+    `/admin?message=${encodeURIComponent(valider ? "École validée : elle entre dans la ligue des écoles." : "Validation retirée : l'école sort de la ligue des écoles.")}#ecoles`,
+  );
+}
+
 // ---------- Cash prizes sponsorisés (03/10/2026, audit N32) ----------
 // Désactivés tant que CASH_PRIZES_ACTIFS n'est pas à « 1 » (voir
 // lib/dotations.ts). La base réserve tout aux administrateurs et ne fait

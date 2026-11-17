@@ -954,6 +954,8 @@ export type Database = {
           description: string | null
           discord_guild_id: string | null
           domaines_email: string[]
+          ecole_validee_le: string | null
+          ecole_validee_par: string | null
           game_id: number
           id: string
           lien_discord: string | null
@@ -970,6 +972,8 @@ export type Database = {
           description?: string | null
           discord_guild_id?: string | null
           domaines_email?: string[]
+          ecole_validee_le?: string | null
+          ecole_validee_par?: string | null
           game_id?: number
           id?: string
           lien_discord?: string | null
@@ -986,6 +990,8 @@ export type Database = {
           description?: string | null
           discord_guild_id?: string | null
           domaines_email?: string[]
+          ecole_validee_le?: string | null
+          ecole_validee_par?: string | null
           game_id?: number
           id?: string
           lien_discord?: string | null
@@ -3234,6 +3240,7 @@ export type Database = {
       effacer_disponibilites_passees: { Args: Record<PropertyKey, never>; Returns: number }
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
       definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
+      valider_ecole: { Args: { p_communaute_id: string; p_valider: boolean }; Returns: boolean }
       revues_a_rediger: { Args: { p_limite: number }; Returns: { match_id: string; profile_id: string }[] }
       regler_analyse: { Args: { p_bilan_hebdo: boolean; p_classees: boolean }; Returns: undefined }
       reperes_classees: {

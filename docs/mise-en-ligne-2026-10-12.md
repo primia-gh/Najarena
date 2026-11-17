@@ -1,6 +1,6 @@
-# Mise en ligne de la branche (sections 37 à 57, 04 au 17/10/2026)
+# Mise en ligne de la branche (sections 37 à 58, 04/10 au 17/11/2026)
 
-> **Statut au 17/10/2026** : rien de ces sections n'est encore en
+> **Statut au 17/11/2026** : rien de ces sections n'est encore en
 > production. La production correspond à la branche `master` : sections 1
 > à 36 du guide du 28/09 (`docs/mise-en-ligne-2026-09-28.md`), plus la
 > section de l'audit de sécurité du 10/10/2026 (fusionnée dans `master`
@@ -8,7 +8,7 @@
 >
 > **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 > `master`, puis la migration ci-dessous en un seul bloc ; la migration
-> passe, elle se rejoue une seconde fois sans erreur, et les 1022
+> passe, elle se rejoue une seconde fois sans erreur, et les 1040
 > vérifications de `tests/sql/` passent ensuite (comme sur une base
 > construite d'un coup).
 
@@ -123,6 +123,10 @@ Les sections, dans l'ordre (la numérotation suit celle du guide du 28/09) :
     déjà retenues dans la nouvelle table `parties_utilisees` ; si deux
     anciens matchs avaient retenu la même partie, le plus ancien la garde
     (rien n'est changé à leurs verdicts ni au registre).
+58. **Écoles validées par un administrateur** (17/11) — une école n'entre
+    dans la ligue des écoles qu'une fois validée dans `/admin#ecoles`
+    (vérifier que ses domaines appartiennent bien à l'établissement) ;
+    changer ses domaines la remet en attente.
 
 Après application : lancer les conseillers de sécurité et de performance
 de Supabase (Advisors) et comparer avec l'état d'avant.
