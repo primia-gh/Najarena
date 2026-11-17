@@ -6,6 +6,24 @@
 > déclencheurs, stockage des logos : identiques. Reste à faire côté
 > porteur du projet : le secret des tâches planifiées (§ 2 bis) et les
 > réglages des §§ 3 et 4.
+>
+> **Sections 37 à 42 (04 et 05/10/2026)** — écoles et tournois réservés aux
+> membres (37), analyse détaillée automatique de l'offre Elite (38),
+> versement des cash prizes par Stripe Connect, toujours éteint (39),
+> scrims calés sur une échéance (40), bilan du joueur (41) et analyse des
+> parties classées sur accord (42) : pas encore appliquées en production. Même méthode qu'au § 2 : coller
+> dans l'éditeur SQL de Supabase la fin de `docs/schema.sql` à partir de
+> la ligne « Ligues écoles et universités, tournois réservés aux membres
+> (2026-10-04… » jusqu'à la dernière ligne, retirer les retours chariot,
+> puis seulement fusionner le code (il lit des colonnes et appelle des
+> fonctions que ces sections créent). Le code de vérification d'une
+> adresse d'école part par e-mail : `RESEND_API_KEY` et
+> `RESEND_FROM_EMAIL` (domaine vérifié chez Resend) doivent être définies
+> sur Vercel.
+>
+> **Suite (17/10/2026)** : les sections 37 à 56 (04 au 12/10/2026) ont
+> leur propre guide, `docs/mise-en-ligne-2026-10-12.md`, essayé sur le
+> schéma de `master` : c'est lui qu'il faut suivre.
 
 Branche : `claude/nice-faraday-nsoe9q`. Ce document dit **dans quel ordre**
 mettre en ligne ces changements. L'ordre compte : le code s'appuie sur des
@@ -134,6 +152,30 @@ une transaction, et contient 36 sections, dans cet ordre :
     ne pas définir `CASH_PRIZES_ACTIFS` sur l'hébergeur
 36. Durcissement : chemin de recherche des deux fonctions de calcul
     (signalé par le conseiller de sécurité après la section 35)
+37. Ligues écoles et universités, tournois réservés aux membres d'une
+    communauté (04/10/2026) — à appliquer à part, les sections 1 à 36
+    étant déjà en production (voir l'encadré en tête)
+38. Analyse détaillée rédigée automatiquement pour l'offre Elite (N25)
+39. Versement des cash prizes par Stripe Connect (N32), éteint tant que
+    `CASH_PRIZES_ACTIFS` n'est pas à `1`. Le jour où ils s'allument :
+    activer Connect (comptes Express) dans le tableau de bord Stripe,
+    créer un point d'écoute « Connect » (événement `account.updated`) et
+    renseigner son secret dans `STRIPE_CONNECT_WEBHOOK_SECRET`, alimenter
+    le solde Stripe avec l'argent du sponsor, changer `VERSION_CGU`
+40. Scrims calés sur une échéance (N24) — remplace `proposer_scrim` par
+    sa nouvelle signature (échéance facultative)
+41. Bilan du joueur, étape 1 (05/10/2026) — nouvelles colonnes de
+    statistiques sur `stats_match_joueur` (vides pour les parties déjà
+    enregistrées), vue `indicateurs_partie`, fonctions `reperes_bilan` et
+    `reperes_build`. Rien à régler : les icônes du jeu viennent de Data
+    Dragon, public et sans clé
+42. Bilan du joueur, étape 2 (05/10/2026) — parties classées lues sur
+    accord (`analyse_reglages`, `parties_classees`, `bilans_hebdo`,
+    repères anonymes) et une troisième tâche planifiée,
+    « najarena-analyse-classees » (même secret du coffre-fort que les deux
+    autres). Facultatif : `ANALYSE_APPELS_PAR_PASSAGE` sur Vercel (appels
+    Riot par passage, 20 par défaut ; à relever une fois la clé production
+    obtenue)
 
 Les widgets et l'API publique (N31) n'ajoutent rien à la base : ils lisent
 avec la clé publique, comme un visiteur déconnecté.
@@ -142,8 +184,8 @@ La section 2 a elle-même sept sous-parties (inscriptions et check-in,
 tournois, matchs, équipes, messagerie, profils, litiges).
 
 Le même bloc est rejoué à chaque envoi de code sur une base PostgreSQL de
-test par `npm run test:base` (528 vérifications, toutes au vert au
-03/10/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
+test par `npm run test:base` (654 vérifications, toutes au vert au
+05/10/2026) : c'est exactement l'enchaînement « ancien schéma + migration ».
 
 Après application : lancer les conseillers de sécurité et de performance
 de Supabase (Advisors) et comparer avec l'état d'avant.

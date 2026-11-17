@@ -39,7 +39,12 @@ export async function creerTournoi(formData: FormData) {
   const condition = format === "1v1" && formData.get("condition_victoire") === "classique" ? "classique" : "nexus";
   // Communauté (audit N30) : la base vérifie que l'organisateur en est le
   // fondateur ou un administrateur.
-  const communauteId = String(formData.get("communaute_id") ?? "");
+  const communauteSaisie = String(formData.get("communaute_id") ?? "");
+  const communauteId = /^[0-9a-f-]{36}$/.test(communauteSaisie) ? communauteSaisie : null;
+  // Tournoi réservé aux membres de la communauté (04/10/2026, hubs FACEIT) :
+  // aux membres vérifiés pour une école. Contrôlé par la base à chaque
+  // inscription, et figé à la publication.
+  const reserveMembres = communauteId !== null && formData.get("reserve_membres") === "oui";
 
   if (nom.length < 3 || nom.length > 60) {
     redirect(
@@ -95,7 +100,9 @@ export async function creerTournoi(formData: FormData) {
     );
   }
 
-  const slug = `${slugifier(nom)}-${Math.random().toString(36).slice(2, 7)}`;
+  // Forme imposée par la base (controler_forme_adresse) : un nom fait
+  // seulement de symboles donnerait une adresse vide.
+  const slug = `${slugifier(nom).slice(0, 60).replace(/-+$/, "") || "tournoi"}-${Math.random().toString(36).slice(2, 7)}`;
 
   // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
   // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
@@ -126,15 +133,20 @@ export async function creerTournoi(formData: FormData) {
     statut: publier ? "ouvert" : "brouillon",
     compte_pour_classement: format === "1v1" && !amical,
     condition_victoire: condition,
-    communaute_id: /^[0-9a-f-]{36}$/.test(communauteId) ? communauteId : null,
+    communaute_id: communauteId,
+    reserve_membres: reserveMembres,
   });
 
   if (error) {
     redirect(
       `/organiser/nouveau?erreur=${encodeURIComponent(
-        error.message.includes("COMMUNAUTE_INTERDITE")
-          ? "Seuls le fondateur et les administrateurs publient des tournois dans cette communauté."
-          : (messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant."),
+        error.message.includes("ADRESSE_RESERVEE")
+          ? "Ce nom est réservé aux tournois de Najarena : choisis-en un autre."
+          : error.message.includes("COMMUNAUTE_INTERDITE")
+            ? "Seuls le fondateur et les administrateurs publient des tournois dans cette communauté."
+            : error.message.includes("RESERVE_SANS_COMMUNAUTE")
+              ? "Choisis la communauté dont les membres pourront s'inscrire."
+              : (messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant."),
       )}`,
     );
   }

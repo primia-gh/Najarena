@@ -13,7 +13,10 @@ import {
   retirerEcheance,
   suspendreCompte,
   traiterSignalement,
+  validerEcole,
+  verserParStripe,
 } from "@/lib/admin-actions";
+import { libelleDomaines } from "@/lib/ecoles";
 import { LIBELLE_RAISON } from "@/lib/moderation";
 import { attribuerOffreAdmin } from "@/lib/offres-actions";
 import { LABEL_OFFRE, chargerOffres, type Offre } from "@/lib/offres";
@@ -24,6 +27,9 @@ import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import SectionTitre from "@/components/ui/SectionTitre";
+import Alerte from "@/components/design/Alerte";
+import Icone from "@/components/design/Icone";
+import LibelleSection from "@/components/design/LibelleSection";
 import EtatVide from "@/components/ui/EtatVide";
 import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import FondEcailles from "@/components/design/FondEcailles";
@@ -49,14 +55,18 @@ interface AdminPageProps {
 
 // Signaux à examiner sur 30 jours (audit N11) : lecture des données
 // publiques, calcul dans src/lib/signaux.ts. Jamais d'action automatique.
+// Les défis (et duels de l'arène) comptent au classement : leurs matchs
+// entrent dans les face-à-face et les groupes fermés, pas dans les
+// signaux propres à un tournoi d'organisateur.
 async function chargerSignaux(supabase: Awaited<ReturnType<typeof createClient>>) {
   const depuis = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const [{ data: tournoisRecents }, { data: variationsRecentes }] = await Promise.all([
+  // Les tournois 5v5 (audit N21) ne touchent pas au rating individuel.
+  const natures = ["tournoi", "defi"];
+  const [{ data: tournoisRecents }, { data: variationsRecentes }, { data: matchsRecents }] = await Promise.all([
     supabase
       .from("tournaments")
-      .select("id, nom, slug, organisateur_id, statut")
-      .eq("nature", "tournoi")
-      // Les tournois 5v5 (audit N21) ne touchent pas au rating individuel.
+      .select("id, nom, slug, organisateur_id, statut, nature")
+      .in("nature", natures)
       .eq("format", "1v1")
       .gte("debute_le", depuis),
     supabase
@@ -64,22 +74,26 @@ async function chargerSignaux(supabase: Awaited<ReturnType<typeof createClient>>
       .select("profile_id, tournament_id, rating_avant, rating_apres")
       .eq("motif", "tournoi")
       .gte("cree_le", depuis),
+    // Filtre par jointure plutôt que par liste d'identifiants : les duels
+    // de l'arène peuvent se compter par centaines sur 30 jours.
+    supabase
+      .from("matches")
+      .select(
+        "tournament_id, tournament:tournaments!inner(nature, format, debute_le), match_participants(profile_id, est_gagnant), match_verdicts(niveau, est_definitif)",
+      )
+      .in("tournament.nature", natures)
+      .eq("tournament.format", "1v1")
+      .gte("tournament.debute_le", depuis),
   ]);
-  const idsTournois = (tournoisRecents ?? []).map((t) => t.id);
-  const { data: matchsRecents } =
-    idsTournois.length > 0
-      ? await supabase
-          .from("matches")
-          .select("tournament_id, match_participants(profile_id, est_gagnant), match_verdicts(niveau, est_definitif)")
-          .in("tournament_id", idsTournois)
-      : { data: [] };
   const signaux = detecterSignaux(
     (matchsRecents ?? []).map((m) => ({
       tournoiId: m.tournament_id,
       joueurs: m.match_participants.map((p) => ({ id: p.profile_id, gagnant: p.est_gagnant })),
       verifie: m.match_verdicts.some((v) => v.est_definitif && v.niveau !== "manuel"),
     })),
-    (tournoisRecents ?? []).map((t) => ({ id: t.id, organisateurId: t.organisateur_id, statut: t.statut })),
+    (tournoisRecents ?? [])
+      .filter((t) => t.nature === "tournoi")
+      .map((t) => ({ id: t.id, organisateurId: t.organisateur_id, statut: t.statut })),
     (variationsRecentes ?? []).map((v) => ({
       profileId: v.profile_id,
       tournoiId: v.tournament_id,
@@ -91,6 +105,7 @@ async function chargerSignaux(supabase: Awaited<ReturnType<typeof createClient>>
     ...signaux.paires.flatMap((p) => [p.a, p.b]),
     ...signaux.organisateursJoueurs.map((o) => o.organisateurId),
     ...signaux.hausses.map((h) => h.profileId),
+    ...signaux.groupesFermes.flatMap((g) => g.joueurs),
   ]);
   const { data: profilsSignales } =
     idsSignales.size > 0
@@ -145,6 +160,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { data: suspensionsData },
     { data: signalementsData },
     { data: echeancesData },
+    { data: ecolesData },
   ] = await Promise.all([
     supabase
       .from("disputes")
@@ -190,14 +206,25 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .gte("debut_le", hier())
       .order("debut_le", { ascending: true })
       .limit(40),
+    // Écoles (17/11/2026) : celles qui attendent la validation d'abord.
+    supabase
+      .from("communautes")
+      .select(
+        "id, slug, nom, domaines_email, ecole_validee_le, proprietaire:profiles!communautes_proprietaire_id_fkey(pseudo)",
+      )
+      .eq("type", "ecole")
+      .order("ecole_validee_le", { ascending: true, nullsFirst: true })
+      .limit(100),
   ]);
+  const ecoles = ecolesData ?? [];
+  const ecolesAValider = ecoles.filter((e) => !e.ecole_validee_le);
 
   // Cash prizes (audit N32) : rien n'est lu tant qu'ils sont désactivés.
   const { data: dotationsData } = cashPrizesActifs()
     ? await supabase
         .from("dotations")
         .select(
-          "tournament_id, sponsor_nom, repartition, statut, tournament:tournaments(nom, slug, statut), versements_dotation(profile_id, rang, montant_centimes, a_verifier, statut, reference, profile:profiles(pseudo))",
+          "tournament_id, sponsor_nom, repartition, statut, tournament:tournaments(nom, slug, statut), versements_dotation(profile_id, rang, montant_centimes, a_verifier, statut, reference, transfert_stripe_id, profile:profiles(pseudo, compte_versement:comptes_versement(verifie)))",
         )
         .order("cree_le", { ascending: false })
         .limit(30)
@@ -231,7 +258,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     signaux.paires.length +
       signaux.organisateursJoueurs.length +
       signaux.hausses.length +
-      signaux.petitsTournois.length ===
+      signaux.petitsTournois.length +
+      signaux.groupesFermes.length ===
     0;
 
   const litiges = litigesData ?? [];
@@ -256,29 +284,237 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const signalements = signalementsData ?? [];
   const offresParCompte = await chargerOffres(supabase, comptes.map((c) => c.id));
 
+  // Revue visuelle du 05/10/2026 : ce qui attend une décision (textes à
+  // relire, litiges ouverts, signaux) passe en tête, avec un bandeau de
+  // compteurs qui mène à chaque rubrique ; les outils viennent ensuite, le
+  // suivi (derniers inscrits, litiges résolus) à la fin. Actions inchangées.
+  const nbSignaux =
+    signaux.paires.length +
+    signaux.organisateursJoueurs.length +
+    signaux.hausses.length +
+    signaux.petitsTournois.length +
+    signaux.groupesFermes.length;
+  const aTraiter = [
+    { href: "#moderation", libelle: "Textes à relire", valeur: signalements.length },
+    { href: "#litiges", libelle: "Litiges ouverts", valeur: litigesOuverts.length },
+    { href: "#signaux", libelle: "Signaux (30 jours)", valeur: nbSignaux },
+    { href: "#ecoles", libelle: "Écoles à valider", valeur: ecolesAValider.length },
+  ];
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille">
-      <Apparition>
-      <Link
-        href="/moi"
-        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-      >
-        ← Mon compte
-      </Link>
+      <Apparition className="flex flex-col gap-8 border-b border-line pb-10">
+        <Link
+          href="/moi"
+          className="inline-flex min-h-11 items-center gap-2 self-start font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+        >
+          <Icone nom="fleche-gauche" taille={14} />
+          Mon compte
+        </Link>
+        <div>
+          <LibelleSection>Modération · litiges · outils</LibelleSection>
+          <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Administration</h1>
+        </div>
+        <nav aria-label="À traiter" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {aTraiter.map((t) => (
+            <a
+              key={t.href}
+              href={t.href}
+              className={`panneau flex items-end justify-between gap-4 p-5 transition-colors duration-200 hover:border-[rgba(245,245,244,0.25)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent ${
+                t.valeur > 0 ? "border-l-2 border-l-danger" : ""
+              }`}
+            >
+              <span className="flex flex-col gap-2">
+                <span className="font-texte text-mini font-medium text-faint uppercase">{t.libelle}</span>
+                <span
+                  className={`font-titre text-5xl leading-none font-black tabular-nums ${t.valeur > 0 ? "text-danger" : "text-text"}`}
+                >
+                  {t.valeur}
+                </span>
+              </span>
+              <span className="text-sm text-muted">{t.valeur > 0 ? "À traiter →" : "Rien à traiter"}</span>
+            </a>
+          ))}
+        </nav>
+        {(erreur || message) && (
+          <div className="flex max-w-2xl flex-col gap-3">
+            {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+            {message && <Alerte type="succes">{message}</Alerte>}
+          </div>
+        )}
+      </Apparition>
 
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-        Administration
-      </h1>
-      <p className="mt-1 font-texte tabular-nums text-[0.72rem] text-muted">Modération · Litiges</p>
+      <Apparition delai={0.13}>
+      <section id="moderation" className="mt-10 scroll-mt-28" aria-labelledby="titre-moderation">
+        <SectionTitre>
+          <span id="titre-moderation">Textes à relire ({signalements.length})</span>
+        </SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Retenus par la modération automatique : insulte, menace ou lien dans un message privé (pas encore remis
+          à son destinataire) ou un motif de litige. Les propos haineux et les arnaques sont refusés d&apos;office.
+        </p>
+        {signalements.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">Rien à relire.</p>
+        ) : (
+          <ul className="mt-3 flex max-w-3xl flex-col gap-2">
+            {signalements.map((s) => (
+              <li key={s.id} className={"flex flex-col gap-2 " + classeCarte("sceau")}>
+                <span className="text-mini text-muted uppercase">
+                  {s.contexte === "message" ? "Message privé" : "Motif de litige"} ·{" "}
+                  {LIBELLE_RAISON[s.raison] ?? s.raison} · {s.auteur ? s.auteur.pseudo : "Compte supprimé"} ·{" "}
+                  <span className="tabular-nums">{formaterDate(s.cree_le)}</span>
+                </span>
+                <p className="text-sm text-text [overflow-wrap:anywhere]">« {s.extrait} »</p>
+                <div className="flex flex-wrap gap-4">
+                  <form action={traiterSignalement}>
+                    <input type="hidden" name="signalement_id" value={s.id} />
+                    <input type="hidden" name="decision" value="valider" />
+                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-accent underline underline-offset-3">
+                      {s.contexte === "message" ? "Valider et remettre" : "Valider"}
+                    </button>
+                  </form>
+                  <form action={traiterSignalement}>
+                    <input type="hidden" name="signalement_id" value={s.id} />
+                    <input type="hidden" name="decision" value="rejeter" />
+                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-danger underline underline-offset-3">
+                      Rejeter
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      </Apparition>
 
-      {erreur && (
-        <p className={"mt-6 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
-      )}
-      {message && (
-        <p className={"mt-6 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
-      )}
+      <Apparition delai={0.2}>
+      <section id="litiges" className="mt-10 scroll-mt-28">
+        <SectionTitre>Litiges ouverts ({litigesOuverts.length})</SectionTitre>
+
+        {erreurLitiges ? (
+          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-danger"}>
+            Impossible de charger les litiges pour l&apos;instant.
+          </p>
+        ) : litigesOuverts.length === 0 ? (
+          <p className={"mt-3 " + classeCarte("none") + " text-sm text-muted"}>
+            Aucun litige ouvert.
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-3">
+            {litigesOuverts.map((l) => (
+              <li key={l.id} className={classeCarte("sceau")}>
+                {l.match?.tournament && (
+                  <Link
+                    href={`/lol/tournois/${l.match.tournament.slug}`}
+                    className="font-texte tabular-nums text-mini text-muted uppercase hover:text-text"
+                  >
+                    {l.match.tournament.nom} · Tour {l.match.tour}
+                  </Link>
+                )}
+                <p className="mt-1 text-sm text-text">
+                  Ouvert par{" "}
+                  <span className="font-medium">{l.ouvert_par?.pseudo ?? "un joueur"}</span> le{" "}
+                  {formaterDate(l.cree_le)}
+                </p>
+                <p className="mt-1 text-sm text-muted">{l.motif}</p>
+                <form action={resoudreLitigeAdmin} className="mt-3 flex flex-col gap-2">
+                  <input type="hidden" name="dispute_id" value={l.id} />
+                  <label>
+                    <span className="sr-only">
+                      Résolution du litige
+                      {l.match?.tournament
+                        ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}`
+                        : ""}
+                    </span>
+                    <input
+                      name="resolution"
+                      type="text"
+                      required
+                      placeholder="Résolution (obligatoire)"
+                      className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    />
+                  </label>
+                  <Bouton
+                    aria-label={`Résoudre le litige${l.match?.tournament ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}` : ""}`}
+                    libelleEnCours="Résolution…"
+                    className="self-start"
+                  >
+                    Résoudre
+                  </Bouton>
+                </form>
+                <DossierLitige disputeId={l.id} dossier={dossierParLitige.get(l.id) ?? null} depuis="admin" />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      </Apparition>
+
+      <Apparition delai={0.14}>
+      <section id="signaux" className="mt-10 scroll-mt-28" aria-labelledby="titre-signaux">
+        <SectionTitre>
+          <span id="titre-signaux">Signaux à examiner (30 jours)</span>
+        </SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Des schémas qui peuvent trahir une entente pour gonfler un classement. Ce sont des signaux, pas des preuves :
+          à regarder avant toute décision. Rien n&apos;est fait automatiquement.
+        </p>
+        {aucunSignal ? (
+          <p className="mt-3 text-sm text-muted">Rien à signaler.</p>
+        ) : (
+          <ul className="mt-3 flex max-w-3xl flex-col gap-2 text-sm text-text-2">
+            {signaux.paires.map((p) => (
+              <li key={`paire-${p.a}-${p.b}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Face-à-face répétés</span> — {lienJoueur(p.a)}{" "}
+                et {lienJoueur(p.b)} : <span className="tabular-nums">{p.matchs}</span> matchs (
+                <span className="tabular-nums">
+                  {p.victoiresA}–{p.victoiresB}
+                </span>
+                ).
+              </li>
+            ))}
+            {signaux.organisateursJoueurs.map((o) => (
+              <li key={`orga-${o.tournoiId}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Organisateur joueur</span> —{" "}
+                {lienJoueur(o.organisateurId)} joue dans son propre tournoi {lienTournoi(o.tournoiId)}.
+              </li>
+            ))}
+            {signaux.hausses.map((h) => (
+              <li key={`hausse-${h.profileId}-${h.tournoiId}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Hausse forte</span> —{" "}
+                {lienJoueur(h.profileId)} :{" "}
+                <span className="tabular-nums">
+                  +{Math.round(h.apres - h.avant)} ({Math.round(h.avant)} → {Math.round(h.apres)})
+                </span>{" "}
+                sur {lienTournoi(h.tournoiId)}.
+              </li>
+            ))}
+            {signaux.groupesFermes.map((g) => (
+              <li key={`groupe-${g.joueurs.join("-")}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Groupe fermé</span> —{" "}
+                {g.joueurs.map((j, i) => (
+                  <span key={j}>
+                    {i > 0 ? ", " : ""}
+                    {lienJoueur(j)}
+                  </span>
+                ))}{" "}
+                : <span className="tabular-nums">{g.matchsInternes}</span> matchs vérifiés entre eux (
+                <span className="tabular-nums">{Math.round(g.part * 100)} %</span> de leurs matchs).
+              </li>
+            ))}
+            {signaux.petitsTournois.map((t) => (
+              <li key={`petit-${t.tournoiId}`}>
+                <span className="text-mini font-semibold text-danger uppercase">Très petit tournoi classé</span> —{" "}
+                {lienTournoi(t.tournoiId)} : <span className="tabular-nums">{t.joueurs}</span> joueurs, compte au
+                classement.
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       </Apparition>
 
       <Apparition delai={0.1}>
@@ -498,6 +734,62 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </ul>
         )}
       </section>
+
+      <section id="ecoles" className="mt-10 scroll-mt-28" aria-labelledby="titre-ecoles">
+        <SectionTitre>
+          <span id="titre-ecoles">
+            Écoles (<span className="tabular-nums">{ecolesAValider.length}</span> à valider)
+          </span>
+        </SectionTitre>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Une école n&apos;entre dans la ligue des écoles qu&apos;une fois validée ici. Vérifie que chaque domaine
+          appartient bien à l&apos;établissement (site officiel, adresses de ses étudiants). Changer ses domaines la
+          remet en attente.
+        </p>
+        {ecoles.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">Aucune école déclarée pour l&apos;instant.</p>
+        ) : (
+          <ul className="mt-3 flex max-w-3xl flex-col gap-2">
+            {ecoles.map((e) => (
+              <li key={e.id} className={"flex flex-wrap items-center justify-between gap-3 " + classeCarte("none")}>
+                <span className="flex min-w-0 flex-col gap-0.5 text-sm">
+                  <Link
+                    href={`/communaute/${e.slug}`}
+                    className="font-semibold text-text underline underline-offset-3 hover:text-accent"
+                  >
+                    {e.nom}
+                  </Link>
+                  <span className="break-all text-text-2">{libelleDomaines(e.domaines_email)}</span>
+                  <span className="text-xs text-muted">
+                    Fondée par {e.proprietaire?.pseudo ?? "un compte supprimé"} ·{" "}
+                    {e.ecole_validee_le ? (
+                      <span className="tabular-nums">validée le {formaterDate(e.ecole_validee_le)}</span>
+                    ) : (
+                      "en attente de validation"
+                    )}
+                  </span>
+                </span>
+                <form action={validerEcole}>
+                  <input type="hidden" name="communaute_id" value={e.id} />
+                  <input type="hidden" name="valider" value={e.ecole_validee_le ? "non" : "oui"} />
+                  <input type="hidden" name="domaines" value={e.domaines_email.join(",")} />
+                  {e.ecole_validee_le ? (
+                    <BoutonConfirmation
+                      type="submit"
+                      confirmation={`Retirer la validation de « ${e.nom} » ? Elle sortira de la ligue des écoles.`}
+                      className="inline-flex min-h-11 items-center font-texte text-mini text-danger underline underline-offset-3"
+                    >
+                      Retirer la validation
+                    </BoutonConfirmation>
+                  ) : (
+                    <Bouton libelleEnCours="Validation…">Valider</Bouton>
+                  )}
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       </Apparition>
 
       <Apparition delai={0.127}>
@@ -509,8 +801,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <p className="mt-1 max-w-2xl text-sm text-muted">
             Désactivés. À n&apos;allumer (variable CASH_PRIZES_ACTIFS=1 sur l&apos;hébergeur) qu&apos;après le statut
             juridique de l&apos;éditeur, des CGU relues par un juriste et la vérification des règles Riot sur les
-            tournois dotés. Le site ne fait transiter aucun argent : il affiche la dotation, désigne les gagnants
-            d&apos;après le bracket et garde la trace des versements faits hors du site.
+            tournois dotés. Une fois allumés : la dotation s&apos;affiche, les gagnants sont désignés d&apos;après le
+            bracket, chacun fait vérifier son identité par Stripe, puis le gain est versé par Stripe depuis le solde
+            alimenté par le sponsor (ou hors du site, avec sa référence).
           </p>
         ) : (
           <>
@@ -575,135 +868,73 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       )}
                     </div>
                     {d.versements_dotation.map((v) => (
-                      <form
-                        key={v.profile_id}
-                        action={noterVersement}
-                        className="flex flex-wrap items-center gap-2 border-t border-line pt-2 text-sm"
-                      >
-                        <input type="hidden" name="tournament_id" value={d.tournament_id} />
-                        <input type="hidden" name="profile_id" value={v.profile_id} />
+                      <div key={v.profile_id} className="flex flex-col gap-2 border-t border-line pt-2 text-sm">
                         <span className="min-w-48">
                           {LIBELLE_RANG[v.rang] ?? `Rang ${v.rang}`} : {v.profile?.pseudo ?? "Joueur"} ·{" "}
                           <span className="tabular-nums">{formaterEuros(v.montant_centimes)}</span>
                           {v.a_verifier && <span className="text-danger"> · décidé à la main, à vérifier</span>}
+                          {/* Identité vérifiée par Stripe (audit N32). */}
+                          {v.statut === "a_verser" && (
+                            <span className="text-muted">
+                              {" "}
+                              · identité{" "}
+                              {v.profile?.compte_versement?.verifie ? "vérifiée par Stripe" : "pas encore vérifiée par Stripe"}
+                            </span>
+                          )}
                         </span>
-                        <select name="statut" defaultValue={v.statut} className={CHAMP_ADMIN}>
-                          <option value="a_verser">À verser</option>
-                          <option value="verse">Versé</option>
-                          <option value="refuse">Refusé</option>
-                        </select>
-                        <input
-                          name="reference"
-                          defaultValue={v.reference ?? ""}
-                          placeholder="Référence du virement"
-                          maxLength={120}
-                          className={CHAMP_ADMIN}
-                        />
-                        <button type="submit" className="inline-flex min-h-11 items-center text-mini text-accent underline underline-offset-3">
-                          Noter
-                        </button>
-                      </form>
+                        {v.transfert_stripe_id ? (
+                          <span className="text-mini text-accent uppercase">
+                            Versé par Stripe · <span className="tabular-nums normal-case">{v.transfert_stripe_id}</span>
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                            {v.statut === "a_verser" && v.profile?.compte_versement?.verifie && (
+                              <form action={verserParStripe} className="flex flex-wrap items-center gap-3">
+                                <input type="hidden" name="tournament_id" value={d.tournament_id} />
+                                <input type="hidden" name="profile_id" value={v.profile_id} />
+                                {v.a_verifier && (
+                                  <label className="flex items-center gap-2 text-xs text-text">
+                                    <input type="checkbox" name="rang_verifie" value="oui" required className="accent-accent" />
+                                    Rang vérifié
+                                  </label>
+                                )}
+                                <BoutonConfirmation
+                                  type="submit"
+                                  confirmation={`Verser ${formaterEuros(v.montant_centimes)} à ${v.profile?.pseudo ?? "ce joueur"} par Stripe ?`}
+                                  className="inline-flex min-h-11 items-center text-mini font-semibold text-accent underline underline-offset-3"
+                                >
+                                  Verser par Stripe
+                                </BoutonConfirmation>
+                              </form>
+                            )}
+                            <form action={noterVersement} className="flex flex-wrap items-center gap-2">
+                              <input type="hidden" name="tournament_id" value={d.tournament_id} />
+                              <input type="hidden" name="profile_id" value={v.profile_id} />
+                              <select name="statut" defaultValue={v.statut} className={CHAMP_ADMIN}>
+                                <option value="a_verser">À verser</option>
+                                <option value="verse">Versé</option>
+                                <option value="refuse">Refusé</option>
+                              </select>
+                              <input
+                                name="reference"
+                                defaultValue={v.reference ?? ""}
+                                placeholder="Référence du virement"
+                                maxLength={120}
+                                className={CHAMP_ADMIN}
+                              />
+                              <button type="submit" className="inline-flex min-h-11 items-center text-mini text-accent underline underline-offset-3">
+                                Noter
+                              </button>
+                            </form>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </li>
                 ))}
               </ul>
             )}
           </>
-        )}
-      </section>
-      </Apparition>
-
-      <Apparition delai={0.13}>
-      <section id="moderation" className="mt-10 scroll-mt-28" aria-labelledby="titre-moderation">
-        <SectionTitre>
-          <span id="titre-moderation">Textes à relire ({signalements.length})</span>
-        </SectionTitre>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Retenus par la modération automatique : insulte, menace ou lien dans un message privé (pas encore remis
-          à son destinataire) ou un motif de litige. Les propos haineux et les arnaques sont refusés d&apos;office.
-        </p>
-        {signalements.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Rien à relire.</p>
-        ) : (
-          <ul className="mt-3 flex max-w-3xl flex-col gap-2">
-            {signalements.map((s) => (
-              <li key={s.id} className={"flex flex-col gap-2 " + classeCarte("sceau")}>
-                <span className="text-mini text-muted uppercase">
-                  {s.contexte === "message" ? "Message privé" : "Motif de litige"} ·{" "}
-                  {LIBELLE_RAISON[s.raison] ?? s.raison} · {s.auteur ? s.auteur.pseudo : "Compte supprimé"} ·{" "}
-                  <span className="tabular-nums">{formaterDate(s.cree_le)}</span>
-                </span>
-                <p className="text-sm text-text [overflow-wrap:anywhere]">« {s.extrait} »</p>
-                <div className="flex flex-wrap gap-4">
-                  <form action={traiterSignalement}>
-                    <input type="hidden" name="signalement_id" value={s.id} />
-                    <input type="hidden" name="decision" value="valider" />
-                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-accent underline underline-offset-3">
-                      {s.contexte === "message" ? "Valider et remettre" : "Valider"}
-                    </button>
-                  </form>
-                  <form action={traiterSignalement}>
-                    <input type="hidden" name="signalement_id" value={s.id} />
-                    <input type="hidden" name="decision" value="rejeter" />
-                    <button type="submit" className="inline-flex min-h-11 items-center font-texte text-mini text-danger underline underline-offset-3">
-                      Rejeter
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      </Apparition>
-
-      <Apparition delai={0.14}>
-      <section className="mt-10" aria-labelledby="titre-signaux">
-        <SectionTitre>
-          <span id="titre-signaux">Signaux à examiner (30 jours)</span>
-        </SectionTitre>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Des schémas qui peuvent trahir une entente pour gonfler un classement. Ce sont des signaux, pas des preuves :
-          à regarder avant toute décision. Rien n&apos;est fait automatiquement.
-        </p>
-        {aucunSignal ? (
-          <p className="mt-3 text-sm text-muted">Rien à signaler.</p>
-        ) : (
-          <ul className="mt-3 flex max-w-3xl flex-col gap-2 text-sm text-text-2">
-            {signaux.paires.map((p) => (
-              <li key={`paire-${p.a}-${p.b}`}>
-                <span className="text-mini font-semibold text-danger uppercase">Face-à-face répétés</span> — {lienJoueur(p.a)}{" "}
-                et {lienJoueur(p.b)} : <span className="tabular-nums">{p.matchs}</span> matchs (
-                <span className="tabular-nums">
-                  {p.victoiresA}–{p.victoiresB}
-                </span>
-                ).
-              </li>
-            ))}
-            {signaux.organisateursJoueurs.map((o) => (
-              <li key={`orga-${o.tournoiId}`}>
-                <span className="text-mini font-semibold text-danger uppercase">Organisateur joueur</span> —{" "}
-                {lienJoueur(o.organisateurId)} joue dans son propre tournoi {lienTournoi(o.tournoiId)}.
-              </li>
-            ))}
-            {signaux.hausses.map((h) => (
-              <li key={`hausse-${h.profileId}-${h.tournoiId}`}>
-                <span className="text-mini font-semibold text-danger uppercase">Hausse forte</span> —{" "}
-                {lienJoueur(h.profileId)} :{" "}
-                <span className="tabular-nums">
-                  +{Math.round(h.apres - h.avant)} ({Math.round(h.avant)} → {Math.round(h.apres)})
-                </span>{" "}
-                sur {lienTournoi(h.tournoiId)}.
-              </li>
-            ))}
-            {signaux.petitsTournois.map((t) => (
-              <li key={`petit-${t.tournoiId}`}>
-                <span className="text-mini font-semibold text-danger uppercase">Très petit tournoi classé</span> —{" "}
-                {lienTournoi(t.tournoiId)} : <span className="tabular-nums">{t.joueurs}</span> joueurs, compte au
-                classement.
-              </li>
-            ))}
-          </ul>
         )}
       </section>
       </Apparition>
@@ -754,7 +985,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     </td>
                     <td className="px-4 py-2 font-texte tabular-nums text-[0.72rem]">
                       {c.game_accounts.some((g) => g.verifie_le) ? (
-                        <span className="text-accent">Vérifié</span>
+                        <span className="inline-flex items-center gap-1.5 text-text-2">
+                          <Icone nom="coche" taille={12} />
+                          Vérifié
+                        </span>
                       ) : (
                         <span className="text-muted">Non lié</span>
                       )}
@@ -771,69 +1005,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </tbody>
             </table>
           </div>
-        )}
-      </section>
-      </Apparition>
-
-      <Apparition delai={0.2}>
-      <section className="mt-10">
-        <SectionTitre>Litiges ouverts ({litigesOuverts.length})</SectionTitre>
-
-        {erreurLitiges ? (
-          <p className={"mt-3 " + classeCarte("sceau") + " text-sm text-danger"}>
-            Impossible de charger les litiges pour l&apos;instant.
-          </p>
-        ) : litigesOuverts.length === 0 ? (
-          <p className={"mt-3 " + classeCarte("none") + " text-sm text-muted"}>
-            Aucun litige ouvert.
-          </p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-3">
-            {litigesOuverts.map((l) => (
-              <li key={l.id} className={classeCarte("sceau")}>
-                {l.match?.tournament && (
-                  <Link
-                    href={`/lol/tournois/${l.match.tournament.slug}`}
-                    className="font-texte tabular-nums text-mini text-muted uppercase hover:text-text"
-                  >
-                    {l.match.tournament.nom} · Tour {l.match.tour}
-                  </Link>
-                )}
-                <p className="mt-1 text-sm text-text">
-                  Ouvert par{" "}
-                  <span className="font-medium">{l.ouvert_par?.pseudo ?? "un joueur"}</span> le{" "}
-                  {formaterDate(l.cree_le)}
-                </p>
-                <p className="mt-1 text-sm text-muted">{l.motif}</p>
-                <form action={resoudreLitigeAdmin} className="mt-3 flex flex-col gap-2">
-                  <input type="hidden" name="dispute_id" value={l.id} />
-                  <label>
-                    <span className="sr-only">
-                      Résolution du litige
-                      {l.match?.tournament
-                        ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}`
-                        : ""}
-                    </span>
-                    <input
-                      name="resolution"
-                      type="text"
-                      required
-                      placeholder="Résolution (obligatoire)"
-                      className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    />
-                  </label>
-                  <Bouton
-                    aria-label={`Résoudre le litige${l.match?.tournament ? ` — ${l.match.tournament.nom}, tour ${l.match.tour}` : ""}`}
-                    libelleEnCours="Résolution…"
-                    className="self-start"
-                  >
-                    Résoudre
-                  </Bouton>
-                </form>
-                <DossierLitige disputeId={l.id} dossier={dossierParLitige.get(l.id) ?? null} depuis="admin" />
-              </li>
-            ))}
-          </ul>
         )}
       </section>
       </Apparition>

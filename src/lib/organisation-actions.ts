@@ -7,7 +7,7 @@ import { envoyerRappel, notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/
 import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { echapperDiscord, echapperHtml } from "@/lib/echappement";
-import { prevenirMatchOuvert } from "@/lib/apres-verdict";
+import { matchsOuverts, prevenirMatchOuvert } from "@/lib/apres-verdict";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
 import { formerEquipes } from "@/lib/agents-libres";
@@ -52,6 +52,13 @@ export async function confirmerInscription(formData: FormData) {
   if (erreurConfirmation?.message.includes("COMPTE_SUSPENDU")) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce joueur est suspendu : son inscription ne peut pas être confirmée.")}`,
+    );
+  }
+
+  // Tournoi réservé aux membres : revérifié au check-in (17/10/2026).
+  if (erreurConfirmation?.message.includes("RESERVE_MEMBRES")) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce joueur (ou un joueur de cette équipe) n'est plus membre de la communauté, ou n'a plus son adresse d'école vérifiée : sa présence ne peut pas être confirmée.")}`,
     );
   }
 
@@ -239,6 +246,11 @@ export async function genererBracket(formData: FormData) {
   }
 
   await supabase.from("tournaments").update({ statut: "en_cours" }).eq("id", tournamentId);
+
+  // Les joueurs des matchs déjà ouverts sont prévenus (push et Discord, avec
+  // le bouton « Je suis prêt ») — jusqu'ici, seuls les tours suivants
+  // l'étaient.
+  await Promise.all((await matchsOuverts(tournamentId)).map((m) => prevenirMatchOuvert(m.matchId)));
 
   redirect(`/moi/organisation/${tournamentId}`);
 }

@@ -39,6 +39,9 @@ const MESSAGES_REFUS: Record<string, string> = {
   AUCUN_ARBITRE: "Aucun arbitre n'est disponible pour l'instant : réessaie plus tard.",
   NON_AUTORISE: "Seuls les capitaines des deux équipes peuvent annuler ce scrim.",
   SCRIM_NON_ANNULABLE: "Ce scrim ne peut plus être annulé.",
+  // Scrim calé sur une échéance (audit N24).
+  OBJECTIF_INVALIDE:
+    "Cette échéance n'est pas à venir dans la région du scrim, ou le scrim tombe après elle : un scrim la prépare.",
 };
 
 function messageRefus(erreur: string, parDefaut: string): string {
@@ -56,6 +59,8 @@ export async function proposerScrim(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const bestOf = Number(formData.get("best_of") ?? 1);
   const prevuLe = instantDepuisSaisieParis(String(formData.get("prevu_le") ?? ""));
+  // Échéance préparée (audit N24), facultative ; la base la vérifie.
+  const objectif = String(formData.get("objectif_id") ?? "");
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -72,6 +77,7 @@ export async function proposerScrim(formData: FormData) {
     p_prevu_le: prevuLe.toISOString(),
     p_best_of: bestOf,
     p_joueurs: formData.getAll("joueurs").map((v) => String(v)),
+    p_objectif_id: /^[0-9a-f-]{36}$/.test(objectif) ? objectif : undefined,
   });
   if (error) {
     redirect(pageEquipe(slug, "erreur", messageRefus(error.message, "Impossible de proposer ce scrim pour l'instant.")));

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { echapperHtml } from "@/lib/echappement";
 import { MESSAGE_EN_REVUE, messageModeration } from "@/lib/moderation";
+import { destinationInterne } from "@/lib/redirection";
 
 // Démarrer une conversation est réservé à l'offre organisateur — la policy
 // RLS "un organisateur demarre une conversation" le revérifie elle-même
@@ -19,7 +20,7 @@ export async function demarrerConversation(formData: FormData) {
 
   const destinataireId = String(formData.get("destinataire_id") ?? "");
   const contenu = String(formData.get("message") ?? "").trim().slice(0, 2000);
-  const retour = String(formData.get("retour") ?? "/moi/messages");
+  const retour = destinationInterne(String(formData.get("retour") ?? "") || null, "/moi/messages");
 
   if (!contenu || !destinataireId) {
     redirect(`${retour}?erreur=${encodeURIComponent("Message vide.")}`);

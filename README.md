@@ -63,8 +63,9 @@ ci-dessous pour les créer soi-même.
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` | suivi d'erreurs Sentry |
 | `DISCORD_WEBHOOK_URL` | annonces sur un serveur Discord (nouveau tournoi, vainqueur) |
 | `DISCORD_PUBLIC_KEY`, `DISCORD_APPLICATION_ID`, `DISCORD_BOT_TOKEN` | bot Discord interactif (`/classement`, `/tournois`, `/communaute`, `/lier`, `/organiser`) — lancer `npm run discord:commandes` une fois configurées, puis à chaque ajout de commande |
-| `ANTHROPIC_API_KEY` | textes rédigés par l'IA : assistant de configuration de tournoi, analyse détaillée d'un match, dossier de litige, recherche de joueurs (console.anthropic.com — compte payant à l'usage) |
+| `ANTHROPIC_API_KEY` | textes rédigés par l'IA : assistant de configuration de tournoi, analyse détaillée d'un match (aussi rédigée automatiquement pour l'offre Elite), dossier de litige, recherche de joueurs (console.anthropic.com — compte payant à l'usage) |
 | `CASH_PRIZES_ACTIFS` | cash prizes sponsorisés (`1` pour les allumer) — **à laisser vide** tant que le statut juridique, des CGU relues et les règles Riot sur les tournois dotés ne sont pas réglés |
+| `STRIPE_CONNECT_WEBHOOK_SECRET` | versement des cash prizes : secret du point d'écoute Stripe « Connect » (événement `account.updated`), qui tient à jour la vérification d'identité des gagnants — utile seulement une fois les cash prizes allumés et Stripe Connect activé |
 
 La **connexion via Discord (OAuth)** ne se configure pas ici : Client ID/Secret se renseignent directement dans le tableau de bord Supabase (Authentication → Providers → Discord). Détails des trois volets dans les commentaires de `.env.local`.
 

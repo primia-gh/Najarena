@@ -1,0 +1,64 @@
+# Idées en réserve
+
+Idées de fonctionnalités proposées le 04/10/2026, mises de côté à la demande
+du porteur du projet. **Toutes construites le 09/10/2026** : n°1, 2, 3, 6,
+10, 11, 12 et 14, puis n°4, 5, 7, 8, 9, 13, 15 et 16 (voir CLAUDE.md, mises
+à jour du 09/10/2026). Le format des divisions (n°13) a été validé par le
+porteur du projet le 10/10/2026. Critère de tri : rendre le
+classement plus crédible, ou faire jouer plus de matchs par joueur (CLAUDE.md
+§1 et §10). Toutes respectent les règles du projet : pas d'argent, pas de
+donnée inventée, pas de visuel Riot.
+
+Effort : S = moins de 3 jours · M = 1 à 2 semaines · L = plus.
+« Invention » = absent chez les concurrents étudiés par l'audit.
+
+## Rendre la preuve encore plus solide
+
+1. ~~**Fiche de preuve d'un match**~~ (construite le 09/10/2026) (S, invention) — une adresse par match :
+   identifiant de la partie Riot, Riot ID des deux joueurs, heure de
+   lecture, niveau du verdict, lignes du registre produites.
+2. ~~**Certificats signés**~~ (construite le 09/10/2026) (S, invention) — signature numérique de chaque
+   certificat, vérifiable hors de Najarena avec une clé publique publiée
+   (bibliothèque `tweetnacl` déjà présente).
+3. ~~**Registre ancré hors de Najarena**~~ (construite le 09/10/2026) (S, invention) — l'empreinte du
+   soir publiée aussi dans un dépôt GitHub public, en plus de Discord.
+4. ~~**« Recalcule toi-même »**~~ (construite le 09/10/2026) (M, invention) — le calcul Glicko-2 d'un
+   joueur refait dans le navigateur à partir du registre public.
+5. ~~**Météo du classement**~~ (construite le 09/10/2026) (S, invention) — page publique : matchs par
+   joueur actif, part des résultats lus chez Riot, incertitude moyenne.
+
+## Un CV qui intéresse une équipe
+
+6. ~~**Bloc « Fiabilité »**~~ (construite le 09/10/2026) (S, invention) — présence aux check-ins, délai
+   pour se déclarer prêt, forfaits, défaites reconnues.
+7. ~~**Recommandations vérifiées**~~ (construite le 09/10/2026) (M, invention) — seulement entre joueurs
+   qui ont réellement joué ensemble, avec le nombre de matchs communs.
+8. ~~**Coach vérifié**~~ (construite le 09/10/2026) (M, invention) — progression mesurée des élèves d'un
+   joueur Diamant ou plus, affichée sur son CV.
+9. ~~**Fiche de l'adversaire**~~ (construite le 09/10/2026) (S) — champions joués dans ses parties
+   vérifiées et résultats, noms seulement.
+
+## Faire jouer plus de matchs
+
+10. ~~**Check-in et défis depuis Discord**~~ (construite le 09/10/2026) (M) — boutons dans les messages
+    privés du bot : « Je confirme », « Je suis prêt », « Défier ».
+11. ~~**Créneaux à la demande**~~ (construite le 09/10/2026) (M, invention) — un tournoi automatique
+    s'ouvre quand assez de joueurs ont déclaré être disponibles au même
+    moment.
+12. ~~**Coupe des nouveaux**~~ (construite le 09/10/2026) (S) — créneau quotidien réservé aux joueurs pas
+    encore classés.
+13. ~~**Divisions hebdomadaires**~~ (construite le 09/10/2026, en ligue mensuelle) (L) — poules par palier, un match par
+    semaine contre chacun, montée et descente en fin de mois.
+14. ~~**Chances de titre**~~ (construite le 09/10/2026) (S) — probabilité de chaque joueur de gagner le
+    tournoi, avant et pendant celui-ci.
+
+## Équipes 5v5
+
+15. ~~**Bourse aux remplaçants**~~ (construite le 09/10/2026) (M) — un joueur vérifié disponible remplace
+    un absent pour un tournoi (nouvelle règle en base : aligné temporaire).
+16. ~~**Chimie d'équipe**~~ (construite le 09/10/2026) (M, invention) — résultats vérifiés selon les
+    joueurs alignés ensemble.
+
+## Ordre conseillé le 04/10/2026
+
+10 et 11 (font le plus jouer), puis 6, puis 1 et 2.

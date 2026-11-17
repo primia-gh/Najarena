@@ -28,7 +28,9 @@ export async function creerCommunaute(formData: FormData) {
   const { supabase, utilisateur } = await session();
   if (!utilisateur) redirect("/connexion?suite=%2Fcommunaute%2Fnouvelle");
 
-  const slug = `${slugifier(nom)}-${Math.random().toString(36).slice(2, 6)}`;
+  // Forme imposée par la base (communautes.slug, 60 caractères au plus) :
+  // un nom fait seulement de symboles donnait une adresse vide, refusée.
+  const slug = `${slugifier(nom).slice(0, 50).replace(/-+$/, "") || "communaute"}-${Math.random().toString(36).slice(2, 6)}`;
   const { error } = await supabase.rpc("creer_communaute", {
     p_nom: nom,
     p_slug: slug,
@@ -142,7 +144,9 @@ export async function obtenirCodeLiaisonDiscord(formData: FormData) {
       "#gestion",
     );
   }
-  redirect(`/communaute/${encodeURIComponent(slug)}?code=${encodeURIComponent(code)}#gestion`);
+  // « liaison » (pas « code ») : filtré par le proxy comme un message, un
+  // lien fabriqué ne peut pas faire afficher le code d'une autre communauté.
+  redirect(`/communaute/${encodeURIComponent(slug)}?liaison=${encodeURIComponent(code)}#gestion`);
 }
 
 export async function delierServeurDiscord(formData: FormData) {

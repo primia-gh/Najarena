@@ -14,6 +14,9 @@
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
+import { boutonCheckin, boutonPret } from "@/lib/suites-joueur";
+import { configAncrage, deposerEmpreinte } from "@/lib/ancrage-github";
+import { matchsOuverts } from "@/lib/apres-verdict";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { verifierCleRiot } from "@/lib/riot";
 import {
@@ -33,7 +36,7 @@ import { doitPublierEmpreinte } from "@/lib/registre";
 import { lundiDeLaSemaine, messageRecap } from "@/lib/recap-semaine";
 import { chargerRecapSemaine } from "@/lib/recap-semaine-serveur";
 
-type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
+export type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
 
 // Si un créneau a été retiré de CRENEAUX alors qu'un de ses tournois
 // était déjà créé : même minimum que le créneau d'origine.
@@ -96,6 +99,12 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     resultats.push(...(await publierEmpreinteRegistre(admin, maintenant)));
   } catch (erreur) {
     resultats.push(`empreinte du registre : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
+  try {
+    resultats.push(...(await ancrerEmpreintesSurGithub(admin)));
+  } catch (erreur) {
+    resultats.push(`ancrage GitHub : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
   }
 
   try {
@@ -167,6 +176,30 @@ async function publierEmpreinteRegistre(admin: ClientAdmin, maintenant: Date): P
     `🔏 Registre des points au ${jour.split("-").reverse().join("/")} : ${derniere.numero} ligne${derniere.numero > 1 ? "s" : ""}, dernière empreinte \`${derniere.empreinte}\`. Retoucher une seule ligne passée changerait cette empreinte. Vérifier : ${URL_SITE}/registre`,
   );
   return [`empreinte du registre publiée (${derniere.numero} lignes)`];
+}
+
+// Registre ancré sur GitHub (09/10/2026, idée en réserve n°3) : chaque
+// empreinte publiée (sur 7 jours) qui n'est pas encore déposée dans le
+// dépôt GitHub public l'est — aussitôt après la publication du soir, ou au
+// passage suivant si GitHub ne répondait pas. Sans configuration, rien.
+async function ancrerEmpreintesSurGithub(admin: ClientAdmin): Promise<string[]> {
+  const config = configAncrage();
+  if (!config) return [];
+  const { data: aDeposer } = await admin
+    .from("empreintes_publiees")
+    .select("jour, numero, empreinte")
+    .is("ancree_github_le", null)
+    .gte("jour", ajouterJours(jourParis(new Date()), -7))
+    .order("jour", { ascending: true });
+  const resultats: string[] = [];
+  for (const e of aDeposer ?? []) {
+    const issue = await deposerEmpreinte({ jour: e.jour, numero: e.numero, empreinte: e.empreinte, site: URL_SITE }, config);
+    if (issue === "depose" || issue === "deja_depose") {
+      await admin.from("empreintes_publiees").update({ ancree_github_le: new Date().toISOString() }).eq("jour", e.jour);
+    }
+    resultats.push(`empreinte du ${e.jour} sur GitHub : ${issue}`);
+  }
+  return resultats;
 }
 
 // Contrôle de la clé Riot dans les heures qui précèdent chaque tournoi
@@ -300,7 +333,7 @@ async function appliquer(admin: ClientAdmin, action: Action): Promise<string> {
 // quel tournoi (CLAUDE.md §3 : en cas de doute, on escalade vers
 // l'organisateur). TOURNOIS_AUTO_ORGANISATEUR_ID si elle est définie
 // (par exemple un compte « Najarena » dédié), sinon le premier admin.
-async function trouverOrganisateur(admin: ClientAdmin): Promise<string | null> {
+export async function trouverOrganisateur(admin: ClientAdmin): Promise<string | null> {
   const configure = process.env.TOURNOIS_AUTO_ORGANISATEUR_ID;
   if (configure) return configure;
   const { data } = await admin
@@ -336,29 +369,50 @@ async function creer(
     .eq("est_courante", true)
     .maybeSingle();
 
-  const slug = slugTournoi(creneau, jour);
-  const { data, error } = await admin
-    .from("tournaments")
-    .upsert(
-      {
-        game_id: JEU_LOL,
-        season_id: saison?.id ?? null,
-        organisateur_id: organisateurId,
-        slug,
-        nom: nomTournoi(creneau, jour),
-        format: "1v1",
-        capacite: creneau.capacite,
-        best_of: creneau.bestOf,
-        region: creneau.region,
-        debute_le: debuteLe,
-        checkin_ouvre_le: checkinOuvreLe,
-        statut: "ouvert",
-        creneau_auto: creneau.cle,
-        condition_victoire: creneau.conditionVictoire,
-      },
-      { onConflict: "slug", ignoreDuplicates: true },
-    )
-    .select("id");
+  const inserer = (slug: string) =>
+    admin
+      .from("tournaments")
+      .upsert(
+        {
+          game_id: JEU_LOL,
+          season_id: saison?.id ?? null,
+          organisateur_id: organisateurId,
+          slug,
+          nom: nomTournoi(creneau, jour),
+          format: "1v1",
+          capacite: creneau.capacite,
+          best_of: creneau.bestOf,
+          region: creneau.region,
+          debute_le: debuteLe,
+          checkin_ouvre_le: checkinOuvreLe,
+          statut: "ouvert",
+          creneau_auto: creneau.cle,
+          condition_victoire: creneau.conditionVictoire,
+          reserve_non_classes: creneau.reserveNonClasses ?? false,
+        },
+        { onConflict: "slug", ignoreDuplicates: true },
+      )
+      .select("id");
+
+  let slug = slugTournoi(creneau, jour);
+  let { data, error } = await inserer(slug);
+  if (!error && !data?.length) {
+    // Adresse déjà prise : par ce même tournoi (déjà créé), ou par un autre
+    // (contrôle de sécurité du 11/10/2026 : un brouillon à cette adresse
+    // empêchait le tournoi officiel). Dans ce cas, une adresse à suffixe
+    // aléatoire ; « un tournoi par créneau » reste tenu par la base.
+    const { data: occupant } = await admin
+      .from("tournaments")
+      .select("creneau_auto, debute_le")
+      .eq("slug", slug)
+      .maybeSingle();
+    const memeTournoi =
+      occupant?.creneau_auto === creneau.cle && new Date(occupant.debute_le).getTime() === new Date(debuteLe).getTime();
+    if (occupant && !memeTournoi) {
+      slug = `${slug}-${crypto.randomUUID().slice(0, 6)}`;
+      ({ data, error } = await inserer(slug));
+    }
+  }
 
   if (error) return `création ${slug} : ${error.code === "23505" ? "existe déjà" : "échec"}`;
   return `création ${slug} : ${data?.length ? "fait" : "existe déjà"}`;
@@ -373,7 +427,7 @@ async function reserverRappel(admin: ClientAdmin, tournoiId: string, type: TypeR
 async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel): Promise<string> {
   const { data: t } = await admin
     .from("tournaments")
-    .select("nom, slug, debute_le, checkin_ouvre_le, capacite, creneau_auto")
+    .select("nom, slug, debute_le, checkin_ouvre_le, capacite, creneau_auto, reserve_non_classes")
     .eq("id", tournoiId)
     .maybeSingle();
   if (!t) return `rappel ${type} (${tournoiId}) : tournoi introuvable`;
@@ -398,7 +452,7 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
     const inscrits = count ?? 0;
     const affluence = inscrits >= minimum ? `, ${inscrits}/${t.capacite} inscrits` : "";
     await notifierDiscord(
-      `📣 Aujourd'hui à ${heure} : **${echapperDiscord(t.nom)}** — tournoi 1v1 ouvert à tous${affluence}. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
+      `📣 Aujourd'hui à ${heure} : **${echapperDiscord(t.nom)}** — tournoi 1v1 ${t.reserve_non_classes ? "réservé aux joueurs pas encore classés" : "ouvert à tous"}${affluence}. Inscriptions jusqu'à ${heureParis(t.checkin_ouvre_le)}.\n${lien}`,
     );
     return `annonce ${t.slug} : envoyée`;
   }
@@ -420,6 +474,7 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
           `Check-in ouvert — ${t.nom}`,
           `Confirme ta présence avant ${heure} : seuls les joueurs confirmés sont placés dans le bracket.`,
           lien,
+          { boutons: [boutonCheckin(tournoiId)] },
         ),
       ),
     );
@@ -432,6 +487,7 @@ async function rappeler(admin: ClientAdmin, tournoiId: string, type: TypeRappel)
           `Dernier appel — ${t.nom}`,
           `Le tournoi commence à ${heure} et ton check-in n'est pas fait. Sans lui, pas de place dans le bracket.`,
           lien,
+          { boutons: [boutonCheckin(tournoiId)] },
         ),
       ),
     );
@@ -544,15 +600,19 @@ async function demarrer(admin: ClientAdmin, tournoiId: string): Promise<string> 
     );
   }
 
+  // Bouton « Je suis prêt » à ceux dont le match du premier tour est ouvert.
+  const matchDe = new Map((await matchsOuverts(tournoiId)).flatMap((m) => m.joueurs.map((j) => [j, m.matchId] as const)));
   await Promise.all([
-    ...retenus.map((id) =>
-      envoyerRappel(
+    ...retenus.map((id) => {
+      const matchId = matchDe.get(id);
+      return envoyerRappel(
         id,
         `C'est parti — ${t.nom}`,
         "Le bracket est en ligne. Ouvre-le pour voir ton adversaire et lancer ta partie.",
-        lien,
-      ),
-    ),
+        matchId ? `${lien}#ton-match` : lien,
+        { boutons: matchId ? [boutonPret(matchId)] : [] },
+      );
+    }),
     ...surplus.map((id) =>
       envoyerRappel(
         id,

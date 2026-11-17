@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { destinationInterne } from "@/lib/redirection";
 import { COOKIE_CONSENTEMENT } from "@/lib/cgu";
+import { RETOURS_EXTERNES } from "@/lib/messages-adresse";
 
 // Point de retour pour tout provider OAuth (Discord aujourd'hui, RSO plus
 // tard — CLAUDE.md §2 : la couche d'identité doit être interchangeable).
@@ -31,6 +32,6 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.redirect(
-    `${origin}/connexion?erreur=${encodeURIComponent("Connexion impossible, réessaie.")}`,
+    `${origin}/connexion?erreur=${encodeURIComponent(RETOURS_EXTERNES.connexionImpossible)}`,
   );
 }

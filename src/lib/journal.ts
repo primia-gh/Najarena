@@ -10,6 +10,34 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "5 octobre",
+    titre: "Tes parties classées dans ton bilan",
+    texte:
+      "Si tu le demandes, ton bilan lit aussi tes parties classées chez Riot : tu te situes parmi les joueurs Najarena de ton rang et de ton poste, tu vois tes résultats après une ou deux défaites (et ta règle d'arrêt quand l'écart est net), où et quand tu meurs sur une carte dessinée par nos soins, et ton sang-froid — ce que tu fais en tournoi comparé à tes classées. Elles ne comptent jamais pour le classement, restent visibles de toi seul, et tu peux tout effacer d'un clic. Avec l'offre Elite, ton bilan de la semaine arrive chaque lundi sur Discord.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "5 octobre",
+    titre: "Ton bilan de joueur",
+    texte:
+      "Tes parties vérifiées disent maintenant ce que tu fais bien et ce qui te coûte des victoires : farm, morts, dégâts, vision, premier sang, comparés à la moyenne des vainqueurs des autres joueurs, avec un conseil par axe de travail. Avec l'offre Elite : un plan d'entraînement suivi partie après partie, tes courbes de progression, tes champions et tes builds comparés à ceux des vainqueurs. Chaque constat donne ses chiffres et le nombre de parties derrière ; aucun n'est rédigé par une IA.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "4 octobre",
+    titre: "La ligue des écoles",
+    texte:
+      "L'association de ton école ou de ton université indique le domaine des adresses de l'établissement : ses membres reçoivent un code sur leur adresse d'école et deviennent membres vérifiés. Les écoles sont classées par la moyenne des cinq meilleurs ratings officiels de leurs membres vérifiés — rien de recalculé. Najarena ne garde que le domaine de l'adresse, jamais l'adresse elle-même.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "4 octobre",
+    titre: "Des tournois réservés aux membres",
+    texte:
+      "Une communauté peut réserver un tournoi à ses membres — et une école, à ses membres vérifiés. Le choix est figé à la publication, et la base refuse toute autre inscription, en 5v5 pour chacun des cinq joueurs.",
+    tags: ["Fonctionnalité"],
+  },
+  {
     date: "3 octobre",
     titre: "Tes résultats sur ton site et ton stream",
     texte:

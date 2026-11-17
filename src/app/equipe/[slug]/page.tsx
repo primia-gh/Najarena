@@ -7,21 +7,26 @@ import { createClient } from "@/lib/supabase/server";
 import { inviterMembre, retirerMembre, refuserInvitation, mettreAJourEquipe } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { chargerOffre, ORDRE_OFFRE } from "@/lib/offres";
+import { arrondir, trouverPalier } from "@/lib/classement";
+import { COULEUR_PALIER } from "@/lib/paliers";
+import { LABEL_ROLE, ROLES, type Role } from "@/lib/roles";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
 import SectionTitre from "@/components/ui/SectionTitre";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
-import EtatVide from "@/components/ui/EtatVide";
-import IllustrationEffectifVide from "@/components/ui/IllustrationEffectifVide";
 import UploadLogo from "@/components/ui/UploadLogo";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import Alerte from "@/components/design/Alerte";
+import AvatarJoueur from "@/components/design/AvatarJoueur";
+import LibelleSection from "@/components/design/LibelleSection";
 import { chargerEquipesCapitaine, chargerPalmaresEquipe, chargerScrimsEquipe } from "@/lib/equipes-tournoi";
 import { formaterDate } from "@/lib/tournois";
 import { annulerScrim, proposerScrim, repondreScrim } from "@/lib/scrim-actions";
 import { etatScrim, LIBELLE_ETAT_SCRIM, resultatScrim } from "@/lib/scrims";
 import { libelleEquipe, TAILLE_ALIGNEMENT } from "@/lib/cinq-contre-cinq";
 import { ChoixAlignement } from "@/components/tournoi/FormulaireAlignement";
+import ChimieEquipe from "@/components/equipe/ChimieEquipe";
 
 interface EquipePageProps {
   params: Promise<{ slug: string }>;
@@ -54,12 +59,12 @@ const chargerEquipe = cache(async (slug: string) => {
     await Promise.all([
       supabase.auth.getUser(),
       supabase.from("games").select("nom").eq("id", equipe.game_id).maybeSingle(),
-      supabase.from("profiles").select("pseudo, slug").eq("id", equipe.capitaine_id).maybeSingle(),
+      supabase.from("profiles").select("pseudo, slug, avatar_url").eq("id", equipe.capitaine_id).maybeSingle(),
       // Un membre invité mais pas encore accepté n'apparaît pas publiquement —
       // on n'affiche jamais une affiliation qu'un joueur n'a pas confirmée.
       supabase
         .from("team_members")
-        .select("profile_id, role, accepte_le, profile:profiles(pseudo, slug)")
+        .select("profile_id, role, accepte_le, profile:profiles(pseudo, slug, avatar_url)")
         .eq("team_id", equipe.id),
       chargerOffre(supabase, equipe.capitaine_id),
       // Tournois 5v5 joués (audit N21) : seuls résultats d'équipe affichés.
@@ -73,6 +78,31 @@ const chargerEquipe = cache(async (slug: string) => {
     (m) => m.accepte_le !== null && m.profile_id !== equipe.capitaine_id,
   );
   const invitesEnAttente = tousLesMembres.filter((m) => m.accepte_le === null);
+
+  // Niveau de chaque joueur de l'effectif (revue visuelle du 05/10/2026) :
+  // rating officiel et palier de la saison en cours, seulement s'il est classé.
+  const idsEffectif = [equipe.capitaine_id, ...membres.map((m) => m.profile_id)];
+  const [{ data: saison }, { data: paliersData }] = await Promise.all([
+    supabase.from("seasons").select("id").eq("game_id", equipe.game_id).eq("est_courante", true).maybeSingle(),
+    supabase.from("tiers").select("nom, rating_min").eq("game_id", equipe.game_id),
+  ]);
+  const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
+  const { data: ratingsData } = saison
+    ? await supabase
+        .from("ratings")
+        .select("profile_id, rating")
+        .eq("game_id", equipe.game_id)
+        .eq("season_id", saison.id)
+        .eq("est_classe", true)
+        .in("profile_id", idsEffectif)
+    : { data: [] };
+  const niveaux = new Map(
+    (ratingsData ?? []).map((r) => [
+      r.profile_id,
+      { rating: arrondir(r.rating), palier: trouverPalier(r.rating, paliers)?.nom ?? null },
+    ]),
+  );
+  const roleCapitaine = tousLesMembres.find((m) => m.profile_id === equipe.capitaine_id)?.role ?? null;
 
   const estCapitaine = userData.user?.id === equipe.capitaine_id;
   const monAffiliation = userData.user
@@ -88,7 +118,7 @@ const chargerEquipe = cache(async (slug: string) => {
       ? supabase
           .from("scrims")
           .select(
-            "id, prevu_le, best_of, statut, region, tournament_id, equipe_a_id, equipe_b_id, equipe_a:teams!scrims_equipe_a_id_fkey(nom, tag, slug), equipe_b:teams!scrims_equipe_b_id_fkey(nom, tag, slug)",
+            "id, prevu_le, best_of, statut, region, tournament_id, equipe_a_id, equipe_b_id, equipe_a:teams!scrims_equipe_a_id_fkey(nom, tag, slug), equipe_b:teams!scrims_equipe_b_id_fkey(nom, tag, slug), objectif:echeances(nom)",
           )
           .or(`equipe_a_id.eq.${equipe.id},equipe_b_id.eq.${equipe.id}`)
           .in("statut", ["propose", "accepte"])
@@ -108,6 +138,15 @@ const chargerEquipe = cache(async (slug: string) => {
     ? await chargerEquipesCapitaine(supabase, userData.user.id, equipe.game_id, regionVisiteur)
     : [];
   const maintenant = new Date();
+  // Échéances à venir qu'un scrim peut préparer (audit N24).
+  const { data: echeancesData } = equipesVisiteur.some((e) => e.id !== equipe.id)
+    ? await supabase
+        .from("echeances")
+        .select("id, nom, region, debut_le")
+        .gt("debut_le", maintenant.toISOString())
+        .order("debut_le", { ascending: true })
+        .limit(12)
+    : { data: [] };
   const propositions = (propositionsData ?? []).filter((p) => p.statut === "propose" && new Date(p.prevu_le) > maintenant);
   const scrimParTournoi = new Map(
     (propositionsData ?? []).filter((p) => p.tournament_id).map((p) => [p.tournament_id as string, p.id]),
@@ -118,6 +157,8 @@ const chargerEquipe = cache(async (slug: string) => {
     equipe,
     jeu,
     capitaine,
+    roleCapitaine,
+    niveaux,
     membres,
     invitesEnAttente: estCapitaine ? invitesEnAttente : [],
     estCapitaine,
@@ -138,6 +179,7 @@ const chargerEquipe = cache(async (slug: string) => {
     membresAlignables: equipesVisiteur.find((e) => e.id === equipe.id)?.membres ?? [],
     // Autres équipes du visiteur, depuis lesquelles proposer un scrim.
     equipesPourProposer: equipesVisiteur.filter((e) => e.id !== equipe.id),
+    echeances: (echeancesData ?? []).filter((e) => !e.region || e.region === regionVisiteur),
   };
 });
 
@@ -179,6 +221,8 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
     equipe,
     jeu,
     capitaine,
+    roleCapitaine,
+    niveaux,
     membres,
     invitesEnAttente,
     estCapitaine,
@@ -192,6 +236,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
     propositionsEnvoyees,
     membresAlignables,
     equipesPourProposer,
+    echeances,
   } = donnees;
   const CHAMP_SCRIM =
     "min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -200,125 +245,181 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille">
-      {erreur && (
-        <p className={"mt-4 " + classeCarte("sceau") + " text-sm text-danger"}>{erreur}</p>
-      )}
-
-      {message && (
-        <p className={"mt-4 " + classeCarte("atteste") + " text-sm text-accent"}>{message}</p>
+      {(erreur || message) && (
+        <div className="mb-10 flex max-w-2xl flex-col gap-3">
+          {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+          {message && <Alerte type="succes">{message}</Alerte>}
+        </div>
       )}
 
       <Apparition>
-      <div className="flex items-center gap-3">
-        {equipe.logo_url ? (
-          <Image
-            src={equipe.logo_url}
-            alt=""
-            width={40}
-            height={40}
-            className="h-10 w-10 rounded-[3px] border border-line object-cover"
-            unoptimized
-          />
-        ) : (
-          <span
-            className="rounded-[3px] px-2 py-1 font-texte tabular-nums text-sm font-bold text-bg"
-            style={{ background: equipe.couleur_accent ?? "#d2a257" }}
-          >
-            {equipe.tag}
-          </span>
-        )}
-        <h1
-          className="font-titre uppercase text-4xl font-extrabold tracking-tight"
-          style={{ color: equipe.couleur_accent ?? "var(--color-text)" }}
-        >
-          {equipe.nom}
-        </h1>
-      </div>
-
-      {jeu?.nom && (
-        <div className="mt-1 font-texte tabular-nums text-[0.72rem] tracking-[0.14em] text-muted uppercase">
-          {jeu.nom}
+      <header className="flex flex-col gap-8 border-b border-line pb-10 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-center gap-6">
+          {equipe.logo_url ? (
+            <Image
+              src={equipe.logo_url}
+              alt=""
+              width={112}
+              height={112}
+              className="h-24 w-24 shrink-0 rounded-panneau border border-line-strong object-cover sm:h-28 sm:w-28"
+              unoptimized
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="inline-flex h-24 w-24 shrink-0 items-center justify-center rounded-panneau border border-line-strong bg-surface font-titre text-4xl font-black uppercase sm:h-28 sm:w-28"
+              style={equipe.couleur_accent ? { color: equipe.couleur_accent } : undefined}
+            >
+              {equipe.tag}
+            </span>
+          )}
+          <div className="flex min-w-0 flex-col gap-3">
+            <LibelleSection>{jeu?.nom ? `${jeu.nom} · Équipe` : "Équipe"}</LibelleSection>
+            <h1
+              className="font-titre text-sous-titre font-black uppercase [overflow-wrap:anywhere]"
+              style={equipe.couleur_accent ? { color: equipe.couleur_accent } : undefined}
+            >
+              {equipe.nom}
+            </h1>
+            {capitaine && (
+              <p className="text-sm text-muted">
+                Capitaine :{" "}
+                <Link href={`/joueur/${capitaine.slug}`} className="text-text hover:text-accent">
+                  {capitaine.pseudo}
+                </Link>
+                {" · "}créée le {formaterDate(equipe.cree_le).split(" ")[0]}
+              </p>
+            )}
+          </div>
         </div>
-      )}
-      <div className="mt-1 font-texte tabular-nums text-[0.72rem] text-accent">
-        {membres.length + 1}/{TAILLE_MAX_EQUIPE} joueurs
-      </div>
+        <dl className="flex gap-10 sm:border-l sm:border-line-strong sm:pl-8">
+          <div className="flex flex-col gap-2">
+            <dt className="font-texte text-mini font-medium text-faint uppercase">Effectif</dt>
+            <dd className="font-titre text-5xl leading-none font-black tabular-nums">
+              {membres.length + 1}
+              <span className="text-2xl text-muted">/{TAILLE_MAX_EQUIPE}</span>
+            </dd>
+          </div>
+          <div className="flex flex-col gap-2">
+            <dt className="font-texte text-mini font-medium text-faint uppercase">Tournois 5v5</dt>
+            <dd className="font-titre text-5xl leading-none font-black tabular-nums">{palmares.length}</dd>
+          </div>
+        </dl>
+      </header>
 
-      {equipe.description && (
-        <p className="mt-3 max-w-md text-sm text-text">{equipe.description}</p>
-      )}
-      {equipe.contact_recrutement && (
-        <p className="mt-1 text-sm text-muted">
-          Recrutement : <span className="text-text">{equipe.contact_recrutement}</span>
-        </p>
-      )}
-
-      {capitaine && (
-        <div className="mt-3 font-texte tabular-nums text-[0.78rem] text-muted">
-          Capitaine :{" "}
-          <Link href={`/joueur/${capitaine.slug}`} className="text-text hover:underline">
-            {capitaine.pseudo}
-          </Link>
+      {(equipe.description || equipe.contact_recrutement) && (
+        <div className="mt-8 flex max-w-3xl flex-col gap-2">
+          {equipe.description && <p className="text-courant text-text-2">{equipe.description}</p>}
+          {equipe.contact_recrutement && (
+            <p className="text-sm text-muted">
+              Recrutement : <span className="text-text">{equipe.contact_recrutement}</span>
+            </p>
+          )}
         </div>
       )}
       </Apparition>
 
       <Apparition delai={0.1}>
-      <section className="mt-10">
-        <SectionTitre>Membres</SectionTitre>
-        {membres.length === 0 ? (
-          <div className="mt-3">
-            <EtatVide illustration={<IllustrationEffectifVide />}>
-              Aucun autre membre pour l&apos;instant.
-            </EtatVide>
-          </div>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-2">
-            {membres.map((m) => (
-              <li key={m.profile_id} className={"flex items-center justify-between " + classeCarte("none")}>
-                <span className="text-sm font-medium text-text">
-                  {m.profile ? (
-                    <Link href={`/joueur/${m.profile.slug}`} className="hover:underline">
-                      {m.profile.pseudo}
-                    </Link>
-                  ) : (
-                    "Joueur inconnu"
-                  )}
-                </span>
-                <div className="flex items-center gap-3">
-                  {m.role && (
-                    <span className="font-texte tabular-nums text-mini text-muted uppercase">
-                      {m.role}
+      <section aria-labelledby="equipe-effectif" className="mt-12">
+        <SectionTitre>
+          <span id="equipe-effectif">Effectif</span>
+        </SectionTitre>
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {[
+            ...(capitaine
+              ? [{ id: equipe.capitaine_id, pseudo: capitaine.pseudo, slug: capitaine.slug, avatar: capitaine.avatar_url, role: roleCapitaine, estCapitaine: true }]
+              : []),
+            ...membres.map((m) => ({
+              id: m.profile_id,
+              pseudo: m.profile?.pseudo ?? "Joueur inconnu",
+              slug: m.profile?.slug ?? null,
+              avatar: m.profile?.avatar_url ?? null,
+              role: m.role,
+              estCapitaine: false,
+            })),
+          ].map((j) => {
+            const niveau = niveaux.get(j.id);
+            const brut = j.role && j.role.toLowerCase() !== "capitaine" ? j.role : null;
+            const role = brut && ROLES.includes(brut.toLowerCase() as Role) ? LABEL_ROLE[brut.toLowerCase() as Role] : brut;
+            return (
+              <li key={j.id} className="panneau flex flex-col gap-5 p-5">
+                <span className="flex items-center justify-between gap-3">
+                  <AvatarJoueur pseudo={j.pseudo} src={j.avatar} taille={48} />
+                  {j.estCapitaine && (
+                    <span className="rounded-bouton border border-line-strong px-1.5 py-px font-texte text-mini font-semibold tracking-[2px] text-text-2 uppercase">
+                      Capitaine
                     </span>
                   )}
-                  {estCapitaine && (
-                    <form action={retirerMembre}>
-                      <input type="hidden" name="team_id" value={equipe.id} />
-                      <input type="hidden" name="profile_id" value={m.profile_id} />
-                      <input type="hidden" name="slug" value={equipe.slug} />
-                      <BoutonConfirmation
-                        type="submit"
-                        confirmation={`Retirer ${m.profile?.pseudo ?? "ce joueur"} de l'équipe ?`}
-                        aria-label={`Retirer ${m.profile?.pseudo ?? "ce membre"} de l'équipe`}
-                        className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
-                      >
-                        Retirer
-                      </BoutonConfirmation>
-                    </form>
+                </span>
+                <span className="flex min-w-0 flex-col gap-1">
+                  {j.slug ? (
+                    <Link href={`/joueur/${j.slug}`} className="truncate font-titre text-2xl leading-none font-black uppercase hover:text-accent">
+                      {j.pseudo}
+                    </Link>
+                  ) : (
+                    <span className="truncate font-titre text-2xl leading-none font-black uppercase">{j.pseudo}</span>
                   )}
-                </div>
+                  <span className="text-sm text-muted">{role ?? "Poste non précisé"}</span>
+                </span>
+                <span className="mt-auto flex items-end justify-between gap-3 border-t border-line pt-4">
+                  {niveau ? (
+                    <>
+                      <span className="font-titre text-3xl leading-none font-black tabular-nums">{niveau.rating}</span>
+                      {niveau.palier && (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+                          <span
+                            aria-hidden="true"
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{ background: COULEUR_PALIER[niveau.palier.toLowerCase()] ?? "var(--color-muted)" }}
+                          />
+                          {niveau.palier}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-xs tracking-[2px] text-faint uppercase">Non classé</span>
+                  )}
+                </span>
+                {estCapitaine && !j.estCapitaine && (
+                  <form action={retirerMembre} className="-mt-2">
+                    <input type="hidden" name="team_id" value={equipe.id} />
+                    <input type="hidden" name="profile_id" value={j.id} />
+                    <input type="hidden" name="slug" value={equipe.slug} />
+                    <BoutonConfirmation
+                      type="submit"
+                      confirmation={`Retirer ${j.pseudo} de l'équipe ?`}
+                      aria-label={`Retirer ${j.pseudo} de l'équipe`}
+                      className="inline-flex min-h-11 cursor-pointer items-center text-xs text-muted underline underline-offset-3 hover:text-danger"
+                    >
+                      Retirer de l&apos;équipe
+                    </BoutonConfirmation>
+                  </form>
+                )}
               </li>
-            ))}
-          </ul>
-        )}
+            );
+          })}
+          {Array.from({ length: Math.max(0, TAILLE_MAX_EQUIPE - membres.length - 1) }, (_, i) => (
+            <li
+              key={`libre-${i}`}
+              className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-panneau border border-dashed border-line-strong p-5 text-center"
+            >
+              <span className="font-texte text-mini font-medium text-faint uppercase">Place libre</span>
+              {i === 0 && !estCapitaine && (
+                <Link href="/lol/coequipiers" className="text-xs text-muted underline underline-offset-3 hover:text-text">
+                  Trouver un coéquipier
+                </Link>
+              )}
+            </li>
+          ))}
+        </ul>
 
         {peutQuitter && (
-          <form action={refuserInvitation} className="mt-3">
+          <form action={refuserInvitation} className="mt-4">
             <input type="hidden" name="team_id" value={equipe.id} />
             <BoutonConfirmation
               type="submit"
               confirmation="Quitter cette équipe ? Il faudra une nouvelle invitation pour la rejoindre à nouveau."
-              className="inline-flex min-h-11 items-center font-texte tabular-nums text-mini text-danger underline underline-offset-3"
+              className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger"
             >
               Quitter l&apos;équipe
             </BoutonConfirmation>
@@ -367,6 +468,10 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
       </section>
       </Apparition>
 
+      <Apparition delai={0.113}>
+        <ChimieEquipe teamId={equipe.id} />
+      </Apparition>
+
       <Apparition delai={0.115}>
       <section id="scrims" className="mt-10 scroll-mt-28">
         <SectionTitre>Scrims</SectionTitre>
@@ -389,7 +494,8 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                     "Une équipe"
                   )}{" "}
                   propose un scrim le <span className="tabular-nums">{formaterDate(p.prevu_le)}</span> (heure de
-                  Paris), en Bo{p.best_of}, sur {p.region}.
+                  Paris), en Bo{p.best_of}, sur {p.region}
+                  {p.objectif ? ` — préparation de ${p.objectif.nom}` : ""}.
                 </p>
                 {membresAlignables.length >= TAILLE_ALIGNEMENT ? (
                   <form action={repondreScrim} className="flex flex-col gap-3">
@@ -436,6 +542,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 <span className="text-sm text-text">
                   Contre {p.equipe_b ? libelleEquipe(p.equipe_b.tag, p.equipe_b.nom) : "une équipe"} ·{" "}
                   <span className="tabular-nums">{formaterDate(p.prevu_le)}</span> · Bo{p.best_of} ·{" "}
+                  {p.objectif ? `préparation de ${p.objectif.nom} · ` : ""}
                   <span className="text-muted">{LIBELLE_ETAT_SCRIM.propose}</span>
                 </span>
                 <form action={annulerScrim}>
@@ -473,6 +580,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                   </span>
                   <Link href={`/lol/tournois/${sc.slug}`} className="text-xs text-muted tabular-nums hover:underline">
                     {formaterDate(sc.prevuLe)}
+                    {sc.objectif ? ` · préparation de ${sc.objectif}` : ""}
                   </Link>
                 </span>
                 <span className="flex items-center gap-3">
@@ -540,6 +648,22 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                           <option value="3">Best-of-3</option>
                         </select>
                       </label>
+                      {/* Échéance préparée (audit N24) : Clash, étape du Nexus Tour… */}
+                      {echeances.length > 0 && (
+                        <label className="flex flex-col gap-1">
+                          <span className="font-texte text-mini font-medium text-muted uppercase">
+                            Prépare une échéance (facultatif)
+                          </span>
+                          <select name="objectif_id" defaultValue="" className={CHAMP_SCRIM}>
+                            <option value="">Aucune</option>
+                            {echeances.map((ec) => (
+                              <option key={ec.id} value={ec.id}>
+                                {ec.nom} — {formaterDate(ec.debut_le)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
                       <ChoixAlignement
                         region={regionVisiteur}
                         capitaineId={visiteurId ?? ""}
@@ -564,7 +688,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
         <Apparition delai={0.12}>
         <section className="mt-10">
           <SectionTitre>Vitrine &amp; recrutement</SectionTitre>
-          <form action={mettreAJourEquipe} className="mt-3 flex flex-col gap-3">
+          <form action={mettreAJourEquipe} className="mt-6 flex max-w-2xl flex-col gap-3">
             <input type="hidden" name="team_id" value={equipe.id} />
             <input type="hidden" name="slug" value={equipe.slug} />
             <label className="flex flex-col gap-1">
@@ -625,7 +749,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
         <section className="mt-10">
           <SectionTitre>Gérer l&apos;équipe</SectionTitre>
 
-          <form action={inviterMembre} className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <form action={inviterMembre} className="mt-6 flex max-w-2xl flex-col gap-2 sm:flex-row">
             <input type="hidden" name="team_id" value={equipe.id} />
             <input type="hidden" name="slug" value={equipe.slug} />
             <label className="flex-1">

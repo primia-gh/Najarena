@@ -190,6 +190,12 @@ html[data-animations="pause"] *::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Apparition.tsx (corrigé le 05/10/2026) : contenu affiché d'emblée,
+     sans fondu ni glissement — l'élément arrive masqué du serveur. */
+  [data-apparition] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
   .reflet::after,
   .animate-balayage,
   .animate-pulsation,

@@ -9,6 +9,10 @@ import { calibrationPct, arrondir, RATING_INITIAL, RD_INITIAL } from "@/lib/clas
 import { formaterDate } from "@/lib/tournois";
 import { chargerOffre, LABEL_OFFRE, COULEUR_OFFRE, ORDRE_OFFRE } from "@/lib/offres";
 import { mettreAJourBioProfile } from "@/lib/offres-actions";
+import { libelleLienExterne, lienExterneSur } from "@/lib/lien-externe";
+import Icone from "@/components/design/Icone";
+import Alerte from "@/components/design/Alerte";
+import { Champ } from "@/components/design/Formulaire";
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { demarrerConversation } from "@/lib/messagerie-actions";
 import { chargerMoyennes, genererRevue, type StatsMatch } from "@/lib/revue-match";
@@ -21,7 +25,7 @@ import { emettreCertificat } from "@/lib/profil-actions";
 import { lancerDefi } from "@/lib/defi-actions";
 import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { COULEUR_PALIER } from "@/lib/paliers";
-import { classeBoutonContour, classeBoutonPrincipal } from "@/lib/design";
+import { classeBoutonContour, classeBoutonPrincipal, classeChamp } from "@/lib/design";
 import BoutonLien from "@/components/design/BoutonLien";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import { BadgeChercheEquipe, BadgeVerdict, BadgeVerifie } from "@/components/design/Badges";
@@ -32,6 +36,8 @@ import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
+import BlocCoach from "@/components/profil/BlocCoach";
+import BlocRecommandations from "@/components/profil/BlocRecommandations";
 import CourbeProgression from "@/components/profil/CourbeProgression";
 import BoutonPartager from "@/components/profil/BoutonPartager";
 
@@ -56,7 +62,15 @@ const LABEL_MOTIF: Record<string, string> = {
 
 interface JoueurPageProps {
   params: Promise<{ pseudo: string }>;
-  searchParams?: Promise<{ revue?: string }>;
+  searchParams?: Promise<{
+    revue?: string;
+    reco?: string;
+    recoErreur?: string;
+    coach?: string;
+    coachErreur?: string;
+    message?: string;
+    erreur?: string;
+  }>;
 }
 
 // Réponse à « Analyse détaillée » (audit N25, src/lib/revue-ia-actions.ts).
@@ -322,7 +336,15 @@ export async function generateMetadata({ params }: JoueurPageProps): Promise<Met
 
 export default async function JoueurPage({ params, searchParams }: JoueurPageProps) {
   const { pseudo } = await params;
-  const { revue: retourRevue } = (await searchParams) ?? {};
+  const {
+    revue: retourRevue,
+    reco: retourReco,
+    recoErreur: retourRecoErreur,
+    coach: retourCoach,
+    coachErreur: retourCoachErreur,
+    message: retourProfil,
+    erreur: retourProfilErreur,
+  } = (await searchParams) ?? {};
   const donnees = await chargerJoueur(pseudo);
 
   if (donnees.statut === "deplace") {
@@ -367,6 +389,24 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
     after(() => enregistrerVisite(profil.id, visiteurId));
   }
   const peutPersonnaliser = ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie;
+  // Lien choisi par le joueur : adresse web seulement, sans message d'adresse.
+  const lienExterne = lienExterneSur(infoOffre.lien_externe);
+
+  // Action principale du propriétaire sur son CV.
+  const actionPrincipale = (className: string) =>
+    !compteRiot?.verifie_le ? (
+      <BoutonLien href="/lier-riot" className={className}>
+        Lier mon Riot ID
+      </BoutonLien>
+    ) : peutPersonnaliser ? (
+      <BoutonLien href="#personnaliser" className={className}>
+        Modifier le profil
+      </BoutonLien>
+    ) : (
+      <BoutonLien href="/moi" className={className}>
+        Mon espace
+      </BoutonLien>
+    );
   const visiteurEstOrganisateur = offreVisiteur === "organisateur";
   const pct = rating ? calibrationPct(rating.rd) : 0;
   const matchsCalibres = historique.length;
@@ -413,10 +453,10 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
 
   const kpis = [
     {
-      libelle: "Classement national",
+      libelle: "Rang national",
       valeur: complements.rangNational ? `#${complements.rangNational}` : "—",
       sous: complements.rangNational
-        ? `sur ${complements.totalClasses} joueur${complements.totalClasses > 1 ? "s" : ""} classé${complements.totalClasses > 1 ? "s" : ""}`
+        ? `sur ${complements.totalClasses}\u00a0joueur${complements.totalClasses > 1 ? "s" : ""} classé${complements.totalClasses > 1 ? "s" : ""}`
         : "Classé à partir de RD ≤ 150",
     },
     {
@@ -428,6 +468,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
           ? "Palier maximal"
           : "Après le premier tournoi",
       couleur: couleurPalier,
+      // Un mot, pas un chiffre : composé plus petit, sinon « CHAMPION »
+      // débordait sur la case voisine (relecture design du 12/10/2026).
+      mot: true,
     },
     {
       libelle: "Victoires",
@@ -502,8 +545,8 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
     { cle: "Membre depuis", valeur: moisAnnee.format(new Date(profil.created_at)) },
   ].filter((i): i is { cle: string; valeur: string } => i !== null);
 
-  const CHAMP =
-    "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  // 16 px sur téléphone (sinon iOS zoome la page au toucher d'un champ).
+  const CHAMP = classeChamp();
   const SOMMAIRE = "list-none [&::-webkit-details-marker]:hidden";
 
   return (
@@ -543,7 +586,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
           className="pointer-events-none absolute -top-14 right-[4%] -z-10 hidden h-[420px] w-auto opacity-[0.04] lg:block"
         />
 
-        <div className="mx-auto flex max-w-contenu flex-col gap-8 lg:flex-row lg:items-end lg:gap-10">
+        <div className="mx-auto flex max-w-contenu flex-col gap-8 lg:flex-row lg:flex-wrap lg:items-end lg:gap-10">
           <AvatarJoueur
             pseudo={profil.pseudo}
             src={complements.avatarUrl}
@@ -551,7 +594,11 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
             className="h-24! w-24! text-5xl! shadow-[0_30px_60px_rgba(0,0,0,.6)] sm:h-[150px]! sm:w-[150px]! sm:text-7xl!"
           />
 
-          <div className="flex min-w-0 flex-1 flex-col gap-3.5">
+          {/* Largeur minimale du nom : les boutons passent à la ligne avant
+              d'écraser le pseudo (jusqu'à 5 boutons pour le propriétaire). */}
+          <div
+            className={`flex min-w-0 flex-1 flex-col gap-3.5 ${profil.pseudo.length > 6 ? "lg:min-w-[28rem]" : "lg:min-w-[20rem]"}`}
+          >
             <div className="flex flex-wrap items-center gap-3">
               {compteRiot?.verifie_le ? (
                 <BadgeVerifie>Profil vérifié</BadgeVerifie>
@@ -577,7 +624,15 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 </>
               )}
             </div>
-            <h1 className="font-titre text-[clamp(3.25rem,6.7vw,6rem)] leading-[0.85] font-black tracking-[1px] [overflow-wrap:anywhere]">
+            <h1
+              className={`font-titre leading-[0.85] font-black tracking-[1px] break-words ${
+                profil.pseudo.length > 15
+                  ? "text-[clamp(2.25rem,3.6vw,3.5rem)]"
+                  : profil.pseudo.length > 8
+                    ? "text-[clamp(2.5rem,4.8vw,4.5rem)]"
+                    : "text-[clamp(3.25rem,6.7vw,6rem)]"
+              }`}
+            >
               {profil.pseudo}
             </h1>
             <dl className="flex flex-wrap gap-x-7 gap-y-1.5 text-base text-text-2">
@@ -589,49 +644,78 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               ))}
             </dl>
             {infoOffre.bio && <p className="max-w-xl text-text-2">{infoOffre.bio}</p>}
-            {infoOffre.lien_externe && (
+            {lienExterne && (
               <a
-                href={infoOffre.lien_externe}
+                href={lienExterne}
                 target="_blank"
                 // Lien choisi par le joueur : pas de caution de Najarena
                 // aux yeux des moteurs de recherche (audit F2).
                 rel="nofollow ugc noopener noreferrer"
-                className="self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-11 max-w-full items-center gap-1.5 self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                {infoOffre.lien_externe}
+                {/* Le nom du site seul : la vraie destination, lisible, sans
+                    paramètres ni chemin à rallonge (src/lib/lien-externe.ts). */}
+                {/* Un nom de site très long passe à la ligne : sa vraie fin
+                    (le site réel) reste visible sur téléphone. */}
+                <span className="min-w-0 [overflow-wrap:anywhere]">{libelleLienExterne(lienExterne)}</span>
+                <Icone nom="fleche-droite" taille={14} className="-rotate-45" />
+                <span className="sr-only">(nouvel onglet)</span>
               </a>
             )}
           </div>
 
-          <div className="flex flex-wrap items-start gap-3.5 lg:justify-end">
+          <div
+            className={`flex flex-wrap items-start gap-3.5 lg:ml-auto lg:justify-end lg:max-xl:gap-2.5 lg:max-xl:[&_a]:px-5 lg:max-xl:[&_button]:px-5 ${
+              // Téléphone : boutons secondaires du propriétaire deux par deux,
+              // libellés courts ; le rating remonte dans le premier écran
+              // (relecture design du 17/10/2026). Le dernier enfant est la
+              // copie masquée de l'action principale : un dernier bouton
+              // seul sur sa rangée prend les deux colonnes.
+              estProprietaire
+                ? "max-sm:grid max-sm:grid-cols-2 max-sm:gap-2.5 max-sm:[&_a]:w-full max-sm:[&_a]:px-3 max-sm:[&_button]:w-full max-sm:[&_button]:px-3 max-sm:[&>:nth-last-child(2):nth-child(even)]:col-span-2"
+                : ""
+            }`}
+          >
             {estProprietaire ? (
               <>
+                {/* Action principale : en tête sur téléphone (sinon sous quatre
+                    boutons), en bout de rangée sur ordinateur. Deux copies, une
+                    seule affichée : l'ordre au clavier suit l'ordre à l'écran
+                    (relecture design du 17/10/2026, WCAG 2.4.3). */}
+                {actionPrincipale("lg:hidden max-sm:col-span-2")}
                 <BoutonPartager
                   chemin={`/joueur/${profil.slug}`}
                   titre={`${profil.pseudo} — CV e-sport Najarena`}
-                  libelle="Partager mon CV"
-                  className={classeBoutonContour()}
+                  libelle={
+                    <span>
+                      Partager<span className="max-sm:sr-only"> mon CV</span>
+                    </span>
+                  }
+                  className={`${classeBoutonContour()} sm:min-w-[12.5rem]`}
                 />
                 {peutRevue && (
                   <BoutonLien href={`/joueur/${profil.slug}/cv`} variante="contour">
-                    Exporter mon CV
+                    <span>
+                      Exporter<span className="max-sm:sr-only lg:max-xl:sr-only"> mon CV</span>
+                    </span>
+                  </BoutonLien>
+                )}
+                {compteRiot?.verifie_le && (
+                  <BoutonLien href="/moi/bilan" variante="contour">
+                    Mon bilan
                   </BoutonLien>
                 )}
                 {rating && (
                   // Instantané daté et figé à envoyer (audit N9).
                   <form action={emettreCertificat}>
                     <BoutonEnvoi variante="contour" libelleEnCours="Émission…">
-                      Certificat daté
+                      <span>
+                        Certificat<span className="max-sm:sr-only lg:max-xl:sr-only"> daté</span>
+                      </span>
                     </BoutonEnvoi>
                   </form>
                 )}
-                {!compteRiot?.verifie_le ? (
-                  <BoutonLien href="/lier-riot">Lier mon Riot ID</BoutonLien>
-                ) : peutPersonnaliser ? (
-                  <BoutonLien href="#personnaliser">Modifier le profil</BoutonLien>
-                ) : (
-                  <BoutonLien href="/moi">Mon espace</BoutonLien>
-                )}
+                {actionPrincipale("max-lg:hidden")}
               </>
             ) : (
               <>
@@ -752,10 +836,16 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               key={k.libelle}
               className={`flex flex-col gap-2.5 border-line py-8 ${i % 2 === 0 ? "border-r pr-4" : "pl-4"} ${
                 i < 2 ? "border-b lg:border-b-0" : ""
-              } lg:border-r lg:px-8 ${i === kpis.length - 1 ? "lg:border-r-0 lg:pr-0" : ""}`}
+              } lg:border-r lg:px-5 xl:px-8 ${i === kpis.length - 1 ? "lg:border-r-0 lg:pr-0" : ""}`}
             >
               <span className="text-mini text-muted uppercase">{k.libelle}</span>
-              <span className="flex items-center gap-2.5 font-titre text-[clamp(2.25rem,3.6vw,3.25rem)] leading-[0.9] font-black uppercase tabular-nums">
+              <span
+                className={`flex items-center gap-2.5 font-titre leading-[0.9] font-black uppercase tabular-nums ${
+                  "mot" in k
+                    ? "min-h-[calc(0.9*clamp(2.25rem,3.6vw,3.25rem))] text-[clamp(1.25rem,6vw,1.75rem)] lg:text-[clamp(1.125rem,1.9vw,2rem)]"
+                    : "text-[clamp(2.25rem,3.6vw,3.25rem)]"
+                }`}
+              >
                 {k.couleur && (
                   <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full" style={{ background: k.couleur }} />
                 )}
@@ -827,7 +917,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                         <th scope="col" className="w-14">
                           Rés.
                         </th>
-                        <th scope="col">Date</th>
+                        <th scope="col" className="hidden sm:table-cell">
+                          Date
+                        </th>
                         <th scope="col">Tournoi</th>
                         <th scope="col" className="text-right">
                           Preuve
@@ -841,11 +933,14 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                             <td>
                               <PastilleResultat resultat={h.estGagnant ? "V" : "D"} />
                             </td>
-                            <td className="text-[13px] tracking-[1px] whitespace-nowrap text-muted tabular-nums">
+                            {/* Sur téléphone, la date passe sous le tournoi : la
+                                colonne « Preuve » garde sa place. */}
+                            <td className="hidden text-[13px] tracking-[1px] whitespace-nowrap text-muted tabular-nums sm:table-cell">
                               {formaterDate(h.creeLe)}
                             </td>
                             <td>
                               <span className="flex flex-col gap-0.5">
+                                <span className="text-xs text-muted tabular-nums sm:hidden">{formaterDate(h.creeLe)}</span>
                                 <span className="font-semibold">
                                   {h.tournoi ? (
                                     <Link
@@ -877,7 +972,17 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                             </td>
                             <td className="text-right">
                               <span className="inline-flex flex-col items-end gap-1">
-                                <BadgeVerdict niveau={h.niveau} compact />
+                                {/* Fiche de preuve du match (idée en réserve n°1). */}
+                                <Link
+                                  href={`/lol/match/${h.matchId}`}
+                                  title="Voir la preuve de ce résultat"
+                                  // relative : le texte caché (sr-only, en position absolue)
+                                  // ne déborde plus de la page sur mobile.
+                                  className="relative inline-flex min-h-11 items-center hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                >
+                                  <BadgeVerdict niveau={h.niveau} compact />
+                                  <span className="sr-only"> — voir la preuve</span>
+                                </Link>
                                 {h.niveau === "manuel" && h.motif && (
                                   <span className="max-w-[220px] text-xs text-muted">Motif : {h.motif}</span>
                                 )}
@@ -893,7 +998,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                                   </summary>
                                   <div className="panneau mt-1 flex flex-col gap-1.5 p-4 text-sm">
                                     <p className="text-xs text-muted tabular-nums">
-                                      {h.stats.champion} · {h.stats.kills}/{h.stats.deaths}/{h.stats.assists} · {h.stats.cs} CS · {h.stats.orGagne} or
+                                      {h.stats.champion} · {h.stats.cs} CS · {h.stats.orGagne} or
                                     </p>
                                     {h.revue ? (
                                       h.revue.map((phrase) => (
@@ -922,12 +1027,19 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                                       </div>
                                     ) : (
                                       iaPossible && (
-                                        <form action={demanderRevueIA} className="mt-2 border-t border-line pt-3">
+                                        <form
+                                          action={demanderRevueIA}
+                                          className="mt-2 flex flex-col gap-2 border-t border-line pt-3"
+                                        >
                                           <input type="hidden" name="match_id" value={h.matchId} />
                                           <input type="hidden" name="slug" value={profil.slug} />
                                           <BoutonEnvoi variante="contour" libelleEnCours="Analyse…" className="self-start">
                                             Analyse détaillée (IA)
                                           </BoutonEnvoi>
+                                          <p className="text-xs text-muted">
+                                            Tes parties vérifiées des 7 derniers jours sont analysées automatiquement,
+                                            quelques minutes après le résultat.
+                                          </p>
                                         </form>
                                       )
                                     )}
@@ -948,17 +1060,49 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               )}
             </Panneau>
 
+            {/* Recommandations vérifiées (idée en réserve n°7). */}
+            <BlocRecommandations
+              profilId={profil.id}
+              slug={profil.slug}
+              pseudo={profil.pseudo}
+              visiteurId={visiteurId}
+              estProprietaire={estProprietaire}
+              message={retourReco}
+              erreur={retourRecoErreur}
+            />
+
+            {/* Coach vérifié (idée en réserve n°8). */}
+            <BlocCoach
+              profilId={profil.id}
+              slug={profil.slug}
+              pseudo={profil.pseudo}
+              visiteurId={visiteurId}
+              estProprietaire={estProprietaire}
+              message={retourCoach}
+              erreur={retourCoachErreur}
+            />
+
             {/* Journal des points */}
             <Panneau className="flex flex-col gap-6 p-6 sm:p-8">
               <div className="flex flex-col gap-2">
                 <LibelleSection as="h2">Journal des points</LibelleSection>
                 <p className="text-sm text-muted">
-                  Chaque variation de points est enregistrée avec le rating avant et après : publique, et jamais
+                  Chaque variation de points est enregistrée avec le rating avant et après&nbsp;: publique, et jamais
                   modifiée — chaque ligne est scellée dans le{" "}
-                  <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
+                  <Link
+                    href="/registre"
+                    className="text-text underline underline-offset-3 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
                     registre des points
                   </Link>
-                  , vérifiable par tous.
+                  , vérifiable par tous. Chaque ligne peut aussi être{" "}
+                  <Link
+                    href={`/joueur/${profil.slug}/recalcul`}
+                    className="text-text underline underline-offset-3 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    recalculée dans ton navigateur
+                  </Link>
+                  .
                 </p>
               </div>
               {evenementsPoints.length === 0 ? (
@@ -1045,7 +1189,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 <Panneau className="flex flex-col gap-4 p-7">
                   <LibelleSection as="h2">Disponibilité</LibelleSection>
                   <p className="text-sm text-text-2">
-                    Tu cherches une équipe ? Publie une annonce : le badge « Cherche une équipe » s&apos;affichera sur
+                    Tu cherches une équipe&nbsp;? Publie une annonce&nbsp;: le badge «&nbsp;Cherche une équipe&nbsp;» s&apos;affichera sur
                     ton profil.
                   </p>
                   <BoutonLien href="/lol/coequipiers" variante="secondaire" className="self-start text-sm">
@@ -1066,7 +1210,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                       <span className="w-px flex-1 bg-[rgba(245,245,244,0.1)]" />
                     </span>
                     <span className="flex flex-col gap-1 pb-1">
-                      <span className="text-[11px] tracking-[2px] text-faint uppercase">{p.quand}</span>
+                      <span className="text-mini tracking-[2px] text-faint uppercase">{p.quand}</span>
                       <span className="text-[15px] font-semibold">
                         {p.lien ? (
                           <Link
@@ -1112,6 +1256,26 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               </Panneau>
             )}
 
+            {/* Fiabilité (idée en réserve n°6) : ce qu'une équipe regarde avant
+                de recruter. Absent tant qu'il y a trop peu de données. */}
+            {complements.fiabilite.length > 0 && (
+              <Panneau className="flex flex-col gap-4 p-7">
+                <LibelleSection as="h2">Fiabilité</LibelleSection>
+                <dl className="flex flex-col gap-3">
+                  {complements.fiabilite.map((ligne) => (
+                    <div key={ligne.libelle} className="flex flex-col gap-0.5">
+                      <dt className="text-mini tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
+                      <dd className="text-sm text-text tabular-nums">{ligne.valeur}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="text-xs text-muted">
+                  Compté par Najarena sur ses tournois et duels 1v1&nbsp;: check-in, bouton «&nbsp;Je suis prêt&nbsp;», forfaits pour
+                  absence, défaites reconnues.
+                </p>
+              </Panneau>
+            )}
+
             {/* Fiche d'organisateur (audit N13) : le sérieux de ses tournois. */}
             {complements.ficheOrganisateur && (
               <Panneau className="flex flex-col gap-4 p-7">
@@ -1119,7 +1283,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 <dl className="flex flex-col gap-3">
                   {complements.ficheOrganisateur.map((ligne) => (
                     <div key={ligne.libelle} className="flex flex-col gap-0.5">
-                      <dt className="text-[11px] tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
+                      <dt className="text-mini tracking-[2px] text-faint uppercase">{ligne.libelle}</dt>
                       <dd className="text-sm text-text tabular-nums">{ligne.valeur}</dd>
                     </div>
                   ))}
@@ -1163,9 +1327,13 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                   <h2 id="personnaliser" className="scroll-mt-28 font-texte text-libelle font-medium text-muted uppercase">
                     Personnaliser mon profil
                   </h2>
+                  {/* Retour de l'enregistrement, ici plutôt que sur /moi : le
+                      joueur voit son formulaire et son CV (relecture design
+                      du 12/10/2026). */}
+                  {retourProfil && <Alerte type="succes">{retourProfil}</Alerte>}
+                  {retourProfilErreur && <Alerte type="erreur">{retourProfilErreur}</Alerte>}
                   <form action={mettreAJourBioProfile} className="flex flex-col gap-4">
-                    <label className="flex flex-col gap-2">
-                      <span className="text-mini text-muted uppercase">Bio (140 caractères max)</span>
+                    <Champ libelle="Bio (140 caractères max)">
                       <textarea
                         name="bio"
                         rows={3}
@@ -1174,17 +1342,21 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                         placeholder="Ex. « Mid laner, dispo le soir, cherche une équipe compétitive »"
                         className={`${CHAMP} resize-none`}
                       />
-                    </label>
-                    <label className="flex flex-col gap-2">
-                      <span className="text-mini text-muted uppercase">Lien externe (réseaux, sponsor…)</span>
+                    </Champ>
+                    <Champ
+                      libelle="Lien externe (réseaux, sponsor…)"
+                      idAide="aide-lien-externe"
+                      aide="Adresse complète (https://…), 300 caractères au plus. Ton CV affiche le nom du site."
+                    >
                       <input
                         name="lien_externe"
                         type="url"
                         defaultValue={infoOffre.lien_externe ?? ""}
                         placeholder="https://…"
+                        aria-describedby="aide-lien-externe"
                         className={CHAMP}
                       />
-                    </label>
+                    </Champ>
                     <BoutonEnvoi libelleEnCours="Enregistrement…" className="self-start">
                       Enregistrer
                     </BoutonEnvoi>

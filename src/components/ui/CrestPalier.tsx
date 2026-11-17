@@ -21,7 +21,10 @@ export default function CrestPalier({ nom, couleur, progression }: CrestPalierPr
   const enVue = useInView(ref, { once: true, margin: "-40px" });
   const reduitMotion = useReducedMotion();
   const cible = Math.max(0, Math.min(1, progression));
-  const [valeur, setValeur] = useState(reduitMotion ? cible : 0);
+  // Toujours 0 au premier rendu, comme sur le serveur (qui ne connaît pas
+  // le réglage « réduire les animations ») : sinon le navigateur rendait
+  // l'anneau plein d'emblée et l'hydratation échouait (05/10/2026).
+  const [valeur, setValeur] = useState(0);
 
   useEffect(() => {
     if (!enVue) return;

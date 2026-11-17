@@ -1,7 +1,9 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import { SEUIL_A_LA_DEMANDE } from "@/lib/a-la-demande";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import BoutonLien from "@/components/design/BoutonLien";
+import LibelleSection from "@/components/design/LibelleSection";
 import { JsonLd } from "@/lib/json-ld";
 import { CRENEAUX } from "@/lib/tournois-auto/creneaux";
 
@@ -9,6 +11,7 @@ import { CRENEAUX } from "@/lib/tournois-auto/creneaux";
 // automatiques (lib/tournois-auto/creneaux.ts) : elle ne peut pas annoncer
 // un horaire ou une capacité qui n'existe pas.
 const QUOTIDIEN = CRENEAUX[0];
+const COUPE_NOUVEAUX = CRENEAUX.find((c) => c.reserveNonClasses);
 
 export const metadata: Metadata = {
   title: "FAQ — Najarena",
@@ -35,7 +38,7 @@ const QUESTIONS = [
     ? [
         {
           question: "Y a-t-il un tournoi tous les jours ?",
-          reponse: `Oui : le ${QUOTIDIEN.nom}, un tournoi 1v1 ouvert à tous, chaque soir à ${QUOTIDIEN.heure} (heure de Paris) sur le serveur ${QUOTIDIEN.region}, ${QUOTIDIEN.capacite} places. Il se crée tout seul, la veille. Le check-in ouvre ${QUOTIDIEN.checkinMinutes} minutes avant le début : confirme ta présence depuis la page du tournoi (un rappel t'est envoyé si tu as activé les notifications). Sans check-in, pas de place dans le bracket. En dessous de ${QUOTIDIEN.minimumJoueurs} joueurs confirmés, le tournoi est annulé.`,
+          reponse: `Oui : le ${QUOTIDIEN.nom}, un tournoi 1v1 ouvert à tous, chaque soir à ${QUOTIDIEN.heure} (heure de Paris) sur le serveur ${QUOTIDIEN.region}, ${QUOTIDIEN.capacite} places. Il se crée tout seul, la veille. Le check-in ouvre ${QUOTIDIEN.checkinMinutes} minutes avant le début : confirme ta présence depuis la page du tournoi (un rappel t'est envoyé si tu as activé les notifications). Sans check-in, pas de place dans le bracket. En dessous de ${QUOTIDIEN.minimumJoueurs} joueurs confirmés, le tournoi est annulé. L'heure ne te convient pas ? Indique sur la page « Tournois à la demande » quand tu es libre : dès que ${SEUIL_A_LA_DEMANDE} joueurs de ta région le sont à la même heure, un tournoi s'ouvre et on t'y inscrit d'office.${COUPE_NOUVEAUX ? ` Pas encore au classement ? La ${COUPE_NOUVEAUX.nom} se joue aussi chaque soir à ${COUPE_NOUVEAUX.heure}, entre joueurs qui ne le sont pas encore.` : ""}`,
         },
       ]
     : []),
@@ -60,7 +63,12 @@ const QUESTIONS = [
   {
     question: "L'intelligence artificielle peut-elle toucher à mon classement ?",
     reponse:
-      "Non. L'IA n'écrit jamais de résultat ni de point : elle rédige seulement des textes d'aide, à la demande, à partir de données déjà vérifiées. Quatre usages, disponibles quand ils sont activés : l'assistant de création de tournoi (l'organisateur valide avant de créer), l'analyse détaillée d'un match (offre Elite, à partir des seuls chiffres Riot du match, en plus de la revue par règles), le dossier de litige (il rassemble les faits pour l'organisateur et ne désigne jamais de vainqueur : la décision reste humaine) et la recherche de joueurs en langage naturel (offre Organisateur : l'IA traduit la demande en filtres, la recherche ne porte que sur des comptes vérifiés).",
+      "Non. L'IA n'écrit jamais de résultat ni de point : elle rédige seulement des textes d'aide, à la demande (ou, pour l'analyse des parties d'un abonné Elite, automatiquement après chaque partie vérifiée), à partir de données déjà vérifiées. Quatre usages, disponibles quand ils sont activés : l'assistant de création de tournoi (l'organisateur valide avant de créer), l'analyse détaillée d'un match (offre Elite, à partir des seuls chiffres Riot du match, en plus de la revue par règles), le dossier de litige (il rassemble les faits pour l'organisateur et ne désigne jamais de vainqueur : la décision reste humaine) et la recherche de joueurs en langage naturel (offre Organisateur : l'IA traduit la demande en filtres, la recherche ne porte que sur des comptes vérifiés).",
+  },
+  {
+    question: "Mes parties classées comptent-elles pour le classement Najarena ?",
+    reponse:
+      "Jamais. Si tu le demandes, Najarena lit tes parties classées chez Riot pour ton bilan (niveau, hygiène de jeu, carte des morts, sang-froid) : elles restent visibles de toi seul et ne touchent jamais ton rating, qui ne dépend que des tournois. Tu peux arrêter à tout moment, et elles sont alors effacées.",
   },
   {
     question: "Les pronostics, c'est des paris ?",
@@ -101,44 +109,44 @@ export default function FaqPage() {
         }}
       />
       <FondEcailles />
-      <div className="relative px-grille *:max-w-3xl">
+      {/* Revue visuelle du 09/10/2026 : onze cartes à liseré vert et réponses
+          en 14 px deviennent une liste numérotée séparée par des filets,
+          réponses en texte courant (MASTER §3, 17–20 px). Textes inchangés. */}
+      <div className="relative flex flex-col gap-14 px-grille *:max-w-3xl">
         <Apparition>
-          <span className="block font-texte text-libelle font-medium text-muted uppercase">
-            FAQ
-          </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-            Les questions de confiance.
-          </h1>
-          <p className="mt-3 max-w-lg text-sm text-muted">
-            Les réponses que tu cherches avant de t&apos;inscrire — sans détour, et toutes vérifiées
-            dans le fonctionnement réel du site.
+          <LibelleSection>FAQ</LibelleSection>
+          <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Les questions de confiance.</h1>
+          <p className="mt-6 text-courant text-text-2">
+            Les réponses que tu cherches avant de t&apos;inscrire — sans détour, et toutes vérifiées dans le fonctionnement
+            réel du site.
           </p>
         </Apparition>
 
-        <div className="mt-10 flex flex-col gap-4">
+        <ol className="flex flex-col border-b border-line">
           {QUESTIONS.map((q, i) => (
-            <Apparition key={q.question} delai={Math.min(i * 0.05, 0.25)}>
-              <article className="rounded-[3px] border border-line border-l-[3px] border-l-accent bg-surface p-5">
-                <h2 className="font-titre uppercase text-base font-extrabold text-text">{q.question}</h2>
-                <p className="mt-1.5 text-sm text-muted">{q.reponse}</p>
-              </article>
-            </Apparition>
+            <li key={q.question} className="border-t border-line py-8">
+              <Apparition delai={Math.min(i * 0.04, 0.2)} className="grid gap-x-6 gap-y-3 sm:grid-cols-[3rem_minmax(0,1fr)]">
+                <span aria-hidden="true" className="font-titre text-3xl leading-none font-black text-faint tabular-nums">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="flex flex-col gap-3">
+                  <h2 className="font-titre text-2xl leading-none font-black uppercase">{q.question}</h2>
+                  <p className="text-courant text-text-2">{q.reponse}</p>
+                </div>
+              </Apparition>
+            </li>
           ))}
-        </div>
+        </ol>
 
-        <Apparition delai={0.1}>
-          <p className="mt-12 text-sm text-muted">
-            Pour aller plus loin :{" "}
-            {LIENS.map((l, i) => (
-              <span key={l.href}>
-                {i > 0 && " · "}
-                <Link href={l.href} className="text-text underline underline-offset-3">
-                  {l.libelle}
-                </Link>
-              </span>
+        <Apparition className="flex flex-col gap-4">
+          <LibelleSection>Pour aller plus loin</LibelleSection>
+          <div className="flex flex-wrap gap-x-8 gap-y-2">
+            {LIENS.map((l) => (
+              <BoutonLien key={l.href} href={l.href} variante="secondaire">
+                {l.libelle}
+              </BoutonLien>
             ))}
-            .
-          </p>
+          </div>
         </Apparition>
       </div>
     </main>

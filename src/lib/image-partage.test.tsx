@@ -45,6 +45,20 @@ const affiche: AfficheTournoi = {
   vainqueur: "Viper Main",
 };
 
+// Bracket à 16 joueurs : les trois derniers tours sont dessinés, avec un
+// match encore à jouer et des noms d'équipe trop longs.
+const bracket16: AfficheTournoi["bracket"] = [];
+for (let tour = 1; tour <= 4; tour++) {
+  for (let position = 1; position <= 2 ** (4 - tour); position++) {
+    bracket16.push({
+      tour,
+      position,
+      joueurs: [`Joueur ${tour}-${position}a`, tour === 3 && position === 2 ? "[BRN] Les Barons du mardi soir" : `Joueur ${tour}-${position}b`],
+      gagnant: tour === 4 ? null : 0,
+    });
+  }
+}
+
 function estPng(png: Buffer): boolean {
   return png.subarray(1, 4).toString("ascii") === "PNG";
 }
@@ -72,5 +86,24 @@ describe("images de partage", () => {
     const long: AfficheTournoi = { ...affiche, nom: "Coupe d'automne des Barons du mardi soir — édition 2", statut: "ouvert", vainqueur: null, bestOf: 1 };
     expect(estPng(await rendre(<ContenuAfficheTournoi affiche={long} logo={logo} />, "affiche-tournoi-long"))).toBe(true);
     expect(estPng(await rendre(<ContenuIntrouvable logo={logo} rubrique="TOURNOI" titre="TOURNOI INTROUVABLE" chemin="/lol/tournois" />, "introuvable"))).toBe(true);
+  }, 30_000);
+
+  it("dessine le bracket d'un tournoi lancé ou terminé", async () => {
+    const { logo } = await ressourcesImage();
+    const enCours: AfficheTournoi = { ...affiche, statut: "en_cours", vainqueur: null, bracket: bracket16 };
+    expect(estPng(await rendre(<ContenuAfficheTournoi affiche={enCours} logo={logo} />, "affiche-bracket-en-cours"))).toBe(true);
+    const termine: AfficheTournoi = {
+      ...affiche,
+      nom: "Coupe d'automne des Barons",
+      bracket: bracket16.map((m) => (m.tour === 4 ? { ...m, gagnant: 1 } : m)),
+      vainqueur: "Joueur 4-1b",
+    };
+    expect(estPng(await rendre(<ContenuAfficheTournoi affiche={termine} logo={logo} />, "affiche-bracket-termine"))).toBe(true);
+    const duel: AfficheTournoi = {
+      ...affiche,
+      capacite: 2,
+      bracket: [{ tour: 1, position: 1, joueurs: ["Viper Main", "Ahri Only"], gagnant: 0 }],
+    };
+    expect(estPng(await rendre(<ContenuAfficheTournoi affiche={duel} logo={logo} />, "affiche-bracket-duel"))).toBe(true);
   }, 30_000);
 });

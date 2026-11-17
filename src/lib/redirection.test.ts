@@ -13,6 +13,19 @@ describe("destinationInterne", () => {
     }
   });
 
+  it("retire les messages de la destination (le site y renverrait lui-même)", () => {
+    expect(destinationInterne("/joueur/x?coach=Texte%20pi%C3%A9g%C3%A9&onglet=lol#coach")).toBe("/joueur/x?onglet=lol#coach");
+    expect(destinationInterne("/moi?message=Faux")).toBe("/moi");
+  });
+
+  it("jamais un autre site, même par un chemin à points ou encodé", () => {
+    for (const piege of ["/.//evil.example?message=x", "/..//evil.example?message=x", "/%2e//evil.example?message=x", "/.\\/evil.example?message=x", "/a/..//evil.example?message=x", "/.//evil.example"]) {
+      const destination = destinationInterne(piege);
+      expect(destination.startsWith("//")).toBe(false);
+      expect(destination).toBe("/moi");
+    }
+  });
+
   it("sans destination : le tableau de bord", () => {
     expect(destinationInterne(null)).toBe("/moi");
   });

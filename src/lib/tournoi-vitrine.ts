@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { CRENEAU_A_LA_DEMANDE, estOfficiel } from "@/lib/a-la-demande";
 
 // Données d'affichage ajoutées par la refonte « Venin » de la page tournoi
 // (design-system/najarena/pages/tournoi.md) : type de bracket, niveau
@@ -15,14 +16,15 @@ export async function chargerComplementsTournoi(tournoiId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("tournaments")
-    .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, classe")
+    .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, classe, reserve_non_classes")
     .eq("id", tournoiId)
     .maybeSingle();
 
   const min = data?.rating_min ?? null;
   const max = data?.rating_max ?? null;
-  const niveau =
-    min !== null && max !== null
+  const niveau = data?.reserve_non_classes
+    ? "Joueurs non classés"
+    : min !== null && max !== null
       ? `${min} – ${max}`
       : min !== null
         ? `${min} et plus`
@@ -34,8 +36,10 @@ export async function chargerComplementsTournoi(tournoiId: string) {
     typeBracket: data ? (LABEL_BRACKET[data.type_bracket] ?? data.type_bracket) : null,
     niveau,
     comptePourClassement: data?.compte_pour_classement ?? true,
-    // Tournoi quotidien créé automatiquement (lib/tournois-auto/).
-    estQuotidien: Boolean(data?.creneau_auto),
+    // Tournoi quotidien créé automatiquement (lib/tournois-auto/) ; un
+    // tournoi à la demande (idée en réserve n°11) n'est pas « officiel ».
+    estQuotidien: estOfficiel(data?.creneau_auto ?? null),
+    estALaDemande: data?.creneau_auto === CRENEAU_A_LA_DEMANDE,
     // Tournoi classé (audit N12) : date de publication et décision figée
     // à la clôture (lib/tournoi-classe.ts).
     publieLe: data?.publie_le ?? null,

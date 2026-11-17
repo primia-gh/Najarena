@@ -50,9 +50,24 @@ const POINTS_API = [
       "Résumé du CV : classé ou non, rating et palier (seulement une fois classé), confiance, matchs joués et vérifiés.",
   },
   {
+    chemin: "/api/public/v1/joueurs/ADRESSE-DU-PROFIL/recalcul",
+    texte:
+      "De quoi refaire le calcul de ses points : ses lignes du registre, ses matchs avec leur verdict, et le rating et le RD de départ de ses adversaires dans chaque tournoi (page /joueur/ADRESSE-DU-PROFIL/recalcul).",
+  },
+  {
     chemin: "/api/public/v1/tournois/ADRESSE-DU-TOURNOI",
     texte:
       "Un tournoi et son bracket : participants, scores, gagnant, niveau du verdict (verifie = lu chez Riot, faux pour une décision manuelle).",
+  },
+  {
+    chemin: "/api/public/v1/certificats/CODE-DU-CERTIFICAT",
+    texte:
+      "Un certificat de niveau signé : texte exact signé (contenu), signature et clé publique (Ed25519, base64), état de la signature. Seul celui qui a reçu le code peut le lire.",
+  },
+  {
+    chemin: "/api/public/v1/cle-certificats",
+    texte:
+      "Les clés publiques qui signent les certificats (l'actuelle d'abord). Programme de vérification autonome : /certificat/verifier-certificat.mjs.",
   },
 ];
 

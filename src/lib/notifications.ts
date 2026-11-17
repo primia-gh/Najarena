@@ -8,7 +8,8 @@
 import { Resend } from "resend";
 import webpush, { WebPushError } from "web-push";
 import { creerClientAdmin } from "@/lib/supabase/admin";
-import { decoderEntites, echapperDiscord, echapperHtml } from "@/lib/echappement";
+import { decoderEntites, echapperDiscord, echapperHtml, lienSur } from "@/lib/echappement";
+import { composantsDiscord, type BoutonDiscord, type LigneComposants } from "@/lib/boutons-discord";
 
 const cle = process.env.RESEND_API_KEY;
 const resend = cle ? new Resend(cle) : null;
@@ -143,7 +144,11 @@ export async function notifierDiscord(contenu: string): Promise<void> {
 const jetonBotDiscord = process.env.DISCORD_BOT_TOKEN;
 const API_DISCORD = "https://discord.com/api/v10";
 
-async function envoyerMessagePriveDiscord(discordId: string, contenu: string): Promise<void> {
+export async function envoyerMessagePriveDiscord(
+  discordId: string,
+  contenu: string,
+  composants: LigneComposants[] = [],
+): Promise<void> {
   if (!jetonBotDiscord) return;
 
   const entetes = {
@@ -165,7 +170,11 @@ async function envoyerMessagePriveDiscord(discordId: string, contenu: string): P
     await fetch(`${API_DISCORD}/channels/${canal.id}/messages`, {
       method: "POST",
       headers: entetes,
-      body: JSON.stringify({ content: contenu, allowed_mentions: { parse: [] } }),
+      body: JSON.stringify({
+        content: contenu,
+        allowed_mentions: { parse: [] },
+        ...(composants.length > 0 ? { components: composants } : {}),
+      }),
       signal: AbortSignal.timeout(5000),
     });
   } catch {
@@ -177,13 +186,24 @@ async function envoyerMessagePriveDiscord(discordId: string, contenu: string): P
  * Rappel à un joueur (check-in, début ou annulation d'un tournoi) : push
  * + message privé Discord. Jamais d'e-mail pour ces rappels (CLAUDE.md
  * §5), contrairement à notifierJoueur. Même contrat : n'échoue jamais.
+ *
+ * `boutons` (09/10/2026, idée en réserve n°10) : boutons du message
+ * Discord (« Je confirme ma présence », « Je suis prêt »…), suivis d'un
+ * bouton-lien vers la page ; la notification push garde le seul lien.
+ * `push: false` : message Discord seul (quand un e-mail ou une push part
+ * déjà pour le même événement).
  */
 export async function envoyerRappel(
   profileId: string,
   titre: string,
   texte: string,
   lien: string,
+  options: { boutons?: BoutonDiscord[]; push?: boolean } = {},
 ): Promise<void> {
+  const { boutons = [], push = true } = options;
+  // Seulement une adresse du site, sans caractère piège : le lien peut venir
+  // (directement ou non) d'un formulaire (contrôle de sécurité du 10/10/2026).
+  lien = lienSur(lien, URL_SITE);
   const discordId = await (async () => {
     if (!jetonBotDiscord) return null;
     const admin = creerClientAdmin();
@@ -192,14 +212,25 @@ export async function envoyerRappel(
     return data?.discord_id ?? null;
   })().catch(() => null);
 
+  const composants = boutons.length > 0 ? composantsDiscord(boutons, { libelle: "Ouvrir sur Najarena", url: lien }) : [];
+  // Avec des boutons, le lien passe dans le bouton « Ouvrir sur Najarena »
+  // (sauf adresse locale, que Discord refuse : il reste alors dans le texte).
+  const lienDansTexte = composants.length === 0 || !composants.some((l) => l.components.some((c) => c.url));
+
   await Promise.all([
     // Lien sans texte : envoyerPush en fait la cible du clic, et le corps
     // de la notification reste la seule phrase utile.
-    envoyerPush(profileId, titre, `<p>${echapperHtml(texte)}</p><a href="${echapperHtml(lien)}"></a>`).catch(
-      () => undefined,
-    ),
+    push
+      ? envoyerPush(profileId, titre, `<p>${echapperHtml(texte)}</p><a href="${echapperHtml(lien)}"></a>`).catch(
+          () => undefined,
+        )
+      : Promise.resolve(),
     discordId
-      ? envoyerMessagePriveDiscord(discordId, `**${echapperDiscord(titre)}**\n${echapperDiscord(texte)}\n${lien}`)
+      ? envoyerMessagePriveDiscord(
+          discordId,
+          `**${echapperDiscord(titre)}**\n${echapperDiscord(texte)}${lienDansTexte ? `\n${lien}` : ""}`,
+          composants,
+        )
       : Promise.resolve(),
   ]);
 }
@@ -240,4 +271,37 @@ export async function notifierJoueur(
       }
     })(),
   ]);
+}
+
+/**
+ * Code de vérification d'une adresse d'école (ligues écoles, 04/10/2026).
+ * Contrairement aux autres notifications, l'action en dépend : renvoie
+ * faux si l'e-mail n'a pas pu partir (Resend absent ou en panne), pour que
+ * le joueur le sache au lieu d'attendre un code qui n'arrivera pas.
+ */
+export async function envoyerCodeEcole(
+  email: string,
+  nomEcole: string,
+  code: string,
+  dureeMinutes: number,
+  lien: string,
+): Promise<boolean> {
+  if (!resend) return false;
+  try {
+    const { error } = await resend.emails.send({
+      from: EXPEDITEUR,
+      to: email,
+      subject: "Vérifie ton adresse d'école sur Najarena",
+      html: enveloppe(
+        "Ton code de vérification",
+        `<p>Voici ton code pour être membre vérifié de <strong>${echapperHtml(nomEcole)}</strong> sur Najarena :</p>
+         <p style="font-size:28px;font-weight:800;letter-spacing:.2em;margin:16px 0;">${echapperHtml(code)}</p>
+         <p>Il vaut ${dureeMinutes} minutes. Saisis-le sur <a href="${echapperHtml(lien)}">la page de l'école</a>.</p>
+         <p style="color:#5b6672;">Tu n'as rien demandé ? Ignore cet e-mail : sans ce code, personne ne peut utiliser ton adresse.</p>`,
+      ),
+    });
+    return !error;
+  } catch {
+    return false;
+  }
 }

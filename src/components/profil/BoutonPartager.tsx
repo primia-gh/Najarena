@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 // « Partager le CV » du profil (maquette profil) : partage le lien public
 // du profil — qui EST le CV e-sport (CLAUDE.md §8). Feuille de partage du
@@ -10,7 +10,7 @@ import { useState } from "react";
 interface BoutonPartagerProps {
   chemin: string;
   titre: string;
-  libelle: string;
+  libelle: ReactNode;
   className?: string;
 }
 

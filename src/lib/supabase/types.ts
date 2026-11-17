@@ -94,18 +94,21 @@ export type Database = {
           aligne_le: string
           profile_id: string
           registration_id: string
+          remplace_profile_id: string | null
           tournament_id: string
         }
         Insert: {
           aligne_le?: string
           profile_id: string
           registration_id: string
+          remplace_profile_id?: string | null
           tournament_id: string
         }
         Update: {
           aligne_le?: string
           profile_id?: string
           registration_id?: string
+          remplace_profile_id?: string | null
           tournament_id?: string
         }
         Relationships: [
@@ -228,6 +231,8 @@ export type Database = {
           rating: number
           rd: number
           registre_empreinte: string | null
+          signature: string | null
+          cle_publique: string | null
           registre_numero: number | null
           saison: string | null
           victoires: number
@@ -243,6 +248,8 @@ export type Database = {
           rating: number
           rd: number
           registre_empreinte?: string | null
+          signature?: string | null
+          cle_publique?: string | null
           registre_numero?: number | null
           saison?: string | null
           victoires: number
@@ -258,6 +265,8 @@ export type Database = {
           rating?: number
           rd?: number
           registre_empreinte?: string | null
+          signature?: string | null
+          cle_publique?: string | null
           registre_numero?: number | null
           saison?: string | null
           victoires?: number
@@ -352,6 +361,539 @@ export type Database = {
           },
         ]
       }
+      analyse_reglages: {
+        Row: {
+          bilan_hebdo: boolean
+          classees: boolean
+          classees_depuis: string | null
+          derniere_synchro: string | null
+          division: string | null
+          maj_le: string
+          palier: string | null
+          points_ligue: number | null
+          profile_id: string
+          rang_lu_le: string | null
+        }
+        Insert: {
+          bilan_hebdo?: boolean
+          classees?: boolean
+          classees_depuis?: string | null
+          derniere_synchro?: string | null
+          division?: string | null
+          maj_le?: string
+          palier?: string | null
+          points_ligue?: number | null
+          profile_id: string
+          rang_lu_le?: string | null
+        }
+        Update: {
+          bilan_hebdo?: boolean
+          classees?: boolean
+          classees_depuis?: string | null
+          derniere_synchro?: string | null
+          division?: string | null
+          maj_le?: string
+          palier?: string | null
+          points_ligue?: number | null
+          profile_id?: string
+          rang_lu_le?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyse_reglages_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parties_utilisees: {
+        Row: {
+          match_id: string
+          riot_match_id: string
+          utilisee_le: string
+        }
+        Insert: {
+          match_id: string
+          riot_match_id: string
+          utilisee_le?: string
+        }
+        Update: {
+          match_id?: string
+          riot_match_id?: string
+          utilisee_le?: string
+        }
+        Relationships: []
+      }
+      parties_classees: {
+        Row: {
+          assists: number | null
+          champion: string | null
+          champion_id: number | null
+          cree_le: string
+          cs: number | null
+          deaths: number | null
+          degats_champions: number | null
+          duree_secondes: number | null
+          ecart_or_15: number | null
+          equipe: number | null
+          etat: string
+          file: number | null
+          gagne: boolean | null
+          id: number
+          joue_le: string | null
+          kills: number | null
+          morts_avant_10: number | null
+          morts_secondes: number[] | null
+          morts_x: number[] | null
+          morts_y: number[] | null
+          objets: number[] | null
+          or_gagne: number | null
+          palier: string | null
+          part_degats: number | null
+          part_kills: number | null
+          patch: string | null
+          poste: string | null
+          premier_sang: boolean | null
+          profile_id: string
+          puuid: string
+          region: string
+          riot_match_id: string
+          rune_principale: number | null
+          sbires_10: number | null
+          score_vision: number | null
+          sorts: number[] | null
+          style_secondaire: number | null
+        }
+        Insert: {
+          assists?: number | null
+          champion?: string | null
+          champion_id?: number | null
+          cree_le?: string
+          cs?: number | null
+          deaths?: number | null
+          degats_champions?: number | null
+          duree_secondes?: number | null
+          ecart_or_15?: number | null
+          equipe?: number | null
+          etat?: string
+          file?: number | null
+          gagne?: boolean | null
+          id?: never
+          joue_le?: string | null
+          kills?: number | null
+          morts_avant_10?: number | null
+          morts_secondes?: number[] | null
+          morts_x?: number[] | null
+          morts_y?: number[] | null
+          objets?: number[] | null
+          or_gagne?: number | null
+          palier?: string | null
+          part_degats?: number | null
+          part_kills?: number | null
+          patch?: string | null
+          poste?: string | null
+          premier_sang?: boolean | null
+          profile_id: string
+          puuid: string
+          region: string
+          riot_match_id: string
+          rune_principale?: number | null
+          sbires_10?: number | null
+          score_vision?: number | null
+          sorts?: number[] | null
+          style_secondaire?: number | null
+        }
+        Update: {
+          assists?: number | null
+          champion?: string | null
+          champion_id?: number | null
+          cree_le?: string
+          cs?: number | null
+          deaths?: number | null
+          degats_champions?: number | null
+          duree_secondes?: number | null
+          ecart_or_15?: number | null
+          equipe?: number | null
+          etat?: string
+          file?: number | null
+          gagne?: boolean | null
+          id?: never
+          joue_le?: string | null
+          kills?: number | null
+          morts_avant_10?: number | null
+          morts_secondes?: number[] | null
+          morts_x?: number[] | null
+          morts_y?: number[] | null
+          objets?: number[] | null
+          or_gagne?: number | null
+          palier?: string | null
+          part_degats?: number | null
+          part_kills?: number | null
+          patch?: string | null
+          poste?: string | null
+          premier_sang?: boolean | null
+          profile_id?: string
+          puuid?: string
+          region?: string
+          riot_match_id?: string
+          rune_principale?: number | null
+          sbires_10?: number | null
+          score_vision?: number | null
+          sorts?: number[] | null
+          style_secondaire?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parties_classees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommandations: {
+        Row: {
+          auteur_id: string
+          cree_le: string
+          destinataire_id: string
+          masquee: boolean
+          modifie_le: string
+          texte: string
+        }
+        Insert: {
+          auteur_id: string
+          cree_le?: string
+          destinataire_id: string
+          masquee?: boolean
+          modifie_le?: string
+          texte: string
+        }
+        Update: {
+          auteur_id?: string
+          cree_le?: string
+          destinataire_id?: string
+          masquee?: boolean
+          modifie_le?: string
+          texte?: string
+        }
+        Relationships: []
+      }
+      remplacants_disponibles: {
+        Row: {
+          inscrit_le: string
+          profile_id: string
+          role: string | null
+          tournament_id: string
+        }
+        Insert: {
+          inscrit_le?: string
+          profile_id: string
+          role?: string | null
+          tournament_id: string
+        }
+        Update: {
+          inscrit_le?: string
+          profile_id?: string
+          role?: string | null
+          tournament_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remplacants_disponibles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coachings: {
+        Row: {
+          coach_id: string
+          debut_le: string | null
+          demande_le: string
+          eleve_id: string
+          fin_le: string | null
+          id: string
+          statut: string
+        }
+        Insert: {
+          coach_id: string
+          debut_le?: string | null
+          demande_le?: string
+          eleve_id: string
+          fin_le?: string | null
+          id?: string
+          statut?: string
+        }
+        Update: {
+          coach_id?: string
+          debut_le?: string | null
+          demande_le?: string
+          eleve_id?: string
+          fin_le?: string | null
+          id?: string
+          statut?: string
+        }
+        Relationships: []
+      }
+      inscriptions_division: {
+        Row: {
+          inscrit_le: string
+          ligue_id: string
+          profile_id: string
+        }
+        Insert: {
+          inscrit_le?: string
+          ligue_id: string
+          profile_id: string
+        }
+        Update: {
+          inscrit_le?: string
+          ligue_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inscriptions_division_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inscriptions_division_ligue_id_fkey"
+            columns: ["ligue_id"]
+            isOneToOne: false
+            referencedRelation: "ligues_division"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ligues_division: {
+        Row: {
+          cree_le: string
+          debut_le: string
+          fin_le: string
+          id: string
+          region: string
+          semaine_annoncee: number
+          statut: string
+        }
+        Insert: {
+          cree_le?: string
+          debut_le: string
+          fin_le: string
+          id?: string
+          region: string
+          semaine_annoncee?: number
+          statut?: string
+        }
+        Update: {
+          cree_le?: string
+          debut_le?: string
+          fin_le?: string
+          id?: string
+          region?: string
+          semaine_annoncee?: number
+          statut?: string
+        }
+        Relationships: []
+      }
+      membres_poule_division: {
+        Row: {
+          mouvement: string | null
+          ordre: number
+          poule_id: string
+          profile_id: string
+          rang_final: number | null
+          rating_depart: number | null
+        }
+        Insert: {
+          mouvement?: string | null
+          ordre: number
+          poule_id: string
+          profile_id: string
+          rang_final?: number | null
+          rating_depart?: number | null
+        }
+        Update: {
+          mouvement?: string | null
+          ordre?: number
+          poule_id?: string
+          profile_id?: string
+          rang_final?: number | null
+          rating_depart?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membres_poule_division_poule_id_fkey"
+            columns: ["poule_id"]
+            isOneToOne: false
+            referencedRelation: "poules_division"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membres_poule_division_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poules_division: {
+        Row: {
+          id: string
+          ligue_id: string
+          niveau: number
+        }
+        Insert: {
+          id?: string
+          ligue_id: string
+          niveau: number
+        }
+        Update: {
+          id?: string
+          ligue_id?: string
+          niveau?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poules_division_ligue_id_fkey"
+            columns: ["ligue_id"]
+            isOneToOne: false
+            referencedRelation: "ligues_division"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rencontres_division: {
+        Row: {
+          dispo_a: string | null
+          dispo_b: string | null
+          id: string
+          joueur_a: string
+          joueur_b: string
+          poule_id: string
+          semaine: number
+          tournament_id: string | null
+        }
+        Insert: {
+          dispo_a?: string | null
+          dispo_b?: string | null
+          id?: string
+          joueur_a: string
+          joueur_b: string
+          poule_id: string
+          semaine: number
+          tournament_id?: string | null
+        }
+        Update: {
+          dispo_a?: string | null
+          dispo_b?: string | null
+          id?: string
+          joueur_a?: string
+          joueur_b?: string
+          poule_id?: string
+          semaine?: number
+          tournament_id?: string | null
+        }
+        Relationships: []
+      }
+      disponibilites: {
+        Row: {
+          cree_le: string
+          debut: string
+          profile_id: string
+          region: string
+        }
+        Insert: {
+          cree_le?: string
+          debut: string
+          profile_id: string
+          region: string
+        }
+        Update: {
+          cree_le?: string
+          debut?: string
+          profile_id?: string
+          region?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disponibilites_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bilans_hebdo: {
+        Row: {
+          envoye_le: string
+          profile_id: string
+          semaine: string
+        }
+        Insert: {
+          envoye_le?: string
+          profile_id: string
+          semaine: string
+        }
+        Update: {
+          envoye_le?: string
+          profile_id?: string
+          semaine?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bilans_hebdo_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comptes_versement: {
+        Row: {
+          cree_le: string
+          maj_le: string
+          profile_id: string
+          stripe_compte_id: string
+          verifie: boolean
+          verifie_le: string | null
+        }
+        Insert: {
+          cree_le?: string
+          maj_le?: string
+          profile_id: string
+          stripe_compte_id: string
+          verifie?: boolean
+          verifie_le?: string | null
+        }
+        Update: {
+          cree_le?: string
+          maj_le?: string
+          profile_id?: string
+          stripe_compte_id?: string
+          verifie?: boolean
+          verifie_le?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comptes_versement_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       versements_dotation: {
         Row: {
           a_verifier: boolean
@@ -362,6 +904,7 @@ export type Database = {
           reference: string | null
           statut: string
           tournament_id: string
+          transfert_stripe_id: string | null
         }
         Insert: {
           a_verifier?: boolean
@@ -372,6 +915,7 @@ export type Database = {
           reference?: string | null
           statut?: string
           tournament_id: string
+          transfert_stripe_id?: string | null
         }
         Update: {
           a_verifier?: boolean
@@ -382,6 +926,7 @@ export type Database = {
           reference?: string | null
           statut?: string
           tournament_id?: string
+          transfert_stripe_id?: string | null
         }
         Relationships: [
           {
@@ -408,12 +953,16 @@ export type Database = {
           cree_le: string
           description: string | null
           discord_guild_id: string | null
+          domaines_email: string[]
+          ecole_validee_le: string | null
+          ecole_validee_par: string | null
           game_id: number
           id: string
           lien_discord: string | null
           nom: string
           proprietaire_id: string
           slug: string
+          type: string
         }
         Insert: {
           code_liaison?: string | null
@@ -422,12 +971,16 @@ export type Database = {
           cree_le?: string
           description?: string | null
           discord_guild_id?: string | null
+          domaines_email?: string[]
+          ecole_validee_le?: string | null
+          ecole_validee_par?: string | null
           game_id?: number
           id?: string
           lien_discord?: string | null
           nom: string
           proprietaire_id: string
           slug: string
+          type?: string
         }
         Update: {
           code_liaison?: string | null
@@ -436,12 +989,16 @@ export type Database = {
           cree_le?: string
           description?: string | null
           discord_guild_id?: string | null
+          domaines_email?: string[]
+          ecole_validee_le?: string | null
+          ecole_validee_par?: string | null
           game_id?: number
           id?: string
           lien_discord?: string | null
           nom?: string
           proprietaire_id?: string
           slug?: string
+          type?: string
         }
         Relationships: [
           {
@@ -456,21 +1013,30 @@ export type Database = {
       membres_communaute: {
         Row: {
           communaute_id: string
+          domaine: string | null
+          email_empreinte: string | null
           profile_id: string
           rejoint_le: string
           role: string
+          verifie_le: string | null
         }
         Insert: {
           communaute_id: string
+          domaine?: string | null
+          email_empreinte?: string | null
           profile_id: string
           rejoint_le?: string
           role?: string
+          verifie_le?: string | null
         }
         Update: {
           communaute_id?: string
+          domaine?: string | null
+          email_empreinte?: string | null
           profile_id?: string
           rejoint_le?: string
           role?: string
+          verifie_le?: string | null
         }
         Relationships: [
           {
@@ -482,6 +1048,93 @@ export type Database = {
           },
           {
             foreignKeyName: "membres_communaute_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      echecs_revue_ia: {
+        Row: {
+          dernier_le: string
+          essais: number
+          match_id: string
+          profile_id: string
+        }
+        Insert: {
+          dernier_le?: string
+          essais?: number
+          match_id: string
+          profile_id: string
+        }
+        Update: {
+          dernier_le?: string
+          essais?: number
+          match_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "echecs_revue_ia_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "echecs_revue_ia_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verifications_ecole: {
+        Row: {
+          code_empreinte: string
+          communaute_id: string
+          domaine: string
+          email_empreinte: string
+          envois: number
+          essais: number
+          expire_le: string
+          premier_envoi_le: string
+          profile_id: string
+        }
+        Insert: {
+          code_empreinte: string
+          communaute_id: string
+          domaine: string
+          email_empreinte: string
+          envois?: number
+          essais?: number
+          expire_le: string
+          premier_envoi_le?: string
+          profile_id: string
+        }
+        Update: {
+          code_empreinte?: string
+          communaute_id?: string
+          domaine?: string
+          email_empreinte?: string
+          envois?: number
+          essais?: number
+          expire_le?: string
+          premier_envoi_le?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verifications_ecole_communaute_id_fkey"
+            columns: ["communaute_id"]
+            isOneToOne: false
+            referencedRelation: "communautes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verifications_ecole_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -811,6 +1464,7 @@ export type Database = {
       empreintes_publiees: {
         Row: {
           empreinte: string
+          ancree_github_le: string | null
           jour: string
           numero: number
           publiee_le: string
@@ -823,6 +1477,7 @@ export type Database = {
         }
         Update: {
           empreinte?: string
+          ancree_github_le?: string | null
           jour?: string
           numero?: number
           publiee_le?: string
@@ -1671,6 +2326,7 @@ export type Database = {
           equipe_b_id: string
           id: string
           joueurs_a: string[]
+          objectif_id: string | null
           prevu_le: string
           propose_par: string | null
           region: string
@@ -1685,6 +2341,7 @@ export type Database = {
           equipe_b_id: string
           id?: string
           joueurs_a: string[]
+          objectif_id?: string | null
           prevu_le: string
           propose_par?: string | null
           region: string
@@ -1699,6 +2356,7 @@ export type Database = {
           equipe_b_id?: string
           id?: string
           joueurs_a?: string[]
+          objectif_id?: string | null
           prevu_le?: string
           propose_par?: string | null
           region?: string
@@ -1707,6 +2365,13 @@ export type Database = {
           tournament_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "scrims_objectif_id_fkey"
+            columns: ["objectif_id"]
+            isOneToOne: false
+            referencedRelation: "echeances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "scrims_equipe_a_id_fkey"
             columns: ["equipe_a_id"]
@@ -1778,6 +2443,38 @@ export type Database = {
       stats_match_joueur: {
         Row: {
           assists: number
+          balise: number | null
+          balises_controle: number | null
+          balises_detruites: number | null
+          balises_posees: number | null
+          champion_id: number | null
+          controle_secondes: number | null
+          degats_attenues: number | null
+          degats_batiments: number | null
+          degats_champions: number | null
+          degats_subis: number | null
+          fragments: number[] | null
+          joue_le: string | null
+          multi_kill_max: number | null
+          niveau: number | null
+          objets: number[] | null
+          part_degats: number | null
+          part_kills: number | null
+          patch: string | null
+          poste: string | null
+          premier_sang: boolean | null
+          premiere_tour: boolean | null
+          rune_principale: number | null
+          runes: number[] | null
+          sbires_10: number | null
+          score_vision: number | null
+          soins: number | null
+          solo_kills: number | null
+          sorts: number[] | null
+          style_principal: number | null
+          style_secondaire: number | null
+          temps_mort_secondes: number | null
+          tours_detruites: number | null
           champion: string
           cree_le: string
           cs: number
@@ -1792,6 +2489,38 @@ export type Database = {
         }
         Insert: {
           assists: number
+          balise?: number | null
+          balises_controle?: number | null
+          balises_detruites?: number | null
+          balises_posees?: number | null
+          champion_id?: number | null
+          controle_secondes?: number | null
+          degats_attenues?: number | null
+          degats_batiments?: number | null
+          degats_champions?: number | null
+          degats_subis?: number | null
+          fragments?: number[] | null
+          joue_le?: string | null
+          multi_kill_max?: number | null
+          niveau?: number | null
+          objets?: number[] | null
+          part_degats?: number | null
+          part_kills?: number | null
+          patch?: string | null
+          poste?: string | null
+          premier_sang?: boolean | null
+          premiere_tour?: boolean | null
+          rune_principale?: number | null
+          runes?: number[] | null
+          sbires_10?: number | null
+          score_vision?: number | null
+          soins?: number | null
+          solo_kills?: number | null
+          sorts?: number[] | null
+          style_principal?: number | null
+          style_secondaire?: number | null
+          temps_mort_secondes?: number | null
+          tours_detruites?: number | null
           champion: string
           cree_le?: string
           cs: number
@@ -1806,6 +2535,38 @@ export type Database = {
         }
         Update: {
           assists?: number
+          balise?: number | null
+          balises_controle?: number | null
+          balises_detruites?: number | null
+          balises_posees?: number | null
+          champion_id?: number | null
+          controle_secondes?: number | null
+          degats_attenues?: number | null
+          degats_batiments?: number | null
+          degats_champions?: number | null
+          degats_subis?: number | null
+          fragments?: number[] | null
+          joue_le?: string | null
+          multi_kill_max?: number | null
+          niveau?: number | null
+          objets?: number[] | null
+          part_degats?: number | null
+          part_kills?: number | null
+          patch?: string | null
+          poste?: string | null
+          premier_sang?: boolean | null
+          premiere_tour?: boolean | null
+          rune_principale?: number | null
+          runes?: number[] | null
+          sbires_10?: number | null
+          score_vision?: number | null
+          soins?: number | null
+          solo_kills?: number | null
+          sorts?: number[] | null
+          style_principal?: number | null
+          style_secondaire?: number | null
+          temps_mort_secondes?: number | null
+          tours_detruites?: number | null
           champion?: string
           cree_le?: string
           cs?: number
@@ -1979,11 +2740,14 @@ export type Database = {
           logo_url: string | null
           nature: string
           nom: string
+          objectif_id: string | null
           organisateur_id: string
           publie_le: string | null
           rating_max: number | null
           rating_min: number | null
           region: string
+          reserve_membres: boolean
+          reserve_non_classes: boolean
           season_id: string | null
           slug: string
           statut: Database["public"]["Enums"]["tournament_status"]
@@ -2008,11 +2772,14 @@ export type Database = {
           logo_url?: string | null
           nature?: string
           nom: string
+          objectif_id?: string | null
           organisateur_id: string
           publie_le?: string | null
           rating_max?: number | null
           rating_min?: number | null
           region: string
+          reserve_membres?: boolean
+          reserve_non_classes?: boolean
           season_id?: string | null
           slug: string
           statut?: Database["public"]["Enums"]["tournament_status"]
@@ -2037,11 +2804,14 @@ export type Database = {
           logo_url?: string | null
           nature?: string
           nom?: string
+          objectif_id?: string | null
           organisateur_id?: string
           publie_le?: string | null
           rating_max?: number | null
           rating_min?: number | null
           region?: string
+          reserve_membres?: boolean
+          reserve_non_classes?: boolean
           season_id?: string | null
           slug?: string
           statut?: Database["public"]["Enums"]["tournament_status"]
@@ -2049,6 +2819,13 @@ export type Database = {
           verrouille_le?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tournaments_objectif_id_fkey"
+            columns: ["objectif_id"]
+            isOneToOne: false
+            referencedRelation: "echeances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tournaments_communaute_id_fkey"
             columns: ["communaute_id"]
@@ -2147,6 +2924,82 @@ export type Database = {
       }
     }
     Views: {
+      indicateurs_classees: {
+        Row: {
+          assists: number
+          champion: string
+          champion_id: number | null
+          deaths: number
+          degats_min: number | null
+          duree_secondes: number
+          ecart_or_15: number | null
+          equipe: number | null
+          file: number
+          gagne: boolean
+          id: number
+          joue_le: string
+          kda: number
+          kills: number
+          morts_10min: number | null
+          morts_avant_10: number | null
+          morts_secondes: number[] | null
+          morts_x: number[] | null
+          morts_y: number[] | null
+          objets: number[] | null
+          or_min: number | null
+          palier: string | null
+          part_degats: number | null
+          part_kills: number | null
+          patch: string | null
+          poste: string | null
+          premier_sang: number | null
+          profile_id: string
+          riot_match_id: string
+          rune_principale: number | null
+          sbires_10: number | null
+          sbires_min: number | null
+          sorts: number[] | null
+          style_secondaire: number | null
+          vision_min: number | null
+        }
+        Relationships: []
+      }
+      indicateurs_partie: {
+        Row: {
+          assists: number
+          balise: number | null
+          champion: string
+          champion_id: number | null
+          deaths: number
+          degats_min: number | null
+          duree_secondes: number
+          format: string
+          gagne: boolean
+          joue_le: string
+          kda: number
+          kills: number
+          match_id: string
+          morts_10min: number | null
+          objets: number[] | null
+          or_min: number | null
+          part_degats: number | null
+          part_kills: number | null
+          patch: string | null
+          poste: string | null
+          premier_sang: number | null
+          premiere_tour: number | null
+          profile_id: string
+          rune_principale: number | null
+          runes: number[] | null
+          sbires_10: number | null
+          sbires_min: number | null
+          sorts: number[] | null
+          style_principal: number | null
+          style_secondaire: number | null
+          vision_min: number | null
+        }
+        Relationships: []
+      }
       registre_public: {
         Row: {
           adversaire_id: string | null
@@ -2290,13 +3143,175 @@ export type Database = {
       }
       code_liaison_discord: { Args: { p_communaute_id: string }; Returns: string }
       lier_serveur_discord: { Args: { p_code: string; p_guild_id: string }; Returns: string }
+      agir_depuis_discord: { Args: { p_discord_id: string; p_action: string; p_cible: string }; Returns: Json }
+      meteo_classement: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          saison: string | null
+          joueurs_avec_rating: number
+          joueurs_classes: number
+          rd_median: number | null
+          joueurs_actifs_30j: number
+          matchs_30j: number
+          matchs_verifies_30j: number
+          matchs_par_actif_median: number | null
+        }[]
+      }
+      matchs_communs: { Args: { p_a: string; p_b: string }; Returns: { ensemble: number; contre: number }[] }
+      recommander: { Args: { p_destinataire: string; p_texte: string }; Returns: boolean }
+      retirer_recommandation: { Args: { p_destinataire: string }; Returns: undefined }
+      masquer_recommandation: { Args: { p_auteur: string; p_masquee: boolean }; Returns: boolean }
+      recommandations_joueur: {
+        Args: { p_profile_id: string }
+        Returns: {
+          auteur_id: string
+          auteur_pseudo: string
+          auteur_slug: string
+          texte: string
+          masquee: boolean
+          cree_le: string
+          modifie_le: string
+          matchs_ensemble: number
+          matchs_contre: number
+        }[]
+      }
+      chimie_equipe: {
+        Args: { p_team_id: string }
+        Returns: { match_id: string; joue_le: string; gagne: boolean; joueurs: string[] }[]
+      }
+      proposer_remplacement: { Args: { p_tournament_id: string; p_role?: string }; Returns: boolean }
+      quitter_remplacants: { Args: { p_tournament_id: string }; Returns: boolean }
+      remplacer_aligne: { Args: { p_tournament_id: string; p_sortant: string; p_entrant: string }; Returns: boolean }
+      est_coach_eligible: { Args: { p_profile_id: string }; Returns: boolean }
+      accepte_eleves: { Args: { p_profile_id: string }; Returns: boolean }
+      regler_eleves: { Args: { p_accepte: boolean }; Returns: boolean }
+      demander_coaching: { Args: { p_coach: string }; Returns: string }
+      repondre_coaching: { Args: { p_coaching_id: string; p_accepter: boolean }; Returns: boolean }
+      terminer_coaching: { Args: { p_coaching_id: string }; Returns: boolean }
+      eleves_coach: {
+        Args: { p_coach: string }
+        Returns: {
+          coaching_id: string
+          eleve_id: string
+          eleve_pseudo: string
+          eleve_slug: string
+          statut: string
+          demande_le: string
+          debut_le: string | null
+          fin_le: string | null
+          tournois: number
+          points: number
+        }[]
+      }
+      prochain_debut_division: { Args: Record<PropertyKey, never>; Returns: string }
+      s_inscrire_division: { Args: Record<PropertyKey, never>; Returns: string }
+      quitter_division: { Args: Record<PropertyKey, never>; Returns: boolean }
+      former_poules_division: { Args: { p_ligue_id: string; p_poules: Json }; Returns: number }
+      je_suis_la_division: { Args: { p_rencontre_id: string }; Returns: { slug: string | null; prevenir: boolean }[] }
+      cloturer_ligue_division: { Args: { p_ligue_id: string; p_classements: Json }; Returns: number }
+      rencontres_ligue: {
+        Args: { p_ligue_id: string }
+        Returns: {
+          rencontre_id: string
+          poule_id: string
+          semaine: number
+          joueur_a: string
+          joueur_b: string
+          dispo_a: string | null
+          dispo_b: string | null
+          tournoi_slug: string | null
+          tournoi_statut: string | null
+          match_id: string | null
+          gagnant_id: string | null
+          niveau_verdict: string | null
+        }[]
+      }
+      meteo_semaines: {
+        Args: { p_semaines?: number }
+        Returns: { semaine: string; matchs: number; matchs_verifies: number; joueurs_actifs: number }[]
+      }
+      declarer_disponibilite: { Args: { p_debut: string }; Returns: number }
+      retirer_disponibilite: { Args: { p_debut: string }; Returns: boolean }
+      disponibilites_creneaux: { Args: { p_region: string }; Returns: { debut: string; joueurs: number }[] }
+      ouvrir_tournois_a_la_demande: {
+        Args: { p_organisateur_id: string }
+        Returns: { tournament_id: string; slug: string; inscrits: string[] }[]
+      }
+      effacer_disponibilites_passees: { Args: Record<PropertyKey, never>; Returns: number }
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
+      definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
+      valider_ecole: {
+        Args: { p_communaute_id: string; p_valider: boolean; p_domaines_vus?: string[] }
+        Returns: boolean
+      }
+      revues_a_rediger: { Args: { p_limite: number }; Returns: { match_id: string; profile_id: string }[] }
+      regler_analyse: { Args: { p_bilan_hebdo: boolean; p_classees: boolean }; Returns: undefined }
+      reperes_classees: {
+        Args: { p_palier?: string; p_poste?: string }
+        Returns: {
+          ecart_gagnants: number | null
+          ecart_perdants: number | null
+          indicateur: string
+          joueurs: number
+          moyenne_gagnants: number | null
+          moyenne_perdants: number | null
+          parties: number
+        }[]
+      }
+      percentiles_classees: {
+        Args: { p_palier?: string; p_poste?: string }
+        Returns: { egaux: number; en_dessous: number; indicateur: string; joueurs: number }[]
+      }
+      reperes_build_classees: {
+        Args: { p_champion: string }
+        Returns: { genre: string; parties: number; valeur: string | null; victoires: number }[]
+      }
+      reperes_bilan: {
+        Args: { p_format: string; p_poste?: string; p_sauf?: string }
+        Returns: {
+          ecart_gagnants: number | null
+          ecart_perdants: number | null
+          indicateur: string
+          moyenne_gagnants: number | null
+          moyenne_perdants: number | null
+          parties: number
+        }[]
+      }
+      reperes_build: {
+        Args: { p_champion: string; p_format: string; p_sauf?: string }
+        Returns: { genre: string; parties: number; valeur: string | null; victoires: number }[]
+      }
+      noter_echec_revue: { Args: { p_match_id: string; p_profile_id: string }; Returns: undefined }
+      preparer_verification_ecole: {
+        Args: { p_code: string; p_communaute_id: string; p_email: string; p_profile_id: string }
+        Returns: string
+      }
+      confirmer_verification_ecole: { Args: { p_code: string; p_communaute_id: string }; Returns: boolean }
+      classement_ecoles: {
+        Args: never
+        Returns: {
+          classes: number
+          communaute_id: string
+          couleur: string
+          moyenne_top5: number | null
+          nom: string
+          slug: string
+          verifies: number
+        }[]
+      }
       enregistrer_dotation: {
         Args: { p_repartition: number[]; p_sponsor_lien: string; p_sponsor_nom: string; p_tournament_id: string }
         Returns: boolean
       }
       annuler_dotation: { Args: { p_tournament_id: string }; Returns: boolean }
       preparer_versements: { Args: { p_tournament_id: string }; Returns: number }
+      ouvrir_compte_versement: { Args: { p_profile_id: string; p_stripe_compte_id: string }; Returns: string }
+      maj_compte_versement: { Args: { p_stripe_compte_id: string; p_verifie: boolean }; Returns: boolean }
+      preparer_virement: {
+        Args: { p_profile_id: string; p_rang_verifie: boolean; p_tournament_id: string }
+        Returns: { montant_centimes: number; stripe_compte_id: string }[]
+      }
+      noter_virement: { Args: { p_profile_id: string; p_tournament_id: string; p_transfert_id: string }; Returns: boolean }
       noter_versement: {
         Args: { p_profile_id: string; p_reference: string; p_statut: string; p_tournament_id: string }
         Returns: boolean
@@ -2356,8 +3371,12 @@ export type Database = {
           saison: string | null
           slug: string
           victoires: number
+          signature: string | null
+          cle_publique: string | null
         }[]
       }
+      contenu_certificat: { Args: { p_code: string }; Returns: string | null }
+      signer_certificat: { Args: { p_code: string; p_signature: string; p_cle_publique: string }; Returns: boolean }
       mes_reglages_profil: {
         Args: never
         Returns: { pseudo_modifie_le: string | null; visites_anonymes: boolean }[]
@@ -2369,6 +3388,7 @@ export type Database = {
           p_best_of: number
           p_equipe_id: string
           p_joueurs: string[]
+          p_objectif_id?: string
           p_prevu_le: string
         }
         Returns: string
@@ -2384,6 +3404,18 @@ export type Database = {
           tournois_annules: number
           tournois_publies: number
           tournois_termines: number
+        }[]
+      }
+      fiabilite_joueur: {
+        Args: { p_profile_id: string }
+        Returns: {
+          checkins: number
+          defaites_reconnues: number
+          delai_pret_median_secondes: number | null
+          forfaits: number
+          matchs_joues: number
+          matchs_prets: number
+          tournois: number
         }[]
       }
       former_equipes_agents_libres: { Args: { p_equipes: Json; p_tournament_id: string }; Returns: number }

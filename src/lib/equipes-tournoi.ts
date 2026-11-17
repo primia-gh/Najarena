@@ -183,6 +183,8 @@ export interface LigneScrim {
   prevuLe: string;
   statutTournoi: string;
   adversaire: { libelle: string; slug: string | null };
+  /** Échéance que le scrim prépare (audit N24). */
+  objectif: string | null;
   estGagnant: boolean | null;
   /** Niveau du verdict définitif, nul tant qu'il n'y en a pas. */
   niveau: string | null;
@@ -199,7 +201,7 @@ export async function chargerScrimsEquipe(
 ): Promise<LigneScrim[]> {
   const { data: inscriptions } = await supabase
     .from("registrations")
-    .select("tournament_id, tournament:tournaments!inner(slug, statut, debute_le, nature)")
+    .select("tournament_id, tournament:tournaments!inner(slug, statut, debute_le, nature, objectif:echeances(nom))")
     .eq("team_id", teamId)
     .eq("tournament.nature", "scrim")
     .order("inscrit_le", { ascending: false })
@@ -230,6 +232,7 @@ export async function chargerScrimsEquipe(
         slug: i.tournament.slug,
         prevuLe: i.tournament.debute_le,
         statutTournoi: i.tournament.statut,
+        objectif: i.tournament.objectif?.nom ?? null,
         adversaire: {
           libelle: libelleEquipe(adverse?.equipe_tag, adverse?.equipe_nom),
           slug: adverse?.team?.slug ?? null,

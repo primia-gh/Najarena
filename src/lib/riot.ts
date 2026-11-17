@@ -141,6 +141,50 @@ export interface ParticipantMatchRiot {
   totalMinionsKilled: number;
   neutralMinionsKilled: number;
   goldEarned: number;
+  // Détails gardés pour le bilan du joueur (05/10/2026), déjà présents
+  // dans la réponse : aucun appel de plus. Facultatifs, Riot pouvant en
+  // omettre selon le mode de jeu.
+  championId?: number;
+  champLevel?: number;
+  teamPosition?: string;
+  individualPosition?: string;
+  /** Partie arrêtée par un abandon anticipé (« remake ») : ne compte pas. */
+  gameEndedInEarlySurrender?: boolean;
+  item0?: number;
+  item1?: number;
+  item2?: number;
+  item3?: number;
+  item4?: number;
+  item5?: number;
+  item6?: number;
+  summoner1Id?: number;
+  summoner2Id?: number;
+  perks?: {
+    statPerks?: { offense?: number; flex?: number; defense?: number };
+    styles?: { description?: string; style?: number; selections?: { perk?: number }[] }[];
+  };
+  totalDamageDealtToChampions?: number;
+  totalDamageTaken?: number;
+  damageSelfMitigated?: number;
+  damageDealtToBuildings?: number;
+  totalHeal?: number;
+  timeCCingOthers?: number;
+  visionScore?: number;
+  wardsPlaced?: number;
+  wardsKilled?: number;
+  detectorWardsPlaced?: number;
+  turretTakedowns?: number;
+  firstBloodKill?: boolean;
+  firstTowerKill?: boolean;
+  firstTowerAssist?: boolean;
+  largestMultiKill?: number;
+  totalTimeSpentDead?: number;
+  challenges?: {
+    soloKills?: number;
+    killParticipation?: number;
+    teamDamagePercentage?: number;
+    laneMinionsFirst10Minutes?: number;
+  };
 }
 
 export interface DetailsMatchRiot {
@@ -148,6 +192,8 @@ export interface DetailsMatchRiot {
     gameStartTimestamp: number; // ms epoch
     gameDuration: number; // secondes
     queueId: number; // 0 = partie personnalisée
+    /** « 15.19.715.1234 » : le patch de la partie. */
+    gameVersion?: string;
     participants: ParticipantMatchRiot[];
   };
 }
@@ -165,6 +211,37 @@ export async function recupererIdsMatchsRecents(
   const filtreQueue = queue === undefined ? "" : `&queue=${queue}`;
   const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${encodeURIComponent(puuid)}/ids?startTime=${depuisSecondes}&count=20${filtreQueue}`;
   return appelRiot<string[]>(url);
+}
+
+// match-v5 — parties classées d'un joueur (Solo/Duo et Flexible : filtre
+// `type=ranked` de Riot), pour l'analyse faite avec son accord (bilan du
+// joueur, étape 2). Les plus récentes d'abord.
+export async function recupererIdsClassees(
+  puuid: string,
+  continent: Continent,
+  depuisSecondes: number,
+  nombre: number,
+): Promise<string[]> {
+  const compte = Math.min(100, Math.max(1, Math.round(nombre)));
+  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${encodeURIComponent(puuid)}/ids?type=ranked&startTime=${depuisSecondes}&count=${compte}`;
+  return appelRiot<string[]>(url);
+}
+
+// league-v4 — rang classé d'un joueur (routage plateforme) : une entrée par
+// file classée jouée (RANKED_SOLO_5x5, RANKED_FLEX_SR).
+export interface EntreeLigueRiot {
+  queueType: string;
+  tier: string;
+  rank: string;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
+}
+
+export async function recupererRangs(puuid: string, plateforme: string): Promise<EntreeLigueRiot[]> {
+  return appelRiot<EntreeLigueRiot[]>(
+    `https://${plateforme}.api.riotgames.com/lol/league/v4/entries/by-puuid/${encodeURIComponent(puuid)}`,
+  );
 }
 
 export async function recupererDetailsMatch(

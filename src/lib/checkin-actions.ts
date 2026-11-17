@@ -5,6 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { heureParis } from "@/lib/tournois-auto/creneaux";
 
+// Tournoi réservé aux membres, revérifié au check-in (17/10/2026) : un
+// joueur a pu quitter la communauté, ou perdre sa vérification d'école
+// (domaines changés par le fondateur), depuis son inscription.
+const REFUS_RESERVE_SOLO =
+  "Ce tournoi est réservé aux membres de sa communauté (aux membres vérifiés, pour une école) et tu ne remplis plus cette condition : rejoins-la, ou refais la vérification de ton adresse, depuis sa page avant de confirmer.";
+const REFUS_RESERVE_EQUIPE =
+  "Ce tournoi est réservé aux membres de sa communauté (aux membres vérifiés, pour une école) et au moins un joueur de ton alignement, toi compris, ne remplit plus cette condition : chacun doit rejoindre la communauté (ou refaire sa vérification), ou être remplacé dans l'alignement, avant que tu confirmes l'équipe.";
+
 // Check-in fait par le joueur lui-même (24/09/2026) — jusqu'ici, seul
 // l'organisateur pouvait confirmer une inscription (confirmerInscription,
 // organisation-actions.ts), ce qui rendait impossible un tournoi sans
@@ -21,7 +29,7 @@ export async function confirmerMaPresence(formData: FormData) {
 
   const { data: tournoi } = await supabase
     .from("tournaments")
-    .select("slug, statut, checkin_ouvre_le, debute_le")
+    .select("slug, statut, checkin_ouvre_le, debute_le, format")
     .eq("id", tournamentId)
     .maybeSingle();
 
@@ -60,6 +68,12 @@ export async function confirmerMaPresence(formData: FormData) {
     redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
   }
 
+  if (error?.message.includes("RESERVE_MEMBRES")) {
+    redirect(
+      `${page}?erreur=${encodeURIComponent(tournoi.format === "5v5" ? REFUS_RESERVE_EQUIPE : REFUS_RESERVE_SOLO)}`,
+    );
+  }
+
   if (!confirmee) {
     redirect(`${page}?erreur=${encodeURIComponent("Aucune inscription en attente de check-in.")}`);
   }
@@ -87,6 +101,9 @@ export async function confirmerAgentLibre(formData: FormData) {
   }
   if (error?.message.includes("CHECKIN_FERME")) {
     redirect(`${page}?erreur=${encodeURIComponent("Le check-in n'est pas ouvert pour ce tournoi.")}`);
+  }
+  if (error?.message.includes("RESERVE_MEMBRES")) {
+    redirect(`${page}?erreur=${encodeURIComponent(REFUS_RESERVE_SOLO)}`);
   }
   if (!confirme) {
     redirect(`${page}?erreur=${encodeURIComponent("Aucune inscription d'agent libre en attente de check-in.")}`);

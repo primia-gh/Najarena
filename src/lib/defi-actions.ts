@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { envoyerRappel, URL_SITE } from "@/lib/notifications";
 import { messageRefusDefi } from "@/lib/defis";
+import { boutonPret, matchDuDuel, prevenirDefiLance, prevenirReponseDefi } from "@/lib/suites-joueur";
 
 // Défis entre joueurs (28/09/2026, audit N16 et N18). Toutes les règles —
 // comptes Riot vérifiés dans la même région, un défi en attente par paire,
@@ -35,18 +36,14 @@ export async function lancerDefi(formData: FormData) {
   const { supabase, utilisateur } = await session();
   if (!utilisateur) redirect("/connexion");
 
-  const { error } = await supabase.rpc("lancer_defi", {
+  const { data: defiId, error } = await supabase.rpc("lancer_defi", {
     p_adversaire_id: adversaireId,
     p_condition: condition(formData),
   });
   if (error) versDefis("erreur", messageRefusDefi(error.message, "Impossible d'envoyer ce défi pour l'instant."));
 
-  await envoyerRappel(
-    adversaireId,
-    `${await pseudoDe(supabase, utilisateur.id)} te défie en 1v1`,
-    "Une partie, résultat lu chez Riot. Accepte ou refuse depuis ton espace dans les 24 h.",
-    `${URL_SITE}/moi#defis`,
-  );
+  // Avec les boutons « Accepter » / « Refuser » dans le message Discord.
+  await prevenirDefiLance(utilisateur.id, adversaireId, defiId ?? null);
   versDefis("message", "Défi envoyé : ton adversaire a 24 h pour répondre.");
 }
 
@@ -59,18 +56,7 @@ export async function repondreDefi(formData: FormData) {
   const { data: slug, error } = await supabase.rpc("repondre_defi", { p_defi_id: defiId, p_accepte: accepte });
   if (error) versDefis("erreur", messageRefusDefi(error.message, "Impossible de répondre à ce défi pour l'instant."));
 
-  const { data: defi } = await supabase.from("defis").select("lanceur_id").eq("id", defiId).maybeSingle();
-  if (defi) {
-    const pseudo = await pseudoDe(supabase, utilisateur.id);
-    await envoyerRappel(
-      defi.lanceur_id,
-      accepte ? `${pseudo} relève ton défi` : `${pseudo} a refusé ton défi`,
-      accepte
-        ? "Le duel est ouvert : déclare-toi prêt dans la salle de match."
-        : "Tu peux défier un autre joueur depuis son profil.",
-      accepte && slug ? `${URL_SITE}/lol/tournois/${slug}#ton-match` : `${URL_SITE}/moi#defis`,
-    );
-  }
+  await prevenirReponseDefi(defiId, utilisateur.id, accepte, slug ?? null);
 
   if (accepte && slug) redirect(`/lol/tournois/${slug}#ton-match`);
   versDefis("message", "Défi refusé.");
@@ -100,11 +86,13 @@ export async function accepterInvitationDefi(formData: FormData) {
 
   const { data: defi } = await supabase.from("defis").select("lanceur_id").eq("code_invitation", code).maybeSingle();
   if (defi) {
+    const matchId = await matchDuDuel(slug);
     await envoyerRappel(
       defi.lanceur_id,
       `${await pseudoDe(supabase, utilisateur.id)} relève ton défi`,
       "Ton lien de défi a trouvé preneur : le duel est ouvert, déclare-toi prêt dans la salle de match.",
       `${URL_SITE}/lol/tournois/${slug}#ton-match`,
+      { boutons: matchId ? [boutonPret(matchId)] : [] },
     );
   }
   redirect(`/lol/tournois/${slug}#ton-match`);

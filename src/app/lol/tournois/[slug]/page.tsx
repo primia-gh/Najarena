@@ -36,9 +36,12 @@ import BoutonLien from "@/components/design/BoutonLien";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import Panneau from "@/components/design/Panneau";
+import Tableau from "@/components/design/Tableau";
 import LibelleSection from "@/components/design/LibelleSection";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import { CaseMatch, ColonnesBracket, type EtatMatch } from "@/components/tournoi/Bracket";
+import { chancesDeTitre, formaterChance, type MatchTitre } from "@/lib/chances-titre";
+import { ficheAdversaire } from "@/lib/fiche-adversaire";
 import {
   Deroulement,
   EnTeteTournoi,
@@ -51,6 +54,7 @@ import {
 import OngletsTournoi from "@/components/tournoi/OngletsTournoi";
 import SalleDeMatch, { type InfosSalleDeMatch, type JoueurAligne } from "@/components/tournoi/SalleDeMatch";
 import FormulaireAlignement from "@/components/tournoi/FormulaireAlignement";
+import BourseRemplacants from "@/components/tournoi/BourseRemplacants";
 import {
   chargerEquipesCapitaine,
   chargerEquipesDesTournois,
@@ -70,6 +74,8 @@ import {
 import { chargerPronosticsTournoi } from "@/lib/pronostics-serveur";
 import { pronostiquer } from "@/lib/pronostic-actions";
 import { cashPrizesActifs, formaterEuros, LIBELLE_RANG } from "@/lib/dotations";
+import { publicReserve, typeCommunaute } from "@/lib/ecoles";
+import { classeChamp } from "@/lib/design";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
@@ -94,7 +100,7 @@ const LABEL_INSCRIPTION: Record<string, string> = {
 
 interface TournoiPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ erreur?: string; message?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; bourse?: string; bourseErreur?: string }>;
 }
 
 // cache : generateMetadata et la page partagent un seul chargement par
@@ -105,7 +111,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, communaute:communautes(slug, nom)",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, reserve_non_classes, communaute:communautes(id, slug, nom, type), objectif:echeances(nom)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -200,6 +206,9 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: profilsAlignesData },
     { data: comptesDuMatchData },
     mesEquipes,
+    { data: monAdhesion },
+    { data: monClassement },
+    { data: partiesAdversaire },
   ] = await Promise.all([
     profileIds.length > 0
       ? (() => {
@@ -266,6 +275,39 @@ const chargerTournoi = cache(async (slug: string) => {
     userData.user && tournoi.format === "5v5"
       ? chargerEquipesCapitaine(supabase, userData.user.id, tournoi.game_id, tournoi.region)
       : Promise.resolve([]),
+    // Tournoi réservé aux membres de sa communauté (04/10/2026) : le
+    // visiteur en est-il membre (vérifié, pour une école) ?
+    userData.user && tournoi.reserve_membres && tournoi.communaute
+      ? supabase
+          .from("membres_communaute")
+          .select("verifie_le")
+          .eq("communaute_id", tournoi.communaute.id)
+          .eq("profile_id", userData.user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    // Coupe des nouveaux (idée en réserve n°12) : le visiteur est-il déjà
+    // classé dans la saison en cours ? (même règle que est_non_classe)
+    userData.user && tournoi.reserve_non_classes
+      ? supabase
+          .from("ratings")
+          .select("est_classe, season:seasons!inner(est_courante)")
+          .eq("profile_id", userData.user.id)
+          .eq("game_id", tournoi.game_id)
+          .eq("season.est_courante", true)
+          .eq("est_classe", true)
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    // Fiche de l'adversaire (idée en réserve n°9) : ses parties lues chez
+    // Riot (stats_match_joueur n'existe que pour elles), en 1v1.
+    adversaireId && tournoi.format !== "5v5"
+      ? supabase
+          .from("stats_match_joueur")
+          .select("champion, gagne, poste")
+          .eq("profile_id", adversaireId)
+          .order("cree_le", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
@@ -309,6 +351,7 @@ const chargerTournoi = cache(async (slug: string) => {
     monMatch,
     riotIdAdversaire:
       compteAdversaire?.verifie_le ? `${compteAdversaire.riot_game_name}#${compteAdversaire.riot_tag_line}` : null,
+    ficheDeLAdversaire: ficheAdversaire(partiesAdversaire ?? []),
     paliers,
     ratingParProfile,
     etatDepart,
@@ -320,6 +363,12 @@ const chargerTournoi = cache(async (slug: string) => {
     mesEquipes,
     agentsLibres: agentsLibresData ?? [],
     resumeOrganisateur: ficheOrganisateur ? resumeFiche(ficheOrganisateur) : null,
+    // Même règle que la base (eligible_tournoi_reserve), pour l'affichage.
+    eligibleReserve:
+      (!tournoi.reserve_membres ||
+        (monAdhesion !== null &&
+          (typeCommunaute(tournoi.communaute?.type) !== "ecole" || monAdhesion.verifie_le !== null))) &&
+      (!tournoi.reserve_non_classes || monClassement === null),
   };
 });
 
@@ -378,7 +427,7 @@ export async function generateMetadata({
 
 export default async function TournoiPage({ params, searchParams }: TournoiPageProps) {
   const { slug } = await params;
-  const { erreur, message } = await searchParams;
+  const { erreur, message, bourse: messageBourse, bourseErreur } = await searchParams;
   const donnees = await chargerTournoi(slug);
 
   if (donnees.statut === "introuvable") {
@@ -406,6 +455,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     monCompteRiot,
     monMatch,
     riotIdAdversaire,
+    ficheDeLAdversaire,
     paliers,
     ratingParProfile,
     etatDepart,
@@ -417,6 +467,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     mesEquipes,
     agentsLibres,
     resumeOrganisateur,
+    eligibleReserve,
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
@@ -478,7 +529,40 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   }
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
 
+  // Chances de titre (idée en réserve n°14) : estimation d'après les
+  // ratings au début du tournoi, avant le tournoi et au fil des résultats.
+  // Tournois 1v1 seulement (en 5v5, le capitaine représente l'équipe).
+  const titre =
+    !estEquipes && tournoi.nature === "tournoi" && matchs.length > 0 && (statut === "en_cours" || statut === "termine")
+      ? (() => {
+          const matchsTitre: MatchTitre[] = matchs.map((m) => ({
+            tour: m.tour,
+            position: m.position,
+            joueurs: m.match_participants.map((p) => ({ profileId: p.profile_id, slot: p.slot })),
+            gagnant: verdictParMatch.get(m.id)?.gagnant_id ?? null,
+          }));
+          const joueurs = new Map(
+            matchs.flatMap((m) => m.match_participants.map((p) => [p.profile_id, p.profile] as const)),
+          );
+          const avant = chancesDeTitre(matchsTitre, etatDepart, false);
+          const maintenant = chancesDeTitre(matchsTitre, etatDepart, true);
+          const lignes = [...avant.keys()]
+            .map((id) => ({
+              id,
+              pseudo: joueurs.get(id)?.pseudo ?? "Joueur",
+              slug: joueurs.get(id)?.slug ?? null,
+              avant: avant.get(id) ?? 0,
+              maintenant: maintenant.get(id) ?? 0,
+            }))
+            .sort((a, b) => b.maintenant - a.maintenant || b.avant - a.avant);
+          const vainqueur = statut === "termine" && maintenant.size === 1 ? lignes[0] : null;
+          return { lignes, vainqueur };
+        })()
+      : null;
+
   const complements = await chargerComplementsTournoi(tournoi.id);
+  // Tournois créés par la plateforme (quotidiens, à la demande).
+  const organisateurPlateforme = complements.estQuotidien || complements.estALaDemande;
 
   // Pronostics gratuits (audit N20) : demi-finales et finale d'un tournoi
   // (jamais d'un défi ni d'un scrim), dès que les deux adversaires sont
@@ -575,6 +659,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             demarreLe: monMatch.demarre_le,
             bestOf: tournoi.best_of,
             perdantDeclare: perdant,
+            ficheAdversaire: estEquipes ? null : ficheDeLAdversaire,
             chances:
               adversaire && !estEquipes
                 ? (() => {
@@ -692,8 +777,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     { libelle: "Niveau", valeur: complements.niveau, grand: false, accent: false },
   ];
 
-  const CHAMP =
-    "min-h-11 w-full rounded-bouton border border-line-strong bg-bg px-3 py-2.5 font-texte text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  // 16 px sur téléphone (sinon iOS zoome la page au toucher d'un champ).
+  const CHAMP = classeChamp();
 
   const lienDiscret =
     "text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
@@ -703,11 +788,40 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const monInscriptionEquipe = estEquipes ? inscriptionActuelle : undefined;
   const equipeInscrite = monInscriptionEquipe && utilisateur ? equipeDe(utilisateur.id) : undefined;
   const equipeCapitaine = equipeInscrite ? mesEquipes.find((e) => e.slug === equipeInscrite.slug) : undefined;
+  // Tournoi réservé aux membres de sa communauté (04/10/2026) : à qui il
+  // est ouvert, et comment en faire partie.
+  const reserve = tournoi.reserve_membres ? tournoi.communaute : null;
+  const avisReserve = reserve ? (
+    <div className="flex flex-col gap-3">
+      <p className="text-[13px] leading-normal text-muted">
+        Tournoi réservé aux {publicReserve(reserve)}.
+      </p>
+      <BoutonLien
+        href={`/communaute/${reserve.slug}${typeCommunaute(reserve.type) === "ecole" ? "#ecole" : ""}`}
+        className="w-full"
+      >
+        {typeCommunaute(reserve.type) === "ecole" ? "Vérifier mon adresse d'école" : "Rejoindre la communauté"}
+      </BoutonLien>
+    </div>
+  ) : tournoi.reserve_membres ? (
+    <p className="text-[13px] leading-normal text-muted">
+      Tournoi réservé aux membres d&apos;une communauté qui n&apos;existe plus : les inscriptions sont closes.
+    </p>
+  ) : tournoi.reserve_non_classes ? (
+    <div className="flex flex-col gap-3">
+      <p className="text-[13px] leading-normal text-muted">
+        Réservé aux joueurs pas encore classés cette saison : tu l&apos;es déjà. Retrouve-toi au tournoi quotidien.
+      </p>
+      <BoutonLien href="/lol/tournois" className="w-full">
+        Voir les tournois
+      </BoutonLien>
+    </div>
+  ) : null;
   // Agents libres (audit N23) : ceux qui attendent encore une équipe.
   const agentsEnAttente = agentsLibres.filter((a) => a.statut !== "place");
   const monAgent = utilisateur ? agentsEnAttente.find((a) => a.profile_id === utilisateur.id) : undefined;
   const formulaireAgentLibre =
-    statut === "ouvert" && utilisateur ? (
+    statut === "ouvert" && utilisateur && eligibleReserve ? (
       compteRiotValide ? (
         <form action={inscrireAgentLibre} className="flex flex-col gap-2 border-t border-line pt-[18px]">
           <input type="hidden" name="tournament_id" value={tournoi.id} />
@@ -859,6 +973,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       <BoutonLien href="/connexion" className="w-full">
         Se connecter pour inscrire ton équipe
       </BoutonLien>
+    ) : !eligibleReserve ? (
+      avisReserve
     ) : mesEquipes.length === 0 ? (
       <div className="flex flex-col gap-3">
         <p className="text-[13px] leading-normal text-muted">
@@ -928,12 +1044,15 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               {estDefi
                 ? " · Défi en une partie"
                 : estScrim
-                  ? " · Scrim (entraînement)"
+                  ? ` · Scrim (entraînement)${tournoi.objectif ? ` — préparation de ${tournoi.objectif.nom}` : ""}`
                   : complements.typeBracket
                     ? ` · ${complements.typeBracket}`
                     : ""}
               {complements.estQuotidien ? " · Tournoi quotidien" : ""}
+              {complements.estALaDemande ? " · Tournoi à la demande" : ""}
               {condition === "classique" ? " · 1v1 classique" : ""}
+              {tournoi.reserve_membres ? " · Réservé aux membres" : ""}
+              {tournoi.reserve_non_classes ? " · Réservé aux joueurs non classés" : ""}
             </span>
           </>
         }
@@ -953,7 +1072,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               </>
             )}
             {(estDefi || estScrim) && " · Arbitré par Najarena"}
-            {organisateur && !estDefi && !estScrim && (
+            {/* Tournois créés par la plateforme (quotidiens, à la demande) :
+                Najarena, pas le compte administrateur qui les porte, dont la
+                fiche d'organisateur exclut ces tournois (relecture design du
+                17/10/2026). */}
+            {organisateurPlateforme && " · Organisé par Najarena"}
+            {organisateur && !estDefi && !estScrim && !organisateurPlateforme && (
               <>
                 {" "}
                 · Organisé par{" "}
@@ -1054,7 +1178,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 <span className="font-bold text-muted uppercase">Complet</span>
               </p>
             ) : statut === "ouvert" ? (
-              utilisateur && !compteRiotValide ? (
+              utilisateur && !eligibleReserve ? (
+                avisReserve
+              ) : utilisateur && !compteRiotValide ? (
                 <div className="flex flex-col gap-3">
                   <p className="text-[13px] leading-normal text-muted">
                     {monCompteRiot?.verifie_le
@@ -1188,7 +1314,14 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         <div className="mx-auto flex max-w-contenu flex-col gap-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <LibelleSection as="h2">Bracket</LibelleSection>
-            <LegendeBracket avecEstimations />
+            {/* Pas de légende tant qu'il n'y a pas de bracket ; en 5v5, ni
+                estimation ni exploit (le capitaine représente l'équipe). */}
+            {toursOrdonnes.length > 0 && (
+              <LegendeBracket
+                avecEstimations={!estEquipes}
+                portee={estEquipes ? "equipe" : classement.statut === "non_classe" ? "aucune" : "classement"}
+              />
+            )}
           </div>
 
           {toursOrdonnes.length === 0 ? (
@@ -1275,6 +1408,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                         motif={verdict?.motif}
                         monMatch={estParticipantDuMatch}
                         exploit={exploit}
+                        lienPreuve={`/lol/match/${m.id}`}
                       >
                         {!verdict && m.statut === "litige" && !perdantDeclare && (
                           <p className="text-xs text-danger">
@@ -1338,6 +1472,63 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 }),
               }))}
             />
+          )}
+
+          {/* Chances de titre (idée en réserve n°14). */}
+          {titre && titre.vainqueur && (
+            <p className="text-sm text-text-2">
+              Vainqueur : <span className="font-semibold text-text">{titre.vainqueur.pseudo}</span>, qui avait{" "}
+              <span className="tabular-nums">{formaterChance(titre.vainqueur.avant)}</span> de chances de titre avant le
+              tournoi (estimation d&apos;après les ratings du départ).
+            </p>
+          )}
+          {titre && !titre.vainqueur && statut === "en_cours" && (
+            <Panneau as="section" aria-labelledby="titre-chances" className="flex flex-col gap-4 p-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <LibelleSection as="h3" id="titre-chances">
+                  Chances de titre
+                </LibelleSection>
+                <span className="text-xs text-muted">Estimation provisoire, d&apos;après les ratings au départ</span>
+              </div>
+              <Tableau legende="Chances de chaque joueur de gagner le tournoi">
+                <thead>
+                  <tr>
+                    <th scope="col">Joueur</th>
+                    <th scope="col" className="hidden text-right sm:table-cell">
+                      Avant le tournoi
+                    </th>
+                    <th scope="col" className="text-right">
+                      Maintenant
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {titre.lignes.slice(0, 8).map((l) => (
+                    <tr key={l.id}>
+                      <td className={l.maintenant > 0 ? "font-semibold" : "text-faint"}>
+                        {l.slug ? (
+                          <Link href={`/joueur/${l.slug}`} className="hover:text-accent">
+                            {l.pseudo}
+                          </Link>
+                        ) : (
+                          l.pseudo
+                        )}
+                      </td>
+                      <td className="hidden text-right text-muted tabular-nums sm:table-cell">{formaterChance(l.avant)}</td>
+                      <td className="text-right tabular-nums">
+                        {l.maintenant > 0 ? formaterChance(l.maintenant) : <span className="text-faint">Éliminé</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Tableau>
+              {titre.lignes.length > 8 && (
+                <p className="text-xs text-muted">
+                  Et {titre.lignes.length - 8} autre{titre.lignes.length - 8 > 1 ? "s" : ""} joueur
+                  {titre.lignes.length - 8 > 1 ? "s" : ""}, aux chances plus faibles ou éliminés.
+                </p>
+              )}
+            </Panneau>
           )}
         </div>
       </section>
@@ -1565,6 +1756,15 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               </p>
             </div>
           )}
+          {/* Bourse aux remplaçants (idée en réserve n°15). */}
+          {estEquipes && tournoi.nature === "tournoi" && (
+            <BourseRemplacants
+              tournoi={{ id: tournoi.id, slug: tournoi.slug, region: tournoi.region, statut }}
+              utilisateurId={utilisateur?.id ?? null}
+              message={messageBourse}
+              erreur={bourseErreur}
+            />
+          )}
         </div>
       </section>
 
@@ -1575,7 +1775,11 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             <Deroulement etapes={etapes} />
             {statut !== "annule" && <CriteresClassement evaluation={classement} />}
           </div>
-          <EssentielReglement organisateur={organisateur?.pseudo} condition={condition} equipes={estEquipes} />
+          <EssentielReglement
+            organisateur={estDefi || estScrim || organisateurPlateforme ? "Najarena" : organisateur?.pseudo}
+            condition={condition}
+            equipes={estEquipes}
+          />
         </div>
       </section>
     </main>

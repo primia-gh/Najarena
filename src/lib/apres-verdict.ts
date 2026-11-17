@@ -11,6 +11,7 @@ import { cloturerTournoi } from "@/lib/classement-actions";
 import { echapperHtml } from "@/lib/echappement";
 import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
+import { boutonPret } from "@/lib/suites-joueur";
 
 export async function apresVerdict(matchId: string, gagnantId: string, explication: string): Promise<void> {
   const admin = creerClientAdmin();
@@ -19,7 +20,7 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
   const { data: m } = await admin
     .from("matches")
     .select(
-      "tournament_id, match_suivant_id, tournament:tournaments(nom, slug, format), match_participants(profile_id, profile:profiles(pseudo))",
+      "tournament_id, match_suivant_id, tournament:tournaments(nom, slug, format, nature), match_participants(profile_id, profile:profiles(pseudo))",
     )
     .eq("id", matchId)
     .maybeSingle();
@@ -48,6 +49,26 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
       ),
     ),
   );
+
+  // Fin d'un duel (défi, arène) : bouton « Proposer une revanche » dans
+  // Discord (idée en réserve n°10). Le résultat est déjà parti par e-mail
+  // et push : message Discord seul.
+  if (tournoi.nature === "defi") {
+    await Promise.all(
+      destinataires.map((d) =>
+        envoyerRappel(
+          d.id,
+          `Duel terminé — ${tournoi.nom}`,
+          d.gagne ? "Victoire enregistrée. Ton adversaire voudra peut-être sa revanche." : "Défaite enregistrée. Une revanche ?",
+          `${URL_SITE}/lol/tournois/${tournoi.slug}`,
+          {
+            push: false,
+            boutons: [{ action: "revanche", cible: m.tournament_id, libelle: "Proposer une revanche" }],
+          },
+        ),
+      ),
+    );
+  }
 
   if (m.match_suivant_id) {
     await prevenirMatchOuvert(m.match_suivant_id);
@@ -90,9 +111,30 @@ export async function prevenirMatchOuvert(matchId: string): Promise<void> {
       const texte = equipes
         ? `Équipe adverse : ${adversaire}. Les Riot ID des dix joueurs, qui crée la partie et les règles sont dans la salle de match.`
         : `Adversaire : ${adversaire}. Son Riot ID, qui crée la partie et les règles sont dans la salle de match.`;
+      // Bouton « Je suis prêt » au joueur du bracket (le capitaine en 5v5).
       return (equipe(p.profile_id)?.joueurs ?? [p.profile_id]).map((id) =>
-        envoyerRappel(id, `Ton match est ouvert — ${nom}`, texte, `${URL_SITE}/lol/tournois/${slug}#ton-match`),
+        envoyerRappel(id, `Ton match est ouvert — ${nom}`, texte, `${URL_SITE}/lol/tournois/${slug}#ton-match`, {
+          boutons: id === p.profile_id ? [boutonPret(matchId)] : [],
+        }),
       );
     }),
   );
+}
+
+/**
+ * Matchs ouverts d'un tournoi (deux joueurs connus, en cours, pas encore de
+ * verdict définitif) : ceux du premier tour au lancement du bracket, et ceux
+ * qu'un bye a déjà complétés.
+ */
+export async function matchsOuverts(tournoiId: string): Promise<{ matchId: string; joueurs: string[] }[]> {
+  const admin = creerClientAdmin();
+  if (!admin) return [];
+  const { data } = await admin
+    .from("matches")
+    .select("id, match_participants(profile_id), match_verdicts(est_definitif)")
+    .eq("tournament_id", tournoiId)
+    .eq("statut", "en_cours");
+  return (data ?? [])
+    .filter((m) => m.match_participants.length === 2 && !m.match_verdicts.some((v) => v.est_definitif))
+    .map((m) => ({ matchId: m.id, joueurs: m.match_participants.map((p) => p.profile_id) }));
 }

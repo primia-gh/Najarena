@@ -8,6 +8,8 @@ import { echapperHtml } from "@/lib/echappement";
 import { slugifier } from "@/lib/slug";
 import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 import { cashPrizesActifs, lireRepartition, messageRefusDotation } from "@/lib/dotations";
+import { cleVirement, groupeVirement } from "@/lib/versements-stripe";
+import { clientStripe } from "@/lib/versements-stripe-serveur";
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -286,6 +288,36 @@ export async function retirerEcheance(formData: FormData) {
   redirect(`/admin?message=${encodeURIComponent("Échéance retirée.")}#echeances`);
 }
 
+// Écoles validées par un administrateur (décision du 17/11/2026) : une
+// école n'entre dans la ligue qu'après vérification de ses domaines. La
+// base réserve la validation aux administrateurs (valider_ecole).
+export async function validerEcole(formData: FormData) {
+  const supabase = await createClient();
+  await verifierAdmin(supabase);
+  const valider = formData.get("valider") === "oui";
+  // Les domaines affichés à l'administrateur : la base refuse la
+  // validation s'ils ont changé depuis.
+  const domainesVus = String(formData.get("domaines") ?? "")
+    .split(",")
+    .filter((d) => d !== "");
+  const { error } = await supabase.rpc("valider_ecole", {
+    p_communaute_id: String(formData.get("communaute_id") ?? ""),
+    p_valider: valider,
+    p_domaines_vus: domainesVus,
+  });
+  if (error?.message.includes("DOMAINES_CHANGES")) {
+    redirect(
+      `/admin?erreur=${encodeURIComponent("Les domaines de cette école ont changé pendant ton examen : vérifie les nouveaux domaines avant de valider.")}#ecoles`,
+    );
+  }
+  if (error) {
+    redirect(`/admin?erreur=${encodeURIComponent("Validation impossible : cette école n'existe plus.")}#ecoles`);
+  }
+  redirect(
+    `/admin?message=${encodeURIComponent(valider ? "École validée : elle entre dans la ligue des écoles." : "Validation retirée : l'école sort de la ligue des écoles.")}#ecoles`,
+  );
+}
+
 // ---------- Cash prizes sponsorisés (03/10/2026, audit N32) ----------
 // Désactivés tant que CASH_PRIZES_ACTIFS n'est pas à « 1 » (voir
 // lib/dotations.ts). La base réserve tout aux administrateurs et ne fait
@@ -350,4 +382,65 @@ export async function noterVersement(formData: FormData) {
   });
   if (error) versDotations("erreur", messageRefusDotation(error.message, "Impossible de noter ce versement."));
   versDotations("message", "Versement noté.");
+}
+
+// Versement d'un gain par Stripe Connect (04/10/2026, audit N32). La base
+// vérifie tout (administrateur, gain à verser, rang décidé à la main
+// vérifié, identité du gagnant vérifiée par Stripe) ; un virement déjà fait
+// chez Stripe est retrouvé plutôt que refait, et la clé d'idempotence
+// empêche tout doublon en cas de relance.
+export async function verserParStripe(formData: FormData) {
+  if (!cashPrizesActifs()) versDotations("erreur", "Les cash prizes sont désactivés.");
+  const supabase = await createClient();
+  await verifierAdmin(supabase);
+  const stripe = clientStripe();
+  const admin = creerClientAdmin();
+  if (!stripe || !admin) versDotations("erreur", "Stripe n'est pas configuré sur le serveur.");
+
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+  const profileId = String(formData.get("profile_id") ?? "");
+  const { data: virement, error } = await supabase
+    .rpc("preparer_virement", {
+      p_tournament_id: tournamentId,
+      p_profile_id: profileId,
+      p_rang_verifie: formData.get("rang_verifie") === "oui",
+    })
+    .maybeSingle();
+  if (error || !virement) {
+    versDotations("erreur", messageRefusDotation(error?.message ?? "", "Virement impossible pour l'instant."));
+  }
+
+  const resultat = await (async () => {
+    try {
+      const groupe = groupeVirement(tournamentId);
+      const existants = await stripe.transfers.list({ destination: virement.stripe_compte_id, transfer_group: groupe, limit: 100 });
+      const dejaFait = existants.data.find((t) => t.metadata?.profile_id === profileId && !t.reversed);
+      const transfert =
+        dejaFait ??
+        (await stripe.transfers.create(
+          {
+            amount: virement.montant_centimes,
+            currency: "eur",
+            destination: virement.stripe_compte_id,
+            transfer_group: groupe,
+            metadata: { tournament_id: tournamentId, profile_id: profileId },
+          },
+          { idempotencyKey: cleVirement(tournamentId, profileId) },
+        ));
+      return { ok: true as const, id: transfert.id };
+    } catch (erreur) {
+      return { ok: false as const, message: erreur instanceof Error ? erreur.message : "erreur inconnue" };
+    }
+  })();
+  if (!resultat.ok) versDotations("erreur", `Stripe a refusé le virement : ${resultat.message}`);
+
+  const { error: erreurNote } = await admin.rpc("noter_virement", {
+    p_tournament_id: tournamentId,
+    p_profile_id: profileId,
+    p_transfert_id: resultat.id,
+  });
+  if (erreurNote) {
+    versDotations("erreur", `Virement fait chez Stripe (${resultat.id}), mais pas encore noté : relance « Verser » pour le noter.`);
+  }
+  versDotations("message", `Gain versé par Stripe (${resultat.id}).`);
 }

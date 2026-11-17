@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     supabase.from("ratings").select("maj_le, profil:profiles(slug)").gt("matchs_joues", 0),
     supabase.from("teams").select("slug, cree_le"),
     supabase.from("recaps_semaine").select("semaine, publie_le").eq("annonce", true).order("semaine", { ascending: false }).limit(52),
-    supabase.from("communautes").select("slug, cree_le"),
+    supabase.from("communautes").select("slug, cree_le, type, ecole_validee_le"),
   ]);
 
   const pagesStatiques: MetadataRoute.Sitemap = [
@@ -40,7 +40,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/lol/tournois/demo`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${BASE_URL}/lol/coequipiers`, changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/lol/arene`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE_URL}/lol/a-la-demande`, changeFrequency: "daily", priority: 0.5 },
+    { url: `${BASE_URL}/lol/divisions`, changeFrequency: "daily", priority: 0.5 },
+    { url: `${BASE_URL}/lol/meteo`, changeFrequency: "daily", priority: 0.4 },
     { url: `${BASE_URL}/lol/pronostics`, changeFrequency: "daily", priority: 0.5 },
+    { url: `${BASE_URL}/lol/ecoles`, changeFrequency: "daily", priority: 0.5 },
+    { url: `${BASE_URL}/lol/bilan`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/communautes`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE_URL}/developpeurs`, changeFrequency: "monthly", priority: 0.3 },
     { url: `${BASE_URL}/comment-ca-marche`, changeFrequency: "monthly", priority: 0.7 },
@@ -92,12 +97,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Espaces communauté (audit N30).
-  const pagesCommunautes: MetadataRoute.Sitemap = (communautes ?? []).map((c) => ({
-    url: `${BASE_URL}/communaute/${c.slug}`,
-    lastModified: c.cree_le,
-    changeFrequency: "weekly",
-    priority: 0.4,
-  }));
+  // Une école pas encore validée par un administrateur n'y figure pas.
+  const pagesCommunautes: MetadataRoute.Sitemap = (communautes ?? [])
+    .filter((c) => c.type !== "ecole" || c.ecole_validee_le)
+    .map((c) => ({
+      url: `${BASE_URL}/communaute/${c.slug}`,
+      lastModified: c.cree_le,
+      changeFrequency: "weekly",
+      priority: 0.4,
+    }));
 
   return [...pagesStatiques, ...pagesTournois, ...pagesJoueurs, ...pagesEquipes, ...pagesRecaps, ...pagesCommunautes];
 }

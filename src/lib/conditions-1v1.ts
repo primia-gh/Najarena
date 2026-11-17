@@ -12,7 +12,8 @@ export type ConditionVictoire = "nexus" | "classique";
 
 export const CONDITIONS_VICTOIRE: { valeur: ConditionVictoire; libelle: string }[] = [
   { valeur: "nexus", libelle: "Destruction du Nexus (ou abandon du perdant)" },
-  { valeur: "classique", libelle: "1v1 classique : premier sang, première tour ou 100 sbires" },
+  // Espaces insécables : « : » et « 100 sbires » ne se séparent pas en fin de ligne.
+  { valeur: "classique", libelle: "1v1 classique\u00a0: premier sang, première tour ou 100\u00a0sbires" },
 ];
 
 export const SBIRES_VICTOIRE = 100;
@@ -25,11 +26,13 @@ export interface EvenementChronologie {
   buildingType?: string;
   /** BUILDING_KILL : équipe à qui appartenait le bâtiment détruit. */
   teamId?: number;
+  /** CHAMPION_KILL : lieu de la mort, en coordonnées de la carte. */
+  position?: { x: number; y: number };
 }
 
 export interface ImageChronologie {
   timestamp: number;
-  participantFrames?: Record<string, { minionsKilled?: number }>;
+  participantFrames?: Record<string, { minionsKilled?: number; totalGold?: number }>;
   events?: EvenementChronologie[];
 }
 

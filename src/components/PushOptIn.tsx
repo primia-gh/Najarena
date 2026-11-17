@@ -92,13 +92,24 @@ export default function PushOptIn() {
     }
   }
 
-  if (etat === "verification" || etat === "non_supporte") return null;
+  if (etat === "verification") return null;
+
+  // Navigateur sans notifications push (ou clé absente) : on le dit, plutôt
+  // que de laisser la rubrique « Notifications » vide (revue du 05/10/2026).
+  if (etat === "non_supporte") {
+    return (
+      <p className="text-sm text-muted">
+        Les notifications push ne sont pas disponibles sur ce navigateur. Si ton compte est lié à Discord, les rappels
+        de match y arrivent en message privé.
+      </p>
+    );
+  }
 
   return (
-    <div className="mt-3 flex items-center justify-between rounded-[3px] border border-line bg-surface p-4">
+    <div className="flex items-center justify-between gap-4">
       <div>
-        <span className="text-sm text-text">Notifications push</span>
-        <p className="mt-0.5 font-texte tabular-nums text-mini text-muted">
+        <span className="text-sm font-semibold text-text">Notifications push</span>
+        <p className="mt-1 text-sm text-muted">
           {etat === "actif" && "Activées sur cet appareil"}
           {etat === "inactif" && "Check-in, résultats, litiges — en plus de l'e-mail"}
           {etat === "refuse" && "Bloquées par ton navigateur — à réactiver dans ses réglages"}
@@ -109,7 +120,7 @@ export default function PushOptIn() {
           type="button"
           disabled={enCours}
           onClick={etat === "actif" ? desactiver : activer}
-          className="shrink-0 rounded-[3px] border border-line px-3 py-1.5 font-texte tabular-nums text-mini tracking-[0.1em] text-muted uppercase hover:border-text hover:text-text disabled:opacity-50"
+          className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-bouton border border-line-strong px-4 text-sm text-text-2 hover:border-[rgba(245,245,244,0.25)] hover:text-text disabled:opacity-50"
         >
           {etat === "actif" ? "Désactiver" : "Activer"}
         </button>

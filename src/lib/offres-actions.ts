@@ -5,6 +5,7 @@ import { messageModeration } from "@/lib/moderation";
 import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
+import { lienExterneSur, MESSAGE_LIEN_INVALIDE } from "@/lib/lien-externe";
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -94,12 +95,29 @@ export async function mettreAJourBioProfile(formData: FormData) {
     redirect(`/moi?erreur=${encodeURIComponent("La personnalisation du profil demande l'offre Vérifié ou plus.")}`);
   }
 
+  // Retour sur le CV, au formulaire (relecture design du 12/10/2026 : sur
+  // /moi, le joueur perdait son formulaire de vue).
+  const { data: profil } = await supabase.from("profiles").select("slug").eq("id", userData.user.id).maybeSingle();
+  const retour = (type: "message" | "erreur", texte: string): never =>
+    redirect(
+      profil?.slug
+        ? `/joueur/${profil.slug}?${type}=${encodeURIComponent(texte)}#personnaliser`
+        : `/moi?${type}=${encodeURIComponent(texte)}`,
+    );
+
   const bio = String(formData.get("bio") ?? "").trim().slice(0, 140);
-  const lienExterne = String(formData.get("lien_externe") ?? "").trim().slice(0, 300);
+  // Adresse web complète seulement, sans message d'adresse (src/lib/lien-externe.ts).
+  const lienSaisi = String(formData.get("lien_externe") ?? "").trim();
+  const lienExterne = lienExterneSur(lienSaisi);
+  // Bio et lien s'enregistrent ensemble : un refus le dit (relecture
+  // design du 12/10/2026, la bio semblait perdue sans explication).
+  if (lienSaisi && !lienExterne) {
+    return retour("erreur", `Rien n'a été enregistré. ${MESSAGE_LIEN_INVALIDE}`);
+  }
 
   const admin = creerClientAdmin();
   if (!admin) {
-    redirect(`/moi?erreur=${encodeURIComponent("Mise à jour indisponible pour l'instant.")}`);
+    return retour("erreur", "Mise à jour indisponible pour l'instant.");
   }
 
   const { error } = await admin
@@ -107,8 +125,9 @@ export async function mettreAJourBioProfile(formData: FormData) {
     .update({ bio: bio || null, lien_externe: lienExterne || null })
     .eq("profile_id", userData.user.id);
   if (error) {
-    redirect(`/moi?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Mise à jour indisponible pour l'instant.")}`);
+    const refus = messageModeration(error.message);
+    return retour("erreur", refus ? `Rien n'a été enregistré. ${refus}` : "Mise à jour indisponible pour l'instant.");
   }
 
-  redirect("/moi?message=" + encodeURIComponent("Profil mis à jour."));
+  return retour("message", "Profil mis à jour.");
 }

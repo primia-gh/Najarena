@@ -14,6 +14,23 @@ export function reponseApi(corps: unknown, statut = 200): Response {
   return Response.json(corps, { status: statut, headers: ENTETES_API });
 }
 
+/**
+ * Adresse canonique d'une lecture coûteuse : sans paramètres et en
+ * minuscules, pour que le cache d'une minute du CDN serve tout le monde.
+ * « ?x=1 », « ?x=2 »… ou « /Vipere » contournaient le cache et relisaient
+ * toute la base à chaque appel (contrôle de sécurité du 17/10/2026). Null
+ * si l'adresse est déjà canonique.
+ */
+export function redirectionCanonique(requete: Request): Response | null {
+  const url = new URL(requete.url);
+  const chemin = url.pathname.toLowerCase();
+  if (!url.search && chemin === url.pathname) return null;
+  return new Response(null, {
+    status: 308,
+    headers: { ...ENTETES_API, Location: chemin },
+  });
+}
+
 export function reponseOptions(): Response {
   return new Response(null, { status: 204, headers: ENTETES_API });
 }

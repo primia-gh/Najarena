@@ -6,6 +6,7 @@ import { RATING_INITIAL, type Palier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { LABEL_STATUT, type StatutPublic } from "@/lib/tournois";
 import { FUSEAU_PARIS } from "@/lib/tournois-auto/creneaux";
+import { disposerBracket, tronquer, type MatchImage } from "@/lib/bracket-image";
 
 // Images de partage (28/09/2026, audit M11 / N7) : l'aperçu qui s'affiche
 // quand on colle le lien d'un CV ou d'un tournoi sur Discord, X, WhatsApp
@@ -22,6 +23,7 @@ export const COULEURS = {
   muted: "#9ca39c",
   accent: "#b6ff3b",
   ligne: "rgba(245, 245, 244, 0.12)",
+  ligneForte: "rgba(245, 245, 244, 0.28)",
 };
 
 const dossier = join(process.cwd(), "assets");
@@ -237,6 +239,8 @@ export interface AfficheTournoi {
   debuteLe: string;
   bestOf: number;
   vainqueur: string | null;
+  /** Matchs du bracket une fois lancé (audit N7) : les trois derniers tours sont dessinés. */
+  bracket?: MatchImage[];
 }
 
 const DATE_AFFICHE = new Intl.DateTimeFormat("fr-FR", {
@@ -255,8 +259,116 @@ function tailleNom(nom: string): number {
   return 68;
 }
 
+/** Taille du nom dans la colonne étroite de l'affiche avec bracket. */
+function tailleNomEtroit(nom: string): number {
+  if (nom.length <= 10) return 84;
+  if (nom.length <= 16) return 66;
+  if (nom.length <= 24) return 54;
+  return 44;
+}
+
+const LARGEUR_BRACKET = 600;
+const HAUTEUR_BRACKET = 340;
+
+/** Les trois derniers tours, avec leurs connecteurs (src/lib/bracket-image.ts). */
+function DessinBracket({ matchs }: { matchs: MatchImage[] }) {
+  const { boites, traits, colonnes } = disposerBracket(matchs, LARGEUR_BRACKET, HAUTEUR_BRACKET);
+  // Chakra Petch à 18 px : 9 à 10 px par caractère (capitales comprises).
+  const caracteres = Math.floor(((boites[0]?.largeur ?? 180) - 28) / 10);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, width: LARGEUR_BRACKET }}>
+      <div style={{ display: "flex", position: "relative", width: LARGEUR_BRACKET, height: 18 }}>
+        {colonnes.map((c) => (
+          <span
+            key={c.tour}
+            style={{ position: "absolute", left: c.x, top: 0, fontSize: 15, fontWeight: 600, letterSpacing: 3, color: COULEURS.muted }}
+          >
+            {c.libelle}
+          </span>
+        ))}
+      </div>
+      <div style={{ display: "flex", position: "relative", width: LARGEUR_BRACKET, height: HAUTEUR_BRACKET }}>
+        {traits.map((t, i) => (
+          <div
+            key={`trait-${i}`}
+            style={{ position: "absolute", left: t.x, top: t.y, width: t.largeur, height: t.hauteur, background: COULEURS.ligneForte }}
+          />
+        ))}
+        {boites.map((b) => (
+          <div
+            key={`${b.match.tour}-${b.match.position}`}
+            style={{
+              position: "absolute",
+              left: b.x,
+              top: b.y,
+              width: b.largeur,
+              height: b.hauteur,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: 2,
+              padding: "0 12px",
+              overflow: "hidden",
+              background: COULEURS.surface,
+              border: `2px solid ${COULEURS.ligne}`,
+            }}
+          >
+            {([0, 1] as const).map((place) => (
+              // Le vainqueur en clair, jamais en vert ni coché : le match a
+              // pu être tranché à la main (verdict manuel, jamais « vérifié »).
+              <span
+                key={place}
+                style={{
+                  fontSize: 18,
+                  whiteSpace: "nowrap",
+                  fontWeight: b.match.gagnant === place ? 600 : 500,
+                  color: b.match.gagnant === null || b.match.gagnant === place ? COULEURS.texte : COULEURS.muted,
+                }}
+              >
+                {tronquer(b.match.joueurs[place] ?? "—", caracteres)}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ContenuAfficheTournoi({ affiche, logo }: { affiche: AfficheTournoi; logo: string }) {
   const enCours = ["ouvert", "checkin", "en_cours"].includes(affiche.statut);
+
+  // Bracket lancé (audit N7) : informations à gauche, bracket à droite.
+  if (affiche.bracket && affiche.bracket.length > 0) {
+    return (
+      <CadreImage logo={logo} rubrique="TOURNOI · LEAGUE OF LEGENDS" adresse={adresseAffichee(`/lol/tournois/${affiche.slug}`)}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 40 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, width: 416 }}>
+            <span style={{ fontSize: 22, fontWeight: 600, letterSpacing: 5, color: enCours ? COULEURS.accent : COULEURS.muted }}>
+              {LABEL_STATUT[affiche.statut].toUpperCase()}
+            </span>
+            <span style={{ fontFamily: "Titre", fontWeight: 900, fontSize: tailleNomEtroit(affiche.nom), lineHeight: 0.92 }}>
+              {affiche.nom.toUpperCase()}
+            </span>
+            <span style={{ fontSize: 22, color: COULEURS.texte2 }}>{DATE_AFFICHE.format(new Date(affiche.debuteLe))}</span>
+            <span style={{ fontSize: 22, color: COULEURS.texte2 }}>
+              {affiche.format.toUpperCase()}
+              {affiche.bestOf > 1 ? ` · BO${affiche.bestOf}` : ""} · {affiche.capacite} places · {affiche.region}
+            </span>
+            {affiche.vainqueur && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 6 }}>
+                <span style={{ fontSize: 20, fontWeight: 600, color: COULEURS.muted, letterSpacing: 3 }}>VAINQUEUR</span>
+                <span style={{ fontFamily: "Titre", fontWeight: 900, fontSize: 44, lineHeight: 1 }}>
+                  {tronquer(affiche.vainqueur.toUpperCase(), 18)}
+                </span>
+              </div>
+            )}
+          </div>
+          <DessinBracket matchs={affiche.bracket} />
+        </div>
+      </CadreImage>
+    );
+  }
 
   return (
     <CadreImage logo={logo} rubrique="TOURNOI · LEAGUE OF LEGENDS" adresse={adresseAffichee(`/lol/tournois/${affiche.slug}`)}>

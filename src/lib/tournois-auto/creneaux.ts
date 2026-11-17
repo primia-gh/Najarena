@@ -31,6 +31,10 @@ export interface Creneau {
   // Comment on gagne une partie (src/lib/conditions-1v1.ts) : destruction
   // du Nexus, ou 1v1 classique (premier sang, première tour, 100 sbires).
   conditionVictoire: ConditionVictoire;
+  // Réservé aux joueurs pas encore classés dans la saison en cours (Coupe
+  // des nouveaux, idée en réserve n°12) : contrôlé par la base à chaque
+  // inscription (tournaments.reserve_non_classes).
+  reserveNonClasses?: boolean;
 }
 
 export const CRENEAUX: readonly Creneau[] = [
@@ -44,6 +48,22 @@ export const CRENEAUX: readonly Creneau[] = [
     region: "EUW",
     minimumJoueurs: 4,
     conditionVictoire: "nexus",
+  },
+  // Coupe des nouveaux (09/10/2026, idée en réserve n°12) : une heure avant
+  // le quotidien, pour les joueurs pas encore classés — ils accumulent des
+  // matchs entre eux et atteignent plus vite le classement (RD ≤ 150).
+  // Tournoi officiel : il compte au classement comme le quotidien.
+  {
+    cle: "coupe-des-nouveaux-20h",
+    nom: "Coupe des nouveaux",
+    heure: "20:00",
+    checkinMinutes: 30,
+    capacite: 16,
+    bestOf: 1,
+    region: "EUW",
+    minimumJoueurs: 4,
+    conditionVictoire: "nexus",
+    reserveNonClasses: true,
   },
 ];
 

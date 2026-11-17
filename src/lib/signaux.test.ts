@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detecterSignaux, type MatchSignal } from "./signaux";
+import { detecterGroupesFermes, detecterSignaux, type MatchSignal } from "./signaux";
 
 const match = (tournoiId: string, a: string, b: string, gagnant: string | null, verifie = true): MatchSignal => ({
   tournoiId,
@@ -44,5 +44,38 @@ describe("signaux à examiner", () => {
     expect(signaux.hausses.map((h) => h.profileId)).toEqual(["a"]);
     // t2 n'a aucun match vérifié : il ne compte pas, pas de signal.
     expect(signaux.petitsTournois).toEqual([{ tournoiId: "t1", joueurs: 4 }]);
+  });
+});
+
+describe("groupes fermés", () => {
+  // Douze joueurs extérieurs qui se croisent une fois chacun : une activité normale.
+  const exterieurs = Array.from({ length: 12 }, (_, i) =>
+    match(`x${i}`, `e${i}`, `e${(i + 1) % 12}`, `e${i}`),
+  );
+  // Quatre joueurs qui ne jouent qu'entre eux, deux fois chaque paire.
+  const paires = [["a", "b"], ["a", "c"], ["a", "d"], ["b", "c"], ["b", "d"], ["c", "d"]];
+  const entreEux = paires.flatMap(([p, q], i) => [match(`g${i}`, p, q, p), match(`h${i}`, q, p, q)]);
+
+  it("repère quatre joueurs qui ne jouent qu'entre eux", () => {
+    expect(detecterGroupesFermes([...entreEux, ...exterieurs])).toEqual([
+      { joueurs: ["a", "b", "c", "d"], matchsInternes: 12, part: 1 },
+    ]);
+  });
+
+  it("ignore un groupe qui joue aussi beaucoup contre d'autres", () => {
+    const ouverts = ["a", "b", "c", "d"].flatMap((j) =>
+      [0, 1, 2, 3].map((k) => match(`o${j}${k}`, j, `e${k}`, j)),
+    );
+    expect(detecterGroupesFermes([...entreEux, ...ouverts, ...exterieurs])).toEqual([]);
+  });
+
+  it("ignore un site où il n'y a personne d'autre, et les matchs non vérifiés", () => {
+    expect(detecterGroupesFermes(entreEux)).toEqual([]);
+    const nonVerifies = entreEux.map((m) => ({ ...m, verifie: false }));
+    expect(detecterGroupesFermes([...nonVerifies, ...exterieurs])).toEqual([]);
+  });
+
+  it("figure dans les signaux à examiner", () => {
+    expect(detecterSignaux([...entreEux, ...exterieurs], [], []).groupesFermes).toHaveLength(1);
   });
 });

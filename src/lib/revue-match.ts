@@ -4,9 +4,11 @@
 // voir src/lib/rapprochement.ts), la phrase n'est qu'un calcul mis en
 // mots. Cohérent avec "on n'invente jamais un résultat" (CLAUDE.md §3).
 
-import type { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/types";
 
-type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
+// Client du visiteur ou client du serveur (revues automatiques, audit N25).
+type SupabaseServer = SupabaseClient<Database>;
 
 // En dessous de ce seuil, une moyenne ne veut rien dire — mieux vaut le
 // dire clairement que de comparer sur un ou deux points de données.

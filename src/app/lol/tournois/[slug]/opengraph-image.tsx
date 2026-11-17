@@ -2,9 +2,12 @@ import { ImageResponse } from "next/og";
 import { creerClientPublic } from "@/lib/supabase/public";
 import { estVisiblePubliquement } from "@/lib/tournois";
 import { ContenuAfficheTournoi, ContenuIntrouvable, ressourcesImage, type AfficheTournoi } from "@/lib/image-partage";
+import type { MatchImage } from "@/lib/bracket-image";
+import { libelleEquipe } from "@/lib/cinq-contre-cinq";
 
 // Affiche partageable d'un tournoi (28/09/2026, audit N7) : nom, date à
-// l'heure de Paris, format, et le vainqueur une fois le tournoi terminé.
+// l'heure de Paris, format, le bracket une fois lancé (trois derniers
+// tours) et le vainqueur une fois le tournoi terminé.
 export const alt = "Tournoi League of Legends sur Najarena";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -39,6 +42,39 @@ async function chargerAffiche(slug: string): Promise<AfficheTournoi | null> {
     }
   }
 
+  // Bracket lancé : chaque match avec ses deux places et son vainqueur. En
+  // 5v5, le capitaine représente son équipe : on affiche l'équipe.
+  let bracket: MatchImage[] = [];
+  if (tournoi.statut === "en_cours" || tournoi.statut === "termine") {
+    const [{ data: matchs }, { data: equipes }] = await Promise.all([
+      supabase
+        .from("matches")
+        .select("tour, position, match_participants(profile_id, slot, est_gagnant, profile:profiles(pseudo))")
+        .eq("tournament_id", tournoi.id),
+      tournoi.format === "5v5"
+        ? supabase
+            .from("registrations")
+            .select("profile_id, equipe_nom, equipe_tag")
+            .eq("tournament_id", tournoi.id)
+            .neq("statut", "retire")
+        : Promise.resolve({ data: [] }),
+    ]);
+    const equipeDe = new Map((equipes ?? []).map((e) => [e.profile_id, libelleEquipe(e.equipe_tag, e.equipe_nom)]));
+    bracket = (matchs ?? []).map((m) => {
+      const place = (slot: number) => m.match_participants.find((p) => p.slot === slot);
+      const nom = (slot: number) => {
+        const p = place(slot);
+        return p ? (equipeDe.get(p.profile_id) ?? p.profile?.pseudo ?? "Joueur") : null;
+      };
+      return {
+        tour: m.tour,
+        position: m.position,
+        joueurs: [nom(1), nom(2)],
+        gagnant: place(1)?.est_gagnant ? 0 : place(2)?.est_gagnant ? 1 : null,
+      };
+    });
+  }
+
   return {
     slug: tournoi.slug,
     nom: tournoi.nom,
@@ -49,6 +85,7 @@ async function chargerAffiche(slug: string): Promise<AfficheTournoi | null> {
     debuteLe: tournoi.debute_le,
     bestOf: tournoi.best_of,
     vainqueur,
+    bracket,
   };
 }
 

@@ -10,10 +10,15 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import type { Offre } from "@/lib/offres";
+import { compteStripeVerifie } from "@/lib/versements-stripe";
 
 const cleSecrete = process.env.STRIPE_SECRET_KEY;
 const stripe = cleSecrete ? new Stripe(cleSecrete) : null;
 const secretWebhook = process.env.STRIPE_WEBHOOK_SECRET;
+// Comptes de versement des cash prizes (audit N32) : les événements des
+// comptes Connect arrivent par un point d'écoute « Connect », qui a son
+// propre secret de signature chez Stripe.
+const secretWebhookConnect = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
 
 type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
 
@@ -44,11 +49,32 @@ export async function POST(request: Request) {
   const corpsBrut = await request.text();
   const signature = request.headers.get("stripe-signature");
 
-  let evenement: Stripe.Event;
-  try {
-    evenement = stripe.webhooks.constructEvent(corpsBrut, signature ?? "", secretWebhook);
-  } catch {
+  // Quel secret a signé l'événement : chacun n'ouvre que ses propres
+  // événements (contrôle de sécurité du 17/10/2026). Le secret Connect ne
+  // sert qu'à la vérification des comptes de versement, jamais aux
+  // abonnements ; le secret principal ne touche pas aux comptes Connect.
+  const verifier = (secret: string | undefined): Stripe.Event | null => {
+    if (!secret) return null;
+    try {
+      return stripe.webhooks.constructEvent(corpsBrut, signature ?? "", secret);
+    } catch {
+      return null;
+    }
+  };
+  const principal = verifier(secretWebhook);
+  const connect = principal ? null : verifier(secretWebhookConnect);
+  const evenement = principal ?? connect;
+  if (!evenement) {
     return NextResponse.json({ erreur: "Signature invalide." }, { status: 400 });
+  }
+  // Un événement d'un compte connecté (evenement.account) n'est jamais un
+  // abonnement : seul le secret Connect l'ouvre.
+  const evenementAdmis = principal
+    ? evenement.type !== "account.updated" && !evenement.account
+    : evenement.type === "account.updated" && Boolean(evenement.account);
+  if (!evenementAdmis) {
+    // Reçu mais ignoré : Stripe n'a pas à le renvoyer.
+    return NextResponse.json({ recu: true });
   }
 
   const admin = creerClientAdmin();
@@ -118,6 +144,17 @@ export async function POST(request: Request) {
         await admin.from("comptes_offres").delete().eq("profile_id", profileId);
         await suivreAbonnement(admin, profileId, abonnement);
       }
+      break;
+    }
+
+    // Compte de versement d'un gagnant : identité vérifiée (ou plus) par
+    // Stripe. Relire deux fois le même état ne change rien.
+    case "account.updated": {
+      const compte = evenement.data.object as Stripe.Account;
+      await admin.rpc("maj_compte_versement", {
+        p_stripe_compte_id: compte.id,
+        p_verifie: compteStripeVerifie(compte),
+      });
       break;
     }
 
