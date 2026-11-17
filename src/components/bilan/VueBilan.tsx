@@ -352,7 +352,6 @@ const TENDANCE: Record<NonNullable<SerieProgression["tendance"]>, string> = {
 function seriesMontrees(bilan: Bilan): SerieProgression[] {
   const ordre: CleIndicateur[] = [
     ...bilan.axes.map((a) => a.indicateur),
-    "kda",
     "sbires_min",
     "morts_10min",
     "degats_min",
@@ -459,7 +458,6 @@ function Champions({ bilan, donnees }: { bilan: Bilan; donnees: DonneesJeu | nul
             <th scope="col">Champion</th>
             <th scope="col">Parties</th>
             <th scope="col">Victoires</th>
-            <th scope="col">KDA</th>
             <th scope="col">Sbires / min</th>
             <th scope="col">Évolution</th>
           </tr>
@@ -479,7 +477,6 @@ function Champions({ bilan, donnees }: { bilan: Bilan; donnees: DonneesJeu | nul
                 <td className="tabular-nums">
                   {c.victoires} <span className="text-muted">({pourcentage(c.victoires / c.parties)})</span>
                 </td>
-                <td className="tabular-nums">{formaterIndicateur("kda", c.kda)}</td>
                 <td className="tabular-nums">{c.sbiresMin === null ? "—" : formaterIndicateur("sbires_min", c.sbiresMin)}</td>
                 <td className="text-text-2">
                   {c.apprentissage ? APPRENTISSAGE[c.apprentissage] : <span className="text-faint">6 parties au moins</span>}
@@ -858,7 +855,7 @@ function Verrou() {
         <ul className="flex flex-col gap-2 text-text-2">
           <li>Ton plan d&apos;entraînement : un objectif chiffré par axe de travail, suivi partie après partie.</li>
           <li>Ta progression partie par partie, comparée à la moyenne des vainqueurs.</li>
-          <li>Tes champions : taux de victoire, KDA, farm, ton champion le plus sûr.</li>
+          <li>Tes champions : taux de victoire, farm, évolution, ton champion le plus sûr.</li>
           <li>Tes builds comparés à ceux des vainqueurs sur le même champion, avec les icônes du jeu.</li>
           <li>
             Pour tes parties classées : ton niveau parmi les joueurs de ton rang et de ton poste, ton hygiène de jeu et
@@ -899,9 +896,8 @@ export function MethodeBilan() {
           Repère : la moyenne des vainqueurs des parties vérifiées des autres joueurs, dans le même format (et au même
           poste en 5v5), dès {PARTIES_MIN_REPERE} parties. Un indicateur qui ne sépare pas vainqueurs et perdants
           n&apos;est jamais donné comme force ou comme axe. Le KDA et l&apos;or gagné par minute suivent surtout
-          l&apos;issue de la partie&nbsp;: le KDA est montré, l&apos;or par minute n&apos;est pas affiché, et aucun des
-          deux n&apos;est donné comme conseil&nbsp;; l&apos;écart d&apos;or à 15&nbsp;minutes, lui, se travaille en
-          début de partie.
+          l&apos;issue de la partie&nbsp;: ni l&apos;un ni l&apos;autre n&apos;est affiché ni donné comme
+          conseil&nbsp;; l&apos;écart d&apos;or à 15&nbsp;minutes, lui, se travaille en début de partie.
         </li>
         <li>
           Un constat est « indicatif » sous {PARTIES_FIABLE} parties. Il faut {PARTIES_MIN_BILAN} parties vérifiées

@@ -152,11 +152,16 @@ export const INDICATEURS: Record<CleIndicateur, DefinitionIndicateur> = {
   },
 };
 
-/** Indicateurs suivis dans chaque format (la vision et les parts n'ont pas de sens en 1v1). */
+/**
+ * Indicateurs suivis dans chaque format (la vision et les parts n'ont pas de
+ * sens en 1v1). Jamais le KDA : la charte n'affiche aucun KDA brut
+ * (MASTER §9), et il suit l'issue de la partie (décision du 17/11/2026).
+ * Il reste lu chez Riot et sert seulement, en interne, à l'évolution d'un
+ * champion.
+ */
 export const INDICATEURS_PAR_FORMAT: Record<FormatBilan, CleIndicateur[]> = {
-  "1v1": ["kda", "sbires_min", "sbires_10", "morts_10min", "degats_min", "or_min", "premier_sang"],
+  "1v1": ["sbires_min", "sbires_10", "morts_10min", "degats_min", "or_min", "premier_sang"],
   "5v5": [
-    "kda",
     "sbires_min",
     "sbires_10",
     "morts_10min",
@@ -168,7 +173,6 @@ export const INDICATEURS_PAR_FORMAT: Record<FormatBilan, CleIndicateur[]> = {
     "premier_sang",
   ],
   classees: [
-    "kda",
     "sbires_min",
     "sbires_10",
     "morts_10min",
@@ -191,9 +195,9 @@ export function conseilDe(cle: CleIndicateur, format: FormatBilan): string | und
 
 /**
  * Indicateurs qui deviennent des forces ou des axes de travail : ceux qu'on
- * travaille directement, et qui ont un conseil. Le KDA et l'or suivent
- * surtout l'issue de la partie (le vainqueur en a toujours plus) : ils
- * sont montrés, jamais donnés comme conseil.
+ * travaille directement, et qui ont un conseil. L'or suit surtout l'issue
+ * de la partie (le vainqueur en a toujours plus) : jamais donné comme
+ * conseil.
  */
 function indicateursConseil(format: FormatBilan): CleIndicateur[] {
   return INDICATEURS_PAR_FORMAT[format].filter((cle) => conseilDe(cle, format));

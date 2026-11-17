@@ -998,7 +998,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                                   </summary>
                                   <div className="panneau mt-1 flex flex-col gap-1.5 p-4 text-sm">
                                     <p className="text-xs text-muted tabular-nums">
-                                      {h.stats.champion} · {h.stats.kills}/{h.stats.deaths}/{h.stats.assists} · {h.stats.cs} CS · {h.stats.orGagne} or
+                                      {h.stats.champion} · {h.stats.cs} CS · {h.stats.orGagne} or
                                     </p>
                                     {h.revue ? (
                                       h.revue.map((phrase) => (
