@@ -737,7 +737,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
       <section id="ecoles" className="mt-10 scroll-mt-28" aria-labelledby="titre-ecoles">
         <SectionTitre>
-          <span id="titre-ecoles">Écoles ({ecolesAValider.length} à valider)</span>
+          <span id="titre-ecoles">
+            Écoles (<span className="tabular-nums">{ecolesAValider.length}</span> à valider)
+          </span>
         </SectionTitre>
         <p className="mt-1 max-w-2xl text-sm text-muted">
           Une école n&apos;entre dans la ligue des écoles qu&apos;une fois validée ici. Vérifie que chaque domaine

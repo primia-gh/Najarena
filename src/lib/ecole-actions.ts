@@ -42,7 +42,7 @@ export async function definirEcole(formData: FormData) {
   versEcole(
     slug,
     "message",
-    "Adresses de l'établissement enregistrées : tes membres peuvent maintenant vérifier la leur. L'école entrera dans la ligue des écoles une fois ses domaines vérifiés par Najarena.",
+    "Adresses de l'établissement enregistrées : tes membres peuvent maintenant vérifier la leur. L'école entrera dans la ligue des écoles une fois ses domaines vérifiés par Najarena ; changer les domaines la remet en attente.",
   );
 }
 

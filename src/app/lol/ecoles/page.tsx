@@ -65,8 +65,9 @@ export default async function EcolesPage() {
           <p className="mt-3 max-w-2xl text-xs text-muted">
             Une association étudiante crée la communauté de son école (offre Organisateur), puis indique le ou les
             domaines des adresses de l&apos;établissement ; ses membres vérifient la leur depuis la page de l&apos;école.
-            Ces domaines sont affichés sous chaque école : ce sont eux qui disent quel établissement elle représente, et
-            Najarena vérifie qu&apos;ils lui appartiennent avant de faire entrer l&apos;école dans la ligue.
+            Ces domaines sont affichés sous chaque école : ce sont eux qui disent quel établissement elle représente.
+            Najarena vérifie qu&apos;ils appartiennent à l&apos;établissement avant d&apos;admettre l&apos;école dans la
+            ligue.
           </p>
         </Apparition>
 

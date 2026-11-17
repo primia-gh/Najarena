@@ -248,7 +248,8 @@ export default async function CommunautePage({ params, searchParams }: Communaut
               {libelleDomaines(communaute.domaines_email)}, sous-domaines compris) : il compte dans la{" "}
               <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
                 ligue des écoles
-              </Link>{" "}
+              </Link>
+              {communaute.ecole_validee_le ? " " : " dès que l'école est validée par Najarena, "}
               et peut jouer les tournois réservés de l&apos;école. Najarena ne garde que le domaine de l&apos;adresse,
               jamais l&apos;adresse elle-même.
             </p>
