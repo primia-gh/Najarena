@@ -18,12 +18,28 @@ export const metadata: Metadata = {
 
 export default async function RecalculPage({ params }: { params: Promise<{ pseudo: string }> }) {
   const { pseudo } = await params;
-  const { data: profil } = await creerClientPublic()
+  const supabase = creerClientPublic();
+  const { data: profil } = await supabase
     .from("profiles")
-    .select("pseudo, slug, supprime_le")
+    .select("id, pseudo, slug, supprime_le")
     .eq("slug", pseudo)
     .maybeSingle();
   if (!profil || profil.supprime_le) notFound();
+  // Joueur pas encore entré au classement : ses lignes sont publiques au
+  // registre et se recalculent comme les autres, mais son rating reste
+  // provisoire (décision du porteur du 17/11/2026 : on le montre, en le
+  // disant).
+  const { data: saison } = await supabase.from("seasons").select("id").eq("game_id", 1).eq("est_courante", true).maybeSingle();
+  const { data: rating } = saison
+    ? await supabase
+        .from("ratings")
+        .select("est_classe")
+        .eq("profile_id", profil.id)
+        .eq("game_id", 1)
+        .eq("season_id", saison.id)
+        .maybeSingle()
+    : { data: null };
+  const estClasse = rating?.est_classe === true;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -47,6 +63,13 @@ export default async function RecalculPage({ params }: { params: Promise<{ pseud
             la clôture : seuls les résultats lus chez Riot comptent, jamais un forfait ni une décision manuelle, et au-delà
             de 3 victoires contre le même adversaire en 24 h les suivantes sont ignorées.
           </p>
+          {!estClasse && (
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
+              {profil.pseudo} n&apos;est pas encore entré au classement cette saison&nbsp;: les points recalculés ici
+              sont bien ceux du registre, mais son rating reste provisoire (incertitude encore élevée) jusqu&apos;à une
+              dizaine de matchs vérifiés.
+            </p>
+          )}
         </Apparition>
 
         <RecalculJoueur slug={profil.slug} />
