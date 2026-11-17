@@ -92,7 +92,7 @@ Les sections, dans l'ordre (la numérotation suit celle du guide du 28/09) :
     vérification d'une adresse d'école part par e-mail : `RESEND_API_KEY` et
     `RESEND_FROM_EMAIL` (domaine vérifié chez Resend) sur Vercel.
 38. **Analyse de match rédigée automatiquement** pour l'offre Elite (04/10)
-    — utilise `ANTHROPIC_API_KEY`, déjà présente.
+    — utilise `ANTHROPIC_API_KEY` (absente de Vercel au 17/11/2026 : voir § 3).
 39. **Versement des cash prizes par Stripe Connect** (04/10) — éteint tant
     que `CASH_PRIZES_ACTIFS` n'est pas à `1` (ne pas le définir).
 40. **Scrims calés sur une échéance** (04/10) — remplace `proposer_scrim`
@@ -139,6 +139,22 @@ Après application : lancer les conseillers de sécurité et de performance
 de Supabase (Advisors) et comparer avec l'état d'avant.
 
 ## 3. Réglages Vercel (porteur du projet)
+
+**État relevé le 17/11/2026** (noms seulement, jamais les valeurs) : présentes
+`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`,
+`RIOT_API_KEY`. Toutes les autres sont absentes : les fonctions qui en
+dépendent restent éteintes sans erreur. Par ordre d'utilité :
+
+| Variable(s) | Ce qu'elle allume |
+|---|---|
+| `DISCORD_BOT_TOKEN`, `DISCORD_PUBLIC_KEY`, `DISCORD_WEBHOOK_URL` | rappels de check-in et messages privés (canal principal), boutons, empreinte du registre chaque soir |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | codes de vérification des adresses d'école |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_VERIFIE`, `STRIPE_PRICE_ELITE`, `STRIPE_PRICE_ORGANISATEUR` | abonnements payants |
+| `ANTHROPIC_API_KEY` | analyses de match, dossiers de litige, recherche en langage naturel |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | notifications du navigateur |
+| `CERTIFICATS_CLE_PRIVEE`, `GITHUB_ANCRAGE_DEPOT`, `GITHUB_ANCRAGE_JETON` | signature des certificats, ancrage du registre (facultatifs) |
+
 
 Variables d'environnement, jamais dans le dépôt :
 
