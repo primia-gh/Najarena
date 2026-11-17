@@ -1,6 +1,13 @@
 # Mise en ligne de la branche (sections 37 à 58, 04/10 au 17/11/2026)
 
-> **Statut au 17/11/2026** : rien de ces sections n'est encore en
+> **Mise à jour du 17/11/2026 : base de production à jour.** Les
+> sections 37 à 58 ont été appliquées sur Supabase le 17/11/2026, en un
+> bloc lu directement dans le dépôt (empreinte du fichier vérifiée avant
+> exécution), puis contrôlées fonction par fonction contre la base de
+> test (82 fonctions identiques). Reste : réglages Vercel (§ 3), fusion
+> du code (§ 4), contrôles sur le site (§ 5).
+>
+> **Statut avant le 17/11/2026** : rien de ces sections n'était encore en
 > production. La production correspond à la branche `master` : sections 1
 > à 36 du guide du 28/09 (`docs/mise-en-ligne-2026-09-28.md`), plus la
 > section de l'audit de sécurité du 10/10/2026 (fusionnée dans `master`

@@ -10199,6 +10199,7 @@ create or replace function public.debut_division(p_mois date)
 returns timestamptz
 language sql
 stable
+set search_path = public
 as $$
   select ((date_trunc('month', p_mois)::date
            + ((8 - extract(isodow from date_trunc('month', p_mois))::int) % 7))::timestamp
@@ -10211,6 +10212,7 @@ create or replace function public.prochain_debut_division()
 returns timestamptz
 language sql
 stable
+set search_path = public
 as $$
   select case
     when public.debut_division((now() at time zone 'Europe/Paris')::date) > now()
