@@ -20,7 +20,7 @@ export default async function CommunautesPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("communautes")
-    .select("slug, nom, description, couleur, type, membres_communaute(count)")
+    .select("slug, nom, description, couleur, type, ecole_validee_le, membres_communaute(count)")
     .order("cree_le", { ascending: true })
     .limit(200);
 
@@ -66,7 +66,7 @@ export default async function CommunautesPage() {
                   <span className="font-titre text-2xl font-extrabold uppercase">{c.nom}</span>
                   {c.description && <span className="line-clamp-2 text-sm text-muted">{c.description}</span>}
                   <span className="mt-auto text-mini text-muted uppercase tabular-nums">
-                    {c.type === "ecole" ? "École · " : ""}
+                    {c.type === "ecole" ? (c.ecole_validee_le ? "École · " : "École non validée · ") : ""}
                     {c.membres} membre{c.membres > 1 ? "s" : ""}
                   </span>
                 </Link>

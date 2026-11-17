@@ -128,7 +128,7 @@ export async function generateMetadata({ params }: CommunautePageProps): Promise
   // présentée aux moteurs de recherche comme une école.
   const ecoleEnAttente = typeCommunaute(communaute.type) === "ecole" && !communaute.ecole_validee_le;
   return {
-    title: `${communaute.nom} — ${typeCommunaute(communaute.type) === "ecole" ? "École" : "Communauté"} Najarena`,
+    title: `${communaute.nom} — ${ecoleEnAttente ? "École non validée" : typeCommunaute(communaute.type) === "ecole" ? "École" : "Communauté"} Najarena`,
     ...(ecoleEnAttente ? { robots: { index: false, follow: true } } : {}),
     description:
       communaute.description?.slice(0, 160) ??
