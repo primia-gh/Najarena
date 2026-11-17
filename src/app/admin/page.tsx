@@ -772,6 +772,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <form action={validerEcole}>
                   <input type="hidden" name="communaute_id" value={e.id} />
                   <input type="hidden" name="valider" value={e.ecole_validee_le ? "non" : "oui"} />
+                  <input type="hidden" name="domaines" value={e.domaines_email.join(",")} />
                   {e.ecole_validee_le ? (
                     <BoutonConfirmation
                       type="submit"

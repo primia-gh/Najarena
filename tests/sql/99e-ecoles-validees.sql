@@ -32,7 +32,8 @@ select essai('La fondatrice écrit la date de validation', format($q$update comm
 select en_tant_que('00000000-0000-0000-0000-0000099e0002');
 select refus('Un joueur valide l''école', format($q$select public.valider_ecole(%L, true)$q$, :'ecole'), 'NON_AUTORISE');
 select en_tant_que('00000000-0000-0000-0000-00000000000d');
-select verifie('Un administrateur valide l''école', (select public.valider_ecole(:'ecole', true)));
+select refus('Un administrateur valide sans dire quels domaines il a vus', format($q$select public.valider_ecole(%L, true)$q$, :'ecole'), 'DOMAINES_CHANGES');
+select verifie('Un administrateur valide l''école et ses domaines', (select public.valider_ecole(:'ecole', true, array['univ-99e.fr'])));
 set role anon;
 select verifie('Validée : elle entre dans la ligue (en constitution)',
   exists (select 1 from public.classement_ecoles() where slug = 'univ-99e'));
@@ -49,7 +50,11 @@ set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000099e0001');
 select essai('Mêmes domaines saisis à nouveau', format($q$select public.definir_ecole(%L, array['etu.univ-99e.fr', 'univ-99e.fr'])$q$, :'ecole'), 'passe');
 select en_tant_que('00000000-0000-0000-0000-00000000000d');
-select verifie('L''administrateur valide de nouveau', (select public.valider_ecole(:'ecole', true)));
+select refus('L''administrateur valide les domaines qu''il avait vus avant le changement',
+  format($q$select public.valider_ecole(%L, true, array['univ-99e.fr'])$q$, :'ecole'), 'DOMAINES_CHANGES');
+select verifie('Toujours en attente', (select ecole_validee_le is null from communautes where slug = 'univ-99e'));
+select verifie('L''administrateur valide les nouveaux domaines (saisis comme affichés)',
+  (select public.valider_ecole(:'ecole', true, array['@univ-99e.fr', 'ETU.univ-99e.fr'])));
 select en_tant_que('00000000-0000-0000-0000-0000099e0001');
 select essai('Elle ressaisit les mêmes domaines', format($q$select public.definir_ecole(%L, array['univ-99e.fr', 'etu.univ-99e.fr'])$q$, :'ecole'), 'passe');
 select verifie('Mêmes domaines : la validation reste',

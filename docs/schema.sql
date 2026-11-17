@@ -10927,28 +10927,45 @@ create trigger reinitialiser_validation_ecole
   before update of domaines_email, type on public.communautes
   for each row execute function public.reinitialiser_validation_ecole();
 
--- Un administrateur valide une école (ou retire sa validation).
-create or replace function public.valider_ecole(p_communaute_id uuid, p_valider boolean)
+-- Un administrateur valide une école (ou retire sa validation). Il valide
+-- les domaines qu'il a examinés (p_domaines_vus) : s'ils ont changé
+-- entre-temps, la validation est refusée (DOMAINES_CHANGES) — sinon un
+-- fondateur pourrait glisser un domaine acheté pendant l'examen.
+drop function if exists public.valider_ecole(uuid, boolean);
+create or replace function public.valider_ecole(p_communaute_id uuid, p_valider boolean, p_domaines_vus text[] default null)
 returns boolean
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  v_domaines text[];
 begin
   if not exists (select 1 from public.admins where profile_id = auth.uid()) then
     raise exception 'NON_AUTORISE';
   end if;
-  update public.communautes
-  set ecole_validee_le = case when p_valider then now() end,
-      ecole_validee_par = case when p_valider then auth.uid() end
-  where id = p_communaute_id and type = 'ecole';
+  select domaines_email into v_domaines from public.communautes
+  where id = p_communaute_id and type = 'ecole'
+  for update;
   if not found then
     raise exception 'PAS_UNE_ECOLE';
   end if;
+  -- Même mise en forme que definir_ecole : minuscules, sans arobase, triés.
+  if p_valider and v_domaines is distinct from (
+    select coalesce(array_agg(distinct d order by d), '{}')
+    from (select lower(btrim(ltrim(btrim(x), '@'))) as d from unnest(coalesce(p_domaines_vus, '{}')) x) y
+    where d <> ''
+  ) then
+    raise exception 'DOMAINES_CHANGES';
+  end if;
+  update public.communautes
+  set ecole_validee_le = case when p_valider then now() end,
+      ecole_validee_par = case when p_valider then auth.uid() end
+  where id = p_communaute_id;
   return p_valider;
 end;
 $$;
-revoke execute on function public.valider_ecole(uuid, boolean) from public, anon;
-grant execute on function public.valider_ecole(uuid, boolean) to authenticated;
+revoke execute on function public.valider_ecole(uuid, boolean, text[]) from public, anon;
+grant execute on function public.valider_ecole(uuid, boolean, text[]) to authenticated;
 
 -- Ligue des écoles : les écoles validées seulement.
 create or replace function public.classement_ecoles()

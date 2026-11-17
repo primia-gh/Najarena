@@ -295,10 +295,21 @@ export async function validerEcole(formData: FormData) {
   const supabase = await createClient();
   await verifierAdmin(supabase);
   const valider = formData.get("valider") === "oui";
+  // Les domaines affichés à l'administrateur : la base refuse la
+  // validation s'ils ont changé depuis.
+  const domainesVus = String(formData.get("domaines") ?? "")
+    .split(",")
+    .filter((d) => d !== "");
   const { error } = await supabase.rpc("valider_ecole", {
     p_communaute_id: String(formData.get("communaute_id") ?? ""),
     p_valider: valider,
+    p_domaines_vus: domainesVus,
   });
+  if (error?.message.includes("DOMAINES_CHANGES")) {
+    redirect(
+      `/admin?erreur=${encodeURIComponent("Les domaines de cette école ont changé pendant ton examen : vérifie les nouveaux domaines avant de valider.")}#ecoles`,
+    );
+  }
   if (error) {
     redirect(`/admin?erreur=${encodeURIComponent("Validation impossible : cette école n'existe plus.")}#ecoles`);
   }

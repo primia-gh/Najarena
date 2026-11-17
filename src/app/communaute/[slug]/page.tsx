@@ -124,8 +124,12 @@ export async function generateMetadata({ params }: CommunautePageProps): Promise
   const donnees = await chargerCommunaute(slug);
   if (!donnees) return { title: "Communauté introuvable — Najarena" };
   const { communaute, membres } = donnees;
+  // École pas encore validée par un administrateur (17/11/2026) : pas
+  // présentée aux moteurs de recherche comme une école.
+  const ecoleEnAttente = typeCommunaute(communaute.type) === "ecole" && !communaute.ecole_validee_le;
   return {
     title: `${communaute.nom} — ${typeCommunaute(communaute.type) === "ecole" ? "École" : "Communauté"} Najarena`,
+    ...(ecoleEnAttente ? { robots: { index: false, follow: true } } : {}),
     description:
       communaute.description?.slice(0, 160) ??
       `${communaute.nom} sur Najarena : ${membres.length} membre${membres.length > 1 ? "s" : ""}, tournois League of Legends et classement interne vérifié.`,
@@ -168,7 +172,9 @@ export default async function CommunautePage({ params, searchParams }: Communaut
             ← Communautés
           </Link>
           <div className="mt-6 border-l-4 pl-5" style={{ borderColor: communaute.couleur }}>
-            <p className="text-mini text-muted uppercase">{estEcole ? "École · université" : "Communauté"}</p>
+            <p className="text-mini text-muted uppercase">
+              {estEcole ? (communaute.ecole_validee_le ? "École · université" : "École · non validée") : "Communauté"}
+            </p>
             <h1 className="font-titre text-section font-black tracking-[1px] uppercase hyphens-auto [overflow-wrap:anywhere]">
               {communaute.nom}
             </h1>

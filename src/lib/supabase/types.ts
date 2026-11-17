@@ -3240,7 +3240,10 @@ export type Database = {
       effacer_disponibilites_passees: { Args: Record<PropertyKey, never>; Returns: number }
       delier_serveur_discord: { Args: { p_communaute_id: string }; Returns: boolean }
       definir_ecole: { Args: { p_communaute_id: string; p_domaines: string[] }; Returns: boolean }
-      valider_ecole: { Args: { p_communaute_id: string; p_valider: boolean }; Returns: boolean }
+      valider_ecole: {
+        Args: { p_communaute_id: string; p_valider: boolean; p_domaines_vus?: string[] }
+        Returns: boolean
+      }
       revues_a_rediger: { Args: { p_limite: number }; Returns: { match_id: string; profile_id: string }[] }
       regler_analyse: { Args: { p_bilan_hebdo: boolean; p_classees: boolean }; Returns: undefined }
       reperes_classees: {
