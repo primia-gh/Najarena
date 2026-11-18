@@ -90,6 +90,12 @@ where lanceur_id = '00000000-0000-0000-0000-0000000000a1' and adversaire_id = '0
 set role service_role;
 select refus('Cyd accepte depuis Discord un défi qui ne lui est pas adressé',
   format($q$select public.agir_depuis_discord('D-CYD', 'defi_oui', %L)$q$, :'defi_bob'), 'NON_DESTINATAIRE');
+select refus('Ada accepte depuis Discord pendant que leur match de tournoi est ouvert',
+  format($q$select public.agir_depuis_discord('D-ADA', 'defi_oui', %L)$q$, :'defi_bob'), 'MATCH_OUVERT_ENTRE_VOUS');
+reset role;
+-- Leur match de tournoi joué, le duel peut s'ouvrir (18/11/2026).
+update matches set statut = 'termine' where id = '94700000-0000-0000-0000-000000000031';
+set role service_role;
 select essai('Ada accepte le défi depuis Discord : un duel s''ouvre',
   format($q$select 1 where public.agir_depuis_discord('D-ADA', 'defi_oui', %L) ->> 'slug' is not null$q$, :'defi_bob'), 'passe');
 select refus('Ada accepte une deuxième fois',

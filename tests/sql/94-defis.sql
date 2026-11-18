@@ -72,7 +72,10 @@ select verifie('Visiteur : un défi est classé d''office (sauf en amical)',
   (select classe and defi from public.criteres_tournoi_classe(:'duel_1')));
 reset role;
 
--- Deuxième défi entre les deux mêmes joueurs le même jour : amical.
+-- Deuxième défi entre les deux mêmes joueurs le même jour : amical. Le
+-- premier duel est joué avant (un match ouvert entre eux se joue d'abord,
+-- 18/11/2026) ; il reste « en cours » jusqu'à sa clôture.
+update matches set statut = 'termine' where tournament_id = :'duel_1';
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-000000000060');
 select essai('Rex relance Sam le même jour', $q$select public.lancer_defi('00000000-0000-0000-0000-000000000061')$q$, 'passe');
@@ -106,6 +109,7 @@ select essai('Visiteur : lit l''invitation de Rex (pseudo, région, règle)',
 select essai('Visiteur : accepte sans compte', format($q$select public.accepter_invitation_defi(%L)$q$, :'code_rex'), 'bloque');
 reset role;
 
+update matches set statut = 'termine' where tournament_id = (select tournament_id from defis where id = :'defi_rex_2');
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-000000000063');
 select refus('Uma accepte le lien avant d''avoir vérifié son compte Riot',
@@ -125,6 +129,7 @@ select en_tant_que('00000000-0000-0000-0000-000000000060');
 select essai('Rex lance un quatrième défi à Sam', $q$select public.lancer_defi('00000000-0000-0000-0000-000000000061')$q$, 'passe');
 reset role;
 select id as defi_rex_4 from defis where lanceur_id = '00000000-0000-0000-0000-000000000060' and adversaire_id is not null and statut = 'propose' \gset
+update matches set statut = 'termine' where tournament_id = (select tournament_id from defis where code_invitation = :'code_rex');
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-000000000061');
 select refus('Sam accepte un quatrième défi en cours', format($q$select public.repondre_defi(%L, true)$q$, :'defi_rex_4'), 'TROP_DE_DEFIS_EN_COURS');

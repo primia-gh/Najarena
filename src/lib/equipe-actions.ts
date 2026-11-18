@@ -53,9 +53,12 @@ export async function creerEquipe(formData: FormData) {
     .single();
 
   if (error || !equipe) {
-    redirect(
-      `/equipe/nouvelle?erreur=${encodeURIComponent(messageModeration(error?.message) ?? "Impossible de créer l'équipe pour l'instant.")}`,
-    );
+    // Nom déjà pris, à la casse, aux accents et aux espaces près : refusé
+    // par la base (index teams_nom_unique, 18/11/2026).
+    const message = error?.message.includes("teams_nom_unique")
+      ? "Une équipe porte déjà ce nom (ou presque : seules les majuscules, les accents ou les espaces changent). Choisis-en un autre."
+      : (messageModeration(error?.message) ?? "Impossible de créer l'équipe pour l'instant.");
+    redirect(`/equipe/nouvelle?erreur=${encodeURIComponent(message)}`);
   }
 
   // Le capitaine est automatiquement membre, déjà accepté — pas d'invitation

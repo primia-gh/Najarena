@@ -11003,3 +11003,214 @@ as $$
   order by 7 desc nulls last, 5 desc, c.nom;
 $$;
 grant execute on function public.classement_ecoles() to anon, authenticated;
+
+-- ---------- Défis et arène : pas de duel pendant un match ouvert ; noms d'équipe uniques (2026-11-18) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- 1. Un défi accepté, un duel d'arène : refusés (ou sautés) quand un match
+--    est encore ouvert entre les deux joueurs, comme le duel de division
+--    depuis le 17/10/2026. Sinon une même partie Riot pourrait trancher
+--    deux matchs (parties_utilisees l'empêche déjà, mais l'un des deux
+--    resterait sans résultat).
+-- 2. Deux équipes ne portent plus le même nom, à la casse, aux accents et
+--    aux espaces près (« Les Loups », « LES-LOUPS », « Lès Loups »).
+
+-- Un match encore ouvert entre deux joueurs : même règle que le duel de
+-- division (je_suis_la_division) — tournoi 1v1 en cours, match à jouer ou
+-- en cours, ou en litige depuis moins de 25 h (la recherche des résultats
+-- le suit encore).
+create or replace function public.match_ouvert_entre(p_a uuid, p_b uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.match_participants pa
+    join public.match_participants pb on pb.match_id = pa.match_id and pb.profile_id = p_b
+    join public.matches m on m.id = pa.match_id
+    join public.tournaments t on t.id = m.tournament_id and t.statut = 'en_cours' and t.format = '1v1'
+    where pa.profile_id = p_a
+      and (m.statut in ('en_attente', 'en_cours')
+           or (m.statut = 'litige' and m.demarre_le > now() - interval '25 hours'))
+  );
+$$;
+revoke all on function public.match_ouvert_entre(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.creer_duel(p_defi_id uuid)
+returns text -- adresse (slug) du duel
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_defi record;
+  v_region text;
+  v_arbitre uuid;
+  v_saison uuid;
+  v_classe boolean;
+  v_tournoi uuid;
+  v_match uuid;
+  v_slug text;
+  v_pseudo_a text;
+  v_pseudo_b text;
+begin
+  select * into v_defi from public.defis where id = p_defi_id for update;
+
+  v_region := public.region_compte_verifie(v_defi.lanceur_id);
+  if v_region is null or public.region_compte_verifie(v_defi.adversaire_id) is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if public.region_compte_verifie(v_defi.adversaire_id) <> v_region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  -- Un match déjà ouvert entre eux (tournoi, autre duel) se joue d'abord :
+  -- une même partie Riot ne tranche jamais deux matchs (18/11/2026).
+  if public.match_ouvert_entre(v_defi.lanceur_id, v_defi.adversaire_id) then
+    raise exception 'MATCH_OUVERT_ENTRE_VOUS';
+  end if;
+
+  -- Trois défis en cours au plus par joueur.
+  if exists (
+    select 1 from (values (v_defi.lanceur_id), (v_defi.adversaire_id)) as j(id)
+    where (select count(*) from public.registrations r
+           join public.tournaments t on t.id = r.tournament_id
+           where r.profile_id = j.id and t.nature = 'defi' and t.statut = 'en_cours') >= 3
+  ) then
+    raise exception 'TROP_DE_DEFIS_EN_COURS';
+  end if;
+
+  select profile_id into v_arbitre from public.admins order by ajoute_le, profile_id limit 1;
+  if v_arbitre is null then
+    raise exception 'AUCUN_ARBITRE';
+  end if;
+
+  select id into v_saison from public.seasons where game_id = 1 and est_courante;
+
+  -- Un seul défi classé par paire et par 24 h : les suivants en amical.
+  v_classe := not exists (
+    select 1 from public.tournaments t
+    where t.nature = 'defi' and t.compte_pour_classement and t.cree_le > now() - interval '24 hours'
+      and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = v_defi.lanceur_id)
+      and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = v_defi.adversaire_id)
+  );
+
+  select pseudo into v_pseudo_a from public.profiles where id = v_defi.lanceur_id;
+  select pseudo into v_pseudo_b from public.profiles where id = v_defi.adversaire_id;
+  v_slug := 'defi-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
+
+  insert into public.tournaments (
+    game_id, season_id, organisateur_id, slug, nom, format, type_bracket, best_of, capacite,
+    region, compte_pour_classement, debute_le, checkin_ouvre_le, statut, condition_victoire, nature
+  ) values (
+    1, v_saison, v_arbitre, v_slug, 'Défi ' || v_pseudo_a || ' contre ' || v_pseudo_b, '1v1', 'elim_simple', 1, 2,
+    v_region, v_classe, now(), now(), 'en_cours', v_defi.condition_victoire, 'defi'
+  ) returning id into v_tournoi;
+
+  insert into public.registrations (tournament_id, profile_id, statut, confirme_le, seed) values
+    (v_tournoi, v_defi.lanceur_id, 'confirme', now(), 1),
+    (v_tournoi, v_defi.adversaire_id, 'confirme', now(), 2);
+
+  insert into public.matches (tournament_id, tour, position, statut, demarre_le)
+  values (v_tournoi, 1, 1, 'en_cours', now())
+  returning id into v_match;
+
+  insert into public.match_participants (match_id, profile_id, slot) values
+    (v_match, v_defi.lanceur_id, 1),
+    (v_match, v_defi.adversaire_id, 2);
+
+  update public.defis
+  set statut = 'accepte', repondu_le = now(), tournament_id = v_tournoi
+  where id = p_defi_id;
+
+  return v_slug;
+end;
+$$;
+revoke all on function public.creer_duel(uuid) from public, anon, authenticated;
+
+create or replace function public.apparier_joueur_arene(p_joueur uuid)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi record;
+  v_lui record;
+  v_defi uuid;
+  v_slug text;
+begin
+  select * into v_moi from public.file_arene where profile_id = p_joueur;
+  if not found then
+    return null;
+  end if;
+  -- Un appariement à la fois par région : deux joueurs ne prennent pas le
+  -- même adversaire.
+  perform pg_advisory_xact_lock(hashtext('arene:' || v_moi.region));
+  -- Un défi accepté pendant l'attente : le joueur patiente jusqu'à la fin
+  -- de ce duel (ou l'expiration de sa place).
+  if exists (
+    select 1 from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = p_joueur and t.nature = 'defi' and t.statut = 'en_cours'
+  ) then
+    return null;
+  end if;
+
+  select f.* into v_lui
+  from public.file_arene f
+  where f.profile_id <> p_joueur
+    and f.region = v_moi.region
+    and f.condition_victoire = v_moi.condition_victoire
+    and abs(f.rating - v_moi.rating) <= public.ecart_arene(
+      v_moi.rd, f.rd, extract(epoch from now() - least(f.entree_le, v_moi.entree_le)) / 60
+    )
+    -- Toujours apte au duel : compte vérifié dans la région, pas suspendu,
+    -- pas déjà en duel (un défi accepté pendant l'attente).
+    and public.region_compte_verifie(f.profile_id) = v_moi.region
+    and not exists (select 1 from public.suspensions s where s.profile_id = f.profile_id and s.levee_le is null)
+    and not exists (
+      select 1 from public.registrations r
+      join public.tournaments t on t.id = r.tournament_id
+      where r.profile_id = f.profile_id and t.nature = 'defi' and t.statut = 'en_cours'
+    )
+    -- Pas un adversaire contre qui un match est encore ouvert (18/11/2026).
+    and not public.match_ouvert_entre(p_joueur, f.profile_id)
+  order by abs(f.rating - v_moi.rating), f.entree_le
+  limit 1
+  for update;
+  if not found then
+    return null;
+  end if;
+
+  delete from public.file_arene where profile_id in (p_joueur, v_lui.profile_id);
+  -- Le plus ancien en file « lance » le défi, accepté d'office.
+  insert into public.defis (lanceur_id, adversaire_id, condition_victoire, expire_le)
+  values (
+    case when v_lui.entree_le <= v_moi.entree_le then v_lui.profile_id else p_joueur end,
+    case when v_lui.entree_le <= v_moi.entree_le then p_joueur else v_lui.profile_id end,
+    v_moi.condition_victoire,
+    now() + interval '1 hour'
+  )
+  returning id into v_defi;
+  v_slug := public.creer_duel(v_defi);
+  -- « Arène X contre Y » plutôt que « Défi X contre Y ».
+  update public.tournaments set nom = 'Arène ' || substr(nom, length('Défi ') + 1) where slug = v_slug;
+  return v_slug;
+end;
+$$;
+revoke all on function public.apparier_joueur_arene(uuid) from public, anon, authenticated;
+
+-- Clé de comparaison d'un nom d'équipe : minuscules, sans accents, lettres
+-- et chiffres seulement. Les chiffres restent des chiffres (« Team 1 » et
+-- « Team I » sont deux noms). Un nom fait seulement de symboles n'a pas de
+-- clé (il ne bloque personne).
+create or replace function public.cle_nom_equipe(p_nom text)
+returns text
+language sql
+immutable
+set search_path = public
+as $$
+  select nullif(regexp_replace(
+    translate(lower(p_nom), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ', 'aaaaaaceeeeiiiinooooouuuuyyoa'),
+    '[^a-z0-9]', '', 'g'
+  ), '');
+$$;
+create unique index if not exists teams_nom_unique on public.teams (game_id, public.cle_nom_equipe(nom));
