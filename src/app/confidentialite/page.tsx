@@ -67,6 +67,12 @@ export default function ConfidentialitePage() {
               visée par une annonce «&nbsp;cherche une équipe&nbsp;».
             </li>
             <li>
+              <strong>Recherche d&apos;un duo</strong>&nbsp;: ton annonce (poste, postes cherchés, créneaux, objectif, message) est
+              publique, avec ton rating si tu es classé, pendant 14&nbsp;jours ou jusqu&apos;à ce que tu la retires. Une demande de
+              duo n&apos;est visible que de vous deux&nbsp;; la conversation ne s&apos;ouvre que si le joueur demandé accepte. Ton
+              annonce et tes demandes sont effacées avec ton compte.
+            </li>
+            <li>
               <strong>Statistiques des parties vérifiées</strong>&nbsp;: lues chez Riot avec le résultat (champion, poste, KDA, sbires, or,
               dégâts, vision, objets, runes et sorts d&apos;invocateur). Comme chez Riot, celles d&apos;un match sont
               publiques. Elles servent à ton bilan (forces, axes de travail, builds), visible de toi seul, et, sans ton

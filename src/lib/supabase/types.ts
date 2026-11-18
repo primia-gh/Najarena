@@ -833,6 +833,102 @@ export type Database = {
           },
         ]
       }
+      annonces_duo: {
+        Row: {
+          cree_le: string
+          creneaux: string[]
+          expire_le: string
+          maj_le: string
+          message: string | null
+          objectif: string
+          poste: string
+          postes_cherches: string[]
+          profile_id: string
+        }
+        Insert: {
+          cree_le?: string
+          creneaux: string[]
+          expire_le?: string
+          maj_le?: string
+          message?: string | null
+          objectif: string
+          poste: string
+          postes_cherches: string[]
+          profile_id: string
+        }
+        Update: {
+          cree_le?: string
+          creneaux?: string[]
+          expire_le?: string
+          maj_le?: string
+          message?: string | null
+          objectif?: string
+          poste?: string
+          postes_cherches?: string[]
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annonces_duo_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demandes_duo: {
+        Row: {
+          conversation_id: string | null
+          cree_le: string
+          demandeur_id: string
+          destinataire_id: string
+          id: string
+          repondu_le: string | null
+          statut: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          cree_le?: string
+          demandeur_id: string
+          destinataire_id: string
+          id?: string
+          repondu_le?: string | null
+          statut?: string
+        }
+        Update: {
+          conversation_id?: string | null
+          cree_le?: string
+          demandeur_id?: string
+          destinataire_id?: string
+          id?: string
+          repondu_le?: string | null
+          statut?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demandes_duo_demandeur_id_fkey"
+            columns: ["demandeur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandes_duo_destinataire_id_fkey"
+            columns: ["destinataire_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandes_duo_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bilans_hebdo: {
         Row: {
           envoye_le: string
@@ -3231,6 +3327,37 @@ export type Database = {
         Returns: { semaine: string; matchs: number; matchs_verifies: number; joueurs_actifs: number }[]
       }
       declarer_disponibilite: { Args: { p_debut: string }; Returns: number }
+      publier_annonce_duo: {
+        Args: {
+          p_poste: string
+          p_postes_cherches: string[]
+          p_creneaux: string[]
+          p_objectif: string
+          p_message?: string | null
+        }
+        Returns: undefined
+      }
+      retirer_annonce_duo: { Args: Record<PropertyKey, never>; Returns: boolean }
+      annonces_duo_publiques: {
+        Args: { p_region?: string | null }
+        Returns: {
+          profile_id: string
+          pseudo: string
+          slug: string
+          avatar_url: string | null
+          region: string
+          poste: string
+          postes_cherches: string[]
+          creneaux: string[]
+          objectif: string
+          message: string | null
+          maj_le: string
+          rating: number | null
+        }[]
+      }
+      demander_duo: { Args: { p_destinataire: string }; Returns: string }
+      repondre_demande_duo: { Args: { p_demande: string; p_accepte: boolean }; Returns: string | null }
+      annuler_demande_duo: { Args: { p_demande: string }; Returns: boolean }
       retirer_disponibilite: { Args: { p_debut: string }; Returns: boolean }
       disponibilites_creneaux: { Args: { p_region: string }; Returns: { debut: string; joueurs: number }[] }
       ouvrir_tournois_a_la_demande: {

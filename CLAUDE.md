@@ -65,6 +65,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 - ***Bourse aux remplaçants*** (n°15) : tournoi 5v5, « Je peux remplacer ». Jusqu'au lancement du bracket, le capitaine remplace un aligné (jamais lui-même) par un joueur de la bourse : **aligné temporaire**, qui joue ce tournoi pour l'équipe sans en être membre (`alignements.remplace_profile_id`, 2 au plus par équipe, `remplacer_aligne`). Lecture Riot inchangée : les dix alignés, remplaçant compris.
 - ***Divisions mensuelles*** (n°13) : `/lol/divisions`. Inscription au mois suivant par région, début le premier lundi du mois (Paris), poules de 4 (ou 3) par niveau, un match par semaine contre chacun, semaine 4 de rattrapage. Chaque match est un duel ordinaire (`nature = 'defi'`, donc classé comme un défi) lancé quand les deux joueurs ont cliqué « Je suis là » à moins de 30 minutes d'écart (`je_suis_la_division`). La tâche des tournois automatiques forme les poules, annonce le match de la semaine et clôt la ligue 24 h après sa fin, le premier de chaque poule montant, le dernier descendant, l'échange entre deux poules voisines n'ayant lieu que si les deux ont un match lu chez Riot et que le premier de celle du dessous y a gagné un match lu chez Riot — personne ne monte sans victoire, un absent peut descendre (décisions du 11/10/2026, confirmées le 17/10/2026 : un premier de poule par forfaits seulement ne monte pas) (`src/lib/divisions-serveur.ts`, calculs `src/lib/divisions.ts`). **Format validé par le porteur du projet le 10/10/2026.**
 
+*Mise à jour du 18/11/2026 (roadmap phase 3, avancée en V1) : **matching duo** — `/lol/duo`. Annonce « cherche un duo » d'un joueur au compte Riot vérifié (`publier_annonce_duo`, table `annonces_duo`) : son poste, 1 à 4 postes cherchés, ses créneaux (semaine / week-end × journée, soir, nuit), son objectif (classées, noyau d'une équipe, loisir), un message modéré ; valable 14 jours. Propositions dans la région du joueur : poste cherché et au moins un créneau commun, puis réciprocité, même objectif et écart de rating Najarena quand les deux sont classés (`src/lib/duo.ts`, raisons affichées sous chaque proposition). Contact par **demande** (`demander_duo`, `repondre_demande_duo`, table `demandes_duo`) : la conversation de la messagerie ne s'ouvre que si le joueur demandé accepte (démarrer une conversation reste sinon réservé à l'offre Organisateur) ; une demande en attente par paire, 10 par 24 h, expirée après 7 jours, pas de nouvelle demande au même joueur 30 jours après un refus. Notification push + Discord, jamais d'e-mail.*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -202,6 +204,7 @@ Schéma de base de données : `docs/schema.sql`.
 /lol/semaine/[lundi]       récap de la semaine (publié aussi sur Discord le lundi)
 /registre                  registre des points scellé (preuve publique, export, vérification)
 /lol/coequipiers           recherche de coéquipiers (5v5)
+/lol/duo                   matching duo : annonce (poste, postes cherchés, créneaux, objectif), propositions, demandes
 /lol/arene                 arène 1v1 : file d'attente, duel contre un joueur de son niveau
 /lol/a-la-demande          tournois à la demande : chacun indique ses heures libres, 8 joueurs = un tournoi
 /lol/divisions             divisions mensuelles : poules de 4 par niveau, un match par semaine, montée et descente
@@ -247,7 +250,7 @@ Le profil joueur reste **hors** du segment de jeu, avec des onglets par jeu — 
 
 **Phase 2 — clé obtenue.** RSO, rapprochement par historique (niveau 2), synchronisation des Riot ID, demande d'API Tournament, lancement public, saison 1.
 
-**Phase 3.** Codes de tournoi (niveau 3), analyse IA du profil (version progression), matching duo. *(Équipes et 5v5, recherche de coéquipiers, temps réel, Discord et assistant IA organisateur avancés en V1 le 12/09/2026 — voir §1.)*
+**Phase 3.** Codes de tournoi (niveau 3), analyse IA du profil (version progression), matching duo *(construit le 18/11/2026, voir §1)*. *(Équipes et 5v5, recherche de coéquipiers, temps réel, Discord et assistant IA organisateur avancés en V1 le 12/09/2026 — voir §1.)*
 
 **Phase 4.** Analyse orientée recruteur, scouting, overlay stream, cash prizes sponsorisés.
 

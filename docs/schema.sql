@@ -11214,3 +11214,376 @@ as $$
   ), '');
 $$;
 create unique index if not exists teams_nom_unique on public.teams (game_id, public.cle_nom_equipe(nom));
+
+-- ---------- Matching duo (2026-11-18, roadmap phase 3) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Un joueur au compte Riot vérifié publie une annonce « cherche un duo » :
+-- son poste, les postes qu'il cherche chez son duo, ses créneaux, son
+-- objectif (classées, noyau d'une équipe, loisir) et un court message.
+-- /lol/duo lui propose d'abord les joueurs de sa région dont le poste
+-- complète le sien et qui jouent aux mêmes heures (src/lib/duo.ts), avec
+-- l'écart de rating Najarena quand les deux sont classés. Pour contacter
+-- un joueur, il lui envoie une demande ; la conversation ne s'ouvre dans
+-- la messagerie que si l'autre accepte (démarrer une conversation reste
+-- sinon réservé à l'offre Organisateur). Annonce valable 14 jours, demande
+-- 7 jours ; 10 demandes par 24 h ; après un refus, pas de nouvelle demande
+-- au même joueur pendant 30 jours.
+
+create table if not exists public.annonces_duo (
+  profile_id      uuid primary key references public.profiles(id) on delete cascade,
+  poste           text not null check (poste in ('top', 'jungle', 'mid', 'adc', 'support')),
+  postes_cherches text[] not null check (
+    cardinality(postes_cherches) between 1 and 4
+    and postes_cherches <@ array['top', 'jungle', 'mid', 'adc', 'support']::text[]
+    and not (poste = any (postes_cherches))
+  ),
+  creneaux        text[] not null check (
+    cardinality(creneaux) between 1 and 6
+    and creneaux <@ array['semaine_journee', 'semaine_soir', 'semaine_nuit',
+                          'weekend_journee', 'weekend_soir', 'weekend_nuit']::text[]
+  ),
+  objectif        text not null check (objectif in ('classees', 'equipe', 'loisir')),
+  message         text check (char_length(message) <= 200),
+  cree_le         timestamptz not null default now(),
+  maj_le          timestamptz not null default now(),
+  expire_le       timestamptz not null default now() + interval '14 days'
+);
+alter table public.annonces_duo enable row level security;
+-- Lecture publique par annonces_duo_publiques (comptes vérifiés, non
+-- suspendus, annonces en cours) ; chacun relit la sienne. Aucune écriture
+-- directe : publier_annonce_duo, retirer_annonce_duo.
+drop policy if exists "chacun lit son annonce duo" on public.annonces_duo;
+create policy "chacun lit son annonce duo" on public.annonces_duo
+  for select using (profile_id = (select auth.uid()));
+revoke insert, update, delete on public.annonces_duo from anon, authenticated;
+-- Message public : même modération que l'annonce « cherche une équipe ».
+drop trigger if exists moderation_annonce_duo on public.annonces_duo;
+create trigger moderation_annonce_duo
+  before insert or update of message on public.annonces_duo
+  for each row execute function public.moderer_annonce();
+
+create table if not exists public.demandes_duo (
+  id              uuid primary key default gen_random_uuid(),
+  demandeur_id    uuid not null references public.profiles(id) on delete cascade,
+  destinataire_id uuid not null references public.profiles(id) on delete cascade,
+  statut          text not null default 'en_attente'
+                  check (statut in ('en_attente', 'acceptee', 'refusee', 'annulee', 'expiree')),
+  cree_le         timestamptz not null default now(),
+  repondu_le      timestamptz,
+  conversation_id uuid references public.conversations(id) on delete set null,
+  check (demandeur_id <> destinataire_id)
+);
+-- Une seule demande en attente par paire, dans un sens comme dans l'autre.
+create unique index if not exists demandes_duo_une_en_attente on public.demandes_duo
+  (least(demandeur_id, destinataire_id), greatest(demandeur_id, destinataire_id))
+  where statut = 'en_attente';
+create index if not exists demandes_duo_destinataire_idx on public.demandes_duo (destinataire_id, statut);
+create index if not exists demandes_duo_demandeur_idx on public.demandes_duo (demandeur_id, cree_le);
+alter table public.demandes_duo enable row level security;
+drop policy if exists "demande duo lue par ses deux joueurs" on public.demandes_duo;
+create policy "demande duo lue par ses deux joueurs" on public.demandes_duo
+  for select using ((select auth.uid()) in (demandeur_id, destinataire_id));
+revoke insert, update, delete on public.demandes_duo from anon, authenticated;
+
+-- Annonce active d'un joueur apte au duo : en cours, compte vérifié, pas
+-- suspendu, compte pas supprimé. Renvoie sa région, ou nul.
+create or replace function public.region_annonce_duo(p_profile_id uuid)
+returns text
+language sql
+stable
+security definer set search_path = public
+as $$
+  select public.region_compte_verifie(a.profile_id)
+  from public.annonces_duo a
+  join public.profiles p on p.id = a.profile_id and p.supprime_le is null
+  where a.profile_id = p_profile_id and a.expire_le > now()
+    and not exists (select 1 from public.suspensions s where s.profile_id = a.profile_id and s.levee_le is null);
+$$;
+revoke all on function public.region_annonce_duo(uuid) from public, anon, authenticated;
+
+-- Publier (ou mettre à jour) son annonce : elle repart pour 14 jours.
+create or replace function public.publier_annonce_duo(
+  p_poste text,
+  p_postes_cherches text[],
+  p_creneaux text[],
+  p_objectif text,
+  p_message text default null
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_message text := nullif(btrim(coalesce(p_message, '')), '');
+  v_cherches text[];
+  v_creneaux text[];
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if public.region_compte_verifie(v_joueur) is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if p_poste is null or p_poste not in ('top', 'jungle', 'mid', 'adc', 'support') then
+    raise exception 'POSTE_INVALIDE';
+  end if;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_cherches from unnest(coalesce(p_postes_cherches, '{}')) as x;
+  if cardinality(v_cherches) not between 1 and 4
+     or not v_cherches <@ array['top', 'jungle', 'mid', 'adc', 'support']::text[]
+     or p_poste = any (v_cherches) then
+    raise exception 'POSTES_CHERCHES_INVALIDES';
+  end if;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_creneaux from unnest(coalesce(p_creneaux, '{}')) as x;
+  if cardinality(v_creneaux) not between 1 and 6
+     or not v_creneaux <@ array['semaine_journee', 'semaine_soir', 'semaine_nuit',
+                                'weekend_journee', 'weekend_soir', 'weekend_nuit']::text[] then
+    raise exception 'CRENEAUX_INVALIDES';
+  end if;
+  if p_objectif is null or p_objectif not in ('classees', 'equipe', 'loisir') then
+    raise exception 'OBJECTIF_INVALIDE';
+  end if;
+  if char_length(v_message) > 200 then
+    raise exception 'MESSAGE_TROP_LONG';
+  end if;
+
+  insert into public.annonces_duo (profile_id, poste, postes_cherches, creneaux, objectif, message)
+  values (v_joueur, p_poste, v_cherches, v_creneaux, p_objectif, v_message)
+  on conflict (profile_id) do update
+  set poste = excluded.poste, postes_cherches = excluded.postes_cherches, creneaux = excluded.creneaux,
+      objectif = excluded.objectif, message = excluded.message,
+      maj_le = now(), expire_le = now() + interval '14 days';
+end;
+$$;
+revoke execute on function public.publier_annonce_duo(text, text[], text[], text, text) from public, anon;
+grant execute on function public.publier_annonce_duo(text, text[], text[], text, text) to authenticated;
+
+-- Retirer son annonce : ses demandes envoyées encore en attente sont
+-- annulées (celles reçues restent, il peut encore y répondre).
+create or replace function public.retirer_annonce_duo()
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_fait boolean;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  delete from public.annonces_duo where profile_id = v_joueur;
+  v_fait := found;
+  update public.demandes_duo set statut = 'annulee', repondu_le = now()
+  where demandeur_id = v_joueur and statut = 'en_attente';
+  return v_fait;
+end;
+$$;
+revoke execute on function public.retirer_annonce_duo() from public, anon;
+grant execute on function public.retirer_annonce_duo() to authenticated;
+
+-- Annonces visibles : en cours, joueur vérifié et non suspendu. Le rating
+-- n'est donné qu'à un joueur classé (règle des données publiques).
+create or replace function public.annonces_duo_publiques(p_region text default null)
+returns table (
+  profile_id uuid, pseudo text, slug text, avatar_url text, region text,
+  poste text, postes_cherches text[], creneaux text[], objectif text, message text,
+  maj_le timestamptz, rating numeric
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select a.profile_id, p.pseudo, p.slug, p.avatar_url, g.region,
+         a.poste, a.postes_cherches, a.creneaux, a.objectif, a.message, a.maj_le,
+         case when r.est_classe then r.rating end
+  from public.annonces_duo a
+  join public.profiles p on p.id = a.profile_id and p.supprime_le is null
+  join public.game_accounts g on g.profile_id = a.profile_id and g.game_id = 1 and g.est_principal and g.verifie_le is not null
+  left join public.seasons s on s.game_id = 1 and s.est_courante
+  left join public.ratings r on r.profile_id = a.profile_id and r.game_id = 1 and r.season_id = s.id
+  where a.expire_le > now()
+    and not exists (select 1 from public.suspensions su where su.profile_id = a.profile_id and su.levee_le is null)
+    and (p_region is null or g.region = p_region)
+  order by a.maj_le desc
+  limit 300;
+$$;
+revoke execute on function public.annonces_duo_publiques(text) from public;
+grant execute on function public.annonces_duo_publiques(text) to anon, authenticated;
+
+-- Demander un joueur en duo. Il faut soi-même une annonce en cours (on ne
+-- contacte que des joueurs qui cherchent aussi), le même serveur, et
+-- aucune demande en attente ni conversation déjà ouverte entre les deux.
+create or replace function public.demander_duo(p_destinataire uuid)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_region text;
+  v_id uuid;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if p_destinataire is null or p_destinataire = v_joueur then
+    raise exception 'DUO_SOI_MEME';
+  end if;
+  v_region := public.region_annonce_duo(v_joueur);
+  if v_region is null then
+    raise exception 'ANNONCE_REQUISE';
+  end if;
+  -- Deux clics simultanés (dans un sens et dans l'autre) : un seul passe.
+  perform pg_advisory_xact_lock(hashtext('duo:' || least(v_joueur, p_destinataire)::text || greatest(v_joueur, p_destinataire)::text));
+  if public.region_annonce_duo(p_destinataire) is null then
+    raise exception 'ANNONCE_INTROUVABLE';
+  end if;
+  if public.region_annonce_duo(p_destinataire) <> v_region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  if exists (
+    select 1 from public.conversations c
+    where least(c.profile_a, c.profile_b) = least(v_joueur, p_destinataire)
+      and greatest(c.profile_a, c.profile_b) = greatest(v_joueur, p_destinataire)
+  ) then
+    raise exception 'DEJA_EN_CONTACT';
+  end if;
+  -- Une demande sans réponse depuis 7 jours a expiré.
+  update public.demandes_duo set statut = 'expiree'
+  where statut = 'en_attente' and cree_le <= now() - interval '7 days'
+    and least(demandeur_id, destinataire_id) = least(v_joueur, p_destinataire)
+    and greatest(demandeur_id, destinataire_id) = greatest(v_joueur, p_destinataire);
+  if exists (
+    select 1 from public.demandes_duo
+    where statut = 'en_attente'
+      and least(demandeur_id, destinataire_id) = least(v_joueur, p_destinataire)
+      and greatest(demandeur_id, destinataire_id) = greatest(v_joueur, p_destinataire)
+  ) then
+    raise exception 'DEMANDE_DEJA_EN_COURS';
+  end if;
+  if exists (
+    select 1 from public.demandes_duo
+    where demandeur_id = v_joueur and destinataire_id = p_destinataire
+      and statut = 'refusee' and repondu_le > now() - interval '30 days'
+  ) then
+    raise exception 'DEMANDE_REFUSEE_RECEMMENT';
+  end if;
+  if (select count(*) from public.demandes_duo
+      where demandeur_id = v_joueur and cree_le > now() - interval '24 hours') >= 10 then
+    raise exception 'LIMITE_DEMANDES_DUO';
+  end if;
+
+  insert into public.demandes_duo (demandeur_id, destinataire_id)
+  values (v_joueur, p_destinataire)
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke execute on function public.demander_duo(uuid) from public, anon;
+grant execute on function public.demander_duo(uuid) to authenticated;
+
+-- Réponse du joueur demandé. S'il accepte, la conversation s'ouvre (ou
+-- reprend) dans la messagerie ; renvoie son identifiant.
+create or replace function public.repondre_demande_duo(p_demande uuid, p_accepte boolean)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_demande record;
+  v_conversation uuid;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select * into v_demande from public.demandes_duo where id = p_demande for update;
+  if not found then
+    raise exception 'DEMANDE_INTROUVABLE';
+  end if;
+  if v_demande.destinataire_id is distinct from v_joueur then
+    raise exception 'NON_DESTINATAIRE';
+  end if;
+  if v_demande.statut <> 'en_attente' then
+    raise exception 'DEMANDE_DEJA_TRAITEE';
+  end if;
+  if v_demande.cree_le <= now() - interval '7 days' then
+    raise exception 'DEMANDE_EXPIREE';
+  end if;
+
+  if not coalesce(p_accepte, false) then
+    update public.demandes_duo set statut = 'refusee', repondu_le = now() where id = p_demande;
+    return null;
+  end if;
+
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_demande.demandeur_id and levee_le is null)
+     or exists (select 1 from public.profiles where id = v_demande.demandeur_id and supprime_le is not null) then
+    raise exception 'DEMANDEUR_INDISPONIBLE';
+  end if;
+
+  insert into public.conversations (profile_a, profile_b)
+  values (v_demande.demandeur_id, v_joueur)
+  on conflict do nothing
+  returning id into v_conversation;
+  if v_conversation is null then
+    select id into v_conversation from public.conversations c
+    where least(c.profile_a, c.profile_b) = least(v_demande.demandeur_id, v_joueur)
+      and greatest(c.profile_a, c.profile_b) = greatest(v_demande.demandeur_id, v_joueur);
+  end if;
+
+  update public.demandes_duo
+  set statut = 'acceptee', repondu_le = now(), conversation_id = v_conversation
+  where id = p_demande;
+  return v_conversation;
+end;
+$$;
+revoke execute on function public.repondre_demande_duo(uuid, boolean) from public, anon;
+grant execute on function public.repondre_demande_duo(uuid, boolean) to authenticated;
+
+-- Le demandeur retire sa demande tant qu'elle attend.
+create or replace function public.annuler_demande_duo(p_demande uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  update public.demandes_duo set statut = 'annulee', repondu_le = now()
+  where id = p_demande and demandeur_id = auth.uid() and statut = 'en_attente';
+  return found;
+end;
+$$;
+revoke execute on function public.annuler_demande_duo(uuid) from public, anon;
+grant execute on function public.annuler_demande_duo(uuid) to authenticated;
+
+-- Compte supprimé : son annonce et ses demandes disparaissent.
+create or replace function public.effacer_duo_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.annonces_duo where profile_id = new.id;
+  delete from public.demandes_duo where demandeur_id = new.id or destinataire_id = new.id;
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_duo_compte_supprime() from public, anon, authenticated;
+drop trigger if exists duo_compte_supprime on public.profiles;
+create trigger duo_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_duo_compte_supprime();

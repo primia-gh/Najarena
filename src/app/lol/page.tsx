@@ -50,7 +50,7 @@ const PORTES = [
   },
   {
     titre: "Je cherche une équipe",
-    texte: "Publie une annonce ou rejoins un effectif qui a besoin de toi — pas de 5-stack obligatoire.",
+    texte: "Publie une annonce, rejoins un effectif qui a besoin de toi, ou trouve ton duo : même serveur, mêmes horaires, niveau vérifié.",
     cta: "Trouver un coéquipier",
     href: "/lol/coequipiers",
   },

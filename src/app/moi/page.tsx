@@ -28,11 +28,18 @@ import { estPseudoAutomatique } from "@/lib/pseudo";
 import { ouvrirPortailAbonnement } from "@/lib/stripe-actions";
 import { chargerMesDefis } from "@/lib/defis-serveur";
 import SectionDefis from "@/components/defis/SectionDefis";
+import { DUREE_DEMANDE_DUO_JOURS } from "@/lib/duo";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
   robots: { index: false, follow: false },
 };
+
+// Hors du composant (règle de pureté du rendu) : une demande de duo expire
+// au bout de DUREE_DEMANDE_DUO_JOURS jours.
+function debutDemandesDuo(): string {
+  return new Date(Date.now() - DUREE_DEMANDE_DUO_JOURS * 24 * 3600 * 1000).toISOString();
+}
 
 interface MoiPageProps {
   searchParams: Promise<{ message?: string; erreur?: string }>;
@@ -64,6 +71,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     { data: matchsEnCoursData },
     { data: abonnement },
     mesDefis,
+    { count: demandesDuo },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -113,6 +121,13 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     supabase.rpc("mon_abonnement_stripe").maybeSingle(),
     // Défis reçus, envoyés, liens d'invitation et duels (audit N16, N18).
     chargerMesDefis(supabase, utilisateur.id),
+    // Demandes de duo reçues, en attente de réponse (18/11/2026).
+    supabase
+      .from("demandes_duo")
+      .select("id", { count: "exact", head: true })
+      .eq("destinataire_id", utilisateur.id)
+      .eq("statut", "en_attente")
+      .gt("cree_le", debutDemandesDuo()),
   ]);
   const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
@@ -283,6 +298,12 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             <Link href="/moi/messages" className={lienCompte}>
               <Icone nom="message" taille={15} />
               Messages
+            </Link>
+            <Link href={demandesDuo ? "/lol/duo#demandes" : "/lol/duo"} className={lienCompte}>
+              <Icone nom="joueur" taille={15} />
+              {demandesDuo
+                ? `Duo · ${demandesDuo} demande${demandesDuo > 1 ? "s" : ""} à traiter`
+                : "Trouver un duo"}
             </Link>
             <Link href="/moi/profil" className={lienCompte}>
               <Icone nom="crayon" taille={15} />

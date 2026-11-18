@@ -232,9 +232,14 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
               5v5. Publie une annonce pour te rendre visible, ou invite un joueur disponible dans ton équipe.
             </p>
           </div>
-          <BoutonLien href="/equipe/nouvelle" variante="contour">
-            Créer une équipe
-          </BoutonLien>
+          <div className="flex flex-wrap gap-3">
+            <BoutonLien href="/lol/duo" variante="contour">
+              Trouver un duo
+            </BoutonLien>
+            <BoutonLien href="/equipe/nouvelle" variante="contour">
+              Créer une équipe
+            </BoutonLien>
+          </div>
         </Apparition>
 
         {(erreur || message) && (
