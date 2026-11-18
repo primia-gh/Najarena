@@ -833,6 +833,53 @@ export type Database = {
           },
         ]
       }
+      analyses_progression_ia: {
+        Row: {
+          cree_le: string
+          derniere_partie: string | null
+          format: string
+          modele: string
+          parties: number
+          priorites: string[]
+          profile_id: string
+          progres: string[]
+          reculs: string[]
+          resume: string
+        }
+        Insert: {
+          cree_le?: string
+          derniere_partie?: string | null
+          format: string
+          modele: string
+          parties: number
+          priorites: string[]
+          profile_id: string
+          progres?: string[]
+          reculs?: string[]
+          resume: string
+        }
+        Update: {
+          cree_le?: string
+          derniere_partie?: string | null
+          format?: string
+          modele?: string
+          parties?: number
+          priorites?: string[]
+          profile_id?: string
+          progres?: string[]
+          reculs?: string[]
+          resume?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyses_progression_ia_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       annonces_duo: {
         Row: {
           cree_le: string

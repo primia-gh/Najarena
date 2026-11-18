@@ -918,8 +918,10 @@ export function MethodeBilan() {
           quand elle a été lue.
         </li>
         <li>
-          Aucun texte n&apos;est rédigé par une IA : chaque constat est un calcul sur tes parties, avec ses chiffres. Les
-          icônes et les noms du jeu viennent de Data Dragon, la bibliothèque publique de Riot Games.
+          Chaque constat est un calcul sur tes parties, avec ses chiffres : aucun n&apos;est rédigé par une IA. Seule
+          l&apos;« Analyse de ta progression » (offre Elite, à ta demande) est rédigée par une IA, à partir de ces seuls
+          chiffres, et porte cette mention. Les icônes et les noms du jeu viennent de Data Dragon, la bibliothèque publique
+          de Riot Games.
         </li>
       </ul>
     </details>

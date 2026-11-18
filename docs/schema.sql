@@ -11587,3 +11587,71 @@ create trigger duo_compte_supprime
   for each row
   when (old.supprime_le is null and new.supprime_le is not null)
   execute function public.effacer_duo_compte_supprime();
+
+-- ---------- Analyse de progression rédigée par l'IA (2026-11-18, roadmap phase 3) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Offre Elite, à la demande depuis /moi/bilan, une par format (1v1, 5v5,
+-- classées) : l'IA lit les chiffres du bilan déjà calculés (forces, axes,
+-- tendances sur les 5 dernières parties contre les 5 précédentes, plan,
+-- champions ; jamais le KDA ni l'or par minute) et rédige un résumé, ce qui
+-- progresse, ce qui recule et les priorités. Écrite par le serveur seul
+-- (src/lib/progression-ia-serveur.ts), dans la limite des demandes à l'IA
+-- (reserver_appel_assistant_ia, 10 par 24 h) ; refaite seulement s'il y a
+-- de nouvelles parties. Lisible du joueur seul.
+create table if not exists public.analyses_progression_ia (
+  profile_id      uuid not null references public.profiles(id) on delete cascade,
+  format          text not null check (format in ('1v1', '5v5', 'classees')),
+  resume          text not null check (char_length(resume) between 1 and 700),
+  progres         text[] not null default '{}' check (cardinality(progres) <= 3),
+  reculs          text[] not null default '{}' check (cardinality(reculs) <= 3),
+  priorites       text[] not null check (cardinality(priorites) between 1 and 3),
+  parties         integer not null check (parties > 0),
+  derniere_partie timestamptz,
+  modele          text not null,
+  cree_le         timestamptz not null default now(),
+  primary key (profile_id, format)
+);
+alter table public.analyses_progression_ia enable row level security;
+drop policy if exists "un joueur lit ses analyses de progression" on public.analyses_progression_ia;
+create policy "un joueur lit ses analyses de progression" on public.analyses_progression_ia
+  for select using (profile_id = (select auth.uid()));
+revoke insert, update, delete on public.analyses_progression_ia from anon, authenticated;
+
+-- Accord retiré pour les parties classées : tout ce qui en est tiré
+-- disparaît, l'analyse rédigée comprise (comme parties_classees).
+create or replace function public.effacer_analyse_classees_sans_accord()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.analyses_progression_ia where profile_id = new.profile_id and format = 'classees';
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_analyse_classees_sans_accord() from public, anon, authenticated;
+drop trigger if exists analyse_classees_sans_accord on public.analyse_reglages;
+create trigger analyse_classees_sans_accord
+  after update of classees on public.analyse_reglages
+  for each row
+  when (old.classees and not new.classees)
+  execute function public.effacer_analyse_classees_sans_accord();
+
+-- Compte supprimé : ses analyses rédigées disparaissent.
+create or replace function public.effacer_analyses_ia_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.analyses_progression_ia where profile_id = new.id;
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_analyses_ia_compte_supprime() from public, anon, authenticated;
+drop trigger if exists analyses_ia_compte_supprime on public.profiles;
+create trigger analyses_ia_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_analyses_ia_compte_supprime();

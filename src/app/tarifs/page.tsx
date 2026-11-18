@@ -123,6 +123,7 @@ const PALIERS: Palier[] = [
     inclus: [
       "Tout Vérifié",
       "Bilan complet : plan d'entraînement, progression, champions, builds",
+      "Analyse de ta progression rédigée par l'IA, à partir de tes chiffres vérifiés",
       "Classées : niveau, hygiène de jeu, carte des morts, sang-froid",
       "Bilan de la semaine sur Discord",
       "Export CV premium (PDF, lien partageable)",
@@ -166,6 +167,7 @@ const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
   { fonctionnalite: "Personnalisation du profil", depuis: "verifie" },
   { fonctionnalite: "Inscription prioritaire aux tournois", depuis: "verifie" },
   { fonctionnalite: "Bilan complet : plan d'entraînement, progression, champions, builds", depuis: "elite" },
+  { fonctionnalite: "Analyse de ta progression rédigée par l'IA", depuis: "elite" },
   { fonctionnalite: "Classées : niveau, hygiène de jeu, carte des morts, sang-froid", depuis: "elite" },
   { fonctionnalite: "Bilan de la semaine sur Discord", depuis: "elite" },
   { fonctionnalite: "Export CV premium (PDF, lien partageable)", depuis: "elite" },

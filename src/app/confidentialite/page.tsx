@@ -299,7 +299,9 @@ export default function ConfidentialitePage() {
               fonction d&apos;IA est utilisée&nbsp;: le texte saisi dans l&apos;assistant de création de
               tournoi ou dans la recherche de joueurs&nbsp;; les statistiques Riot d&apos;un match
               (champion, KDA, sbires, or, durée) pour son analyse détaillée, demandée par le joueur
-              ou rédigée automatiquement après chaque partie vérifiée d&apos;un abonné Elite&nbsp;; les faits d&apos;un litige (pseudos, Riot ID, horaires, parties Riot
+              ou rédigée automatiquement après chaque partie vérifiée d&apos;un abonné Elite&nbsp;; les chiffres de ton bilan
+              (tendances, forces, axes de travail, objectifs, champions joués, sans ton pseudo) pour l&apos;analyse de ta
+              progression, à ta demande (offre Elite)&nbsp;; les faits d&apos;un litige (pseudos, Riot ID, horaires, parties Riot
               retrouvées, motif du litige) pour son dossier. Ni e-mail, ni mot de passe, ni moyen
               de paiement ne lui sont envoyés, et l&apos;IA n&apos;écrit aucun résultat.
             </li>
