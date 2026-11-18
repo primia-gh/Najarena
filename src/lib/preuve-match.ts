@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import type { NiveauVerdict } from "@/lib/tournois";
 
 // Fiche de preuve d'un match (09/10/2026, idée en réserve n°1) : tout ce
@@ -29,6 +30,18 @@ export interface JoueurPreuve {
   champion: string | null;
 }
 
+/**
+ * Match 5v5 (18/11/2026) : chaque côté est une équipe, représentée dans le
+ * bracket par son capitaine ; la fiche montre ses cinq joueurs alignés.
+ */
+export interface EquipePreuve {
+  capitaineId: string;
+  libelle: string;
+  slug: string | null;
+  gagnant: boolean | null;
+  joueurs: JoueurPreuve[];
+}
+
 export interface LigneRegistrePreuve {
   numero: number;
   pseudo: string;
@@ -44,7 +57,10 @@ export interface PreuveMatch {
   statut: string;
   demarreLe: string | null;
   tournoi: { nom: string; slug: string; format: string; nature: string; classe: boolean | null; statut: string };
+  /** Capitaines en 5v5, joueurs en 1v1. */
   joueurs: JoueurPreuve[];
+  /** Les deux équipes d'un match 5v5, nul sinon. */
+  equipes: EquipePreuve[] | null;
   verdict: {
     niveau: NiveauVerdict;
     riotMatchId: string | null;
@@ -71,8 +87,15 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
     .maybeSingle();
   if (!m?.tournament) return null;
 
-  const ids = m.match_participants.map((p) => p.profile_id);
-  const [{ data: stats }, { data: comptes }, { data: lignes }] = await Promise.all([
+  // 5v5 : l'équipe derrière chaque capitaine, et ses joueurs alignés.
+  const capitaines = m.match_participants.map((p) => p.profile_id);
+  const equipesInscrites =
+    m.tournament.format === "5v5" ? await chargerEquipesDesTournois(supabase, [m.tournament.id]) : null;
+  const equipeDe = (capitaineId: string) => equipesInscrites?.get(cleEquipe(m.tournament!.id, capitaineId));
+  const alignes = capitaines.flatMap((id) => equipeDe(id)?.joueurs ?? []);
+  const ids = [...new Set([...capitaines, ...alignes])];
+  const autres = ids.filter((id) => !capitaines.includes(id));
+  const [{ data: stats }, { data: comptes }, { data: lignes }, { data: profilsAlignes }] = await Promise.all([
     supabase
       .from("stats_match_joueur")
       .select("profile_id, puuid, champion, duree_secondes")
@@ -91,8 +114,11 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
           .select("numero, profile_id, rating_avant, rating_apres, empreinte")
           .eq("tournament_id", m.tournament.id)
           .eq("motif", "tournoi")
-          .in("profile_id", ids)
+          .in("profile_id", capitaines)
           .order("numero", { ascending: true })
+      : Promise.resolve({ data: [] }),
+    autres.length > 0
+      ? supabase.from("profiles").select("id, pseudo, slug").in("id", autres)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -100,9 +126,14 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
     m.match_participants.find((p) => p.profile_id === profileId)?.profile?.pseudo ?? "Joueur supprimé";
   const verdict = m.match_verdicts.find((v) => v.est_definitif) ?? null;
 
-  const joueurs: JoueurPreuve[] = m.match_participants.map((p) => {
-    const s = (stats ?? []).find((x) => x.profile_id === p.profile_id);
-    const comptesJoueur = (comptes ?? []).filter((c) => c.profile_id === p.profile_id);
+  const joueurDe = (
+    profileId: string,
+    profil: { pseudo: string; slug: string | null } | null | undefined,
+    gagnant: boolean | null,
+    pretLe: string | null,
+  ): JoueurPreuve => {
+    const s = (stats ?? []).find((x) => x.profile_id === profileId);
+    const comptesJoueur = (comptes ?? []).filter((c) => c.profile_id === profileId);
     // Une fiche ne compte que derrière un verdict lu chez Riot (jamais un
     // verdict manuel ni un match sans verdict).
     const fiche = verdict && verdict.niveau !== "manuel" ? s : undefined;
@@ -110,18 +141,41 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
     const compteDelie = Boolean(fiche?.puuid) && !compteJoue;
     const compte = compteDelie ? null : (compteJoue ?? comptesJoueur.find((c) => c.est_principal) ?? null);
     return {
-      profileId: p.profile_id,
-      pseudo: p.profile?.pseudo ?? "Joueur supprimé",
-      slug: p.profile?.slug ?? null,
-      gagnant: verdict ? verdict.gagnant_id === p.profile_id : p.est_gagnant,
-      pretLe: p.pret_le,
+      profileId,
+      pseudo: profil?.pseudo ?? "Joueur supprimé",
+      slug: profil?.slug ?? null,
+      gagnant,
+      pretLe,
       riotId: compte ? `${compte.riot_game_name}#${compte.riot_tag_line}` : null,
       partieLue: Boolean(fiche),
       compteDeLaPartie: Boolean(compteJoue),
       compteDelie,
       champion: fiche?.champion ?? null,
     };
-  });
+  };
+
+  const joueurs: JoueurPreuve[] = m.match_participants.map((p) =>
+    joueurDe(p.profile_id, p.profile, verdict ? verdict.gagnant_id === p.profile_id : p.est_gagnant, p.pret_le),
+  );
+
+  const equipes: EquipePreuve[] | null = equipesInscrites
+    ? joueurs.map((capitaine) => {
+        const equipe = equipeDe(capitaine.profileId);
+        const profilDe = (id: string) =>
+          id === capitaine.profileId
+            ? { pseudo: capitaine.pseudo, slug: capitaine.slug }
+            : (profilsAlignes ?? []).find((x) => x.id === id);
+        return {
+          capitaineId: capitaine.profileId,
+          libelle: equipe?.libelle ?? `Équipe de ${capitaine.pseudo}`,
+          slug: equipe?.slug ?? null,
+          gagnant: capitaine.gagnant,
+          joueurs: (equipe?.joueurs ?? [capitaine.profileId]).map((id) =>
+            id === capitaine.profileId ? capitaine : joueurDe(id, profilDe(id), capitaine.gagnant, null),
+          ),
+        };
+      })
+    : null;
 
   return {
     id: m.id,
@@ -138,6 +192,7 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
       statut: m.tournament.statut,
     },
     joueurs,
+    equipes,
     verdict: verdict
       ? {
           niveau: verdict.niveau,
@@ -145,7 +200,9 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
           motif: verdict.motif,
           decideur: verdict.decideur?.pseudo ?? null,
           decideLe: verdict.cree_le,
-          gagnant: verdict.gagnant_id ? pseudoDe(verdict.gagnant_id) : null,
+          gagnant: verdict.gagnant_id
+            ? (equipes?.find((e) => e.capitaineId === verdict.gagnant_id)?.libelle ?? pseudoDe(verdict.gagnant_id))
+            : null,
         }
       : null,
     defaiteReconnue: m.defaite_reconnue_par
