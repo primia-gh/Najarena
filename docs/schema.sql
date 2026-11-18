@@ -11655,3 +11655,138 @@ create trigger analyses_ia_compte_supprime
   for each row
   when (old.supprime_le is null and new.supprime_le is not null)
   execute function public.effacer_analyses_ia_compte_supprime();
+
+-- ---------- Recherche recruteurs : scouting sur données vérifiées (2026-11-18, roadmap phase 4) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- /lol/recherche (offre Organisateur) cherchait parmi les 200 comptes lus
+-- le plus récemment, filtrés dans la page. La recherche se fait désormais
+-- en base, sur tous les comptes Riot vérifiés (ni suspendus, ni
+-- supprimés), avec des critères de recruteur, tous tirés de données
+-- vérifiées et déjà publiques sur les CV :
+-- - niveau : rating et confiance de la saison, seulement pour un joueur
+--   classé (aucun rating avant l'entrée au classement) ;
+-- - progression : somme des variations « tournoi » du registre sur 30 jours
+--   (joueur classé seulement) et nombre de tournois concernés ;
+-- - activité : parties vérifiées (verdict lu chez Riot) sur 90 jours et la
+--   dernière ;
+-- - fiabilité : comptes du bloc « Fiabilité » du CV (fiabilite_joueur) —
+--   « fiable » = 3 matchs 1v1 joués au moins, aucun forfait, et présent au
+--   check-in d'au moins 80 % de ses tournois à partir de 5 tournois ;
+-- - disponibilité : annonce « cherche une équipe », annonce de duo en
+--   cours, appartenance à une équipe.
+-- Le poste reste celui que le joueur a déclaré.
+create or replace function public.rechercher_joueurs(
+  p_role text default null,
+  p_region text default null,
+  p_rating_min numeric default null,
+  p_classes_seulement boolean default false,
+  p_disponible boolean default false,
+  p_sans_equipe boolean default false,
+  p_actif_jours integer default null,
+  p_en_progression boolean default false,
+  p_fiable boolean default false,
+  p_tri text default 'rating',
+  p_limite integer default 50
+)
+returns table (
+  profile_id uuid,
+  pseudo text,
+  slug text,
+  avatar_url text,
+  region text,
+  role_prefere text,
+  rating numeric,
+  rd numeric,
+  progression_30j numeric,
+  tournois_30j integer,
+  parties_90j integer,
+  derniere_partie timestamptz,
+  cherche_equipe boolean,
+  cherche_duo boolean,
+  en_equipe boolean,
+  tournois_1v1 integer,
+  checkins integer,
+  matchs_joues integer,
+  forfaits integer
+)
+language plpgsql
+stable
+security definer set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.comptes_offres where comptes_offres.profile_id = auth.uid() and offre = 'organisateur'
+  ) then
+    raise exception 'OFFRE_ORGANISATEUR_REQUISE';
+  end if;
+  if p_tri not in ('rating', 'progression', 'activite') then
+    raise exception 'TRI_INVALIDE';
+  end if;
+
+  return query
+  with candidats as (
+    select g.profile_id, p.pseudo, p.slug, p.avatar_url, g.region, g.role_prefere,
+           case when r.est_classe then r.rating end as rating,
+           case when r.est_classe then r.rd end as rd
+    from public.game_accounts g
+    join public.profiles p on p.id = g.profile_id and p.supprime_le is null
+    left join public.seasons s on s.game_id = 1 and s.est_courante
+    left join public.ratings r on r.profile_id = g.profile_id and r.game_id = 1 and r.season_id = s.id
+    where g.game_id = 1 and g.est_principal and g.verifie_le is not null
+      and not exists (select 1 from public.suspensions su where su.profile_id = g.profile_id and su.levee_le is null)
+      and (p_role is null or g.role_prefere = p_role)
+      and (p_region is null or g.region = p_region)
+      and (not p_classes_seulement or r.est_classe)
+      and (p_rating_min is null or (r.est_classe and r.rating >= p_rating_min))
+  ),
+  enrichis as (
+    select c.*,
+           prog.variation as progression_30j,
+           prog.tournois as tournois_30j,
+           act.parties as parties_90j,
+           act.derniere as derniere_partie,
+           exists (select 1 from public.recherches_coequipiers rc where rc.profile_id = c.profile_id) as cherche_equipe,
+           exists (select 1 from public.annonces_duo ad where ad.profile_id = c.profile_id and ad.expire_le > now()) as cherche_duo,
+           exists (select 1 from public.team_members tm where tm.profile_id = c.profile_id and tm.accepte_le is not null) as en_equipe
+    from candidats c
+    left join lateral (
+      select case when c.rating is not null then sum(e.rating_apres - e.rating_avant) end as variation,
+             count(distinct e.tournament_id)::integer as tournois
+      from public.rating_events e
+      where e.profile_id = c.profile_id and e.motif = 'tournoi' and e.cree_le > now() - interval '30 days'
+    ) prog on true
+    left join lateral (
+      select count(*)::integer as parties, max(m.demarre_le) as derniere
+      from public.stats_match_joueur sm
+      join public.matches m on m.id = sm.match_id
+      join public.match_verdicts v on v.match_id = m.id and v.est_definitif and v.niveau <> 'manuel'
+      where sm.profile_id = c.profile_id and m.demarre_le > now() - interval '90 days'
+    ) act on true
+  ),
+  filtres as (
+    select e.* from enrichis e
+    where (not p_disponible or e.cherche_equipe)
+      and (not p_sans_equipe or not e.en_equipe)
+      and (p_actif_jours is null or e.derniere_partie > now() - make_interval(days => least(greatest(p_actif_jours, 1), 365)))
+      and (not p_en_progression or e.progression_30j > 0)
+  )
+  select f.profile_id, f.pseudo, f.slug, f.avatar_url, f.region, f.role_prefere, f.rating, f.rd,
+         f.progression_30j, f.tournois_30j, f.parties_90j, f.derniere_partie,
+         f.cherche_equipe, f.cherche_duo, f.en_equipe,
+         fj.tournois, fj.checkins, fj.matchs_joues, fj.forfaits
+  from filtres f
+  cross join lateral public.fiabilite_joueur(f.profile_id) fj
+  where not p_fiable
+     or (fj.matchs_joues >= 3 and fj.forfaits = 0
+         and (fj.tournois < 5 or fj.checkins * 100 >= 80 * fj.tournois))
+  order by
+    case when p_tri = 'progression' then f.progression_30j end desc nulls last,
+    case when p_tri = 'activite' then f.parties_90j end desc nulls last,
+    case when p_tri = 'activite' then f.derniere_partie end desc nulls last,
+    f.rating desc nulls last,
+    f.pseudo
+  limit least(greatest(coalesce(p_limite, 50), 1), 100);
+end;
+$$;
+revoke execute on function public.rechercher_joueurs(text, text, numeric, boolean, boolean, boolean, integer, boolean, boolean, text, integer) from public, anon;
+grant execute on function public.rechercher_joueurs(text, text, numeric, boolean, boolean, boolean, integer, boolean, boolean, text, integer) to authenticated;

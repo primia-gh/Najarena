@@ -3403,6 +3403,42 @@ export type Database = {
         }[]
       }
       demander_duo: { Args: { p_destinataire: string }; Returns: string }
+      rechercher_joueurs: {
+        Args: {
+          p_role?: string | null
+          p_region?: string | null
+          p_rating_min?: number | null
+          p_classes_seulement?: boolean
+          p_disponible?: boolean
+          p_sans_equipe?: boolean
+          p_actif_jours?: number | null
+          p_en_progression?: boolean
+          p_fiable?: boolean
+          p_tri?: string
+          p_limite?: number
+        }
+        Returns: {
+          profile_id: string
+          pseudo: string
+          slug: string
+          avatar_url: string | null
+          region: string
+          role_prefere: string | null
+          rating: number | null
+          rd: number | null
+          progression_30j: number | null
+          tournois_30j: number
+          parties_90j: number
+          derniere_partie: string | null
+          cherche_equipe: boolean
+          cherche_duo: boolean
+          en_equipe: boolean
+          tournois_1v1: number
+          checkins: number
+          matchs_joues: number
+          forfaits: number
+        }[]
+      }
       repondre_demande_duo: { Args: { p_demande: string; p_accepte: boolean }; Returns: string | null }
       annuler_demande_duo: { Args: { p_demande: string }; Returns: boolean }
       retirer_disponibilite: { Args: { p_debut: string }; Returns: boolean }
