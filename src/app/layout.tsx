@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/design/Navbar";
+import RestaurerPause from "@/components/design/RestaurerPause";
 import "./globals.css";
 
 // Polices de l'identité « Venin » (design-system/najarena/MASTER.md §3).
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${bigShoulders.variable} ${chakraPetch.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-texte">
+        <RestaurerPause />
         {/* Lien d'évitement : premier élément atteint au clavier, il saute la
             barre de navigation (vérification ui-ux-pro-max, « skip links »). */}
         <a
