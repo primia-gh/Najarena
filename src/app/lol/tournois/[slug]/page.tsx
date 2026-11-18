@@ -364,6 +364,12 @@ const chargerTournoi = cache(async (slug: string) => {
     agentsLibres: agentsLibresData ?? [],
     resumeOrganisateur: ficheOrganisateur ? resumeFiche(ficheOrganisateur) : null,
     // Même règle que la base (eligible_tournoi_reserve), pour l'affichage.
+    // Revérifiée au check-in (17/10/2026) : un joueur sorti de la
+    // communauté ne voit plus le bouton de confirmation.
+    eligibleMembres:
+      !tournoi.reserve_membres ||
+      (monAdhesion !== null &&
+        (typeCommunaute(tournoi.communaute?.type) !== "ecole" || monAdhesion.verifie_le !== null)),
     eligibleReserve:
       (!tournoi.reserve_membres ||
         (monAdhesion !== null &&
@@ -467,6 +473,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     mesEquipes,
     agentsLibres,
     resumeOrganisateur,
+    eligibleMembres,
     eligibleReserve,
   } = donnees;
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
@@ -791,6 +798,25 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   // Tournoi réservé aux membres de sa communauté (04/10/2026) : à qui il
   // est ouvert, et comment en faire partie.
   const reserve = tournoi.reserve_membres ? tournoi.communaute : null;
+  // Check-in d'un inscrit sorti de la communauté (ou qui a perdu sa
+  // vérification d'école) : pas de bouton, la raison et le remède.
+  const avisCheckinReserve = (
+    <div className="flex flex-col gap-3">
+      <p className="text-[13px] leading-normal text-muted">
+        {reserve
+          ? `Ce tournoi est réservé aux ${publicReserve(reserve)}, et tu ne remplis plus cette condition : rejoins la communauté, ou refais la vérification de ton adresse, pour confirmer ta présence.`
+          : "Ce tournoi est réservé aux membres d'une communauté qui n'existe plus : la présence ne peut plus être confirmée."}
+      </p>
+      {reserve && (
+        <BoutonLien
+          href={`/communaute/${reserve.slug}${typeCommunaute(reserve.type) === "ecole" ? "#ecole" : ""}`}
+          className="w-full"
+        >
+          {typeCommunaute(reserve.type) === "ecole" ? "Vérifier mon adresse d'école" : "Rejoindre la communauté"}
+        </BoutonLien>
+      )}
+    </div>
+  );
   const avisReserve = reserve ? (
     <div className="flex flex-col gap-3">
       <p className="text-[13px] leading-normal text-muted">
@@ -857,7 +883,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     ) : null;
   const actionEquipes = !estEquipes ? null : monInscriptionEquipe ? (
     <>
-      {checkinOuvert && monInscriptionEquipe.statut === "inscrit" && (
+      {checkinOuvert && monInscriptionEquipe.statut === "inscrit" && !eligibleMembres && avisCheckinReserve}
+      {checkinOuvert && monInscriptionEquipe.statut === "inscrit" && eligibleMembres && (
         <form action={confirmerMaPresence} className="flex flex-col gap-2">
           <input type="hidden" name="tournament_id" value={tournoi.id} />
           <BoutonEnvoi libelleEnCours="Confirmation…" className="w-full">
@@ -918,7 +945,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     </>
   ) : monAgent ? (
     <>
-      {checkinOuvert && monAgent.statut === "inscrit" && (
+      {checkinOuvert && monAgent.statut === "inscrit" && !eligibleMembres && avisCheckinReserve}
+      {checkinOuvert && monAgent.statut === "inscrit" && eligibleMembres && (
         <form action={confirmerAgentLibre} className="flex flex-col gap-2">
           <input type="hidden" name="tournament_id" value={tournoi.id} />
           <input type="hidden" name="slug" value={tournoi.slug} />
@@ -1128,7 +1156,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               actionEquipes
             ) : inscriptionActuelle ? (
               <>
-                {checkinOuvert && inscriptionActuelle.statut === "inscrit" && (
+                {checkinOuvert && inscriptionActuelle.statut === "inscrit" && !eligibleMembres && avisCheckinReserve}
+                {checkinOuvert && inscriptionActuelle.statut === "inscrit" && eligibleMembres && (
                   <form action={confirmerMaPresence} className="flex flex-col gap-2">
                     <input type="hidden" name="tournament_id" value={tournoi.id} />
                     <BoutonEnvoi libelleEnCours="Confirmation…" className="w-full">
