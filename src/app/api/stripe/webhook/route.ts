@@ -127,23 +127,21 @@ export async function POST(request: Request) {
       if (profileId) {
         await suivreAbonnement(admin, profileId, abonnement);
       }
-      if (profileId && !offre) {
+      const enCours = abonnement.status === "active" || abonnement.status === "trialing";
+      if (profileId && !enCours) {
+        // Paiement échoué, abonnement en pause, etc. — on retire l'offre,
+        // quel que soit le prix : retirer est toujours sans risque.
+        await admin.from("comptes_offres").delete().eq("profile_id", profileId);
+      } else if (profileId && offre) {
+        await admin.from("comptes_offres").upsert({
+          profile_id: profileId,
+          offre,
+          attribue_le: new Date().toISOString(),
+        });
+      } else if (profileId) {
         // Prix qui n'est celui d'aucune offre : réglage à revoir (variables
-        // STRIPE_PRICE_*), rien n'est accordé ni retiré à l'aveugle.
+        // STRIPE_PRICE_*, ancien prix compris) ; rien n'est accordé.
         console.error(`Webhook Stripe : prix ${prixFacture ?? "absent"} sans offre correspondante.`);
-      }
-      if (profileId && offre) {
-        if (abonnement.status === "active" || abonnement.status === "trialing") {
-          await admin.from("comptes_offres").upsert({
-            profile_id: profileId,
-            offre,
-            attribue_le: new Date().toISOString(),
-          });
-        } else {
-          // Paiement échoué, abonnement en pause, etc. — on retire l'offre
-          // plutôt que de la laisser active sans paiement en cours.
-          await admin.from("comptes_offres").delete().eq("profile_id", profileId);
-        }
       }
       break;
     }

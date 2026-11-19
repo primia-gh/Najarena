@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { unstable_cache } from "next/cache";
 import type { Offre } from "@/lib/offres";
 import { formaterPrixEuros, periodePrix } from "@/lib/cgv";
+import { prixCourant } from "@/lib/offre-stripe";
 
 // Prix exacts des offres, lus chez Stripe (19/11/2026, audit E11) : la page
 // Tarifs affiche le prix réellement facturé, toutes taxes comprises, plutôt
@@ -18,9 +19,9 @@ export interface PrixOffre {
 }
 
 const PRIX_PAR_OFFRE: Record<OffrePayante, string | undefined> = {
-  verifie: process.env.STRIPE_PRICE_VERIFIE,
-  elite: process.env.STRIPE_PRICE_ELITE,
-  organisateur: process.env.STRIPE_PRICE_ORGANISATEUR,
+  verifie: prixCourant(process.env.STRIPE_PRICE_VERIFIE),
+  elite: prixCourant(process.env.STRIPE_PRICE_ELITE),
+  organisateur: prixCourant(process.env.STRIPE_PRICE_ORGANISATEUR),
 };
 
 async function lirePrix(): Promise<Partial<Record<OffrePayante, PrixOffre>>> {

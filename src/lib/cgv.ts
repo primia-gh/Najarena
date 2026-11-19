@@ -22,7 +22,7 @@ const VARIABLE_PRIX: Record<string, string> = {
 /** Cette offre peut-elle être achetée ? (clé Stripe et prix de l'offre réglés) */
 export function offreEnVente(offre: string): boolean {
   const variable = VARIABLE_PRIX[offre];
-  return paiementActif() && Boolean(variable && process.env[variable]);
+  return paiementActif() && Boolean(variable && process.env[variable]?.split(",").some((p) => p.trim()));
 }
 
 /**

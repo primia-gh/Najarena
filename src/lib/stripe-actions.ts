@@ -14,14 +14,15 @@ import { URL_SITE } from "@/lib/notifications";
 import type { Offre } from "@/lib/offres";
 import { RETOURS_EXTERNES } from "@/lib/messages-adresse";
 import { DELAI_RETRACTATION_JOURS, VERSION_CGV } from "@/lib/cgv";
+import { prixCourant } from "@/lib/offre-stripe";
 
 const cleSecrete = process.env.STRIPE_SECRET_KEY;
 const stripe = cleSecrete ? new Stripe(cleSecrete) : null;
 
 const PRIX_PAR_OFFRE: Record<Exclude<Offre, "gratuit">, string | undefined> = {
-  verifie: process.env.STRIPE_PRICE_VERIFIE,
-  elite: process.env.STRIPE_PRICE_ELITE,
-  organisateur: process.env.STRIPE_PRICE_ORGANISATEUR,
+  verifie: prixCourant(process.env.STRIPE_PRICE_VERIFIE),
+  elite: prixCourant(process.env.STRIPE_PRICE_ELITE),
+  organisateur: prixCourant(process.env.STRIPE_PRICE_ORGANISATEUR),
 };
 
 export async function demarrerAbonnement(formData: FormData) {

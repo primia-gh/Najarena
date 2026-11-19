@@ -12125,7 +12125,11 @@ grant execute on function public.rechercher_joueurs(text, text, numeric, boolean
 -- s'inscrire, ou à 4 places), puis avancé à dans deux heures (ou passé sur
 -- EUW, ou à 8 places), compterait encore comme « publié 24 h avant »
 -- (criteres_tournoi_classe ; contrôle de sécurité du 19/11/2026). Un nom
--- corrigé seul ne change rien.
+-- corrigé seul ne change rien. Seulement pour un tournoi d'organisateur
+-- pas encore lancé (ceux que modifier_tournoi accepte) : la tâche des
+-- tournois automatiques réduit la capacité d'un tournoi à la demande à la
+-- taille des présents au lancement, ce qui ne doit pas lui faire perdre
+-- son « publié 24 h avant ».
 create or replace function public.controler_classement_tournoi()
 returns trigger
 language plpgsql
@@ -12143,6 +12147,8 @@ begin
   if old.statut = 'brouillon' and new.statut = 'ouvert' then
     new.publie_le := now();
   elsif old.publie_le is not null
+        and new.creneau_auto is null
+        and old.statut in ('brouillon', 'ouvert')
         and (new.debute_le, new.region, new.capacite) is distinct from (old.debute_le, old.region, old.capacite) then
     new.publie_le := now();
   else

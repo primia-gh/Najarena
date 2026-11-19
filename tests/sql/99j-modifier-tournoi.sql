@@ -202,6 +202,23 @@ select refus('Un tournoi à la demande ne se modifie pas',
   'TOURNOI_NON_MODIFIABLE');
 reset role;
 
+-- Tournoi à la demande publié il y a 2 jours : au lancement, la tâche
+-- automatique réduit sa capacité aux présents (16 → 8). Il garde son
+-- « publié 24 h avant ».
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, nature, creneau_auto)
+values ('9a0a0000-0000-0000-0000-0000000000ad', 1, '9a0a0000-0000-0000-0000-000000000001', 'najarena-99j-demande-b', 'À la demande 99j B', '1v1', 16, 'EUW',
+        now() + interval '2 hours', now() + interval '1 hour', 'ouvert', 'tournoi', 'a-la-demande');
+alter table tournaments disable trigger controle_classement_tournoi;
+update tournaments set publie_le = now() - interval '2 days' where id = '9a0a0000-0000-0000-0000-0000000000ad';
+alter table tournaments enable trigger controle_classement_tournoi;
+set role service_role;
+update tournaments set statut = 'en_cours' where id = '9a0a0000-0000-0000-0000-0000000000ad';
+update tournaments set capacite = 8 where id = '9a0a0000-0000-0000-0000-0000000000ad';
+reset role;
+select verifie('Capacité d''un tournoi à la demande réduite au lancement : publication inchangée, toujours « publié 24 h avant »',
+  (select capacite = 8 and publie_le < now() - interval '1 day' from tournaments where id = '9a0a0000-0000-0000-0000-0000000000ad')
+  and (select publie_a_temps from public.criteres_tournoi_classe('9a0a0000-0000-0000-0000-0000000000ad')));
+
 -- « Je peux remplacer » lit le tournoi sous verrou partagé.
 select verifie('proposer_remplacement verrouille la ligne du tournoi',
   (select prosrc like '%for share%' from pg_proc where proname = 'proposer_remplacement' and pronamespace = 'public'::regnamespace));

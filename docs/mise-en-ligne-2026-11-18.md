@@ -6,7 +6,7 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1225 vérifications de
+elle se rejoue une seconde fois sans erreur, et les 1226 vérifications de
 `tests/sql/` passent ensuite (contrôle refait le 19/11/2026).
 
 Branche : `claude/nice-faraday-nsoe9q`. Comme les fois précédentes, **la base
@@ -35,7 +35,8 @@ Cinq sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, une du
    Fonction `modifier_tournoi` ; `consommer_limite` redéfinie (10
    modifications par 24 h) ; `controler_classement_tournoi` redéfinie : la
    date de publication est reposée quand la date de début, le serveur ou
-   la capacité d'un tournoi publié change ; `proposer_remplacement`
+   la capacité d'un tournoi d'organisateur publié change avant son
+   lancement ; `proposer_remplacement`
    redéfinie (verrou partagé sur le tournoi).
 
 ## 1. Vérifications avant migration (lecture seule)
@@ -148,6 +149,10 @@ l'inscription, la connexion et « mot de passe oublié » échouent.
 CGV `/cgv` relues par un juriste ; médiateur de la consommation choisi et
 renseigné dans `src/lib/cgv.ts` (`MEDIATEUR`) ; prix créés dans Stripe
 **toutes taxes comprises** (un prix « hors taxes » n'est pas affiché) ;
+pour changer un tarif plus tard, créer un nouveau prix et le mettre **en
+tête** de la variable Vercel, en gardant l'ancien derrière une virgule
+(`STRIPE_PRICE_ELITE=price_nouveau,price_ancien`) : sinon les abonnés
+restés sur l'ancien prix ne sont plus reconnus ;
 dans Stripe, portail client avec « Annuler l'abonnement » et historique des
 factures activés (Settings → Billing → Customer portal) — le changement de
 formule peut y être permis : l'offre accordée suit le prix facturé —, et e-mails de reçu
