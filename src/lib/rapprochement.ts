@@ -347,8 +347,16 @@ async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat, nom: (profil
   }
 
   // L'organisateur tranche (CLAUDE.md §3 : en cas de doute, on escalade) —
-  // jusqu'ici, rien ne le prévenait qu'un match l'attendait.
+  // jusqu'ici, rien ne le prévenait qu'un match l'attendait. Aussi en message
+  // privé Discord (audit M8 : un soir de tournoi, c'est là qu'il regarde).
   await Promise.all([
+    envoyerRappel(
+      tournoi.organisateur_id,
+      `Match en litige — ${tournoi.nom}`,
+      `Aucune partie retrouvée pour ${libelle}. La recherche continue 24 h ; si le match n'a pas eu lieu, tranche depuis ton cockpit.`,
+      `${URL_SITE}/moi/organisation/${m.tournament_id}`,
+      { push: false },
+    ),
     notifierJoueur(
       tournoi.organisateur_id,
       `Match en litige — ${tournoi.nom}`,

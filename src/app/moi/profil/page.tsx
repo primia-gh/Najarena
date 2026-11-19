@@ -9,6 +9,8 @@ import { URL_SITE } from "@/lib/notifications";
 import { classeChamp } from "@/lib/design";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import Alerte from "@/components/design/Alerte";
+import { typographie } from "@/lib/typographie";
+import Panneau from "@/components/design/Panneau";
 import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import FondEcailles from "@/components/design/FondEcailles";
@@ -41,11 +43,11 @@ const PAYS_SUGGERES = [
 ];
 
 interface ModifierProfilPageProps {
-  searchParams: Promise<{ erreur?: string; message?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; premiere?: string }>;
 }
 
 export default async function ModifierProfilPage({ searchParams }: ModifierProfilPageProps) {
-  const { erreur, message } = await searchParams;
+  const { erreur, message, premiere } = await searchParams;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -82,6 +84,18 @@ export default async function ModifierProfilPage({ searchParams }: ModifierProfi
           <p className="mt-4 text-text-2">Ton pseudo est le nom affiché sur ton CV, dans les brackets et au classement.</p>
         </Apparition>
 
+        {/* Première connexion par Discord (audit E7) : le pseudo d'abord. */}
+        {premiere === "1" && pseudoAutomatique && (
+          <Panneau className="flex flex-col gap-2 p-6">
+            <p className="font-titre text-2xl font-black uppercase">Bienvenue sur Najarena</p>
+            <p className="text-text-2">
+              {typographie(
+                `Avant de jouer, choisis ton pseudo : « ${profil.pseudo} » est un nom automatique, et c'est celui qui s'afficherait sur ton CV, dans les brackets et au classement.`,
+              )}
+            </p>
+          </Panneau>
+        )}
+
         {(erreur || message) && (
           <div className="flex flex-col gap-3">
             {erreur && <Alerte type="erreur">{erreur}</Alerte>}
@@ -91,7 +105,7 @@ export default async function ModifierProfilPage({ searchParams }: ModifierProfi
 
         <Apparition delai={0.06}>
           <form action={modifierMonProfil} className="flex flex-col gap-12">
-            <GroupeFormulaire numero="01" titre="Identité" id="groupe-identite">
+            <GroupeFormulaire numero="01" titre="Identité" id="pseudo">
               <Champ
                 libelle="Pseudo"
                 idAide="aide-pseudo"

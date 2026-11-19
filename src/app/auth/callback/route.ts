@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { destinationInterne } from "@/lib/redirection";
 import { COOKIE_CONSENTEMENT } from "@/lib/cgu";
 import { RETOURS_EXTERNES } from "@/lib/messages-adresse";
+import { estPseudoAutomatique } from "@/lib/pseudo";
 
 // Point de retour pour tout provider OAuth (Discord aujourd'hui, RSO plus
 // tard — CLAUDE.md §2 : la couche d'identité doit être interchangeable).
@@ -25,7 +26,15 @@ export async function GET(request: Request) {
       if (version) {
         await supabase.rpc("enregistrer_consentement", { p_version: version });
       }
-      const reponse = NextResponse.redirect(`${origin}${next}`);
+      // Première connexion par Discord (audit E7) : le compte porte un pseudo
+      // automatique « Joueur-… », qui s'afficherait sur le CV et les brackets.
+      // Le joueur choisit d'abord le sien.
+      const { data: userData } = await supabase.auth.getUser();
+      const { data: profil } = userData.user
+        ? await supabase.from("profiles").select("pseudo").eq("id", userData.user.id).maybeSingle()
+        : { data: null };
+      const destination = profil && estPseudoAutomatique(profil.pseudo) ? "/moi/profil?premiere=1#pseudo" : next;
+      const reponse = NextResponse.redirect(`${origin}${destination}`);
       reponse.cookies.delete(COOKIE_CONSENTEMENT);
       return reponse;
     }

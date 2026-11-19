@@ -1,9 +1,11 @@
 # Najarena
 
-Plateforme de tournois League of Legends : tournois 1v1 quotidiens, équipes
-et recherche de coéquipiers pour le 5v5. Les résultats sont lus dans la
-donnée officielle Riot plutôt que déclarés par les joueurs — voir
-`CLAUDE.md` à la racine pour le contexte complet du produit.
+Plateforme de tournois League of Legends : tournois 1v1 quotidiens et à la
+demande, tournois 5v5 entre équipes, défis, arène et divisions, CV e-sport
+public, bilan du joueur, matching duo et recherche de coéquipiers. Les
+résultats sont lus dans la donnée officielle Riot plutôt que déclarés par
+les joueurs, et chaque variation de points est inscrite dans un registre
+scellé — voir `CLAUDE.md` à la racine pour le contexte complet du produit.
 
 ## Lancer en local
 
