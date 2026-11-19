@@ -18,6 +18,7 @@ const LIENS = [
   { href: "/note-du-fondateur", label: "Le fondateur" },
   { href: "/mentions-legales", label: "Mentions légales" },
   { href: "/cgu", label: "CGU" },
+  { href: "/cgv", label: "CGV" },
   { href: "/confidentialite", label: "Confidentialité" },
 ];
 

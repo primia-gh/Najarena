@@ -6,6 +6,8 @@ import { DELAI_FORFAIT_MINUTES } from "@/lib/forfait";
 import { cashPrizesActifs } from "@/lib/dotations";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/cgu" },
   title: "Conditions générales d'utilisation — Najarena",
   description: "Conditions générales d'utilisation du site Najarena.",
 };
@@ -240,14 +242,23 @@ export default function CguPage() {
             8. Résiliation
           </h2>
           <p className="mt-2 text-muted">
-            Un utilisateur peut demander la suppression de son compte à tout
-            moment en écrivant à l&apos;adresse de contact indiquée dans les{" "}
+            Un utilisateur peut supprimer son compte à tout moment, lui-même,
+            depuis la page «&nbsp;Modifier mon profil&nbsp;», ou en écrivant à
+            l&apos;adresse de contact indiquée dans les{" "}
             <Link href="/mentions-legales" className="text-text underline underline-offset-3">
               mentions légales
             </Link>
             . Le journal public des points reste conservé après suppression
             d&apos;un compte, conformément au principe de classement
             incontestable.
+          </p>
+          <p className="mt-2 text-muted">
+            Les offres payantes (Plus, Pro, Organisateur) sont régies par les{" "}
+            <Link href="/cgv" className="text-text underline underline-offset-3">
+              conditions générales de vente
+            </Link>
+            . Elles ne donnent aucun droit sur les résultats, les verdicts ni
+            le classement.
           </p>
         </section>
 

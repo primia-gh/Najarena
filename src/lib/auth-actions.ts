@@ -10,6 +10,7 @@ import { COOKIE_CONSENTEMENT, VERSION_CGU } from "@/lib/cgu";
 import { cookies, headers } from "next/headers";
 import { destinationInterne } from "@/lib/redirection";
 import { messageModeration } from "@/lib/moderation";
+import { jetonCaptcha } from "@/lib/captcha";
 
 // 8 caractères au moins (audit du 27/09/2026, F1 : Supabase en accepte 6
 // par défaut). À aligner dans le tableau de bord Supabase (Authentication >
@@ -81,6 +82,8 @@ function traduireErreurAuth(message: string): string {
       : "Un compte existe déjà avec cet e-mail.";
   }
   if (m.includes("invalid login credentials")) return "E-mail ou mot de passe incorrect.";
+  // Vérification anti-robot refusée ou expirée (audit F1).
+  if (m.includes("captcha")) return "La vérification anti-robot n'a pas abouti : recharge la page et réessaie.";
   // Refus de la base à la création du profil (pseudo pris entre-temps).
   if (m.includes("database error saving new user")) return "Ce pseudo est déjà pris : essaies-en un autre.";
   if (m.includes("banned")) {
@@ -180,6 +183,9 @@ export async function sInscrire(formData: FormData) {
     // version_cgu : date et version des CGU acceptées, conservées par la
     // base à la création du profil (handle_new_user).
     options: {
+      // Jeton anti-robot (audit F1), vérifié par Supabase quand la
+      // protection est allumée ; sans effet sinon.
+      captchaToken: jetonCaptcha(formData),
       data: { pseudo, slug, version_cgu: VERSION_CGU },
       // Le lien de confirmation ramène sur la page d'où vient le joueur
       // (lien de défi d'un ami, audit N18).
@@ -225,10 +231,13 @@ export async function seConnecter(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password: motDePasse,
+    options: { captchaToken: jetonCaptcha(formData) },
   });
 
   if (error) {
-    await enregistrerTentativeEchouee(email);
+    // Un échec de la vérification anti-robot ne compte pas comme un mauvais
+    // mot de passe (il ne doit pas bloquer le compte d'un tiers).
+    if (!error.message.toLowerCase().includes("captcha")) await enregistrerTentativeEchouee(email);
     redirect(avecSuite(`/connexion?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`, suite));
   }
 
@@ -304,7 +313,12 @@ export async function demanderReinitialisation(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${URL_SITE}/auth/callback?next=/nouveau-mot-de-passe`,
+    captchaToken: jetonCaptcha(formData),
   });
+
+  if (error && error.message.toLowerCase().includes("captcha")) {
+    redirect(`/mot-de-passe-oublie?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`);
+  }
 
   if (error && error.message.toLowerCase().includes("rate limit")) {
     redirect(`/mot-de-passe-oublie?erreur=${encodeURIComponent("Trop de demandes récentes, réessaie dans quelques minutes.")}`);

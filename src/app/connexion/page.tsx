@@ -5,6 +5,8 @@ import { seConnecter, seConnecterAvecDiscord } from "@/lib/auth-actions";
 import { classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import Captcha from "@/components/compte/Captcha";
+import { cleSiteCaptcha } from "@/lib/captcha";
 import CadreCompte, { ChampCompte, SeparateurOu } from "@/components/compte/CadreCompte";
 import ConsentementCompte from "@/components/compte/ConsentementCompte";
 
@@ -20,6 +22,7 @@ interface ConnexionPageProps {
 
 export default async function ConnexionPage({ searchParams }: ConnexionPageProps) {
   const { erreur, message, suite: suiteDemandee } = await searchParams;
+  const cleCaptcha = cleSiteCaptcha();
   // Page où revenir ensuite (lien de défi d'un ami, audit N18) : chemin du site seulement.
   const suite = suiteDemandee ? destinationInterne(suiteDemandee, "") || null : null;
 
@@ -57,6 +60,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
         <ChampCompte libelle="Mot de passe">
           <input name="mot_de_passe" type="password" required autoComplete="current-password" className={classeChamp()} />
         </ChampCompte>
+        {cleCaptcha && <Captcha cleSite={cleCaptcha} />}
         <BoutonEnvoi libelleEnCours="Connexion…" className="mt-2 w-full">
           Se connecter
         </BoutonEnvoi>

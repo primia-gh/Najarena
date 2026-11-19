@@ -16,6 +16,8 @@ import {
 import OngletsTournoi from "@/components/tournoi/OngletsTournoi";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/lol/tournois/demo" },
   title: "Exemple de tournoi — Najarena",
   description:
     "À quoi ressemble un tournoi Najarena du début à la fin : inscriptions, bracket, verdicts aux trois niveaux de preuve. Exemple illustratif, aucune vraie compétition.",

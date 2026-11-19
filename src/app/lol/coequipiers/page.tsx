@@ -20,6 +20,8 @@ import Panneau from "@/components/design/Panneau";
 import CarteJoueurDisponible from "@/components/coequipiers/CarteJoueurDisponible";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/lol/coequipiers" },
   title: "Trouver un coéquipier — Najarena",
   description:
     "Recherche de coéquipiers pour former une équipe 5v5 sur Najarena et jouer les tournois 5v5 — publie une annonce ou invite un joueur disponible dans ton équipe.",

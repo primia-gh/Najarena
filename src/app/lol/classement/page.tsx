@@ -12,6 +12,8 @@ import Panneau from "@/components/design/Panneau";
 import { EchellePaliers, Podium, TableauClassement, type JoueurClasse } from "@/components/classement/LignesClassement";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/lol/classement" },
   title: "Classement LoL — Najarena",
   description:
     "Classement League of Legends Najarena, calculé en Glicko-2 à partir de résultats vérifiés dans la donnée officielle Riot.",

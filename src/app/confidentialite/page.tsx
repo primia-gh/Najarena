@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { cashPrizesActifs } from "@/lib/dotations";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/confidentialite" },
   title: "Politique de confidentialité — Najarena",
   description: "Politique de confidentialité et protection des données personnelles sur Najarena.",
 };
@@ -20,7 +22,7 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 12&nbsp;octobre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 19&nbsp;novembre 2026.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>
@@ -298,6 +300,12 @@ export default function ConfidentialitePage() {
               e-mail ni ton mot de passe ne lui sont transmis.
             </li>
             <li>
+              <strong>Cloudflare Turnstile</strong> (États-Unis) — vérification anti-robot des formulaires
+              d&apos;inscription, de connexion et de mot de passe oublié, quand elle est activée&nbsp;: ton navigateur
+              lui transmet des signaux techniques (adresse IP, caractéristiques du navigateur) le temps de la
+              vérification. Ni cookie publicitaire, ni suivi d&apos;un site à l&apos;autre.
+            </li>
+            <li>
               <strong>Anthropic</strong> (États-Unis) — uniquement quand une
               fonction d&apos;IA est utilisée&nbsp;: le texte saisi dans l&apos;assistant de création de
               tournoi ou dans la recherche de joueurs&nbsp;; les statistiques Riot d&apos;un match
@@ -311,7 +319,7 @@ export default function ConfidentialitePage() {
           </ul>
           <p className="mt-2 text-muted">
             Plusieurs de ces prestataires (Riot Games, Vercel, Discord, Stripe,
-            Resend, Sentry, Anthropic) sont établis aux États-Unis ou y
+            Resend, Sentry, Cloudflare, Anthropic) sont établis aux États-Unis ou y
             traitent des données. Ces transferts hors de l&apos;Union
             européenne s&apos;appuient sur le cadre de protection des données
             UE–États-Unis (Data Privacy Framework) lorsque le prestataire y

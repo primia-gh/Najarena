@@ -73,6 +73,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 19/11/2026 (audit E10) : **offres payantes renommées « Plus » et « Pro »** (anciennement « Vérifié » et « Elite » ; clés `verifie` et `elite` inchangées en base et dans le code, `LABEL_OFFRE` dans `src/lib/offres.ts`). « Vérifié » et le vert restent réservés à la preuve (verdict lu chez Riot, compte Riot vérifié) : un badge acheté ne doit jamais pouvoir passer pour une vérification. Le badge Plus est lavande, Pro or, Organisateur bleu-vert. Les produits Stripe se renomment dans le tableau de bord Stripe.*
 
+*Mise à jour du 19/11/2026 (audit E11, F1, M11) : **conditions générales de vente** — page `/cgv` (abonnement mensuel sans engagement, prix TTC, résiliation en ligne « Gérer ou résilier mon abonnement » de `/moi`, rétractation de 14 jours avec accès immédiat demandé et remboursement au prorata, factures Stripe, médiateur `MEDIATEUR` à renseigner dans `src/lib/cgv.ts` avant d'allumer les paiements). Case « J'accepte les CGV et je demande l'accès immédiat » obligatoire avant le paiement (refus côté serveur sans elle), version des CGV et date gardées dans les métadonnées de l'abonnement Stripe (`VERSION_CGV`, à changer à chaque modification de `/cgv`). Prix exacts lus chez Stripe (`src/lib/prix-stripe.ts`, cache 1 h, jamais un prix hors taxes), sinon la fourchette indicative. **CAPTCHA** Cloudflare Turnstile sur l'inscription, la connexion et « mot de passe oublié » (`src/lib/captcha.ts`, `components/compte/Captcha.tsx`), éteint sans `NEXT_PUBLIC_TURNSTILE_SITE_KEY` — à allumer en même temps que la protection CAPTCHA de Supabase Auth, jamais l'un sans l'autre. Adresse canonique sur toutes les pages publiques.*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -233,6 +235,7 @@ Schéma de base de données : `docs/schema.sql`.
 /moi/profil                pseudo, pays, visites anonymes, suppression du compte
 /moi/organisation/[id]     cockpit de tournoi
 /connexion /inscription /lier-riot /mot-de-passe-oublie /nouveau-mot-de-passe
+/cgu /cgv /confidentialite /mentions-legales   pages légales (CGV : offres payantes)
 /admin                     modération, litiges
 /comment-ca-marche         guide éditorial (verdict, Glicko-2, indice de confiance)
 /faq                       questions de confiance, dépliées par défaut (gratuité, affiliation Riot, délais, IA)

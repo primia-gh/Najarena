@@ -311,8 +311,10 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             </Link>
             {abonnement && (
               <form action={ouvrirPortailAbonnement}>
+                {/* « Résilier » écrit en toutes lettres (résiliation en ligne
+                    obligatoire, Code de la consommation L215-1-1 ; audit E11). */}
                 <button type="submit" className={`${lienCompte} cursor-pointer`}>
-                  Gérer mon abonnement
+                  Gérer ou résilier mon abonnement
                 </button>
               </form>
             )}

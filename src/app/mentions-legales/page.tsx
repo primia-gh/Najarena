@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/mentions-legales" },
   title: "Mentions légales — Najarena",
   description: "Mentions légales du site Najarena.",
 };

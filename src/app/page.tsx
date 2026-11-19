@@ -15,6 +15,7 @@ import AfficheTournoi, { type VarianteAffiche } from "@/components/vitrine/Affic
 import ApercuClassement, { type Tendance } from "@/components/vitrine/ApercuClassement";
 import { IllustrationEquipe, IllustrationRecherche } from "@/components/vitrine/IllustrationsPortes";
 import styles from "@/components/vitrine/vitrine.module.css";
+import type { Metadata } from "next";
 
 // Accueil — refonte « Venin » (design-system/najarena/pages/accueil.md,
 // maquette najarena-design/maquettes/accueil.dc.html). Seules les sections 03
@@ -169,6 +170,12 @@ const AFFICHES_COMPLEMENT = [
     action: "Créer",
   },
 ];
+
+// Adresse canonique de l'accueil (audit M11) ; titre et description
+// viennent du layout.
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function Home() {
   const { classement, paliers, tendances, tournois } = await chargerAccueil();

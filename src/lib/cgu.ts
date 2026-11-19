@@ -5,9 +5,10 @@
 // (version jamais mise en ligne). 03/10/2026 : tournois 5v5. 04/10/2026 :
 // écoles et tournois réservés aux membres d'une communauté. Allumer les
 // cash prizes (CASH_PRIZES_ACTIFS) ajoute un paragraphe aux CGU : changer
-// alors cette version.
-export const VERSION_CGU = "2026-10-04";
-export const DATE_CGU_LISIBLE = "4 octobre 2026";
+// alors cette version. 19/11/2026 : suppression du compte en libre-service,
+// renvoi aux conditions générales de vente des offres payantes.
+export const VERSION_CGU = "2026-11-19";
+export const DATE_CGU_LISIBLE = "19 novembre 2026";
 
 // Connexion via Discord : le consentement coché avant de partir chez
 // Discord est gardé le temps de l'aller-retour (10 minutes au plus), puis

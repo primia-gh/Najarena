@@ -4,6 +4,8 @@ import Apparition from "@/components/design/Apparition";
 import { JOURNAL } from "@/lib/journal";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/journal" },
   title: "Journal de bord — Najarena",
   description: "Ce qui a été construit récemment sur Najarena, au fil de l'eau.",
 };

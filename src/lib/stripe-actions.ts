@@ -13,6 +13,7 @@ import { creerClientAdmin } from "@/lib/supabase/admin";
 import { URL_SITE } from "@/lib/notifications";
 import type { Offre } from "@/lib/offres";
 import { RETOURS_EXTERNES } from "@/lib/messages-adresse";
+import { DELAI_RETRACTATION_JOURS, VERSION_CGV } from "@/lib/cgv";
 
 const cleSecrete = process.env.STRIPE_SECRET_KEY;
 const stripe = cleSecrete ? new Stripe(cleSecrete) : null;
@@ -28,6 +29,17 @@ export async function demarrerAbonnement(formData: FormData) {
 
   if (offre === "gratuit" || !(offre in PRIX_PAR_OFFRE)) {
     redirect(`/tarifs?erreur=${encodeURIComponent("Offre invalide.")}`);
+  }
+
+  // CGV acceptées et accès immédiat demandé (audit E11) : sans cette case,
+  // pas de paiement. L'accord est gardé dans l'abonnement Stripe (version
+  // des CGV, date), preuve de ce que le client a accepté.
+  if (formData.get("cgv") !== "on") {
+    redirect(
+      `/tarifs?erreur=${encodeURIComponent(
+        "Coche la case : acceptation des CGV et accès immédiat à l'offre (tu gardes 14 jours pour te rétracter).",
+      )}#retour`,
+    );
   }
 
   if (!stripe) {
@@ -53,6 +65,8 @@ export async function demarrerAbonnement(formData: FormData) {
   // factures et moyens de paiement restent au même endroit.
   const clientExistant = await clientStripe(userData.user.id);
 
+  const accord = { cgv_version: VERSION_CGV, cgv_acceptees_le: new Date().toISOString(), acces_immediat: "oui" };
+
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: prixId, quantity: 1 }],
@@ -65,8 +79,13 @@ export async function demarrerAbonnement(formData: FormData) {
     ...(clientExistant ? { customer: clientExistant } : { customer_email: userData.user.email ?? undefined }),
     success_url: `${URL_SITE}/moi?message=${encodeURIComponent(RETOURS_EXTERNES.abonnementEnCours)}`,
     cancel_url: `${URL_SITE}/tarifs`,
-    metadata: { profile_id: userData.user.id, offre },
-    subscription_data: { metadata: { profile_id: userData.user.id, offre } },
+    metadata: { profile_id: userData.user.id, offre, ...accord },
+    subscription_data: { metadata: { profile_id: userData.user.id, offre, ...accord } },
+    custom_text: {
+      submit: {
+        message: `En t'abonnant, tu acceptes les conditions générales de vente de Najarena (${URL_SITE}/cgv) et tu demandes l'accès immédiat à ton offre. Tu gardes ${DELAI_RETRACTATION_JOURS} jours pour te rétracter, et tu résilies en ligne à tout moment depuis ton tableau de bord.`,
+      },
+    },
   });
 
   if (!session.url) {

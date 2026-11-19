@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { demarrerAbonnement } from "@/lib/stripe-actions";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
+import { prixOffres } from "@/lib/prix-stripe";
+import { DELAI_RETRACTATION_JOURS } from "@/lib/cgv";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -12,6 +14,8 @@ import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/tarifs" },
   title: "Tarifs — Najarena",
   description:
     "Les paliers Najarena : le classement, les verdicts et le profil public restent gratuits pour toujours. Plus, Pro et Organisateur ajoutent de l'identité et du confort, jamais un péage sur la preuve.",
@@ -192,6 +196,10 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
   // Un seul palier mis en avant, un seul bouton vert (MASTER §2 : le vert
   // est rare) : Pro pour un joueur, Organisateur pour qui organise.
   const enAvant: Offre = pour === "organiser" ? "organisateur" : "elite";
+  // Prix exacts lus chez Stripe (audit E11), sinon la fourchette indicative.
+  const prix = await prixOffres();
+  const prixExact = (offre: Offre) => (offre === "gratuit" ? undefined : prix[offre]);
+  const tousExacts = paliersVisibles.every((p) => !p.cle || prixExact(p.cle));
   const groupes = (Object.keys(TITRE_GROUPE) as Offre[])
     .map((offre) => ({ offre, lignes: lignesVisibles.filter((l) => l.depuis === offre) }))
     .filter((g) => g.lignes.length > 0);
@@ -210,7 +218,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
             paliers ci-dessous ajoutent de l&apos;identité et du confort, jamais un péage sur la preuve.
           </p>
           {(erreur || message) && (
-            <div className="mt-8 flex max-w-2xl flex-col gap-3">
+            <div id="retour" className="mt-8 flex max-w-2xl scroll-mt-28 flex-col gap-3">
               {erreur && <Alerte type="erreur">{erreur}</Alerte>}
               {message && <Alerte type="succes">{message}</Alerte>}
             </div>
@@ -245,6 +253,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
               {paliersVisibles.map((p) => {
                 const offre: Offre = p.cle ?? "gratuit";
                 const misEnAvant = offre === enAvant;
+                const exact = prixExact(offre);
                 return (
                   <article
                     key={p.nom}
@@ -261,8 +270,15 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                       )}
                     </div>
                     <p className="mt-5 flex items-baseline gap-2">
-                      <span className="font-titre text-[3.25rem] leading-none font-black tabular-nums">{p.prix}</span>
-                      {p.periode && <span className="text-sm text-muted">{p.periode}</span>}
+                      <span className="font-titre text-[3.25rem] leading-none font-black tabular-nums">
+                        {exact?.montant ?? p.prix}
+                      </span>
+                      {(exact?.periode ?? p.periode) && (
+                        <span className="text-sm text-muted">
+                          {exact?.periode ?? p.periode}
+                          {exact && " TTC"}
+                        </span>
+                      )}
                     </p>
                     <p className="mt-3 text-sm text-text-2">{p.accroche}</p>
 
@@ -283,8 +299,25 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                         {p.cta.libelle}
                       </BoutonLien>
                     ) : (
-                      <form action={demarrerAbonnement} className="mt-8">
+                      <form action={demarrerAbonnement} className="mt-8 flex flex-col gap-4">
                         <input type="hidden" name="offre" value={p.cle} />
+                        {/* CGV et accès immédiat (audit E11) : le serveur refuse le paiement sans cette case. */}
+                        <label className="flex cursor-pointer items-start gap-3 text-xs text-text-2">
+                          <input
+                            name="cgv"
+                            type="checkbox"
+                            required
+                            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-accent"
+                          />
+                          <span>
+                            J&apos;accepte les{" "}
+                            <Link href="/cgv" className="text-text underline underline-offset-3 hover:text-accent">
+                              CGV
+                            </Link>{" "}
+                            et je demande l&apos;accès immédiat. Je garde {DELAI_RETRACTATION_JOURS}&nbsp;jours pour me
+                            rétracter.
+                          </span>
+                        </label>
                         <BoutonEnvoi
                           variante={misEnAvant ? "principal" : "contour"}
                           libelleEnCours="Redirection…"
@@ -299,7 +332,15 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
               })}
             </div>
             <p className="max-w-2xl text-sm text-muted">
-              Plus, Pro et Organisateur sont en cours de lancement — ces prix sont indicatifs et pourront évoluer.
+              {tousExacts
+                ? "Prix toutes taxes comprises. "
+                : "Plus, Pro et Organisateur sont en cours de lancement — ces prix sont indicatifs et pourront évoluer. "}
+              Abonnement mensuel sans engagement, résiliable en ligne à tout moment depuis ton tableau de bord&nbsp;;{" "}
+              {DELAI_RETRACTATION_JOURS}&nbsp;jours pour te rétracter. Voir les{" "}
+              <Link href="/cgv" className="text-text-2 underline underline-offset-3 hover:text-text">
+                conditions générales de vente
+              </Link>
+              .
             </p>
           </section>
         </Apparition>

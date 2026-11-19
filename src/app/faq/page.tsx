@@ -14,6 +14,8 @@ const QUOTIDIEN = CRENEAUX[0];
 const COUPE_NOUVEAUX = CRENEAUX.find((c) => c.reserveNonClasses);
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/faq" },
   title: "FAQ — Najarena",
   description:
     "Les questions de confiance, sans détour : gratuité, affiliation à Riot Games, vérification des résultats, délais de mise à jour du classement, panne de l'API Riot, rôle de l'IA.",

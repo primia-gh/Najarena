@@ -194,6 +194,7 @@ export async function generateMetadata({ params }: EquipePageProps): Promise<Met
   return {
     title: `${donnees.equipe.tag} ${donnees.equipe.nom} — Najarena`,
     description: `Page publique de l'équipe ${donnees.equipe.nom} sur Najarena.`,
+    alternates: { canonical: `/equipe/${encodeURIComponent(slug)}` },
   };
 }
 
