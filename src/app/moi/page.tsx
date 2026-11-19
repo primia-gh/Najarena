@@ -145,7 +145,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
   const equipesCapitaine = equipesCapitaineData ?? [];
 
   // Chiffres de la saison en cours (revue visuelle du 05/10/2026) : les
-  // mêmes que sur le CV public — rating, palier, rang national, matchs.
+  // mêmes que sur le CV public — rating, palier, rang général, matchs.
   const [{ data: saison }, { data: paliersData }] = await Promise.all([
     supabase.from("seasons").select("id, nom").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
     supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
@@ -275,7 +275,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               </dd>
             </div>
             <div className="flex flex-col gap-2">
-              <dt className="font-texte text-mini font-medium text-faint uppercase">Rang national</dt>
+              <dt className="font-texte text-mini font-medium text-faint uppercase">Rang général</dt>
               <dd className="font-titre text-5xl leading-none font-black tabular-nums">{rang ? `#${rang}` : "—"}</dd>
             </div>
             <div className="flex flex-col gap-2">

@@ -45,7 +45,7 @@ import BoutonPartager from "@/components/profil/BoutonPartager";
 // maquette najarena-design/maquettes/profil.dc.html) : seule l'apparence a
 // changé. chargerJoueur ci-dessous (vues de profil, offres, suivi, revue de
 // match) est repris tel quel ; les données d'affichage ajoutées (rang
-// national, palier, courbe, équipes, annonce) viennent de
+// général, palier, courbe, équipes, annonce) viennent de
 // lib/profil-vitrine.ts. Blocs de la maquette sans donnée réelle (Talent
 // Score, analyse IA, classement par rôle, VOD, réglage public/privé par
 // bloc) : absents tant que la fonctionnalité n'existe pas (CLAUDE.md §7).
@@ -453,9 +453,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
 
   const kpis = [
     {
-      libelle: "Rang national",
-      valeur: complements.rangNational ? `#${complements.rangNational}` : "—",
-      sous: complements.rangNational
+      libelle: "Rang général",
+      valeur: complements.rangGeneral ? `#${complements.rangGeneral}` : "—",
+      sous: complements.rangGeneral
         ? `sur ${complements.totalClasses}\u00a0joueur${complements.totalClasses > 1 ? "s" : ""} classé${complements.totalClasses > 1 ? "s" : ""}`
         : "Classé à partir de RD ≤ 150",
     },

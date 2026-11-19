@@ -124,7 +124,7 @@ const ETAPES = [
 ];
 
 const POINTS_CV = [
-  "Rating vérifié et classement national",
+  "Rating vérifié et place au classement",
   "Chaque résultat prouvé, match par match",
   "Historique complet des matchs",
   "Lien partageable avec les équipes",
@@ -291,7 +291,7 @@ export default async function Home() {
               Pas déclaré.
             </h2>
             <p className="text-lg leading-[1.65] text-text-2">
-              Chaque match joué sur Najarena alimente un profil vérifiable : rating, classement national,
+              Chaque match joué sur Najarena alimente un profil vérifiable : rating, place au classement,
               historique, journal des points. Le document que tu envoies quand une équipe te demande ce que tu
               vaux.
             </p>
@@ -375,7 +375,7 @@ export default async function Home() {
               top 10.
             </h2>
             <p className="text-lg leading-[1.65] text-text-2">
-              Un classement national, recalculé à la fin de chaque tournoi. Public, vérifiable, impossible à
+              Un seul classement pour tous les joueurs, recalculé à la fin de chaque tournoi. Public, vérifiable, impossible à
               acheter : ta place se gagne en jouant.
             </p>
             <BoutonLien href="/lol/classement" variante="secondaire" className="self-start">
