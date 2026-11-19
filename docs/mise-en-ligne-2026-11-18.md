@@ -1,4 +1,4 @@
-# Mise en ligne de la branche (sections du 18/11/2026)
+# Mise en ligne de la branche (sections du 18 et du 19/11/2026)
 
 **Statut** : rien de ces sections n'est encore en production. La production
 correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
@@ -6,8 +6,8 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1176 vérifications de
-`tests/sql/` passent ensuite.
+elle se rejoue une seconde fois sans erreur, et les 1215 vérifications de
+`tests/sql/` passent ensuite (contrôle refait le 19/11/2026).
 
 Branche : `claude/nice-faraday-nsoe9q`. Comme les fois précédentes, **la base
 d'abord, le code ensuite** : le code appelle des fonctions et lit des tables
@@ -17,7 +17,8 @@ conversations.
 
 ## Ce que contient la migration
 
-Quatre sections datées du 18/11/2026, à la fin de `docs/schema.sql` :
+Cinq sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, une du
+19/11/2026) :
 
 1. **Défis et arène : pas de duel pendant un match ouvert ; noms d'équipe
    uniques.** `match_ouvert_entre`, `creer_duel` et `apparier_joueur_arene`
@@ -30,6 +31,11 @@ Quatre sections datées du 18/11/2026, à la fin de `docs/schema.sql` :
 3. **Analyse de progression rédigée par l'IA.** Table
    `analyses_progression_ia` et deux déclencheurs d'effacement.
 4. **Recherche recruteurs.** Fonction `rechercher_joueurs`.
+5. **Modifier un tournoi avant la première inscription** (19/11/2026).
+   Fonction `modifier_tournoi` ; `consommer_limite` redéfinie (10
+   modifications par 24 h) ; `controler_classement_tournoi` redéfinie : la
+   date de publication est reposée quand la date de début d'un tournoi
+   publié change.
 
 ## 1. Vérifications avant migration (lecture seule)
 
@@ -71,7 +77,7 @@ from unnest(array[
   'match_ouvert_entre', 'cle_nom_equipe', 'controler_nom_equipe',
   'publier_annonce_duo', 'demander_duo', 'repondre_demande_duo', 'annuler_demande_duo',
   'annonces_duo_publiques', 'bloquer_joueur', 'debloquer_joueur', 'conversation_ouverte',
-  'rechercher_joueurs'
+  'rechercher_joueurs', 'modifier_tournoi'
 ]) as f;  -- toutes « true »
 
 select indexname from pg_indexes where indexname = 'teams_nom_unique';  -- 1 ligne
@@ -84,7 +90,12 @@ nouvelle alerte n'est attendue (toutes les fonctions fixent leur
 
 ## 3. Réglages Vercel
 
-**Aucune nouvelle variable.** L'analyse de progression utilise
+**Aucune variable obligatoire.** Une variable facultative, à n'ajouter qu'au
+moment d'allumer la vérification anti-robot (voir § 6) :
+`NEXT_PUBLIC_TURNSTILE_SITE_KEY` (clé publique du widget Cloudflare
+Turnstile — ce n'est pas un secret).
+
+ L'analyse de progression utilise
 `ANTHROPIC_API_KEY`, comme les autres textes d'IA : tant qu'elle est absente
 (c'est le cas au 17/11/2026), la section s'affiche avec « L'analyse par l'IA
 n'est pas disponible pour l'instant » au clic, sans rien casser. Les
@@ -110,4 +121,36 @@ Vercel déploie la production.
   « Analyse de ta progression » apparaît sous le bilan.
 - `/equipe/nouvelle` : un nom avec une lettre d'un autre alphabet est refusé
   avec un message clair.
+- Cockpit d'un tournoi publié sans inscrit : « Modifier le tournoi »
+  apparaît ; changer le nom puis la date ; il disparaît dès la première
+  inscription.
+- `/cgv` s'affiche (lien en pied de page) ; `/tarifs` : la case « J'accepte
+  les CGV » est demandée avant « S'abonner ».
+- `/cgu` et `/cgv` : « Version du 19 novembre 2026 ».
 - Erreurs d'exécution Vercel sur 24 h : aucune nouvelle.
+
+## 6. Plus tard, à ne pas oublier
+
+**Vérification anti-robot (audit F1)** — les deux réglages ensemble, jamais
+l'un sans l'autre :
+1. Créer un widget Turnstile sur dash.cloudflare.com (gratuit), pour le
+   domaine du site : on obtient une clé publique (« site key ») et une clé
+   secrète.
+2. Supabase → Authentication → Attack Protection → CAPTCHA : choisir
+   Turnstile et coller la **clé secrète**.
+3. Vercel → variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY` = la **clé publique**,
+   puis redéployer.
+Si la protection est allumée dans Supabase sans la variable Vercel,
+l'inscription, la connexion et « mot de passe oublié » échouent.
+
+**Avant d'allumer les paiements (audit E11)** : statut juridique déclaré ;
+CGV `/cgv` relues par un juriste ; médiateur de la consommation choisi et
+renseigné dans `src/lib/cgv.ts` (`MEDIATEUR`) ; prix créés dans Stripe
+**toutes taxes comprises** (un prix « hors taxes » n'est pas affiché) ;
+dans Stripe, portail client avec résiliation et historique des factures
+activés (Settings → Billing → Customer portal) ; produits renommés « Plus »
+et « Pro » (anciennement « Vérifié » et « Elite »).
+
+**Supabase Auth (audit F1)** : longueur minimale des mots de passe à 8,
+protection contre les mots de passe compromis, limites de tentatives de
+connexion (Authentication → Policies / Rate Limits).
