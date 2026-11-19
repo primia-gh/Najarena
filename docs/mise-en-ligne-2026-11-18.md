@@ -6,18 +6,20 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1226 vérifications de
-`tests/sql/` passent ensuite (contrôle refait le 19/11/2026).
+elle se rejoue une seconde fois sans erreur, et les 1292 vérifications de
+`tests/sql/` passent ensuite (contrôle refait le 19/11/2026, après l'ajout
+des tournois par niveau, du face-à-face, du recrutement et du format suisse).
 
 Branche : `claude/nice-faraday-nsoe9q`. Comme les fois précédentes, **la base
 d'abord, le code ensuite** : le code appelle des fonctions et lit des tables
-que ces sections créent (duo, analyse IA, recherche, blocage). Mis en ligne
-avant la base, il casserait `/lol/duo`, `/lol/recherche`, `/moi/bilan` et les
-conversations.
+que ces sections créent (duo, analyse IA, recherche, blocage, recrutement,
+face-à-face, format suisse, niveau). Mis en ligne avant la base, il
+casserait `/lol/duo`, `/lol/recherche`, `/lol/recrutement`, `/moi/bilan`,
+les pages d'équipe et de tournoi, et les conversations.
 
 ## Ce que contient la migration
 
-Cinq sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, une du
+Neuf sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, cinq du
 19/11/2026) :
 
 1. **Défis et arène : pas de duel pendant un match ouvert ; noms d'équipe
@@ -38,6 +40,23 @@ Cinq sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, une du
    la capacité d'un tournoi d'organisateur publié change avant son
    lancement ; `proposer_remplacement`
    redéfinie (verrou partagé sur le tournoi).
+6. **Tournois par niveau.** Colonnes `rating_min` / `rating_max` déjà
+   présentes, désormais contrôlées : `rating_niveau`,
+   `controler_niveau_tournoi` (seuils de palier, 1v1 d'organisateur
+   seulement) et `controler_inscription_niveau` (inscription et check-in).
+   `modifier_tournoi` reçoit les bornes de niveau.
+7. **Face-à-face.** Fonction `face_a_face` (droits du lecteur).
+8. **Équipes qui recrutent.** Tables `annonces_recrutement` et
+   `candidatures_equipe` ; fonctions `publier_recrutement`,
+   `retirer_recrutement`, `annonces_recrutement_publiques`,
+   `postuler_equipe`, `repondre_candidature`, `annuler_candidature`,
+   `joueurs_pour_recrutement` ; effacement à la suppression du compte.
+9. **Format suisse.** Colonne `tournaments.rondes`, contrainte
+   `type_bracket` élargie à `suisse` ; `classement_suisse`,
+   `ronde_suisse_suivante`, `demarrer_suisse`, `suisse_terminee` ;
+   **`avancer_vainqueur` redéfinie** (crée la ronde suivante d'un tournoi
+   suisse, rien de changé pour l'élimination directe) ; pronostics et
+   dotations refusés en suisse.
 
 ## 1. Vérifications avant migration (lecture seule)
 
@@ -61,6 +80,17 @@ where char_length(btrim(nom)) not between 3 and 40
 -- c) Réglage de langue de la base (la mise en minuscules des lettres
 --    accentuées doit fonctionner) : doit renvoyer « lesloups ».
 select regexp_replace(translate(lower('LÈS LOUPS'), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ', 'aaaaaaceeeeiiiinooooouuuuyyoa'), '[^a-z0-9]', '', 'g');
+
+-- d) Format des tournois : la nouvelle contrainte n'accepte que
+--    « elim_simple » et « suisse ». Doit renvoyer une seule ligne,
+--    « elim_simple ».
+select type_bracket, count(*) from public.tournaments group by 1;
+
+-- e) Bornes de niveau déjà posées (aucune page ne les proposait) : doit
+--    renvoyer 0 ligne, sinon la nouvelle règle les refusera à la prochaine
+--    modification du tournoi.
+select id, nom, rating_min, rating_max from public.tournaments
+where rating_min is not null or rating_max is not null;
 ```
 
 ## 2. Migration de la base
@@ -79,8 +109,18 @@ from unnest(array[
   'match_ouvert_entre', 'cle_nom_equipe', 'controler_nom_equipe',
   'publier_annonce_duo', 'demander_duo', 'repondre_demande_duo', 'annuler_demande_duo',
   'annonces_duo_publiques', 'bloquer_joueur', 'debloquer_joueur', 'conversation_ouverte',
-  'rechercher_joueurs', 'modifier_tournoi'
+  'rechercher_joueurs', 'modifier_tournoi',
+  'rating_niveau', 'controler_niveau_tournoi', 'controler_inscription_niveau',
+  'face_a_face',
+  'publier_recrutement', 'retirer_recrutement', 'annonces_recrutement_publiques',
+  'postuler_equipe', 'repondre_candidature', 'annuler_candidature', 'joueurs_pour_recrutement',
+  'classement_suisse', 'ronde_suisse_suivante', 'demarrer_suisse', 'suisse_terminee'
 ]) as f;  -- toutes « true »
+
+select column_name from information_schema.columns
+where table_schema = 'public' and table_name = 'tournaments' and column_name = 'rondes';  -- 1 ligne
+select tablename from pg_tables
+where schemaname = 'public' and tablename in ('annonces_recrutement', 'candidatures_equipe');  -- 2 lignes
 
 select indexname from pg_indexes where indexname = 'teams_nom_unique';  -- 1 ligne
 select polname from pg_policy where polrelid = 'public.messages'::regclass;  -- dont « participants repondent »
@@ -129,6 +169,17 @@ Vercel déploie la production.
 - `/cgv` s'affiche (lien en pied de page) ; `/tarifs` : la case « J'accepte
   les CGV » est demandée avant « S'abonner ».
 - `/cgu` et `/cgv` : « Version du 19 novembre 2026 ».
+- `/organiser/nouveau` : les listes « Palier minimum / maximum » et le choix
+  « Déroulement » (élimination directe / format suisse) apparaissent pour un
+  1v1 ; un tournoi d'élimination directe se lance comme avant.
+- Un CV avec un adversaire affronté deux fois : le bloc « Face-à-face » mène
+  à `/lol/face-a-face/…`, qui s'affiche.
+- `/lol/recrutement` s'affiche (liste vide au départ) ; page d'une équipe
+  dont on est capitaine : bloc « Recrutement », publier une annonce, la
+  voir dans la liste, la retirer.
+- Un tournoi suisse d'essai (4 joueurs) : « Lancer la première ronde » dans
+  le cockpit, la ronde 2 apparaît d'elle-même quand la ronde 1 est jouée,
+  le classement s'affiche sur la page du tournoi.
 - Erreurs d'exécution Vercel sur 24 h : aucune nouvelle.
 
 ## 6. Plus tard, à ne pas oublier

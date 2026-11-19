@@ -27,7 +27,7 @@ export default function ClassementSuisse({
       </div>
       <p className="max-w-3xl text-sm text-muted">
         {typographie(
-          `Format suisse${rondes ? ` en ${rondes} ronde${rondes > 1 ? "s" : ""}` : ""} : chaque joueur joue toutes les rondes, contre un adversaire au même bilan. Égalités départagées par le Buchholz, la somme des victoires de ses adversaires.`,
+          `Format suisse${rondes ? ` en ${rondes} ronde${rondes > 1 ? "s" : ""}` : ""} : chaque joueur joue toutes les rondes, contre un adversaire au même bilan. À égalité de victoires, la force des adversaires départage (méthode Buchholz : la somme des victoires des adversaires affrontés). Deux victoires contre des joueurs qui gagnent valent plus que deux victoires contre des joueurs qui perdent.`,
         )}
       </p>
       <Tableau legende="Classement du tournoi au format suisse">
@@ -44,7 +44,7 @@ export default function ClassementSuisse({
               Défaites
             </th>
             <th scope="col" className="text-right!">
-              Buchholz
+              Force des adversaires
             </th>
           </tr>
         </thead>
@@ -64,6 +64,13 @@ export default function ClassementSuisse({
           ))}
         </tbody>
       </Tableau>
+      {lignes.length % 2 === 1 && (
+        <p className="max-w-3xl text-sm text-muted">
+          {typographie(
+            "Nombre impair de joueurs : à chaque ronde, le moins bien placé qui n'a pas encore été exempté ne joue pas. Son exemption compte comme une victoire au classement du tournoi, jamais au classement Najarena.",
+          )}
+        </p>
+      )}
     </section>
   );
 }

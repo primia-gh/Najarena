@@ -105,9 +105,21 @@ interface CaseMatchProps {
   children?: ReactNode;
   /** Fiche de preuve du match (idée en réserve n°1) : le badge du verdict y mène. */
   lienPreuve?: string;
+  /** Texte de la case vide d'un match à un seul joueur (exemption du format suisse). */
+  libelleSeul?: string;
 }
 
-export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit, children, lienPreuve }: CaseMatchProps) {
+export function CaseMatch({
+  participants,
+  etat,
+  niveau,
+  motif,
+  monMatch,
+  exploit,
+  children,
+  lienPreuve,
+  libelleSeul,
+}: CaseMatchProps) {
   const bordure =
     etat === "litige"
       ? "border-danger/60"
@@ -161,7 +173,7 @@ export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit
               </>
             ) : (
               <span className="text-[13px] tracking-[1px] text-faint">
-                {participants.length === 1 && i === 1 ? "En attente d'adversaire" : "À déterminer"}
+                {participants.length === 1 && i === 1 ? (libelleSeul ?? "En attente d'adversaire") : "À déterminer"}
               </span>
             )}
           </div>

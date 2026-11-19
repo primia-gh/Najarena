@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
-import { CHOIX_MAXIMUM, CHOIX_MINIMUM } from "@/lib/niveau-tournoi";
+import { CHOIX_MAXIMUM, CHOIX_MINIMUM, SEUILS_LISIBLES } from "@/lib/niveau-tournoi";
+import { typographie } from "@/lib/typographie";
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { chargerOffre } from "@/lib/offres";
@@ -207,13 +208,15 @@ export default async function OrganiserNouveauPage({
                     value="elim_simple"
                     defaultChecked
                     titre="Élimination directe"
-                    detail="Le perdant d'un match est éliminé, jusqu'à la finale."
+                    detail={typographie("Le perdant d'un match est éliminé, jusqu'à la finale.")}
                   />
                   <Choix
                     name="type_bracket"
                     value="suisse"
                     titre="Format suisse"
-                    detail="Chacun joue toutes les rondes (3 pour 8 joueurs) contre un adversaire au même bilan. Plus de matchs, un classement plus précis."
+                    detail={typographie(
+                      "Chacun joue toutes les rondes contre un adversaire au même bilan : 3 rondes pour 8 joueurs, 4 pour 16, 5 au plus. Plus de matchs, un classement plus précis.",
+                    )}
                   />
                 </div>
               </fieldset>
@@ -244,8 +247,9 @@ export default async function OrganiserNouveauPage({
                   </Champ>
                 </div>
                 <p id="aide-niveau" className="text-xs text-muted">
-                  Facultatif. Selon le rating Najarena de la saison (1500 pour qui n&apos;a pas encore joué),
-                  vérifié à l&apos;inscription et de nouveau au check-in.
+                  {typographie(
+                    `Facultatif. Selon le rating Najarena de la saison (1500 pour qui n'a pas encore joué), vérifié à l'inscription et de nouveau au check-in. Seuils : ${SEUILS_LISIBLES}.`,
+                  )}
                 </p>
               </fieldset>
             </GroupeFormulaire>

@@ -1,13 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { CHOIX_MAXIMUM, CHOIX_MINIMUM, libelleNiveau, lireNiveau, messageNiveau, ratingDansNiveau } from "./niveau-tournoi";
+import {
+  CHOIX_MAXIMUM,
+  CHOIX_MINIMUM,
+  libelleNiveau,
+  lireNiveau,
+  messageNiveau,
+  palierDuRating,
+  ratingDansNiveau,
+  situationNiveau,
+} from "./niveau-tournoi";
 
 describe("libelleNiveau", () => {
   it("nomme la fourchette par ses paliers", () => {
     expect(libelleNiveau(1450, null)).toBe("Or et plus");
-    expect(libelleNiveau(null, 1450)).toBe("jusqu'à Argent");
+    expect(libelleNiveau(null, 1450)).toBe("Bronze à Argent");
+    expect(libelleNiveau(null, 1300)).toBe("Bronze");
     expect(libelleNiveau(1300, 1600)).toBe("Argent à Or");
     expect(libelleNiveau(1450, 1600)).toBe("Or");
     expect(libelleNiveau(null, null)).toBeNull();
+  });
+});
+
+describe("palierDuRating", () => {
+  it("suit les seuils fixes", () => {
+    expect(palierDuRating(1299)).toBe("Bronze");
+    expect(palierDuRating(1300)).toBe("Argent");
+    expect(palierDuRating(1500)).toBe("Or");
+    expect(palierDuRating(2050)).toBe("Champion");
+  });
+});
+
+describe("situationNiveau", () => {
+  it("dit au joueur où il se situe et ce qui manque", () => {
+    expect(situationNiveau(1380, 1450, null)).toBe(
+      "Ton rating de la saison : 1\u202f380 (Argent). Ce tournoi est réservé aux joueurs de niveau Or et plus : il te manque 70 points.",
+    );
+    expect(situationNiveau(null, 1600, null)).toContain("Tu n'as pas encore joué cette saison : ton rating compte pour 1\u202f500 (Or).");
+    expect(situationNiveau(1700, null, 1600)).toContain("réservé aux joueurs de niveau Bronze à Or : ton niveau le dépasse");
   });
 });
 

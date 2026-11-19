@@ -77,7 +77,8 @@ import { pronostiquer } from "@/lib/pronostic-actions";
 import { cashPrizesActifs, formaterEuros, LIBELLE_RANG } from "@/lib/dotations";
 import { publicReserve, typeCommunaute } from "@/lib/ecoles";
 import { classeChamp } from "@/lib/design";
-import { libelleNiveau, ratingDansNiveau } from "@/lib/niveau-tournoi";
+import { libelleNiveau, ratingDansNiveau, situationNiveau } from "@/lib/niveau-tournoi";
+import { typographie } from "@/lib/typographie";
 import { recitSuisse } from "@/lib/suisse";
 import ClassementSuisse from "@/components/tournoi/ClassementSuisse";
 
@@ -398,6 +399,7 @@ const chargerTournoi = cache(async (slug: string) => {
       tournoi.rating_min,
       tournoi.rating_max,
     ),
+    monRatingNiveau: monRatingNiveau ? Number(monRatingNiveau.rating) : null,
   };
 });
 
@@ -499,6 +501,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     eligibleMembres,
     eligibleReserve,
     eligibleNiveau,
+    monRatingNiveau,
   } = donnees;
   const niveau = libelleNiveau(tournoi.rating_min, tournoi.rating_max);
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
@@ -928,7 +931,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             Confirmer la présence de l&apos;équipe
           </BoutonEnvoi>
           <p className="text-[13px] leading-normal text-muted">
-            Check-in ouvert : sans confirmation avant le début, pas de place dans le bracket.
+            Check-in ouvert : sans confirmation avant le début, pas de place dans le tournoi.
           </p>
         </form>
       )}
@@ -1197,7 +1200,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 {checkinOuvert && inscriptionActuelle.statut === "inscrit" && !eligibleMembres && avisCheckinReserve}
                 {checkinOuvert && inscriptionActuelle.statut === "inscrit" && eligibleMembres && !eligibleNiveau && (
                   <Alerte type="erreur">
-                    {`Ce tournoi est réservé au niveau ${niveau ?? ""}, et ton rating de la saison n'y est plus : tu ne peux pas confirmer ta présence.`}
+                    {typographie(
+                      `${situationNiveau(monRatingNiveau, tournoi.rating_min, tournoi.rating_max)} Ton rating a changé depuis ton inscription : tu ne peux pas confirmer ta présence.`,
+                    )}
                   </Alerte>
                 )}
                 {checkinOuvert && inscriptionActuelle.statut === "inscrit" && eligibleMembres && eligibleNiveau && (
@@ -1207,7 +1212,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                       Confirmer ma présence
                     </BoutonEnvoi>
                     <p className="text-[13px] leading-normal text-muted">
-                      Check-in ouvert : sans confirmation avant le début, pas de place dans le bracket.
+                      Check-in ouvert : sans confirmation avant le début, pas de place dans le tournoi.
                     </p>
                   </form>
                 )}
@@ -1254,8 +1259,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 avisReserve
               ) : utilisateur && !eligibleNiveau ? (
                 <div className="flex flex-col gap-3">
-                  <p className="text-[13px] leading-normal text-muted">
-                    {`Tournoi réservé au niveau ${niveau ?? ""} (rating Najarena de la saison, 1500 si tu n'as pas encore joué) : le tien n'y est pas.`}
+                  <p className="text-[13px] leading-normal text-muted tabular-nums">
+                    {typographie(situationNiveau(monRatingNiveau, tournoi.rating_min, tournoi.rating_max))}
                   </p>
                   <BoutonLien href="/lol/tournois" className="w-full">
                     Voir les autres tournois
@@ -1411,7 +1416,13 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
           {toursOrdonnes.length === 0 ? (
             <Panneau reperes className="px-8 py-10">
-              <p className="text-muted">Le bracket n&apos;a pas encore été généré.</p>
+              <p className="text-muted">
+                {estSuisse
+                  ? typographie(
+                      "Les rondes n'ont pas encore été lancées : la ronde 1 oppose la première moitié des joueurs, par rating, à la seconde.",
+                    )
+                  : "Le bracket n'a pas encore été généré."}
+              </p>
             </Panneau>
           ) : (
             <ColonnesBracket
@@ -1490,6 +1501,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                           chances: chances ? chances[i] : null,
                         }))}
                         etat={etat}
+                        libelleSeul={estSuisse ? "Exempté cette ronde" : undefined}
                         niveau={verdict?.niveau}
                         motif={verdict?.motif}
                         monMatch={estParticipantDuMatch}

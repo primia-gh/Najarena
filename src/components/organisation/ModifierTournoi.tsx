@@ -2,7 +2,8 @@ import { modifierTournoi } from "@/lib/organisation-actions";
 import { classeChamp } from "@/lib/design";
 import { REGIONS } from "@/lib/regions";
 import { saisieParisDepuisInstant } from "@/lib/tournois-auto/creneaux";
-import { CHOIX_MAXIMUM, CHOIX_MINIMUM } from "@/lib/niveau-tournoi";
+import { CHOIX_MAXIMUM, CHOIX_MINIMUM, SEUILS_LISIBLES } from "@/lib/niveau-tournoi";
+import { typographie } from "@/lib/typographie";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import Icone from "@/components/design/Icone";
 import { Champ } from "@/components/design/Formulaire";
@@ -179,7 +180,9 @@ export default function ModifierTournoi({
               </Champ>
             </div>
             <p id="modifier-aide-niveau" className="text-xs text-muted">
-              Rating Najarena de la saison (1500 pour qui n&apos;a pas encore joué).
+              {typographie(
+                `Rating Najarena de la saison (1500 pour qui n'a pas encore joué). Seuils : ${SEUILS_LISIBLES}.`,
+              )}
             </p>
           </fieldset>
         )}

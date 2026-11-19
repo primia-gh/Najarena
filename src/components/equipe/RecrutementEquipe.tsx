@@ -11,12 +11,12 @@ import {
 } from "@/lib/recrutement-actions";
 import {
   CHOIX_NIVEAU_RECRUTEMENT,
-  DUREE_CANDIDATURE_JOURS,
+  candidatureExpiree,
   libelleNiveauRecrutement,
   libellePostes,
   MESSAGE_RECRUTEMENT_MAX,
 } from "@/lib/recrutement";
-import { RATING_DEPART } from "@/lib/niveau-tournoi";
+import { palierDuRating, RATING_DEPART } from "@/lib/niveau-tournoi";
 import { arrondir } from "@/lib/classement";
 import { classeChamp } from "@/lib/design";
 import { formaterDate } from "@/lib/tournois";
@@ -43,7 +43,7 @@ function dansLeFutur(iso: string): boolean {
 }
 
 function candidatureEnCours(creeLe: string): boolean {
-  return Date.now() - new Date(creeLe).getTime() < DUREE_CANDIDATURE_JOURS * 24 * 3600 * 1000;
+  return !candidatureExpiree("en_attente", creeLe, Date.now());
 }
 
 export default async function RecrutementEquipe({
@@ -76,13 +76,30 @@ export default async function RecrutementEquipe({
     const [{ data: candidatures }, { data: propositions }] = await Promise.all([
       supabase
         .from("candidatures_equipe")
-        .select("id, poste, message, cree_le, profile:profiles(pseudo, slug)")
+        .select("id, profile_id, poste, message, cree_le, profile:profiles(pseudo, slug)")
         .eq("team_id", equipe.id)
         .eq("statut", "en_attente")
         .order("cree_le", { ascending: true }),
       active ? supabase.rpc("joueurs_pour_recrutement", { p_team: equipe.id }) : Promise.resolve({ data: [] }),
     ]);
     const enCours = (candidatures ?? []).filter((c) => candidatureEnCours(c.cree_le));
+    // Niveau des candidats, même règle que les propositions : un rating
+    // seulement une fois le joueur classé (RD ≤ 150), jamais avant.
+    const idsCandidats = enCours.map((c) => c.profile_id);
+    const { data: ratingsCandidats } =
+      idsCandidats.length > 0
+        ? await supabase
+            .from("ratings")
+            .select("profile_id, rating, est_classe, season:seasons!inner(est_courante)")
+            .in("profile_id", idsCandidats)
+            .eq("game_id", 1)
+            .eq("season.est_courante", true)
+        : { data: [] };
+    const niveauCandidat = new Map(
+      (ratingsCandidats ?? [])
+        .filter((r) => r.est_classe)
+        .map((r) => [r.profile_id, Number(r.rating)] as const),
+    );
 
     return (
       <section id="recrutement" aria-labelledby="titre-recrutement" className="mt-10 flex scroll-mt-28 flex-col gap-6">
@@ -96,6 +113,13 @@ export default async function RecrutementEquipe({
           </p>
         ) : (
           <Panneau className={PANNEAU_FORM}>
+            {annonce && !active && !dansLeFutur(annonce.expire_le) && (
+              <p className="text-sm text-text-2">
+                {typographie(
+                  `Ton annonce a expiré le ${formaterDate(annonce.expire_le)} : publie-la de nouveau pour la remettre en ligne pour 30 jours.`,
+                )}
+              </p>
+            )}
             {active && annonce && (
               <p className="text-sm text-text-2">
                 {typographie(
@@ -191,9 +215,13 @@ export default async function RecrutementEquipe({
                         ) : (
                           <span className="font-semibold">Joueur</span>
                         )}
-                        <span className="text-muted">
+                        <span className="text-muted tabular-nums">
                           {" "}
-                          · {estRole(c.poste) ? LABEL_ROLE[c.poste] : c.poste} · {formaterDate(c.cree_le)}
+                          · {estRole(c.poste) ? LABEL_ROLE[c.poste] : c.poste} ·{" "}
+                          {niveauCandidat.has(c.profile_id)
+                            ? `Rating ${arrondir(niveauCandidat.get(c.profile_id)!)} (${palierDuRating(niveauCandidat.get(c.profile_id)!)})`
+                            : "Pas encore classé"}{" "}
+                          · {formaterDate(c.cree_le)}
                         </span>
                       </p>
                       {c.message && <p className="text-sm text-text-2 [overflow-wrap:anywhere]">{c.message}</p>}
@@ -203,7 +231,12 @@ export default async function RecrutementEquipe({
                         <input type="hidden" name="candidature_id" value={c.id} />
                         <input type="hidden" name="slug" value={equipe.slug} />
                         <input type="hidden" name="reponse" value="accepter" />
-                        <BoutonEnvoi libelleEnCours="Ajout…">Accepter</BoutonEnvoi>
+                        <BoutonEnvoi libelleEnCours="Ajout…" aria-describedby={`effet-accepter-${c.id}`}>
+                          Accepter
+                        </BoutonEnvoi>
+                        <span id={`effet-accepter-${c.id}`} className="sr-only">
+                          ajoute ce joueur à l&apos;équipe
+                        </span>
                       </form>
                       <form action={repondreCandidature}>
                         <input type="hidden" name="candidature_id" value={c.id} />
@@ -270,7 +303,7 @@ export default async function RecrutementEquipe({
   // Visiteur : rien si l'équipe ne recrute pas.
   if (!active || !annonce) return null;
 
-  const [{ data: maCandidature }, { data: monRating }] = await Promise.all([
+  const [{ data: maCandidatureBrute }, { data: monRating }] = await Promise.all([
     visiteurId && !estMembre
       ? supabase
           .from("candidatures_equipe")
@@ -291,6 +324,9 @@ export default async function RecrutementEquipe({
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+  // Plus de 14 jours sans réponse : expirée (le capitaine ne la voit plus,
+  // et la base la clôt à la prochaine candidature) — on propose de repostuler.
+  const maCandidature = maCandidatureBrute && candidatureEnCours(maCandidatureBrute.cree_le) ? maCandidatureBrute : null;
   const ratingVisiteur = monRating ? Number(monRating.rating) : RATING_DEPART;
   const niveauOk = annonce.niveau_min === null || ratingVisiteur >= annonce.niveau_min;
 

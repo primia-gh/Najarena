@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { typographie } from "@/lib/typographie";
+import { nombreRondes } from "@/lib/suisse";
 import { redirect, notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
@@ -228,6 +230,13 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
             {nbConfirmes === 1 ? "" : "s"}. Têtes de série selon le rating à l&apos;inscription (le tirage au sort ne
             départage que les égalités).
           </p>
+          {tournoi.type_bracket === "suisse" && nbConfirmes >= 2 && (
+            <p className="max-w-2xl text-sm text-muted">
+              {typographie(
+                `Format suisse : ${nombreRondes(nbConfirmes)} ronde${nombreRondes(nbConfirmes) > 1 ? "s" : ""} pour ${nbConfirmes} joueurs. La ronde 1 oppose la première moitié, par rating, à la seconde ; chaque ronde suivante se crée d'elle-même quand la précédente est jouée.`,
+              )}
+            </p>
+          )}
           {equipesAgents > 0 && (
             <p className="max-w-2xl text-sm text-muted">
               {nbAgentsConfirmes} agents libres confirmés : ils formeront {equipesAgents} équipe

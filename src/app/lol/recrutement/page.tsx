@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { REGIONS } from "@/lib/regions";
-import { libelleNiveauRecrutement, libellePostes } from "@/lib/recrutement";
+import { candidatureExpiree, DUREE_CANDIDATURE_JOURS, libelleNiveauRecrutement, libellePostes } from "@/lib/recrutement";
 import { LABEL_ROLE } from "@/lib/roles";
 import { estRole } from "@/lib/duo";
 import { formaterDate } from "@/lib/tournois";
@@ -32,6 +32,13 @@ const LIBELLE_STATUT: Record<string, string> = {
   annulee: "Retirée",
   expiree: "Expirée",
 };
+
+// Hors du composant : la date courante ne se lit pas pendant le rendu.
+// Une candidature en attente depuis 14 jours s'affiche « Expirée », comme
+// sur la page d'équipe (le capitaine ne la voit plus).
+function statutAffiche(statut: string, creeLe: string): string {
+  return candidatureExpiree(statut, creeLe, Date.now()) ? "expiree" : statut;
+}
 
 interface PageProps {
   searchParams: Promise<{ region?: string }>;
@@ -63,7 +70,14 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
       : Promise.resolve({ data: [] }),
   ]);
   const regionCompte = compte?.verifie_le ? compte.region : null;
-  const region = REGIONS.some((r) => r.code === regionDemandee) ? (regionDemandee as string) : regionCompte;
+  // « Tous les serveurs » envoie region= vide : choix explicite, à respecter
+  // même pour un joueur dont le compte Riot a une région. Sans paramètre, la
+  // région de son compte.
+  const region = REGIONS.some((r) => r.code === regionDemandee)
+    ? (regionDemandee as string)
+    : regionDemandee === ""
+      ? null
+      : regionCompte;
   const monPoste = compte?.role_prefere && estRole(compte.role_prefere) ? compte.role_prefere : null;
 
   const { data: annonces } = await supabase.rpc("annonces_recrutement_publiques", { p_region: region ?? undefined });
@@ -112,11 +126,23 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
           </button>
         </form>
 
+        {!moi && (
+          <p className="max-w-3xl text-sm text-muted">
+            <Link href="/connexion?suite=%2Flol%2Frecrutement" className="text-text underline underline-offset-3 hover:text-accent">
+              Connecte-toi
+            </Link>{" "}
+            pour postuler et suivre tes candidatures.
+          </p>
+        )}
+
         {(candidatures ?? []).length > 0 && (
           <section aria-labelledby="titre-mes-candidatures" className="flex max-w-3xl flex-col gap-3">
             <LibelleSection as="h2" id="titre-mes-candidatures" className="border-b border-line-strong pb-4">
               Mes candidatures
             </LibelleSection>
+            <p className="text-sm text-muted">
+              {typographie(`Une candidature sans réponse expire après ${DUREE_CANDIDATURE_JOURS} jours.`)}
+            </p>
             <ul className="flex flex-col">
               {(candidatures ?? []).map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-3 text-sm">
@@ -134,7 +160,7 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
                     </span>
                   </span>
                   <span className={c.statut === "acceptee" ? "font-semibold text-text" : "text-muted"}>
-                    {LIBELLE_STATUT[c.statut] ?? c.statut}
+                    {LIBELLE_STATUT[statutAffiche(c.statut, c.cree_le)] ?? c.statut}
                   </span>
                 </li>
               ))}
@@ -185,7 +211,12 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
                           {niveau ?? "Tous niveaux"} · {a.region} · {a.effectif}/5 joueurs
                         </p>
                         {a.message && <p className="text-sm text-text-2 [overflow-wrap:anywhere]">{a.message}</p>}
-                        <p className="mt-auto text-xs text-faint tabular-nums">Mise à jour le {formaterDate(a.maj_le)}</p>
+                        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-2">
+                          <BoutonLien href={`/equipe/${a.slug}#recrutement`} variante="contour">
+                            Voir et postuler<span className="sr-only"> : {a.nom}</span>
+                          </BoutonLien>
+                          <p className="text-xs text-faint tabular-nums">Mise à jour le {formaterDate(a.maj_le)}</p>
+                        </div>
                       </Panneau>
                     </li>
                   );

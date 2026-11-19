@@ -17,10 +17,16 @@ export const SEUILS_PALIERS: { nom: string; min: number }[] = [
   { nom: "Champion", min: 1900 },
 ];
 
+/** Seuils lisibles pour l'aide des formulaires : « Argent 1 300 · Or 1 450 · … ». */
+export const SEUILS_LISIBLES = SEUILS_PALIERS.slice(1)
+  .map((p) => `${p.nom} ${p.min.toLocaleString("fr-FR")}`)
+  .join(" · ");
+
 /** Choix du palier minimum : « Argent et plus » … « Champion ». */
 export const CHOIX_MINIMUM = SEUILS_PALIERS.slice(1).map((p) => ({ valeur: p.min, libelle: `${p.nom} et plus` }));
 
-/** Choix du palier maximum : « jusqu'à Bronze » … « jusqu'à Diamant » (borne = seuil du palier suivant). */
+/** Choix du palier maximum : « jusqu'à Bronze » … « jusqu'à Diamant » (borne = seuil du palier suivant).
+ *  Dans une liste intitulée « Palier maximum », « jusqu'à » se lit bien. */
 export const CHOIX_MAXIMUM = SEUILS_PALIERS.slice(0, -1).map((p, i) => ({
   valeur: SEUILS_PALIERS[i + 1].min,
   libelle: `jusqu'à ${p.nom}`,
@@ -35,14 +41,50 @@ function palierSousLeSeuil(max: number): string | null {
   return i > 0 ? SEUILS_PALIERS[i - 1].nom : null;
 }
 
-/** « Or et plus », « jusqu'à Argent », « Argent à Or », « Or » ; nul sans niveau. */
+/** « Or et plus », « Bronze à Argent », « Argent à Or », « Or » ; nul sans niveau. */
 export function libelleNiveau(min: number | null, max: number | null): string | null {
   const bas = min !== null ? palierDuSeuil(min) : null;
   const haut = max !== null ? palierSousLeSeuil(max) : null;
   if (bas && haut) return bas === haut ? bas : `${bas} à ${haut}`;
   if (bas) return `${bas} et plus`;
-  if (haut) return `jusqu'à ${haut}`;
+  // Sans minimum, la fourchette part du premier palier : « Bronze à Argent »
+  // se lit mieux que « jusqu'à Argent » dans une phrase.
+  if (haut) return haut === SEUILS_PALIERS[0].nom ? haut : `${SEUILS_PALIERS[0].nom} à ${haut}`;
   return null;
+}
+
+/** Palier d'un rating (seuils fixes, CLAUDE.md §4). */
+export function palierDuRating(rating: number): string {
+  let nom = SEUILS_PALIERS[0].nom;
+  for (const p of SEUILS_PALIERS) if (rating >= p.min) nom = p.nom;
+  return nom;
+}
+
+/** « 1 380 » : rating arrondi, espace fine insécable des milliers. */
+function formaterRatingNiveau(rating: number): string {
+  return Math.round(rating).toLocaleString("fr-FR");
+}
+
+/**
+ * Pourquoi un joueur n'entre pas dans un tournoi par niveau, avec son
+ * rating : « Ton rating de la saison : 1 380 (Argent). Ce tournoi est
+ * réservé aux joueurs de niveau Or et plus : il te manque 70 points. »
+ */
+export function situationNiveau(rating: number | null, min: number | null, max: number | null): string {
+  const niveau = libelleNiveau(min, max);
+  const r = rating ?? RATING_DEPART;
+  const tonRating =
+    rating === null
+      ? `Tu n'as pas encore joué cette saison : ton rating compte pour ${formaterRatingNiveau(r)} (${palierDuRating(r)}).`
+      : `Ton rating de la saison : ${formaterRatingNiveau(r)} (${palierDuRating(r)}).`;
+  const reserve = niveau ? `Ce tournoi est réservé aux joueurs de niveau ${niveau}` : "Ce tournoi est réservé à un niveau";
+  if (min !== null && r < min) {
+    return `${tonRating} ${reserve} : il te manque ${formaterRatingNiveau(min - r)} points.`;
+  }
+  if (max !== null && r >= max) {
+    return `${tonRating} ${reserve} : ton niveau le dépasse, c'est un tournoi pour des joueurs moins avancés.`;
+  }
+  return `${tonRating} ${reserve}.`;
 }
 
 /** Le rating (saison en cours, 1500 sans partie) entre-t-il dans la fourchette ? */

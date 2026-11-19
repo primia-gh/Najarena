@@ -12,6 +12,15 @@ export const DUREE_CANDIDATURE_JOURS = 14;
 export const CANDIDATURES_PAR_JOUR = 10;
 export const MESSAGE_RECRUTEMENT_MAX = 300;
 
+/**
+ * Une candidature en attente depuis plus de 14 jours est expirée : le
+ * capitaine ne la voit plus et la base refuse d'y répondre. La tâche qui la
+ * marque « expiree » peut passer après : même règle à l'affichage.
+ */
+export function candidatureExpiree(statut: string, creeLe: string, maintenant: number): boolean {
+  return statut === "en_attente" && maintenant - new Date(creeLe).getTime() >= DUREE_CANDIDATURE_JOURS * 24 * 3600 * 1000;
+}
+
 /** Choix du niveau minimum d'une annonce (seuils de paliers). */
 export const CHOIX_NIVEAU_RECRUTEMENT = CHOIX_MINIMUM;
 

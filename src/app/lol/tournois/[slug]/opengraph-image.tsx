@@ -49,7 +49,9 @@ async function chargerAffiche(slug: string): Promise<AfficheTournoi | null> {
   // Bracket lancé : chaque match avec ses deux places et son vainqueur. En
   // 5v5, le capitaine représente son équipe : on affiche l'équipe.
   let bracket: MatchImage[] = [];
-  if (tournoi.statut === "en_cours" || tournoi.statut === "termine") {
+  // Pas de mini-bracket pour le format suisse : ses rondes ne forment pas
+  // un arbre (construireBracketImage suppose l'élimination directe).
+  if ((tournoi.statut === "en_cours" || tournoi.statut === "termine") && tournoi.type_bracket !== "suisse") {
     const [{ data: matchs }, { data: equipes }] = await Promise.all([
       supabase
         .from("matches")
