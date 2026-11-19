@@ -23,6 +23,15 @@ declare global {
 export default function Captcha({ cleSite }: { cleSite: string }) {
   const conteneur = useRef<HTMLDivElement>(null);
   const [scriptPret, setScriptPret] = useState(false);
+  // Script bloqué (bloqueur de contenu, réseau) : le dire plutôt que
+  // laisser un vide, puis seulement l'erreur du serveur à l'envoi.
+  const [enRetard, setEnRetard] = useState(false);
+
+  useEffect(() => {
+    if (scriptPret) return;
+    const minuteur = window.setTimeout(() => setEnRetard(true), 6000);
+    return () => window.clearTimeout(minuteur);
+  }, [scriptPret]);
 
   useEffect(() => {
     if (!scriptPret || !conteneur.current || !window.turnstile) return;
@@ -42,6 +51,12 @@ export default function Captcha({ cleSite }: { cleSite: string }) {
         onReady={() => setScriptPret(true)}
       />
       <div ref={conteneur} className="min-h-[65px]" />
+      {enRetard && !scriptPret && (
+        <p role="status" className="text-sm text-text-2">
+          La vérification anti-robot ne s&apos;affiche pas&nbsp;? Désactive ton bloqueur de contenu pour ce site, puis
+          recharge la page.
+        </p>
+      )}
       <p className="text-xs text-muted">
         Vérification anti-robot par Cloudflare Turnstile, sans compte ni publicité.
       </p>

@@ -147,8 +147,10 @@ l'inscription, la connexion et « mot de passe oublié » échouent.
 CGV `/cgv` relues par un juriste ; médiateur de la consommation choisi et
 renseigné dans `src/lib/cgv.ts` (`MEDIATEUR`) ; prix créés dans Stripe
 **toutes taxes comprises** (un prix « hors taxes » n'est pas affiché) ;
-dans Stripe, portail client avec résiliation et historique des factures
-activés (Settings → Billing → Customer portal) ; produits renommés « Plus »
+dans Stripe, portail client avec « Annuler l'abonnement » et historique des
+factures activés (Settings → Billing → Customer portal), et e-mails de reçu
+envoyés à chaque paiement (Settings → Customer emails) — les CGV les
+promettent ; produits renommés « Plus »
 et « Pro » (anciennement « Vérifié » et « Elite »).
 
 **Supabase Auth (audit F1)** : longueur minimale des mots de passe à 8,

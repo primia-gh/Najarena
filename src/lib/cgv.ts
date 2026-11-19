@@ -13,6 +13,18 @@ export function paiementActif(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY);
 }
 
+const VARIABLE_PRIX: Record<string, string> = {
+  verifie: "STRIPE_PRICE_VERIFIE",
+  elite: "STRIPE_PRICE_ELITE",
+  organisateur: "STRIPE_PRICE_ORGANISATEUR",
+};
+
+/** Cette offre peut-elle être achetée ? (clé Stripe et prix de l'offre réglés) */
+export function offreEnVente(offre: string): boolean {
+  const variable = VARIABLE_PRIX[offre];
+  return paiementActif() && Boolean(variable && process.env[variable]);
+}
+
 /**
  * Prix lisible d'un montant Stripe en centimes d'euro : « 3,99 € ».
  * Espaces insécables, comme dans le reste du site.

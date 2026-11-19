@@ -15,14 +15,15 @@ export const LABEL_OFFRE: Record<Exclude<Offre, "gratuit">, string> = {
 };
 
 export const COULEUR_OFFRE: Record<Exclude<Offre, "gratuit">, string> = {
-  // Plus en lavande, Pro en or, Organisateur en bleu-vert — trois teintes
-  // distinctes, lisibles sur fond sombre (≥ 4.5:1). Audit E10 (19/11/2026) :
-  // l'offre payante n'est plus en vert ni nommée « Vérifié », réservés à la
-  // preuve (verdict lu chez Riot, compte Riot vérifié) — un badge acheté ne
-  // doit jamais pouvoir passer pour une vérification.
-  verifie: "#b49cf0",
-  elite: "#d2a257",
-  organisateur: "#4fb8ae",
+  // Audit E10 (19/11/2026) : un badge acheté ne doit jamais pouvoir passer
+  // pour une preuve ni pour un niveau. Ni le vert (réservé au verdict lu
+  // chez Riot et au compte vérifié), ni une couleur de palier (l'or de Pro
+  // était celui du palier Or, le bleu-vert d'Organisateur celui de
+  // Platine) : un seul gris clair pour les trois offres, que distingue leur
+  // seul nom.
+  verifie: "var(--color-text-2)",
+  elite: "var(--color-text-2)",
+  organisateur: "var(--color-text-2)",
 };
 
 export const ORDRE_OFFRE: Record<Offre, number> = {

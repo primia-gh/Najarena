@@ -265,6 +265,13 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                   </Link>
                 )}
               </div>
+              {annonces.length > 0 && (
+                // Mise en avant payante annoncée, jamais cachée (revue du 19/11/2026).
+                <p className="-mt-2 text-xs text-muted">
+                  Ordre&nbsp;: abonnés Plus, Pro et Organisateur d&apos;abord, puis les joueurs classés du meilleur
+                  rating au plus modeste.
+                </p>
+              )}
               {annonces.length === 0 ? (
                 <Panneau reperes className="flex flex-col items-start gap-3 p-8">
                   <p className="font-titre text-3xl font-black uppercase">Personne pour l&apos;instant.</p>

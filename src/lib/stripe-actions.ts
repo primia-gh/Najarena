@@ -28,7 +28,7 @@ export async function demarrerAbonnement(formData: FormData) {
   const offre = String(formData.get("offre") ?? "") as Offre;
 
   if (offre === "gratuit" || !(offre in PRIX_PAR_OFFRE)) {
-    redirect(`/tarifs?erreur=${encodeURIComponent("Offre invalide.")}`);
+    redirect(`/tarifs?erreur=${encodeURIComponent("Offre invalide.")}#retour`);
   }
 
   // CGV acceptées et accès immédiat demandé (audit E11) : sans cette case,
@@ -44,14 +44,14 @@ export async function demarrerAbonnement(formData: FormData) {
 
   if (!stripe) {
     redirect(
-      `/tarifs?erreur=${encodeURIComponent("Le paiement n'est pas encore activé — reviens bientôt.")}`,
+      `/tarifs?erreur=${encodeURIComponent("Le paiement n'est pas encore activé — reviens bientôt.")}#retour`,
     );
   }
 
   const prixId = PRIX_PAR_OFFRE[offre as Exclude<Offre, "gratuit">];
   if (!prixId) {
     redirect(
-      `/tarifs?erreur=${encodeURIComponent("Ce palier n'est pas encore configuré côté paiement.")}`,
+      `/tarifs?erreur=${encodeURIComponent("Ce palier n'est pas encore configuré côté paiement.")}#retour`,
     );
   }
 
@@ -89,7 +89,7 @@ export async function demarrerAbonnement(formData: FormData) {
   });
 
   if (!session.url) {
-    redirect(`/tarifs?erreur=${encodeURIComponent("Impossible de démarrer le paiement pour l'instant.")}`);
+    redirect(`/tarifs?erreur=${encodeURIComponent("Impossible de démarrer le paiement pour l'instant.")}#retour`);
   }
 
   redirect(session.url);

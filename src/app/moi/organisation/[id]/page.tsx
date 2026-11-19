@@ -496,7 +496,9 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
           </div>
         )}
 
-        {modifiable && <ModifierTournoi tournoi={tournoi} organisateurPremium={organisateurPremium} />}
+        {modifiable && (
+          <ModifierTournoi tournoi={tournoi} organisateurPremium={organisateurPremium} ouvert={Boolean(erreur)} />
+        )}
 
         <Apparition delai={0.08} className="flex flex-col gap-14">
           {bracketGenere ? (

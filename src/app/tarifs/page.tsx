@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { demarrerAbonnement } from "@/lib/stripe-actions";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
 import { prixOffres } from "@/lib/prix-stripe";
-import { DELAI_RETRACTATION_JOURS } from "@/lib/cgv";
+import { DELAI_RETRACTATION_JOURS, offreEnVente } from "@/lib/cgv";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -111,7 +111,7 @@ const PALIERS: Palier[] = [
     periode: "/mois",
     accroche: "Une identité qui se remarque.",
     inclus: [
-      "Badge Plus sur le profil et dans la recherche de coéquipiers",
+      "Badge Plus sur le profil, mise en avant dans la recherche de coéquipiers",
       "Qui a consulté mon profil",
       "Personnalisation du profil",
       "Inscription prioritaire aux tournois",
@@ -130,7 +130,7 @@ const PALIERS: Palier[] = [
       "Analyse de ta progression rédigée par l'IA, à partir de tes chiffres vérifiés",
       "Classées : niveau, hygiène de jeu, carte des morts, sang-froid",
       "Bilan de la semaine sur Discord",
-      "Export CV premium (PDF, lien partageable)",
+      "Export du CV imprimable (PDF)",
       "Revue de match écrite",
       "Alertes Discord avancées",
       "Accès aux formats premium",
@@ -166,7 +166,7 @@ const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
   { fonctionnalite: "Tournois 1v1 quotidiens", depuis: "gratuit" },
   { fonctionnalite: "Recherche de coéquipier", depuis: "gratuit" },
   { fonctionnalite: "Bilan express : forces et axes de travail, tournois et classées", depuis: "gratuit" },
-  { fonctionnalite: "Badge Plus sur le profil et dans la recherche de coéquipiers", depuis: "verifie" },
+  { fonctionnalite: "Badge Plus sur le profil, mise en avant dans la recherche de coéquipiers", depuis: "verifie" },
   { fonctionnalite: "Qui a consulté mon profil", depuis: "verifie" },
   { fonctionnalite: "Personnalisation du profil", depuis: "verifie" },
   { fonctionnalite: "Inscription prioritaire aux tournois", depuis: "verifie" },
@@ -174,7 +174,7 @@ const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
   { fonctionnalite: "Analyse de ta progression rédigée par l'IA", depuis: "elite" },
   { fonctionnalite: "Classées : niveau, hygiène de jeu, carte des morts, sang-froid", depuis: "elite" },
   { fonctionnalite: "Bilan de la semaine sur Discord", depuis: "elite" },
-  { fonctionnalite: "Export CV premium (PDF, lien partageable)", depuis: "elite" },
+  { fonctionnalite: "Export du CV imprimable (PDF)", depuis: "elite" },
   { fonctionnalite: "Revue de match écrite", depuis: "elite" },
   { fonctionnalite: "Alertes Discord avancées", depuis: "elite" },
   { fonctionnalite: "Accès aux formats premium", depuis: "elite" },
@@ -260,13 +260,14 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                     aria-labelledby={`palier-${offre}`}
                     className="panneau relative flex flex-col overflow-hidden p-6 sm:p-7"
                   >
-                    {misEnAvant && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-accent" />}
+                    {/* Le vert reste au seul bouton : il signale la preuve, pas la vente (audit E10). */}
+                    {misEnAvant && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-line-strong" />}
                     <div className="flex min-h-6 items-center justify-between gap-3">
                       <h3 id={`palier-${offre}`} className="font-texte text-libelle font-semibold text-text uppercase">
                         {p.nom}
                       </h3>
                       {misEnAvant && (
-                        <span className="font-texte text-mini font-medium text-accent uppercase">Recommandé</span>
+                        <span className="font-texte text-mini font-medium text-text-2 uppercase">Recommandé</span>
                       )}
                     </div>
                     <p className="mt-5 flex items-baseline gap-2">
@@ -298,16 +299,21 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                       <BoutonLien href={p.cta.href} variante={misEnAvant ? "principal" : "contour"} className="mt-8 w-full">
                         {p.cta.libelle}
                       </BoutonLien>
+                    ) : !offreEnVente(offre) ? (
+                      // Paiement pas encore branché : rien à cocher ni à acheter.
+                      <p className="mt-8 rounded-bouton border border-line-strong px-4 py-3 text-center text-sm text-muted">
+                        Bientôt en vente
+                      </p>
                     ) : (
                       <form action={demarrerAbonnement} className="mt-8 flex flex-col gap-4">
                         <input type="hidden" name="offre" value={p.cle} />
                         {/* CGV et accès immédiat (audit E11) : le serveur refuse le paiement sans cette case. */}
-                        <label className="flex cursor-pointer items-start gap-3 text-xs text-text-2">
+                        <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-text-2">
                           <input
                             name="cgv"
                             type="checkbox"
                             required
-                            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-accent"
+                            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                           />
                           <span>
                             J&apos;accepte les{" "}

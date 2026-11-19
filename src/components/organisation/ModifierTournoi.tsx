@@ -18,6 +18,7 @@ const CAPACITE_ETENDUE = 128;
 export default function ModifierTournoi({
   tournoi,
   organisateurPremium,
+  ouvert = false,
 }: {
   tournoi: {
     id: string;
@@ -30,6 +31,8 @@ export default function ModifierTournoi({
     checkin_ouvre_le: string;
   };
   organisateurPremium: boolean;
+  /** Déplié d'office après une erreur, pour corriger sans chercher le bloc. */
+  ouvert?: boolean;
 }) {
   const unite = tournoi.format === "5v5" ? "équipes" : "places";
   // Une valeur obtenue avec l'offre Organisateur reste proposée, même sans elle.
@@ -37,10 +40,11 @@ export default function ModifierTournoi({
   const bestOfs = organisateurPremium ? [1, 3, 5] : Array.from(new Set([1, tournoi.best_of]));
 
   return (
-    <details id="modifier" className="group max-w-2xl scroll-mt-28">
+    <details id="modifier" open={ouvert} className="group max-w-2xl scroll-mt-28">
       <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm text-muted hover:text-text [&::-webkit-details-marker]:hidden">
         <Icone nom="crayon" taille={14} />
         Modifier le tournoi
+        <span className="text-faint">· tant que personne n&apos;est inscrit</span>
         <span aria-hidden="true" className="transition-transform duration-200 group-open:rotate-90">
           ›
         </span>
