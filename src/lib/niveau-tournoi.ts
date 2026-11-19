@@ -2,9 +2,9 @@
 // réservé à une fourchette de paliers : bornes = seuils de paliers (CLAUDE.md
 // §4, seuils fixes, mêmes valeurs que la table tiers), rating_min inclus,
 // rating_max exclu. Plancher lu sur le rating de la saison ; limite haute
-// sur le meilleur rating atteint dans la saison (décision du porteur du
-// 19/11/2026 : redescendre exprès ne rouvre pas un tournoi de niveau
-// inférieur). Les règles sont appliquées par la base
+// sur le meilleur rating atteint dans cette saison ou la précédente
+// (décisions du porteur du 19/11/2026 : redescendre exprès, même en fin de
+// saison, ne rouvre pas un tournoi de niveau inférieur). Les règles sont appliquées par la base
 // (controler_niveau_tournoi, controler_inscription_niveau,
 // rating_niveau_meilleur) ; ici, les libellés et les choix des formulaires.
 
@@ -22,7 +22,7 @@ export const SEUILS_PALIERS: { nom: string; min: number }[] = [
 
 /** Pour l'aide des formulaires : pourquoi la limite haute lit le meilleur rating. */
 export const AIDE_LIMITE_HAUTE =
-  "Limite haute : on regarde le meilleur rating atteint dans la saison, pas seulement le rating actuel.";
+  "Limite haute : on regarde le meilleur rating atteint dans cette saison ou la précédente, pas seulement le rating actuel.";
 
 /** Seuils lisibles pour l'aide des formulaires : « Argent 1 300 · Or 1 450 · … ». */
 export const SEUILS_LISIBLES = SEUILS_PALIERS.slice(1)
@@ -76,7 +76,7 @@ function formaterRatingNiveau(rating: number): string {
  * Pourquoi un joueur n'entre pas dans un tournoi par niveau, avec son
  * rating : « Ton rating de la saison : 1 380 (Argent). Ce tournoi est
  * réservé aux joueurs de niveau Or et plus : il te manque 70 points. »
- * `meilleur` : meilleur rating atteint dans la saison (limite haute).
+ * `meilleur` : meilleur rating atteint dans cette saison ou la précédente (limite haute).
  */
 export function situationNiveau(
   rating: number | null,
@@ -99,7 +99,7 @@ export function situationNiveau(
     return `${tonRating} ${reserve} : ton niveau le dépasse, c'est un tournoi pour des joueurs moins avancés.`;
   }
   if (max !== null && m >= max) {
-    return `${tonRating} ${reserve}. Ton rating actuel convient, mais pour la limite haute, c'est ton meilleur rating de la saison qui compte : ${formaterRatingNiveau(m)} (${palierDuRating(m)}), au-dessus. Il ne vaut que pour la saison en cours.`;
+    return `${tonRating} ${reserve}. Ton rating actuel convient, mais pour la limite haute, c'est ton meilleur rating de cette saison ou de la précédente qui compte : ${formaterRatingNiveau(m)} (${palierDuRating(m)}), au-dessus.`;
   }
   return `${tonRating} ${reserve}.`;
 }
@@ -143,16 +143,16 @@ export const MESSAGES_NIVEAU: Record<string, string> = {
   NIVEAU_INVALIDE: "Niveau incohérent : le palier minimum doit être en dessous du palier maximum.",
   NIVEAU_1V1_SEULEMENT: "Un niveau ne se choisit que pour un tournoi 1v1.",
   NIVEAU_HORS_TOURNOI:
-    "Ton niveau n'est pas celui de ce tournoi : on regarde ton rating de la saison (1500 si tu n'as pas encore joué) et, pour la limite haute, ton meilleur rating de la saison.",
+    "Ton niveau n'est pas celui de ce tournoi : on regarde ton rating de la saison (1500 si tu n'as pas encore joué) et, pour la limite haute, ton meilleur rating de cette saison ou de la précédente.",
 };
 
 /** Check-in refusé (site et bouton Discord) : le niveau a changé depuis l'inscription. */
 export const MESSAGE_NIVEAU_CHECKIN =
-  "Ton niveau n'est plus celui de ce tournoi (rating de la saison et, pour la limite haute, meilleur rating de la saison) : tu ne peux pas confirmer ta présence.";
+  "Ton niveau n'est plus celui de ce tournoi (rating de la saison et, pour la limite haute, meilleur rating de cette saison ou de la précédente) : tu ne peux pas confirmer ta présence.";
 
 /** Confirmation par l'organisateur refusée pour la même raison. */
 export const MESSAGE_NIVEAU_ORGANISATEUR =
-  "Le niveau de ce joueur n'est plus celui du tournoi (rating de la saison et, pour la limite haute, meilleur rating de la saison) : sa présence ne peut pas être confirmée.";
+  "Le niveau de ce joueur n'est plus celui du tournoi (rating de la saison et, pour la limite haute, meilleur rating de cette saison ou de la précédente) : sa présence ne peut pas être confirmée.";
 
 /** Message d'un refus de la base lié au niveau, sinon nul. */
 export function messageNiveau(erreur: string | undefined | null): string | null {

@@ -160,3 +160,26 @@ select essai('Le plancher reste lu sur le rating actuel : Cid (1350, meilleur 15
 select refus('… mais Cid n''entre pas en « Or à Platine » grâce à son meilleur rating (1500) : le plancher lit son rating actuel (1350)',
   $q$insert into registrations (tournament_id, profile_id, statut) values ('9b0b0000-0000-0000-0000-0000000000a1', '9b0b0000-0000-0000-0000-000000000004', 'inscrit')$q$,
   'NIVEAU_HORS_TOURNOI');
+
+-- ---------- Limite haute : la saison précédente compte aussi (décision du 19/11/2026) ----------
+-- Fay est à 1380 cette saison (meilleur 1400) mais avait atteint 1500 la
+-- saison précédente avant de perdre exprès : « Bronze à Argent » lui reste fermé.
+insert into seasons (game_id, numero, nom, debut_le, fin_le, est_courante)
+values (1, 0, 'Saison 0', '2026-06-01T00:00:00Z', '2026-09-17T00:00:00Z', false)
+on conflict do nothing;
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('9b0b0000-0000-0000-0000-000000000006', 'p99k6@test', '{"pseudo": "Niveau99k6", "slug": "niveau99k6"}'::jsonb);
+insert into ratings (profile_id, game_id, season_id, rating, rd, volatilite, matchs_joues) values
+  ('9b0b0000-0000-0000-0000-000000000006', 1, (select id from seasons where est_courante), 1380, 200, 0.06, 4);
+insert into rating_events (profile_id, game_id, season_id, motif, rating_avant, rd_avant, rating_apres, rd_apres) values
+  ('9b0b0000-0000-0000-0000-000000000006', 1, (select id from seasons where game_id = 1 and numero = 0), 'tournoi', 1450, 200, 1500, 190),
+  ('9b0b0000-0000-0000-0000-000000000006', 1, (select id from seasons where game_id = 1 and numero = 0), 'tournoi', 1500, 190, 1300, 180),
+  ('9b0b0000-0000-0000-0000-000000000006', 1, (select id from seasons where est_courante), 'tournoi', 1330, 250, 1400, 220),
+  ('9b0b0000-0000-0000-0000-000000000006', 1, (select id from seasons where est_courante), 'tournoi', 1400, 220, 1380, 200);
+select verifie('Meilleur rating de Fay : 1500, atteint la saison précédente',
+  public.rating_niveau_meilleur('9b0b0000-0000-0000-0000-000000000006') = 1500);
+select refus('Fay n''entre pas en « Bronze à Argent »',
+  $q$insert into registrations (tournament_id, profile_id, statut) values ('9b0b0000-0000-0000-0000-0000000000a2', '9b0b0000-0000-0000-0000-000000000006', 'inscrit')$q$,
+  'NIVEAU_HORS_TOURNOI');
+select verifie('Une saison plus ancienne (archivée, numéro 90 ailleurs dans les tests) ne compte pas : seule la précédente',
+  public.rating_niveau_meilleur('9b0b0000-0000-0000-0000-000000000005') = 1420);

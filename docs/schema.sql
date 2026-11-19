@@ -12413,9 +12413,12 @@ as $$
 $$;
 revoke all on function public.rating_niveau(uuid) from public, anon, authenticated;
 
--- Meilleur rating atteint dans la saison en cours (rating actuel compris),
--- pour la limite haute d'un tournoi par niveau : le plus haut des ratings
--- obtenus à la fin de ses tournois de la saison. Un joueur qui n'a jamais
+-- Meilleur rating atteint dans la saison en cours ou la précédente (rating
+-- actuel compris), pour la limite haute d'un tournoi par niveau : le plus
+-- haut des ratings obtenus à la fin de ses tournois. La saison précédente
+-- compte aussi (décision du porteur du 19/11/2026) : perdre exprès en fin
+-- de saison pour repartir plus bas ne rouvre pas un tournoi de niveau
+-- inférieur. Un joueur qui n'a jamais
 -- joué compte pour 1500, comme pour le plancher ; mais le point de départ
 -- (1500) d'un joueur qui a joué n'est pas un rating « atteint » : sinon un
 -- vrai débutant, même redescendu à 1300, n'entrerait dans aucun tournoi
@@ -12430,8 +12433,17 @@ as $$
     public.rating_niveau(p_profile_id),
     coalesce((
       select max(e.rating_apres) from public.rating_events e
-      join public.seasons s on s.id = e.season_id and s.est_courante
       where e.profile_id = p_profile_id and e.game_id = 1
+        and e.season_id in (
+          select s.id from public.seasons s where s.game_id = 1 and s.est_courante
+          union all
+          select p.id from public.seasons p
+          where p.game_id = 1 and p.numero = (
+            select max(x.numero) from public.seasons x
+            join public.seasons c on c.game_id = 1 and c.est_courante
+            where x.game_id = 1 and x.numero < c.numero
+          )
+        )
     ), 0)
   );
 $$;

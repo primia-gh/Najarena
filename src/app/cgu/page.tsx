@@ -161,8 +161,9 @@ export default function CguPage() {
             le rating Najarena de la saison du joueur (1500 s&apos;il n&apos;a pas
             encore joué) est vérifié à l&apos;inscription, puis de nouveau au
             check-in. Pour la limite haute, c&apos;est le meilleur rating atteint
-            dans la saison qui compte&nbsp;: redescendre en perdant ne rouvre pas
-            un tournoi de niveau inférieur. Un joueur sorti de la fourchette
+            dans la saison en cours ou la précédente qui compte&nbsp;: redescendre
+            en perdant, même en fin de saison, ne rouvre pas un tournoi de
+            niveau inférieur. Un joueur sorti de la fourchette
             entre-temps ne confirme plus sa place.
           </p>
           <p className="mt-2 text-muted">
