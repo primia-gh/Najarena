@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { CRENEAU_A_LA_DEMANDE, estOfficiel } from "@/lib/a-la-demande";
+import { libelleNiveau } from "@/lib/niveau-tournoi";
 
 // Données d'affichage ajoutées par la refonte « Venin » de la page tournoi
 // (design-system/najarena/pages/tournoi.md) : type de bracket, niveau
@@ -22,15 +23,8 @@ export async function chargerComplementsTournoi(tournoiId: string) {
 
   const min = data?.rating_min ?? null;
   const max = data?.rating_max ?? null;
-  const niveau = data?.reserve_non_classes
-    ? "Joueurs non classés"
-    : min !== null && max !== null
-      ? `${min} – ${max}`
-      : min !== null
-        ? `${min} et plus`
-        : max !== null
-          ? `Jusqu'à ${max}`
-          : "Ouvert à tous";
+  // Tournoi par niveau (19/11/2026) : nommé par ses paliers.
+  const niveau = data?.reserve_non_classes ? "Joueurs non classés" : (libelleNiveau(min, max) ?? "Ouvert à tous");
 
   return {
     typeBracket: data ? (LABEL_BRACKET[data.type_bracket] ?? data.type_bracket) : null,
