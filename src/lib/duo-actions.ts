@@ -14,8 +14,10 @@ import { DUREE_ANNONCE_DUO_JOURS, DUREE_DEMANDE_DUO_JOURS, estCreneau, estObject
 
 const PAGE = "/lol/duo";
 
-function retour(type: "message" | "erreur", texte: string, ancre = ""): never {
-  redirect(`${PAGE}?${type}=${encodeURIComponent(texte)}${ancre}`);
+// Toujours vers le message, placé en haut de la page (#retour) : sinon,
+// sur mobile, une erreur s'affichait hors de l'écran.
+function retour(type: "message" | "erreur", texte: string): never {
+  redirect(`${PAGE}?${type}=${encodeURIComponent(texte)}#retour`);
 }
 
 async function session() {
@@ -40,8 +42,8 @@ export async function publierAnnonceDuo(formData: FormData) {
     p_objectif: estObjectif(formData.get("objectif")) ? String(formData.get("objectif")) : "",
     p_message: String(formData.get("message") ?? "").slice(0, 500),
   });
-  if (error) retour("erreur", messageRefusDuo(error.message, "Impossible de publier ton annonce pour l'instant."), "#mon-annonce");
-  retour("message", `Annonce publiée pour ${DUREE_ANNONCE_DUO_JOURS} jours. Voici les joueurs qui te correspondent.`, "#pour-toi");
+  if (error) retour("erreur", messageRefusDuo(error.message, "Impossible de publier ton annonce pour l'instant."));
+  retour("message", `Annonce publiée pour ${DUREE_ANNONCE_DUO_JOURS} jours. Les joueurs qui te correspondent sont juste en dessous.`);
 }
 
 export async function retirerAnnonceDuo() {
@@ -55,15 +57,15 @@ export async function demanderDuo(formData: FormData) {
   const destinataireId = String(formData.get("destinataire_id") ?? "");
   const { supabase, utilisateur } = await session();
   const { error } = await supabase.rpc("demander_duo", { p_destinataire: destinataireId });
-  if (error) retour("erreur", messageRefusDuo(error.message, "Impossible d'envoyer cette demande pour l'instant."), "#pour-toi");
+  if (error) retour("erreur", messageRefusDuo(error.message, "Impossible d'envoyer cette demande pour l'instant."));
 
   await envoyerRappel(
     destinataireId,
     `${await pseudoDe(supabase, utilisateur.id)} te propose de jouer en duo`,
-    `Son annonce correspond à la tienne. Accepte pour ouvrir une conversation, ou décline : la demande expire dans ${DUREE_DEMANDE_DUO_JOURS} jours.`,
+    `Ce joueur cherche aussi un duo sur ton serveur. Accepte pour ouvrir une conversation, ou décline : la demande expire dans ${DUREE_DEMANDE_DUO_JOURS} jours.`,
     `${URL_SITE}${PAGE}#demandes`,
   );
-  retour("message", "Demande envoyée. Si ce joueur accepte, une conversation s'ouvre dans ta messagerie.", "#demandes");
+  retour("message", "Demande envoyée. Si ce joueur accepte, une conversation s'ouvre dans ta messagerie.");
 }
 
 export async function repondreDemandeDuo(formData: FormData) {
@@ -75,8 +77,8 @@ export async function repondreDemandeDuo(formData: FormData) {
     p_demande: demandeId,
     p_accepte: accepte,
   });
-  if (error) retour("erreur", messageRefusDuo(error.message, "Impossible de répondre à cette demande pour l'instant."), "#demandes");
-  if (!accepte || !conversationId) retour("message", "Demande déclinée. Ce joueur ne pourra pas te la renvoyer avant 30 jours.", "#demandes");
+  if (error) retour("erreur", messageRefusDuo(error.message, "Impossible de répondre à cette demande pour l'instant."));
+  if (!accepte || !conversationId) retour("message", "Demande déclinée. Ce joueur ne pourra pas te la renvoyer avant 30 jours.");
 
   const { data: demande } = await supabase.from("demandes_duo").select("demandeur_id").eq("id", demandeId).maybeSingle();
   if (demande) {
@@ -94,6 +96,6 @@ export async function annulerDemandeDuo(formData: FormData) {
   const demandeId = String(formData.get("demande_id") ?? "");
   const { supabase } = await session();
   const { data: fait } = await supabase.rpc("annuler_demande_duo", { p_demande: demandeId });
-  if (!fait) retour("erreur", "Cette demande n'attend plus de réponse : rien à retirer.", "#demandes");
-  retour("message", "Demande retirée.", "#demandes");
+  if (!fait) retour("erreur", "Cette demande n'attend plus de réponse : rien à retirer.");
+  retour("message", `Demande retirée. Tu pourras en renvoyer une à ce joueur dans ${DUREE_DEMANDE_DUO_JOURS} jours.`);
 }

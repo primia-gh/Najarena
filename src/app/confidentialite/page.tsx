@@ -68,9 +68,11 @@ export default function ConfidentialitePage() {
             </li>
             <li>
               <strong>Recherche d&apos;un duo</strong>&nbsp;: ton annonce (poste, postes cherchés, créneaux, objectif, message) est
-              publique, avec ton rating si tu es classé, pendant 14&nbsp;jours ou jusqu&apos;à ce que tu la retires. Une demande de
-              duo n&apos;est visible que de vous deux&nbsp;; la conversation ne s&apos;ouvre que si le joueur demandé accepte. Ton
-              annonce et tes demandes sont effacées avec ton compte.
+              publique avec ton pseudo, ton avatar et ton rating si tu es classé, pendant 14&nbsp;jours ou jusqu&apos;à ce que tu
+              la retires. Une demande de duo n&apos;est visible que de vous deux et prévient le joueur demandé (notification du
+              navigateur, message privé Discord)&nbsp;; la conversation ne s&apos;ouvre que s&apos;il accepte. Bloquer un joueur
+              coupe vos messages dans les deux sens&nbsp;; il n&apos;en est pas prévenu. Ton annonce, tes demandes et tes blocages
+              sont effacés avec ton compte.
             </li>
             <li>
               <strong>Statistiques des parties vérifiées</strong>&nbsp;: lues chez Riot avec le résultat (champion, poste, KDA, sbires, or,

@@ -32,6 +32,7 @@ import { chargerComplementsTournoi } from "@/lib/tournoi-vitrine";
 import { evaluerClassement, libelleEnJeu } from "@/lib/tournoi-classe";
 import type { ConditionVictoire } from "@/lib/conditions-1v1";
 import { BadgeClassement, CriteresClassement } from "@/components/tournoi/TournoiClasse";
+import Alerte from "@/components/design/Alerte";
 import BoutonLien from "@/components/design/BoutonLien";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
@@ -800,13 +801,17 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const reserve = tournoi.reserve_membres ? tournoi.communaute : null;
   // Check-in d'un inscrit sorti de la communauté (ou qui a perdu sa
   // vérification d'école) : pas de bouton, la raison et le remède.
+  // Joueur qui n'a plus droit au tournoi réservé : il perd sa place s'il ne
+  // règle pas la situation avant la fin du check-in (Alerte, pas une note).
   const avisCheckinReserve = (
     <div className="flex flex-col gap-3">
-      <p className="text-[13px] leading-normal text-muted">
-        {reserve
-          ? `Ce tournoi est réservé aux ${publicReserve(reserve)}, et tu ne remplis plus cette condition : rejoins la communauté, ou refais la vérification de ton adresse, pour confirmer ta présence.`
-          : "Ce tournoi est réservé aux membres d'une communauté qui n'existe plus : la présence ne peut plus être confirmée."}
-      </p>
+      <Alerte type="erreur">
+        {!reserve
+          ? "Ce tournoi est réservé aux membres d'une communauté qui n'existe plus : la présence ne peut plus être confirmée."
+          : typeCommunaute(reserve.type) === "ecole"
+            ? `Ce tournoi est réservé aux ${publicReserve(reserve)}, et ta vérification d'adresse d'école n'est plus valable : refais-la avant le début du tournoi pour confirmer ta présence.`
+            : `Ce tournoi est réservé aux ${publicReserve(reserve)}, et tu n'en es plus membre : rejoins la communauté avant le début du tournoi pour confirmer ta présence.`}
+      </Alerte>
       {reserve && (
         <BoutonLien
           href={`/communaute/${reserve.slug}${typeCommunaute(reserve.type) === "ecole" ? "#ecole" : ""}`}

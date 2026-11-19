@@ -3,7 +3,9 @@ import type { ReactNode } from "react";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { LABEL_ROLE, type Role } from "@/lib/roles";
 import { LABEL_CRENEAU, LABEL_OBJECTIF, type CreneauDuo, type ObjectifDuo } from "@/lib/duo";
+import { typographie } from "@/lib/typographie";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
+import Icone from "@/components/design/Icone";
 
 // Carte d'une annonce « cherche un duo » (18/11/2026) : poste et postes
 // cherchés, rating officiel s'il est classé, créneaux, objectif, puis
@@ -88,8 +90,9 @@ export default function CarteDuo({
           return (
             <li
               key={c}
-              className={`rounded-bouton border px-2 py-1 text-xs ${commun ? "border-text text-text" : "border-line-strong text-muted"}`}
+              className={`inline-flex items-center gap-1 rounded-bouton border px-2 py-1 text-xs ${commun ? "border-text text-text" : "border-line-strong text-muted"}`}
             >
+              {commun && <Icone nom="coche" taille={11} epaisseur={3} />}
               {LABEL_CRENEAU[c]}
               {commun && <span className="sr-only"> (en commun)</span>}
             </li>
@@ -97,16 +100,14 @@ export default function CarteDuo({
         })}
       </ul>
 
-      {message && <p className="text-text-2 [overflow-wrap:anywhere]">« {message} »</p>}
+      {message && <p className="text-text-2 [overflow-wrap:anywhere]">{typographie(`« ${message} »`)}</p>}
 
       {raisons.length > 0 && (
-        <ul aria-label="Pourquoi ce joueur" className="flex flex-col gap-1 text-sm text-text-2">
-          {raisons.map((r) => (
-            <li key={r} className="flex gap-2">
-              <span aria-hidden="true" className="text-faint">
-                —
-              </span>
-              {r}
+        <ul aria-label="Pourquoi ce joueur" className="flex flex-col gap-1.5 text-sm">
+          {raisons.map((r, i) => (
+            <li key={r} className={`flex gap-2 ${i === 0 ? "text-text" : "text-text-2"}`}>
+              <Icone nom="coche" taille={13} epaisseur={2.5} className="mt-1 shrink-0 text-muted" />
+              <span>{typographie(r)}</span>
             </li>
           ))}
         </ul>
@@ -114,7 +115,7 @@ export default function CarteDuo({
 
       <footer className="mt-auto flex flex-col gap-3 border-t border-line pt-4">
         <span className="text-xs text-muted">
-          Objectif : <span className="text-text">{LABEL_OBJECTIF[objectif]}</span>
+          Objectif&nbsp;: <span className="text-text">{LABEL_OBJECTIF[objectif]}</span>
         </span>
         {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
       </footer>

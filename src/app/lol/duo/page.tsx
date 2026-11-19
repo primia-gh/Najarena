@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { arrondir, trouverPalier, type Palier } from "@/lib/classement";
 import { classeBoutonContour, classeChamp } from "@/lib/design";
 import { REGIONS } from "@/lib/regions";
-import { LABEL_ROLE, ROLES, type Role } from "@/lib/roles";
+import { LABEL_ROLE, ROLES } from "@/lib/roles";
+import { typographie } from "@/lib/typographie";
 import {
   DELAI_APRES_REFUS_JOURS,
   DEMANDES_DUO_PAR_JOUR,
@@ -32,7 +32,7 @@ import AvatarJoueur from "@/components/design/AvatarJoueur";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
-import { Choix } from "@/components/design/Formulaire";
+import { Champ, Choix, GroupeFormulaire, Pastille } from "@/components/design/Formulaire";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 import CarteDuo from "@/components/duo/CarteDuo";
@@ -40,12 +40,14 @@ import CarteDuo from "@/components/duo/CarteDuo";
 // Matching duo (18/11/2026, roadmap phase 3) : annonces « cherche un duo »
 // et propositions classées par lib/duo.ts. Toutes les règles sont en base
 // (publier_annonce_duo, demander_duo, repondre_demande_duo…) ; la
-// conversation ne s'ouvre que si le joueur demandé accepte.
+// conversation ne s'ouvre que si le joueur demandé accepte. Revue design du
+// 18/11/2026 : message de retour toujours visible (#retour), action
+// principale en tête sur mobile, boutons de 44 px, formulaire de la charte.
 
 export const metadata: Metadata = {
   title: "Trouver un duo — Najarena",
   description:
-    "Trouve ton duo League of Legends : un joueur de ton serveur qui joue le poste que tu cherches, aux mêmes heures, de niveau vérifié proche du tien.",
+    "Trouve ton duo League of Legends : un joueur de ton serveur qui joue le poste que tu cherches, sur au moins un de tes créneaux, avec son rating officiel quand il est classé.",
   alternates: { canonical: "/lol/duo" },
 };
 
@@ -61,9 +63,18 @@ interface AnnonceAffichee extends AnnonceDuo {
   palier: string | null;
 }
 
+/** Ce qui empêche (ou non) d'envoyer une demande à un joueur. */
+type EtatDemande = { type: "en_attente"; id: string } | { type: "plus_tard"; le: string; refusee: boolean };
+
+const JOUR_MS = 24 * 3600 * 1000;
+
 // Hors du composant (règle de pureté du rendu).
-function limiteDemandes(): string {
-  return new Date(Date.now() - DUREE_DEMANDE_DUO_JOURS * 24 * 3600 * 1000).toISOString();
+function maintenantMs(): number {
+  return Date.now();
+}
+
+function dateCourte(ms: number): string {
+  return new Date(ms).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
 }
 
 function versAnnonce(
@@ -82,7 +93,6 @@ function versAnnonce(
   paliers: Palier[],
 ): AnnonceAffichee | null {
   if (!estRole(a.poste) || !estObjectif(a.objectif)) return null;
-  const rating = a.rating === null ? null : arrondir(a.rating);
   return {
     profileId: a.profile_id,
     pseudo: a.pseudo,
@@ -93,12 +103,12 @@ function versAnnonce(
     creneaux: a.creneaux.filter(estCreneau),
     objectif: a.objectif,
     message: a.message,
-    rating,
+    rating: a.rating === null ? null : arrondir(a.rating),
     palier: a.rating === null ? null : (trouverPalier(a.rating, paliers)?.nom ?? null),
   };
 }
 
-async function chargerDuo(regionDemandee: string | undefined) {
+async function chargerDuo(regionDemandee: string | undefined, maintenant: number) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   const moi = userData.user?.id ?? null;
@@ -117,8 +127,12 @@ async function chargerDuo(regionDemandee: string | undefined) {
   ]);
   const compteVerifie = Boolean(compte?.verifie_le);
   // Un joueur vérifié voit son serveur ; un visiteur choisit celui qu'il regarde.
-  const region = compteVerifie && compte ? compte.region : REGIONS.some((r) => r.code === regionDemandee) ? regionDemandee! : "EUW";
+  const region =
+    compteVerifie && compte ? compte.region : REGIONS.some((r) => r.code === regionDemandee) ? regionDemandee! : "EUW";
 
+  // Demandes des 37 derniers jours : une demande se refuse au plus 7 jours
+  // après son envoi, et un refus bloque 30 jours.
+  const depuis = new Date(maintenant - (DUREE_DEMANDE_DUO_JOURS + DELAI_APRES_REFUS_JOURS) * JOUR_MS).toISOString();
   const [{ data: annoncesData }, { data: paliersData }, { data: demandesData }, { data: conversationsData }] =
     await Promise.all([
       supabase.rpc("annonces_duo_publiques", { p_region: region }),
@@ -127,10 +141,9 @@ async function chargerDuo(regionDemandee: string | undefined) {
         ? supabase
             .from("demandes_duo")
             .select(
-              "id, demandeur_id, destinataire_id, cree_le, demandeur:profiles!demandes_duo_demandeur_id_fkey(pseudo, slug, avatar_url), destinataire:profiles!demandes_duo_destinataire_id_fkey(pseudo, slug, avatar_url)",
+              "id, demandeur_id, destinataire_id, statut, cree_le, repondu_le, demandeur:profiles!demandes_duo_demandeur_id_fkey(pseudo, slug, avatar_url), destinataire:profiles!demandes_duo_destinataire_id_fkey(pseudo, slug, avatar_url)",
             )
-            .eq("statut", "en_attente")
-            .gt("cree_le", limiteDemandes())
+            .gt("cree_le", depuis)
             .order("cree_le", { ascending: false })
         : Promise.resolve({ data: [] }),
       moi ? supabase.from("conversations").select("id, profile_a, profile_b") : Promise.resolve({ data: [] }),
@@ -142,8 +155,7 @@ async function chargerDuo(regionDemandee: string | undefined) {
     return annonce ? [annonce] : [];
   });
   const moiPublic = annonces.find((a) => a.profileId === moi) ?? null;
-  // Mon annonce en cours, avec mon rating tel que les autres le voient.
-  const enCours = Boolean(monAnnonceBrute && new Date(monAnnonceBrute.expire_le).getTime() > Date.now());
+  const enCours = Boolean(monAnnonceBrute && new Date(monAnnonceBrute.expire_le).getTime() > maintenant);
   const monAnnonce: AnnonceDuo | null =
     monAnnonceBrute && enCours && estRole(monAnnonceBrute.poste) && estObjectif(monAnnonceBrute.objectif)
       ? {
@@ -157,9 +169,24 @@ async function chargerDuo(regionDemandee: string | undefined) {
       : null;
 
   const demandes = demandesData ?? [];
-  const contacts = new Map(
-    (conversationsData ?? []).map((c) => [c.profile_a === moi ? c.profile_b : c.profile_a, c.id] as const),
-  );
+  const enAttente = (d: (typeof demandes)[number]) =>
+    d.statut === "en_attente" && new Date(d.cree_le).getTime() > maintenant - DUREE_DEMANDE_DUO_JOURS * JOUR_MS;
+
+  // Mêmes règles que demander_duo : une demande par joueur et par 7 jours,
+  // pas de nouvelle demande 30 jours après un refus.
+  const etats = new Map<string, EtatDemande>();
+  for (const d of demandes.filter((x) => x.demandeur_id === moi)) {
+    if (etats.has(d.destinataire_id)) continue; // la plus récente d'abord
+    if (enAttente(d)) {
+      etats.set(d.destinataire_id, { type: "en_attente", id: d.id });
+      continue;
+    }
+    const apresEnvoi = new Date(d.cree_le).getTime() + DUREE_DEMANDE_DUO_JOURS * JOUR_MS;
+    const refusee = d.statut === "refusee" && d.repondu_le !== null;
+    const apresRefus = refusee && d.repondu_le ? new Date(d.repondu_le).getTime() + DELAI_APRES_REFUS_JOURS * JOUR_MS : 0;
+    const le = Math.max(apresEnvoi, apresRefus);
+    if (le > maintenant) etats.set(d.destinataire_id, { type: "plus_tard", le: dateCourte(le), refusee });
+  }
 
   return {
     moi,
@@ -168,32 +195,13 @@ async function chargerDuo(regionDemandee: string | undefined) {
     annonces: annonces.filter((a) => a.profileId !== moi),
     monAnnonce,
     monAnnonceBrute: monAnnonceBrute && enCours ? monAnnonceBrute : null,
-    recues: demandes.filter((d) => d.destinataire_id === moi),
-    envoyees: demandes.filter((d) => d.demandeur_id === moi),
-    contacts,
+    recues: demandes.filter((d) => d.destinataire_id === moi && enAttente(d)),
+    envoyees: demandes.filter((d) => d.demandeur_id === moi && enAttente(d)),
+    etats,
+    contacts: new Map(
+      (conversationsData ?? []).map((c) => [c.profile_a === moi ? c.profile_b : c.profile_a, c.id] as const),
+    ),
   };
-}
-
-/** Case à cocher ou bouton radio en pastille (formulaire de l'annonce). */
-function Pastille({
-  type,
-  name,
-  value,
-  defaultChecked,
-  children,
-}: {
-  type: "radio" | "checkbox";
-  name: string;
-  value: string;
-  defaultChecked: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-bouton border border-line-strong px-3 text-sm text-text-2 transition-colors duration-200 hover:border-[rgba(245,245,244,0.25)] has-[:checked]:border-text has-[:checked]:text-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent">
-      <input type={type} name={name} value={value} defaultChecked={defaultChecked} className="h-4 w-4 shrink-0 cursor-pointer accent-accent" />
-      {children}
-    </label>
-  );
 }
 
 const MOMENTS = [
@@ -202,16 +210,22 @@ const MOMENTS = [
   { cle: "nuit", libelle: "Nuit" },
 ] as const;
 
+const lienDiscret =
+  "inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger";
+const lienAction = "inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent";
+
 export default async function DuoPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const { moi, compteVerifie, region, annonces, monAnnonce, monAnnonceBrute, recues, envoyees, contacts } =
-    await chargerDuo(params.region);
+  const maintenant = maintenantMs();
+  const { moi, compteVerifie, region, annonces, monAnnonce, monAnnonceBrute, recues, envoyees, etats, contacts } =
+    await chargerDuo(params.region, maintenant);
 
   const propositions = monAnnonce ? propositionsDuo(monAnnonce, annonces) : [];
   const proposes = new Set(propositions.map((p) => p.annonce.profileId));
   const autres = annonces.filter((a) => !proposes.has(a.profileId));
-  const envoyeeA = new Map(envoyees.map((d) => [d.destinataire_id, d.id]));
-  const recueDe = new Map(recues.map((d) => [d.demandeur_id, d.id]));
+  const recueDe = new Set(recues.map((d) => d.demandeur_id));
+  const annonceDe = new Map(annonces.map((a) => [a.profileId, a]));
+  const peutPublier = Boolean(moi && compteVerifie);
 
   // Ce qu'on peut faire avec un joueur : écrire, attendre, répondre, demander.
   function actions(a: AnnonceAffichee) {
@@ -219,36 +233,48 @@ export default async function DuoPage({ searchParams }: PageProps) {
     const conversation = contacts.get(a.profileId);
     if (conversation) {
       return (
-        <Link href={`/moi/messages/${conversation}`} className={`${classeBoutonContour()} min-h-10! px-4! py-2! text-xs!`}>
+        <Link href={`/moi/messages/${conversation}`} className={classeBoutonContour()}>
           Lui écrire
         </Link>
       );
     }
-    const envoyee = envoyeeA.get(a.profileId);
-    if (envoyee) {
+    const etat = etats.get(a.profileId);
+    if (etat?.type === "en_attente") {
       return (
-        <form action={annulerDemandeDuo} className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <input type="hidden" name="demande_id" value={envoyee} />
+        <form action={annulerDemandeDuo} className="flex flex-wrap items-center gap-x-4">
+          <input type="hidden" name="demande_id" value={etat.id} />
           <span className="text-sm text-text">Demande envoyée</span>
-          <button type="submit" className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger">
+          <button type="submit" aria-label={`Retirer ta demande à ${a.pseudo}`} className={lienDiscret}>
             Retirer
           </button>
         </form>
       );
     }
-    const recue = recueDe.get(a.profileId);
-    if (recue) {
+    if (recueDe.has(a.profileId)) {
       return (
-        <a href="#demandes" className="inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent">
-          T&apos;a proposé un duo : répondre
+        <a href="#demandes" className={lienAction}>
+          {typographie("T'a proposé un duo : répondre")}
         </a>
       );
     }
-    if (!monAnnonce) return null;
+    if (etat?.type === "plus_tard") {
+      return (
+        <span className="text-sm text-muted">
+          {typographie(`${etat.refusee ? "A décliné ta demande. " : ""}Nouvelle demande possible le ${etat.le}`)}
+        </span>
+      );
+    }
+    if (!monAnnonce) {
+      return peutPublier ? (
+        <a href="#mon-annonce" className={lienAction}>
+          Publie ton annonce pour lui proposer un duo
+        </a>
+      ) : null;
+    }
     return (
       <form action={demanderDuo}>
         <input type="hidden" name="destinataire_id" value={a.profileId} />
-        <BoutonEnvoi variante="contour" libelleEnCours="Envoi…" className="min-h-10! px-4! py-2! text-xs!" aria-label={`Proposer un duo à ${a.pseudo}`}>
+        <BoutonEnvoi variante="contour" libelleEnCours="Envoi…" aria-label={`Proposer un duo à ${a.pseudo}`}>
           Proposer un duo
         </BoutonEnvoi>
       </form>
@@ -279,108 +305,115 @@ export default async function DuoPage({ searchParams }: PageProps) {
     monAnnonceBrute && estObjectif(monAnnonceBrute.objectif) ? monAnnonceBrute.objectif : "classees";
 
   const formulaire = (
-    <form action={publierAnnonceDuo} className="flex flex-col gap-6">
-      <fieldset className="flex flex-col gap-2.5">
-        <legend className="mb-2.5 font-texte text-mini font-medium text-muted uppercase">Mon poste</legend>
-        <div className="flex flex-wrap gap-2">
+    <form action={publierAnnonceDuo} className="flex flex-col gap-8">
+      <GroupeFormulaire numero="01" titre="Mon poste" id="duo-poste" niveau="h3">
+        <fieldset className="flex flex-wrap gap-2">
+          <legend className="sr-only">Mon poste</legend>
           {ROLES.map((r) => (
             <Pastille key={r} type="radio" name="poste" value={r} defaultChecked={posteActuel === r}>
               {LABEL_ROLE[r]}
             </Pastille>
           ))}
-        </div>
-      </fieldset>
-      <fieldset className="flex flex-col gap-2.5" aria-describedby="aide-postes">
-        <legend className="mb-2.5 font-texte text-mini font-medium text-muted uppercase">Je cherche un duo qui joue</legend>
-        <div className="flex flex-wrap gap-2">
-          {ROLES.map((r: Role) => (
-            <Pastille
-              key={r}
-              type="checkbox"
-              name="postes_cherches"
-              value={r}
-              defaultChecked={Boolean(monAnnonceBrute?.postes_cherches.includes(r))}
-            >
-              {LABEL_ROLE[r]}
-            </Pastille>
-          ))}
-        </div>
-        <span id="aide-postes" className="text-xs text-muted">
-          1 à 4 postes, autres que le tien.
-        </span>
-      </fieldset>
-      <fieldset className="flex flex-col gap-2.5" aria-describedby="aide-creneaux">
-        <legend className="mb-2.5 font-texte text-mini font-medium text-muted uppercase">Quand je joue</legend>
-        {(["semaine", "weekend"] as const).map((jours) => (
-          <div key={jours} className="flex flex-col gap-2">
-            <span className="text-sm text-text-2">{jours === "semaine" ? "En semaine" : "Le week-end"}</span>
-            <div className="flex flex-wrap gap-2">
-              {MOMENTS.map((m) => {
-                const valeur = `${jours}_${m.cle}` as CreneauDuo;
-                return (
-                  <Pastille
-                    key={valeur}
-                    type="checkbox"
-                    name="creneaux"
-                    value={valeur}
-                    defaultChecked={Boolean(monAnnonceBrute?.creneaux.includes(valeur))}
-                  >
-                    {m.libelle}
-                  </Pastille>
-                );
-              })}
-            </div>
+        </fieldset>
+      </GroupeFormulaire>
+      <GroupeFormulaire numero="02" titre="Le poste de mon duo" id="duo-postes-cherches" niveau="h3">
+        <fieldset className="flex flex-col gap-2" aria-describedby="aide-postes">
+          <legend className="sr-only">Je cherche un duo qui joue</legend>
+          <div className="flex flex-wrap gap-2">
+            {ROLES.map((r) => (
+              <Pastille
+                key={r}
+                name="postes_cherches"
+                value={r}
+                defaultChecked={Boolean(monAnnonceBrute?.postes_cherches.includes(r))}
+              >
+                {LABEL_ROLE[r]}
+              </Pastille>
+            ))}
           </div>
-        ))}
-        <span id="aide-creneaux" className="text-xs text-muted">
-          Heure de Paris : journée {HEURES_MOMENT.journee}, soir {HEURES_MOMENT.soir}, nuit {HEURES_MOMENT.nuit}.
-        </span>
-      </fieldset>
-      <fieldset className="flex flex-col gap-2.5">
-        <legend className="mb-2.5 font-texte text-mini font-medium text-muted uppercase">Mon objectif</legend>
-        {OBJECTIFS_DUO.map((o) => (
-          <Choix
-            key={o}
-            name="objectif"
-            value={o}
-            defaultChecked={objectifActuel === o}
-            titre={LABEL_OBJECTIF[o]}
-            detail={DETAIL_OBJECTIF[o]}
+          <span id="aide-postes" className="text-xs text-muted">
+            {typographie("1 à 4 postes, autres que le tien.")}
+          </span>
+        </fieldset>
+      </GroupeFormulaire>
+      <GroupeFormulaire numero="03" titre="Quand je joue" id="duo-creneaux" niveau="h3">
+        <fieldset className="flex flex-col gap-3" aria-describedby="aide-creneaux">
+          <legend className="sr-only">Mes créneaux</legend>
+          {(["semaine", "weekend"] as const).map((jours) => (
+            <div key={jours} className="flex flex-col gap-2">
+              <span className="text-sm text-text-2">{jours === "semaine" ? "En semaine" : "Le week-end"}</span>
+              <div className="flex flex-wrap gap-2">
+                {MOMENTS.map((m) => {
+                  const valeur = `${jours}_${m.cle}` as CreneauDuo;
+                  return (
+                    <Pastille
+                      key={valeur}
+                      name="creneaux"
+                      value={valeur}
+                      defaultChecked={Boolean(monAnnonceBrute?.creneaux.includes(valeur))}
+                    >
+                      <span className="sr-only">{jours === "semaine" ? "En semaine, " : "Le week-end, "}</span>
+                      {m.libelle}
+                    </Pastille>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <span id="aide-creneaux" className="text-xs text-muted">
+            {typographie(
+              `Heure de Paris : journée ${HEURES_MOMENT.journee}, soir ${HEURES_MOMENT.soir}, nuit ${HEURES_MOMENT.nuit}.`,
+            )}
+          </span>
+        </fieldset>
+      </GroupeFormulaire>
+      <GroupeFormulaire numero="04" titre="Mon objectif" id="duo-objectif" niveau="h3">
+        <fieldset className="flex flex-col gap-2">
+          <legend className="sr-only">Mon objectif</legend>
+          {OBJECTIFS_DUO.map((o) => (
+            <Choix
+              key={o}
+              name="objectif"
+              value={o}
+              defaultChecked={objectifActuel === o}
+              titre={LABEL_OBJECTIF[o]}
+              detail={DETAIL_OBJECTIF[o]}
+            />
+          ))}
+        </fieldset>
+      </GroupeFormulaire>
+      <GroupeFormulaire numero="05" titre="Un mot sur toi" id="duo-message" niveau="h3">
+        <Champ
+          libelle={`Message · facultatif, ${MESSAGE_DUO_MAX} caractères`}
+          aide="Public, comme ton annonce. Pas de lien ni de contact : la conversation s'ouvre sur le site si l'autre accepte."
+          idAide="aide-message-duo"
+        >
+          <textarea
+            name="message"
+            rows={3}
+            maxLength={MESSAGE_DUO_MAX}
+            defaultValue={monAnnonceBrute?.message ?? ""}
+            aria-describedby="aide-message-duo"
+            placeholder={typographie("Ex. « Support calme, je joue surtout Nautilus, micro le soir »")}
+            className={`${classeChamp()} resize-none`}
           />
-        ))}
-      </fieldset>
-      <label className="flex flex-col gap-1.5">
-        <span className="font-texte text-mini font-medium text-muted uppercase">
-          Un mot sur toi · {MESSAGE_DUO_MAX} caractères, facultatif
-        </span>
-        <textarea
-          name="message"
-          rows={3}
-          maxLength={MESSAGE_DUO_MAX}
-          defaultValue={monAnnonceBrute?.message ?? ""}
-          placeholder="Ex. « Support calme, je joue surtout Nautilus, micro le soir »"
-          className={`${classeChamp()} resize-none`}
-        />
-      </label>
+        </Champ>
+      </GroupeFormulaire>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         <BoutonEnvoi libelleEnCours="Envoi…" className="w-full sm:w-auto">
           {monAnnonceBrute ? "Mettre à jour" : "Publier mon annonce"}
         </BoutonEnvoi>
         {monAnnonceBrute && (
-          <button
-            type="submit"
-            formAction={retirerAnnonceDuo}
-            className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger"
-          >
+          <button type="submit" formAction={retirerAnnonceDuo} className={lienDiscret}>
             Retirer mon annonce
           </button>
         )}
       </div>
       {monAnnonceBrute && (
         <p className="text-xs text-muted">
-          En ligne jusqu&apos;au{" "}
-          {new Date(monAnnonceBrute.expire_le).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" })}{" "}
-          : la mettre à jour la prolonge de {DUREE_ANNONCE_DUO_JOURS} jours.
+          {typographie(
+            `En ligne jusqu'au ${dateCourte(new Date(monAnnonceBrute.expire_le).getTime())} ; mise à jour, elle repart pour ${DUREE_ANNONCE_DUO_JOURS} jours.`,
+          )}
         </p>
       )}
     </form>
@@ -395,14 +428,26 @@ export default async function DuoPage({ searchParams }: PageProps) {
             <LibelleSection>League of Legends · Duo</LibelleSection>
             <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Trouver un duo</h1>
             <p className="mt-5 max-w-2xl text-courant text-text-2">
-              Publie ton poste, celui que tu cherches et tes horaires. On te montre d&apos;abord les joueurs de ton serveur qui
-              jouent ce poste aux mêmes heures, de niveau proche quand vous êtes classés tous les deux. Pour contacter un
-              joueur, envoie-lui une demande : s&apos;il accepte, une conversation s&apos;ouvre dans ta messagerie.
+              {typographie(
+                "Publie ton poste, celui que tu cherches et tes horaires. On te montre d'abord les joueurs de ton serveur qui jouent ce poste sur au moins un de tes créneaux ; quand vous êtes classés tous les deux, les niveaux proches passent devant. Pour contacter un joueur, envoie-lui une demande : s'il accepte, une conversation s'ouvre dans ta messagerie.",
+              )}
             </p>
           </div>
-          <BoutonLien href="/lol/coequipiers" variante="contour">
-            Chercher une équipe
-          </BoutonLien>
+          <div className="flex flex-wrap gap-3">
+            {/* Sur mobile, le formulaire est loin : un raccourci vers lui. */}
+            {!moi ? (
+              <BoutonLien href={`/connexion?suite=${encodeURIComponent("/lol/duo")}`}>Se connecter</BoutonLien>
+            ) : (
+              compteVerifie && (
+                <BoutonLien href="#mon-annonce" className="lg:hidden">
+                  {monAnnonceBrute ? "Modifier mon annonce" : "Publier mon annonce"}
+                </BoutonLien>
+              )
+            )}
+            <BoutonLien href="/lol/coequipiers" variante="contour">
+              Chercher une équipe
+            </BoutonLien>
+          </div>
         </Apparition>
 
         <Apparition delai={0.06}>
@@ -410,29 +455,32 @@ export default async function DuoPage({ searchParams }: PageProps) {
             <li className="flex flex-col gap-1.5">
               <span className="font-texte text-mini font-medium text-muted uppercase">Appariement</span>
               <span className="text-sm text-text-2">
-                Le poste que tu cherches, des créneaux en commun, le même objectif, et l&apos;écart de rating Najarena quand vous
-                êtes classés tous les deux : lu dans des parties vérifiées, jamais déclaré.
+                {typographie(
+                  "Le poste que tu cherches, au moins un créneau en commun, puis les postes réciproques et le même objectif. Le rating Najarena, lu dans des parties vérifiées et jamais déclaré, départage quand vous êtes classés tous les deux.",
+                )}
               </span>
             </li>
             <li className="flex flex-col gap-1.5">
               <span className="font-texte text-mini font-medium text-muted uppercase">Contact</span>
               <span className="text-sm text-text-2">
-                Une demande, une réponse. La conversation s&apos;ouvre seulement si l&apos;autre accepte ; après un refus, pas de
-                nouvelle demande avant {DELAI_APRES_REFUS_JOURS} jours. {DEMANDES_DUO_PAR_JOUR} demandes par jour au plus.
+                {typographie(
+                  `Une demande, une réponse. La conversation s'ouvre seulement si l'autre accepte. Une demande au même joueur par ${DUREE_DEMANDE_DUO_JOURS} jours, ${DEMANDES_DUO_PAR_JOUR} par 24 h au plus ; après un refus, pas de nouvelle demande avant ${DELAI_APRES_REFUS_JOURS} jours. Tu peux bloquer un joueur depuis la conversation.`,
+                )}
               </span>
             </li>
             <li className="flex flex-col gap-1.5">
               <span className="font-texte text-mini font-medium text-muted uppercase">Durée</span>
               <span className="text-sm text-text-2">
-                Ton annonce reste en ligne {DUREE_ANNONCE_DUO_JOURS} jours ; mets-la à jour pour la prolonger. Une demande sans
-                réponse expire au bout de {DUREE_DEMANDE_DUO_JOURS} jours.
+                {typographie(
+                  `Ton annonce reste en ligne ${DUREE_ANNONCE_DUO_JOURS} jours ; mise à jour, elle repart pour ${DUREE_ANNONCE_DUO_JOURS} jours. Une demande sans réponse expire au bout de ${DUREE_DEMANDE_DUO_JOURS} jours.`,
+                )}
               </span>
             </li>
           </ul>
         </Apparition>
 
         {(params.erreur || params.message) && (
-          <div className="flex max-w-2xl flex-col gap-3">
+          <div id="retour" className="flex max-w-2xl scroll-mt-28 flex-col gap-3">
             {params.erreur && <Alerte type="erreur">{params.erreur}</Alerte>}
             {params.message && <Alerte type="succes">{params.message}</Alerte>}
           </div>
@@ -446,51 +494,79 @@ export default async function DuoPage({ searchParams }: PageProps) {
                   Demandes en attente
                 </LibelleSection>
                 <ul className="flex flex-col">
-                  {recues.map((d) => (
-                    <li key={d.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-line py-4">
-                      <span className="flex min-w-0 items-center gap-3">
-                        <AvatarJoueur pseudo={d.demandeur?.pseudo ?? "?"} src={d.demandeur?.avatar_url ?? null} taille={36} />
-                        <span className="min-w-0">
-                          <Link href={`/joueur/${d.demandeur?.slug ?? ""}`} className="font-semibold text-text hover:text-accent">
-                            {d.demandeur?.pseudo ?? "Joueur"}
-                          </Link>{" "}
-                          <span className="text-text-2">te propose de jouer en duo</span>
+                  {recues.map((d) => {
+                    const pseudo = d.demandeur?.pseudo ?? "Joueur";
+                    const annonce = annonceDe.get(d.demandeur_id);
+                    const expire = dateCourte(new Date(d.cree_le).getTime() + DUREE_DEMANDE_DUO_JOURS * JOUR_MS);
+                    return (
+                      <li key={d.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-line py-4">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <AvatarJoueur pseudo={pseudo} src={d.demandeur?.avatar_url ?? null} taille={36} />
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span>
+                              <Link href={`/joueur/${d.demandeur?.slug ?? ""}`} className="font-semibold text-text hover:text-accent">
+                                {pseudo}
+                              </Link>{" "}
+                              <span className="text-text-2">te propose de jouer en duo</span>
+                            </span>
+                            <span className="text-xs text-muted tabular-nums">
+                              {typographie(
+                                [
+                                  annonce ? LABEL_ROLE[annonce.poste] : null,
+                                  annonce ? (annonce.rating !== null ? `rating ${annonce.rating}` : "non classé") : null,
+                                  `expire le ${expire}`,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · "),
+                              )}
+                            </span>
+                          </span>
                         </span>
-                      </span>
-                      <form action={repondreDemandeDuo} className="flex flex-wrap items-center gap-2">
-                        <input type="hidden" name="demande_id" value={d.id} />
-                        <BoutonEnvoi name="reponse" value="accepter" libelleEnCours="Envoi…" className="min-h-10! px-4! py-2! text-xs!">
-                          Accepter
-                        </BoutonEnvoi>
-                        <BoutonEnvoi name="reponse" value="refuser" variante="contour" className="min-h-10! px-4! py-2! text-xs!">
-                          Décliner
-                        </BoutonEnvoi>
-                      </form>
-                    </li>
-                  ))}
-                  {envoyees.map((d) => (
-                    <li key={d.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-line py-4">
-                      <span className="flex min-w-0 items-center gap-3">
-                        <AvatarJoueur pseudo={d.destinataire?.pseudo ?? "?"} src={d.destinataire?.avatar_url ?? null} taille={36} />
-                        <span className="min-w-0 text-text-2">
-                          Ta demande à{" "}
-                          <Link href={`/joueur/${d.destinataire?.slug ?? ""}`} className="font-semibold text-text hover:text-accent">
-                            {d.destinataire?.pseudo ?? "Joueur"}
-                          </Link>{" "}
-                          attend sa réponse
+                        <form action={repondreDemandeDuo} className="flex flex-wrap items-center gap-2">
+                          <input type="hidden" name="demande_id" value={d.id} />
+                          <BoutonEnvoi
+                            name="reponse"
+                            value="accepter"
+                            libelleEnCours="Envoi…"
+                            aria-label={`Accepter la demande de ${pseudo}`}
+                          >
+                            Accepter
+                          </BoutonEnvoi>
+                          <BoutonEnvoi
+                            name="reponse"
+                            value="refuser"
+                            variante="contour"
+                            aria-label={`Décliner la demande de ${pseudo}`}
+                          >
+                            Décliner
+                          </BoutonEnvoi>
+                        </form>
+                      </li>
+                    );
+                  })}
+                  {envoyees.map((d) => {
+                    const pseudo = d.destinataire?.pseudo ?? "Joueur";
+                    return (
+                      <li key={d.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-line py-4">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <AvatarJoueur pseudo={pseudo} src={d.destinataire?.avatar_url ?? null} taille={36} />
+                          <span className="min-w-0 text-text-2">
+                            Ta demande à{" "}
+                            <Link href={`/joueur/${d.destinataire?.slug ?? ""}`} className="font-semibold text-text hover:text-accent">
+                              {pseudo}
+                            </Link>{" "}
+                            attend sa réponse
+                          </span>
                         </span>
-                      </span>
-                      <form action={annulerDemandeDuo}>
-                        <input type="hidden" name="demande_id" value={d.id} />
-                        <button
-                          type="submit"
-                          className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger"
-                        >
-                          Retirer
-                        </button>
-                      </form>
-                    </li>
-                  ))}
+                        <form action={annulerDemandeDuo}>
+                          <input type="hidden" name="demande_id" value={d.id} />
+                          <button type="submit" aria-label={`Retirer ta demande à ${pseudo}`} className={lienDiscret}>
+                            Retirer
+                          </button>
+                        </form>
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             )}
@@ -501,12 +577,21 @@ export default async function DuoPage({ searchParams }: PageProps) {
                   Pour toi <span className="text-faint tabular-nums">· {propositions.length}</span>
                 </LibelleSection>
                 {propositions.length === 0 ? (
-                  <Panneau reperes className="flex flex-col items-start gap-3 p-8">
+                  <Panneau reperes className="flex flex-col items-start gap-4 p-8">
                     <p className="font-titre text-3xl font-black uppercase">Pas encore de duo pour toi.</p>
                     <p className="max-w-md text-text-2">
-                      Aucun joueur de {region} ne joue pour l&apos;instant le poste que tu cherches à tes horaires. Ton annonce
-                      reste visible : les prochains te trouveront. Ajouter un créneau ou un poste élargit la recherche.
+                      {typographie(
+                        `Aucun joueur de ${region} ne joue pour l'instant le poste que tu cherches à tes horaires. Ton annonce reste visible : les prochains te trouveront. Ajouter un créneau ou un poste élargit la recherche.`,
+                      )}
                     </p>
+                    <div className="flex flex-wrap gap-3">
+                      <BoutonLien href="#mon-annonce" variante="contour">
+                        Modifier mon annonce
+                      </BoutonLien>
+                      <BoutonLien href="/lol/coequipiers" variante="secondaire">
+                        Chercher une équipe
+                      </BoutonLien>
+                    </div>
                   </Panneau>
                 ) : (
                   <ul className="grid gap-4 xl:grid-cols-2">
@@ -542,15 +627,16 @@ export default async function DuoPage({ searchParams }: PageProps) {
                 )}
               </div>
               {autres.length === 0 ? (
-                <Panneau reperes className="flex flex-col items-start gap-3 p-8">
+                <Panneau reperes className="flex flex-col items-start gap-4 p-8">
                   <p className="font-titre text-3xl font-black uppercase">
                     {monAnnonce && propositions.length > 0 ? "Rien d'autre." : "Personne pour l'instant."}
                   </p>
                   <p className="max-w-md text-text-2">
                     {monAnnonce && propositions.length > 0
                       ? "Toutes les annonces de ton serveur sont dans tes propositions."
-                      : `Aucun joueur de ${region} ne cherche de duo en ce moment. Publie la première annonce.`}
+                      : `Aucun joueur de ${region} ne cherche de duo en ce moment.`}
                   </p>
+                  {!monAnnonce && peutPublier && <BoutonLien href="#mon-annonce">Publier la première annonce</BoutonLien>}
                 </Panneau>
               ) : (
                 <ul className="grid gap-4 xl:grid-cols-2">
@@ -559,11 +645,28 @@ export default async function DuoPage({ searchParams }: PageProps) {
                   ))}
                 </ul>
               )}
+              {!moi && autres.length > 0 && (
+                <p className="text-sm text-text-2">
+                  <Link
+                    href={`/connexion?suite=${encodeURIComponent("/lol/duo")}`}
+                    className="text-text underline underline-offset-3 hover:text-accent"
+                  >
+                    Connecte-toi
+                  </Link>{" "}
+                  pour publier ton annonce et proposer un duo.
+                </p>
+              )}
             </section>
           </div>
 
-          <Panneau id="mon-annonce" className="flex scroll-mt-28 flex-col gap-5 p-6">
-            <LibelleSection as="h2">{monAnnonceBrute ? "Mon annonce" : "Je cherche un duo"}</LibelleSection>
+          {/* Sans annonce, le formulaire passe en tête sur mobile : c'est l'action principale. */}
+          <Panneau
+            id="mon-annonce"
+            className={`flex scroll-mt-28 flex-col gap-6 p-6 ${monAnnonceBrute ? "" : "order-first lg:order-none"}`}
+          >
+            <h2 className="font-titre text-sous-titre font-black uppercase">
+              {monAnnonceBrute ? "Mon annonce" : "Je cherche un duo"}
+            </h2>
             {!moi ? (
               <div className="flex flex-col items-start gap-4">
                 <p className="text-sm text-text-2">Connecte-toi pour publier ton annonce et proposer un duo.</p>
@@ -574,7 +677,9 @@ export default async function DuoPage({ searchParams }: PageProps) {
             ) : !compteVerifie ? (
               <div className="flex flex-col items-start gap-4">
                 <p className="text-sm text-text-2">
-                  Il faut un compte Riot vérifié : il fixe ton serveur, et ton rating vient de parties lues chez Riot.
+                  {typographie(
+                    "Il faut un compte Riot vérifié : il fixe ton serveur, et ton rating vient de parties lues chez Riot.",
+                  )}
                 </p>
                 <BoutonLien href={`/lier-riot?suite=${encodeURIComponent("/lol/duo")}`}>Lier mon Riot ID</BoutonLien>
               </div>

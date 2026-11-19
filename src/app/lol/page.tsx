@@ -50,7 +50,7 @@ const PORTES = [
   },
   {
     titre: "Je cherche une équipe",
-    texte: "Publie une annonce, rejoins un effectif qui a besoin de toi, ou trouve ton duo : même serveur, mêmes horaires, niveau vérifié.",
+    texte: "Publie une annonce ou rejoins un effectif qui a besoin de toi — pas de 5-stack obligatoire.",
     cta: "Trouver un coéquipier",
     href: "/lol/coequipiers",
   },
@@ -188,7 +188,11 @@ export default async function LolHubPage() {
             <Link href="/lol/bilan" className="text-text underline underline-offset-3 hover:text-accent">
               ton bilan
             </Link>{" "}
-            — forces, axes de travail et builds, mesurés sur tes parties vérifiées.
+            — forces, axes de travail et builds, mesurés sur tes parties vérifiées. Pour jouer à deux :{" "}
+            <Link href="/lol/duo" className="text-text underline underline-offset-3 hover:text-accent">
+              trouve ton duo
+            </Link>{" "}
+            sur ton serveur, à tes horaires.
           </p>
         </div>
       </section>

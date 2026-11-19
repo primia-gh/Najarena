@@ -203,12 +203,13 @@ export default async function PreuveMatchPage({ params }: PageProps) {
               <LibelleSection as="h2" id="titre-joueurs" className="border-b border-line-strong pb-4">
                 Joueurs et comptes Riot
               </LibelleSection>
-{preuve.equipes ? (
+              {preuve.equipes ? (
                 preuve.equipes.map((e) => (
                   <Tableau key={e.capitaineId} legende={`Joueurs de ${e.libelle}`}>
                     <thead>
                       <tr>
                         <th scope="col">
+                          <span className="sr-only">Joueurs de l&apos;équipe </span>
                           {e.slug ? (
                             <Link href={`/equipe/${e.slug}`} className="hover:text-accent">
                               {e.libelle}
