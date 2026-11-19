@@ -182,3 +182,12 @@ select refus('Cap n''accepte pas la candidature d''un joueur qu''il a bloqué',
   $q$select public.repondre_candidature((select id from candidatures_equipe where team_id = '9d0d0000-0000-0000-0000-0000000000e1' and profile_id = '9d0d0000-0000-0000-0000-000000000006'), true)$q$,
   'JOUEUR_INDISPONIBLE');
 reset role;
+
+-- ---------- Annonce visible sur la page d'équipe (finitions du 19/11/2026) ----------
+-- Lou (équipe e2) est suspendu plus haut : son annonce n'est plus visible.
+set role anon;
+select set_config('request.jwt.claim.sub', '', false);
+select verifie('Annonce d''un capitaine suspendu : invisible ; celle de Cap : visible',
+  not public.annonce_recrutement_visible('9d0d0000-0000-0000-0000-0000000000e2')
+  and public.annonce_recrutement_visible('9d0d0000-0000-0000-0000-0000000000e1'));
+reset role;

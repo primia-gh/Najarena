@@ -6,7 +6,7 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1320 vérifications de
+elle se rejoue une seconde fois sans erreur, et les 1334 vérifications de
 `tests/sql/` passent ensuite (contrôle refait le 19/11/2026, après l'ajout
 des tournois par niveau, du face-à-face, du recrutement, du format suisse
 et de leur contrôle de sécurité).
@@ -59,7 +59,8 @@ Dix sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, six du
    `ronde_suisse_suivante`, `demarrer_suisse`, `suisse_terminee` ;
    **`avancer_vainqueur` redéfinie** (crée la ronde suivante d'un tournoi
    suisse, rien de changé pour l'élimination directe) ; pronostics et
-   dotations refusés en suisse.
+   dotations refusés en suisse ; abandon officiel (`abandonner_suisse`,
+   colonne `registrations.abandonne_le`).
 10. **Contrôle de sécurité des nouveautés.** Inscriptions figées une fois un
    tournoi lancé (`figer_inscriptions_lancees`, déclencheur
    `registrations_figees`) ; `engage_en_tournoi` et
@@ -129,7 +130,8 @@ from unnest(array[
   'face_a_face',
   'publier_recrutement', 'retirer_recrutement', 'annonces_recrutement_publiques',
   'postuler_equipe', 'repondre_candidature', 'annuler_candidature', 'joueurs_pour_recrutement',
-  'classement_suisse', 'ronde_suisse_suivante', 'demarrer_suisse', 'suisse_terminee',
+  'classement_suisse', 'ronde_suisse_suivante', 'demarrer_suisse', 'suisse_terminee', 'abandonner_suisse',
+  'annonce_recrutement_visible',
   'figer_inscriptions_lancees', 'controler_statut_suisse', 'refuser_match_suisse_client'
 ]) as f;  -- toutes « true »
 

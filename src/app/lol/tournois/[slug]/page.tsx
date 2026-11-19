@@ -16,7 +16,7 @@ import { LABEL_ROLE, ROLES, type Role } from "@/lib/roles";
 import { resumeFiche } from "@/lib/fiche-organisateur";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { ouvrirLitige } from "@/lib/litige-actions";
-import { declarerPret, reconnaitreDefaite } from "@/lib/match-actions";
+import { abandonnerTournoiSuisse, declarerPret, reconnaitreDefaite } from "@/lib/match-actions";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import { progressionPalier } from "@/lib/classement";
 import { chancesSiExploit, ETAT_DE_DEPART, pourcentages, type EtatRating } from "@/lib/estimations";
@@ -146,7 +146,7 @@ const chargerTournoi = cache(async (slug: string) => {
     supabase.auth.getUser(),
     supabase
       .from("registrations")
-      .select("id, statut, seed, profile_id, equipe_nom, equipe_tag, profile:profiles(pseudo, slug)")
+      .select("id, statut, seed, profile_id, equipe_nom, equipe_tag, abandonne_le, profile:profiles(pseudo, slug)")
       .eq("tournament_id", tournoi.id)
       .order("seed", { ascending: true, nullsFirst: false }),
     supabase.from("tiers").select("nom, rating_min").eq("game_id", tournoi.game_id),
@@ -1233,14 +1233,41 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                   <span className="text-muted">Ton inscription</span>
                   <span
                     className={`font-bold uppercase ${
-                      inscriptionActuelle.statut === "absent" || inscriptionActuelle.statut === "retire"
+                      inscriptionActuelle.statut === "absent" ||
+                      inscriptionActuelle.statut === "retire" ||
+                      inscriptionActuelle.abandonne_le
                         ? "text-muted"
                         : "text-accent"
                     }`}
                   >
-                    {LABEL_INSCRIPTION[inscriptionActuelle.statut] ?? inscriptionActuelle.statut}
+                    {inscriptionActuelle.abandonne_le
+                      ? "Abandon"
+                      : (LABEL_INSCRIPTION[inscriptionActuelle.statut] ?? inscriptionActuelle.statut)}
                   </span>
                 </p>
+                {/* Format suisse : abandon officiel en cours de tournoi (19/11/2026). */}
+                {estSuisse &&
+                  statut === "en_cours" &&
+                  inscriptionActuelle.statut === "confirme" &&
+                  (inscriptionActuelle.abandonne_le ? (
+                    <p className="text-[13px] leading-normal text-muted">
+                      {typographie(
+                        "Tu as abandonné ce tournoi : tu n'es plus apparié. Tes résultats restent au classement du tournoi.",
+                      )}
+                    </p>
+                  ) : (
+                    <form action={abandonnerTournoiSuisse}>
+                      <input type="hidden" name="tournament_id" value={tournoi.id} />
+                      <input type="hidden" name="slug" value={tournoi.slug} />
+                      <BoutonConfirmation
+                        type="submit"
+                        confirmation="Abandonner ce tournoi ? Ton match en cours sera donné à ton adversaire et tu ne seras plus apparié. C'est définitif."
+                        className="inline-flex min-h-11 items-center text-[13px] text-muted underline underline-offset-3 hover:text-text"
+                      >
+                        Abandonner le tournoi
+                      </BoutonConfirmation>
+                    </form>
+                  ))}
                 {(statut === "ouvert" || statut === "checkin") &&
                   (inscriptionActuelle.statut === "inscrit" || inscriptionActuelle.statut === "confirme") && (
                     <form action={seDesinscrire}>

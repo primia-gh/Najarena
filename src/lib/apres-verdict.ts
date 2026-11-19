@@ -115,6 +115,26 @@ export async function suiteSuisse(tournamentId: string, tour: number): Promise<v
   await Promise.all((ouverts ?? []).map((o) => prevenirMatchOuvert(o.id)));
 }
 
+/**
+ * Abandon d'un tournoi suisse sans match à trancher (le joueur attendait la
+ * ronde suivante) : la base a peut-être créé la ronde suivante, ou arrêté
+ * le tournoi faute de joueurs ; même suite qu'après un verdict.
+ */
+export async function apresAbandonSansMatch(tournamentId: string): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  const { data: dernier } = await admin
+    .from("matches")
+    .select("tour")
+    .eq("tournament_id", tournamentId)
+    .order("tour", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  // suiteSuisse prévient les joueurs des matchs de la ronde « tour + 1 »
+  // ouverts à l'instant : la ronde qui vient d'être créée est la dernière.
+  await suiteSuisse(tournamentId, (dernier?.tour ?? 1) - 1);
+}
+
 /** Annonce le premier du classement d'un tournoi suisse qui vient d'être clos. */
 export async function annoncerPremierSuisse(tournamentId: string): Promise<void> {
   const admin = creerClientAdmin();

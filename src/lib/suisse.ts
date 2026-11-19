@@ -18,6 +18,8 @@ export interface LigneClassementSuisse {
   defaites: number;
   buchholz: number;
   rang: number;
+  /** A abandonné en cours de tournoi : plus apparié, ses résultats restent. */
+  abandon?: boolean;
 }
 
 /** Récit factuel d'un tournoi suisse terminé : vainqueur, bilan, dauphin. */

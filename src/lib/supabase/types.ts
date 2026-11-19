@@ -2479,6 +2479,7 @@ export type Database = {
       }
       registrations: {
         Row: {
+          abandonne_le: string | null
           confirme_le: string | null
           equipe_nom: string | null
           equipe_tag: string | null
@@ -2492,6 +2493,7 @@ export type Database = {
           tournament_id: string
         }
         Insert: {
+          abandonne_le?: string | null
           confirme_le?: string | null
           equipe_nom?: string | null
           equipe_tag?: string | null
@@ -2505,6 +2507,7 @@ export type Database = {
           tournament_id: string
         }
         Update: {
+          abandonne_le?: string | null
           confirme_le?: string | null
           equipe_nom?: string | null
           equipe_tag?: string | null
@@ -3540,8 +3543,11 @@ export type Database = {
           defaites: number
           buchholz: number
           rang: number
+          abandon: boolean
         }[]
       }
+      abandonner_suisse: { Args: { p_tournament: string }; Returns: string | null }
+      annonce_recrutement_visible: { Args: { p_team: string }; Returns: boolean }
       publier_recrutement: {
         Args: { p_team: string; p_postes: string[]; p_niveau_min?: number | null; p_message?: string | null }
         Returns: undefined

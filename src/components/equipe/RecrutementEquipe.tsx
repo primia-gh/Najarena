@@ -300,8 +300,11 @@ export default async function RecrutementEquipe({
     );
   }
 
-  // Visiteur : rien si l'équipe ne recrute pas.
+  // Visiteur : rien si l'équipe ne recrute pas, ni si son capitaine est
+  // suspendu, supprimé ou bloqué (mêmes règles que la liste publique).
   if (!active || !annonce) return null;
+  const { data: visible } = await supabase.rpc("annonce_recrutement_visible", { p_team: equipe.id });
+  if (!visible) return null;
 
   const [{ data: maCandidatureBrute }, { data: monRating }] = await Promise.all([
     visiteurId && !estMembre

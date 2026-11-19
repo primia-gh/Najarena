@@ -12754,6 +12754,29 @@ $$;
 revoke execute on function public.annonces_recrutement_publiques(text) from public;
 grant execute on function public.annonces_recrutement_publiques(text) to anon, authenticated;
 
+-- Page d'une équipe : son annonce est-elle visible ? Mêmes règles que la
+-- liste publique (en cours, de la place, capitaine ni suspendu, ni
+-- supprimé, ni bloqué par le lecteur ou l'inverse).
+create or replace function public.annonce_recrutement_visible(p_team uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.annonces_recrutement a
+    join public.teams t on t.id = a.team_id
+    join public.profiles p on p.id = t.capitaine_id and p.supprime_le is null
+    where a.team_id = p_team and a.expire_le > now()
+      and public.effectif_equipe(t.id) < 5
+      and not exists (select 1 from public.suspensions s where s.profile_id = t.capitaine_id and s.levee_le is null)
+      and (auth.uid() is null or not public.blocage_entre(auth.uid(), t.capitaine_id))
+  );
+$$;
+revoke execute on function public.annonce_recrutement_visible(uuid) from public;
+grant execute on function public.annonce_recrutement_visible(uuid) to anon, authenticated;
+
 create or replace function public.postuler_equipe(p_team uuid, p_poste text, p_message text default null)
 returns uuid
 language plpgsql
@@ -13016,6 +13039,10 @@ alter table public.tournaments add constraint tournaments_type_bracket_check
 alter table public.tournaments drop constraint if exists tournaments_rondes_check;
 alter table public.tournaments add constraint tournaments_rondes_check
   check (rondes is null or (type_bracket = 'suisse' and rondes between 1 and 5));
+-- Abandon officiel en cours de tournoi suisse (abandonner_suisse) : le
+-- joueur n'est plus apparié ; ses résultats restent au classement.
+-- Écrit par la base seule (aucun droit de colonne pour les comptes).
+alter table public.registrations add column if not exists abandonne_le timestamptz;
 
 -- Le format suisse : 1v1, tournoi d'organisateur. Le nombre de rondes
 -- n'est écrit que par la base (demarrer_suisse).
@@ -13053,7 +13080,8 @@ returns table (
   victoires integer,
   defaites integer,
   buchholz integer,
-  rang integer
+  rang integer,
+  abandon boolean
 )
 language sql
 stable
@@ -13063,7 +13091,7 @@ as $$
   -- une fois les rondes lancées, changer le statut d'une inscription ne
   -- retire personne du classement (contrôle de sécurité du 19/11/2026).
   with joueurs as (
-    select distinct mp.profile_id, r.rating_a_inscription
+    select distinct mp.profile_id, r.rating_a_inscription, r.abandonne_le is not null as abandon
     from public.matches m
     join public.tournaments t on t.id = m.tournament_id and t.type_bracket = 'suisse' and t.statut <> 'brouillon'
     join public.match_participants mp on mp.match_id = m.id
@@ -13071,13 +13099,13 @@ as $$
     where m.tournament_id = p_tournament
   ),
   bilans as (
-    select j.profile_id, j.rating_a_inscription,
+    select j.profile_id, j.rating_a_inscription, j.abandon,
            count(*) filter (where mp.est_gagnant is true)::integer as victoires,
            count(*) filter (where mp.est_gagnant is false)::integer as defaites
     from joueurs j
     left join public.match_participants mp on mp.profile_id = j.profile_id
       and mp.match_id in (select id from public.matches where tournament_id = p_tournament)
-    group by j.profile_id, j.rating_a_inscription
+    group by j.profile_id, j.rating_a_inscription, j.abandon
   ),
   avec_buchholz as (
     select b.*,
@@ -13095,7 +13123,8 @@ as $$
          -- Dernier départage : un tirage stable, jamais le pseudo (qu'un
          -- joueur peut changer pour passer devant).
          (row_number() over (order by a.victoires desc, a.buchholz desc, a.rating_a_inscription desc nulls last,
-                                      md5(a.profile_id::text || p_tournament::text)))::integer
+                                      md5(a.profile_id::text || p_tournament::text)))::integer,
+         a.abandon
   from avec_buchholz a
   join public.profiles p on p.id = a.profile_id
   order by 7;
@@ -13149,10 +13178,18 @@ begin
     into v_ordre
     from public.registrations r where r.tournament_id = p_tournament and r.statut = 'confirme';
   else
-    select array_agg(c.profile_id order by c.rang) into v_ordre from public.classement_suisse(p_tournament) c;
+    -- Les joueurs qui ont abandonné ne sont plus appariés.
+    select array_agg(c.profile_id order by c.rang) into v_ordre
+    from public.classement_suisse(p_tournament) c
+    where not c.abandon;
   end if;
   v_n := coalesce(array_length(v_ordre, 1), 0);
   if v_n < 2 then
+    -- Moins de deux joueurs encore en lice après des abandons : le tournoi
+    -- s'arrête à la ronde jouée (suisse_terminee devient vrai).
+    if v_tour > 0 then
+      update public.tournaments set rondes = v_tour where id = p_tournament;
+    end if;
     return null;
   end if;
 
@@ -13322,6 +13359,70 @@ end;
 $$;
 revoke execute on function public.demarrer_suisse(uuid) from public, anon;
 grant execute on function public.demarrer_suisse(uuid) to authenticated;
+
+-- Abandon officiel d'un joueur en cours de tournoi suisse : son match en
+-- cours est donné à son adversaire (décision manuelle motivée, forfait :
+-- jamais compté au classement Najarena), il n'est plus apparié ensuite, et
+-- ses résultats restent au classement du tournoi. Sans match en cours, la
+-- ronde suivante se crée sans lui si la ronde est complète.
+create or replace function public.abandonner_suisse(p_tournament uuid)
+returns uuid -- match tranché par l'abandon, ou nul
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_t record;
+  v_match uuid;
+  v_adversaire uuid;
+  v_pseudo text;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, type_bracket, statut into v_t from public.tournaments where id = p_tournament for update;
+  if not found or v_t.type_bracket is distinct from 'suisse' then
+    raise exception 'PAS_UN_TOURNOI_SUISSE';
+  end if;
+  if v_t.statut <> 'en_cours' then
+    raise exception 'TOURNOI_PAS_EN_COURS';
+  end if;
+  if not exists (
+    select 1 from public.matches m join public.match_participants mp on mp.match_id = m.id
+    where m.tournament_id = p_tournament and mp.profile_id = v_moi
+  ) then
+    raise exception 'NON_PARTICIPANT';
+  end if;
+  update public.registrations set abandonne_le = now()
+  where tournament_id = p_tournament and profile_id = v_moi and abandonne_le is null;
+  if not found then
+    raise exception 'DEJA_ABANDONNE';
+  end if;
+
+  select m.id into v_match
+  from public.matches m
+  join public.match_participants mp on mp.match_id = m.id and mp.profile_id = v_moi
+  where m.tournament_id = p_tournament and m.statut in ('en_cours', 'litige')
+    and not exists (select 1 from public.match_verdicts v where v.match_id = m.id and v.est_definitif)
+  for update of m;
+
+  if v_match is null then
+    perform public.ronde_suisse_suivante(p_tournament);
+    return null;
+  end if;
+
+  select profile_id into v_adversaire from public.match_participants where match_id = v_match and profile_id <> v_moi;
+  select pseudo into v_pseudo from public.profiles where id = v_moi;
+  insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+  values (v_match, 'manuel', v_adversaire, null,
+          'Abandon : ' || coalesce(v_pseudo, 'le joueur') || ' a quitté le tournoi.', true);
+  perform public.avancer_vainqueur(v_match, v_adversaire);
+  update public.matches set statut = 'forfait' where id = v_match;
+  return v_match;
+end;
+$$;
+revoke execute on function public.abandonner_suisse(uuid) from public, anon;
+grant execute on function public.abandonner_suisse(uuid) to authenticated;
 
 -- Toutes les rondes jouées : le tournoi peut être clôturé.
 create or replace function public.suisse_terminee(p_tournament uuid)
