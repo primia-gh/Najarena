@@ -12118,11 +12118,14 @@ grant execute on function public.rechercher_joueurs(text, text, numeric, boolean
 -- fonctions d'inscription verrouillent la ligne du tournoi : une
 -- inscription et une modification simultanées passent l'une après l'autre.
 --
--- Date changée après publication : la nouvelle date n'est connue du public
--- que maintenant. publie_le est donc reposée à l'heure de la modification,
--- sans quoi un tournoi publié de longue date pour dans un mois, puis
--- avancé à dans deux heures, compterait encore comme « publié 24 h avant »
--- (criteres_tournoi_classe).
+-- Date, serveur ou capacité changés après publication : le tournoi tel
+-- qu'il se jouera n'est connu du public que maintenant. publie_le est donc
+-- reposée à l'heure de la modification, sans quoi un tournoi publié de
+-- longue date pour dans un mois (ou sur un serveur où personne ne peut
+-- s'inscrire, ou à 4 places), puis avancé à dans deux heures (ou passé sur
+-- EUW, ou à 8 places), compterait encore comme « publié 24 h avant »
+-- (criteres_tournoi_classe ; contrôle de sécurité du 19/11/2026). Un nom
+-- corrigé seul ne change rien.
 create or replace function public.controler_classement_tournoi()
 returns trigger
 language plpgsql
@@ -12139,7 +12142,8 @@ begin
 
   if old.statut = 'brouillon' and new.statut = 'ouvert' then
     new.publie_le := now();
-  elsif old.publie_le is not null and new.debute_le is distinct from old.debute_le then
+  elsif old.publie_le is not null
+        and (new.debute_le, new.region, new.capacite) is distinct from (old.debute_le, old.region, old.capacite) then
     new.publie_le := now();
   else
     new.publie_le := old.publie_le;
@@ -12302,3 +12306,62 @@ end;
 $$;
 revoke execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz) from public, anon;
 grant execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz) to authenticated;
+
+-- « Je peux remplacer » (bourse aux remplaçants) lit le tournoi avec un
+-- verrou partagé, comme les inscriptions : un joueur ne s'ajoute plus à la
+-- bourse avec le serveur d'avant une modification faite au même instant.
+create or replace function public.proposer_remplacement(p_tournament_id uuid, p_role text default null)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_tournoi record;
+  v_region text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  -- Verrou partagé : une modification du tournoi (serveur) attend, ou se
+  -- fait avant et se relit ici (contrôle de sécurité du 19/11/2026).
+  select id, statut, format, nature, region into v_tournoi
+  from public.tournaments where id = p_tournament_id
+  for share;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_tournoi.format <> '5v5' or v_tournoi.nature <> 'tournoi' then
+    raise exception 'TOURNOI_EN_SOLO';
+  end if;
+  if v_tournoi.statut not in ('ouvert', 'checkin') then
+    raise exception 'ALIGNEMENT_FIGE';
+  end if;
+  if p_role is not null and p_role not in ('top', 'jungle', 'mid', 'adc', 'support') then
+    raise exception 'ROLE_INVALIDE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_joueur);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if v_region <> v_tournoi.region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  if exists (select 1 from public.alignements where tournament_id = p_tournament_id and profile_id = v_joueur) then
+    raise exception 'DEJA_DANS_UNE_EQUIPE';
+  end if;
+  if not coalesce(public.eligible_tournoi_reserve(p_tournament_id, v_joueur), true) then
+    raise exception 'RESERVE_MEMBRES';
+  end if;
+
+  insert into public.remplacants_disponibles (tournament_id, profile_id, role)
+  values (p_tournament_id, v_joueur, p_role)
+  on conflict (tournament_id, profile_id) do update set role = excluded.role;
+  return true;
+end;
+$$;
+revoke execute on function public.proposer_remplacement(uuid, text) from public, anon;
+grant execute on function public.proposer_remplacement(uuid, text) to authenticated;

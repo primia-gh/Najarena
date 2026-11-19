@@ -6,7 +6,7 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1215 vérifications de
+elle se rejoue une seconde fois sans erreur, et les 1225 vérifications de
 `tests/sql/` passent ensuite (contrôle refait le 19/11/2026).
 
 Branche : `claude/nice-faraday-nsoe9q`. Comme les fois précédentes, **la base
@@ -34,8 +34,9 @@ Cinq sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, une du
 5. **Modifier un tournoi avant la première inscription** (19/11/2026).
    Fonction `modifier_tournoi` ; `consommer_limite` redéfinie (10
    modifications par 24 h) ; `controler_classement_tournoi` redéfinie : la
-   date de publication est reposée quand la date de début d'un tournoi
-   publié change.
+   date de publication est reposée quand la date de début, le serveur ou
+   la capacité d'un tournoi publié change ; `proposer_remplacement`
+   redéfinie (verrou partagé sur le tournoi).
 
 ## 1. Vérifications avant migration (lecture seule)
 
@@ -148,7 +149,8 @@ CGV `/cgv` relues par un juriste ; médiateur de la consommation choisi et
 renseigné dans `src/lib/cgv.ts` (`MEDIATEUR`) ; prix créés dans Stripe
 **toutes taxes comprises** (un prix « hors taxes » n'est pas affiché) ;
 dans Stripe, portail client avec « Annuler l'abonnement » et historique des
-factures activés (Settings → Billing → Customer portal), et e-mails de reçu
+factures activés (Settings → Billing → Customer portal) — le changement de
+formule peut y être permis : l'offre accordée suit le prix facturé —, et e-mails de reçu
 envoyés à chaque paiement (Settings → Customer emails) — les CGV les
 promettent ; produits renommés « Plus »
 et « Pro » (anciennement « Vérifié » et « Elite »).

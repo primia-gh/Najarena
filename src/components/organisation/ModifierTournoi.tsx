@@ -52,8 +52,8 @@ export default function ModifierTournoi({
       <form action={modifierTournoi} className="mt-4 flex flex-col gap-5 border-l-2 border-line-strong pl-5">
         <p className="text-sm text-text-2">
           Possible tant que personne ne s&apos;est inscrit. Le format, la façon de gagner une partie et le caractère
-          amical restent ceux de la création. Changer la date d&apos;un tournoi publié compte comme une nouvelle
-          publication pour la règle des 24&nbsp;h d&apos;un tournoi classé.
+          amical restent ceux de la création. Changer la date, le serveur ou la capacité d&apos;un tournoi publié compte
+          comme une nouvelle publication pour la règle des 24&nbsp;h d&apos;un tournoi classé.
         </p>
         <input type="hidden" name="tournament_id" value={tournoi.id} />
         <Champ libelle="Nom du tournoi">

@@ -27,7 +27,8 @@ const PRIX_PAR_OFFRE: Record<Exclude<Offre, "gratuit">, string | undefined> = {
 export async function demarrerAbonnement(formData: FormData) {
   const offre = String(formData.get("offre") ?? "") as Offre;
 
-  if (offre === "gratuit" || !(offre in PRIX_PAR_OFFRE)) {
+  // Object.hasOwn : « constructor », « toString »… ne passent pas pour une offre.
+  if (offre === "gratuit" || !Object.hasOwn(PRIX_PAR_OFFRE, offre)) {
     redirect(`/tarifs?erreur=${encodeURIComponent("Offre invalide.")}#retour`);
   }
 

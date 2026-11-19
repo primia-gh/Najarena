@@ -27,9 +27,39 @@ values
 insert into registrations (tournament_id, profile_id, statut) values
   ('9a0a0000-0000-0000-0000-0000000000a4', '9a0a0000-0000-0000-0000-000000000002', 'retire');
 
+-- Contrôle de sécurité du 19/11/2026 : changement de serveur ou de
+-- capacité, et autres refus (agent libre, remplaçant, dotation, défi,
+-- tournoi à la demande).
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, nature, creneau_auto)
+values
+  ('9a0a0000-0000-0000-0000-0000000000a6', 1, '9a0a0000-0000-0000-0000-000000000001', 'tournoi-99j-f', 'Tournoi 99j F', '1v1', 8, 'JP',
+   now() + interval '2 hours', now() + interval '1 hour', 'ouvert', 'tournoi', null),
+  ('9a0a0000-0000-0000-0000-0000000000a7', 1, '9a0a0000-0000-0000-0000-000000000001', 'tournoi-99j-g', 'Tournoi 99j G', '1v1', 4, 'EUW',
+   now() + interval '2 hours', now() + interval '1 hour', 'ouvert', 'tournoi', null),
+  ('9a0a0000-0000-0000-0000-0000000000aa', 1, '9a0a0000-0000-0000-0000-000000000001', 'tournoi-99j-j', 'Tournoi 99j J', '1v1', 8, 'EUW',
+   now() + interval '4 days', now() + interval '4 days', 'ouvert', 'tournoi', null),
+  ('9a0a0000-0000-0000-0000-0000000000ab', 1, '9a0a0000-0000-0000-0000-000000000001', 'defi-99j', 'Défi 99j', '1v1', 2, 'EUW',
+   now() + interval '4 days', now() + interval '4 days', 'ouvert', 'defi', null),
+  ('9a0a0000-0000-0000-0000-0000000000ac', 1, '9a0a0000-0000-0000-0000-000000000001', 'najarena-99j-demande', 'À la demande 99j', '1v1', 8, 'EUW',
+   now() + interval '4 days', now() + interval '4 days', 'ouvert', 'tournoi', 'a-la-demande');
+-- 5v5 : toujours hors classement individuel.
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, nature, compte_pour_classement)
+values
+  ('9a0a0000-0000-0000-0000-0000000000a8', 1, '9a0a0000-0000-0000-0000-000000000001', 'tournoi-99j-h', 'Tournoi 99j H', '5v5', 8, 'EUW',
+   now() + interval '4 days', now() + interval '4 days', 'ouvert', 'tournoi', false),
+  ('9a0a0000-0000-0000-0000-0000000000a9', 1, '9a0a0000-0000-0000-0000-000000000001', 'tournoi-99j-i', 'Tournoi 99j I', '5v5', 8, 'EUW',
+   now() + interval '4 days', now() + interval '4 days', 'ouvert', 'tournoi', false);
+insert into agents_libres (tournament_id, profile_id) values
+  ('9a0a0000-0000-0000-0000-0000000000a8', '9a0a0000-0000-0000-0000-000000000002');
+insert into remplacants_disponibles (tournament_id, profile_id) values
+  ('9a0a0000-0000-0000-0000-0000000000a9', '9a0a0000-0000-0000-0000-000000000002');
+insert into dotations (tournament_id, sponsor_nom, repartition, cree_par) values
+  ('9a0a0000-0000-0000-0000-0000000000aa', 'Sponsor 99j', array[1000], '9a0a0000-0000-0000-0000-000000000001');
+
 -- Publication datée d'il y a 3 jours (le déclencheur la pose seul).
 alter table tournaments disable trigger controle_classement_tournoi;
-update tournaments set publie_le = now() - interval '3 days' where id = '9a0a0000-0000-0000-0000-0000000000a1';
+update tournaments set publie_le = now() - interval '3 days'
+where id in ('9a0a0000-0000-0000-0000-0000000000a1', '9a0a0000-0000-0000-0000-0000000000a6', '9a0a0000-0000-0000-0000-0000000000a7');
 alter table tournaments enable trigger controle_classement_tournoi;
 
 set role anon;
@@ -86,13 +116,13 @@ select verifie('Aucun refus n''a rien changé ni compté dans la limite',
 set role authenticated;
 select en_tant_que('9a0a0000-0000-0000-0000-000000000001');
 select essai('Oli corrige le nom (même date)',
-  $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000a1', '  Coupe du jeudi  ', 16, 1, 'EUNE',
+  $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000a1', '  Coupe du jeudi  ', 8, 1, 'EUW',
      (select debute_le from tournaments where id = '9a0a0000-0000-0000-0000-0000000000a1'),
      (select checkin_ouvre_le from tournaments where id = '9a0a0000-0000-0000-0000-0000000000a1'))$q$,
   'passe');
 reset role;
-select verifie('Nom (sans espaces autour), capacité et serveur changés ; publication toujours datée d''il y a 3 jours',
-  (select nom = 'Coupe du jeudi' and capacite = 16 and region = 'EUNE' and publie_le < now() - interval '2 days'
+select verifie('Nom seul corrigé (sans espaces autour) : publication toujours datée d''il y a 3 jours',
+  (select nom = 'Coupe du jeudi' and capacite = 8 and region = 'EUW' and publie_le < now() - interval '2 days'
    from tournaments where id = '9a0a0000-0000-0000-0000-0000000000a1'));
 
 -- Date avancée : la nouvelle date n'est publique que maintenant.
@@ -130,6 +160,51 @@ select refus('Tournoi automatique',
   $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000a5', 'Daily 99j', 16, 1, 'EUW', now() + interval '2 days', now() + interval '2 days')$q$,
   'TOURNOI_NON_MODIFIABLE');
 reset role;
+
+-- Serveur ou capacité changés : le tournoi tel qu'il se jouera n'est
+-- public que maintenant (ici, à 2 heures du début : plus classable).
+set role authenticated;
+select en_tant_que('9a0a0000-0000-0000-0000-000000000001');
+select essai('Oli passe son tournoi de JP à EUW, même date',
+  $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000a6', 'Tournoi 99j F', 8, 1, 'EUW',
+     (select debute_le from tournaments where id = '9a0a0000-0000-0000-0000-0000000000a6'),
+     (select checkin_ouvre_le from tournaments where id = '9a0a0000-0000-0000-0000-0000000000a6'))$q$,
+  'passe');
+select essai('Oli passe son tournoi de 4 à 8 places, même date',
+  $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000a7', 'Tournoi 99j G', 8, 1, 'EUW',
+     (select debute_le from tournaments where id = '9a0a0000-0000-0000-0000-0000000000a7'),
+     (select checkin_ouvre_le from tournaments where id = '9a0a0000-0000-0000-0000-0000000000a7'))$q$,
+  'passe');
+reset role;
+select verifie('Serveur changé : publication reposée, plus « publié 24 h avant »',
+  (select region = 'EUW' and publie_le > now() - interval '1 minute' from tournaments where id = '9a0a0000-0000-0000-0000-0000000000a6')
+  and not (select publie_a_temps from public.criteres_tournoi_classe('9a0a0000-0000-0000-0000-0000000000a6')));
+select verifie('Capacité changée : publication reposée, plus « publié 24 h avant »',
+  (select capacite = 8 and publie_le > now() - interval '1 minute' from tournaments where id = '9a0a0000-0000-0000-0000-0000000000a7')
+  and not (select publie_a_temps from public.criteres_tournoi_classe('9a0a0000-0000-0000-0000-0000000000a7')));
+
+set role authenticated;
+select en_tant_que('9a0a0000-0000-0000-0000-000000000001');
+select refus('Un agent libre est inscrit',
+  $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000a8', 'Tournoi 99j H', 8, 1, 'EUW', now() + interval '5 days', now() + interval '5 days')$q$,
+  'INSCRIPTIONS_COMMENCEES');
+select refus('Un remplaçant s''est proposé',
+  $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000a9', 'Tournoi 99j I', 8, 1, 'EUW', now() + interval '5 days', now() + interval '5 days')$q$,
+  'INSCRIPTIONS_COMMENCEES');
+select refus('Une dotation est enregistrée',
+  $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000aa', 'Tournoi 99j J', 8, 1, 'EUW', now() + interval '5 days', now() + interval '5 days')$q$,
+  'DOTATION_ENREGISTREE');
+select refus('Un défi ne se modifie pas',
+  $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000ab', 'Défi 99j', 4, 1, 'EUW', now() + interval '5 days', now() + interval '5 days')$q$,
+  'TOURNOI_NON_MODIFIABLE');
+select refus('Un tournoi à la demande ne se modifie pas',
+  $q$select public.modifier_tournoi('9a0a0000-0000-0000-0000-0000000000ac', 'À la demande 99j', 8, 1, 'EUW', now() + interval '5 days', now() + interval '5 days')$q$,
+  'TOURNOI_NON_MODIFIABLE');
+reset role;
+
+-- « Je peux remplacer » lit le tournoi sous verrou partagé.
+select verifie('proposer_remplacement verrouille la ligne du tournoi',
+  (select prosrc like '%for share%' from pg_proc where proname = 'proposer_remplacement' and pronamespace = 'public'::regnamespace));
 
 -- Plafond : 10 modifications par 24 h.
 insert into limites_usage (profile_id, action)
