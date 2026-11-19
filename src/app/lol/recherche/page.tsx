@@ -22,6 +22,8 @@ import {
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { classeBoutonContour, classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
+import BoutonLien from "@/components/design/BoutonLien";
+import { typographie } from "@/lib/typographie";
 import Apparition from "@/components/design/Apparition";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -35,11 +37,25 @@ import { rechercherEnLangageNaturel } from "@/lib/recherche-ia-actions";
 
 const LIMITE_RESULTATS = 100;
 
+const PARAMETRES_FILTRES = [
+  "role",
+  "region",
+  "palier_min",
+  "rating_min",
+  "classes",
+  "disponible",
+  "sans_equipe",
+  "actif",
+  "progression",
+  "fiable",
+  "tri",
+] as const;
+
 // Cases « Seulement les joueurs… » du formulaire.
 const CASES: { nom: string; libelle: string; coche: (f: Filtres) => boolean }[] = [
   { nom: "classes", libelle: "Classés (niveau confirmé)", coche: (f) => f.classesSeulement },
-  { nom: "progression", libelle: "En progression sur 30 jours", coche: (f) => f.enProgression },
-  { nom: "fiable", libelle: "Fiables (aucun forfait, présents au check-in)", coche: (f) => f.fiable },
+  { nom: "progression", libelle: "En progression (points gagnés en tournoi classé, 30 jours)", coche: (f) => f.enProgression },
+  { nom: "fiable", libelle: "Fiables (3 matchs 1v1 au moins, aucun forfait, check-in d'au moins 80 %)", coche: (f) => f.fiable },
   { nom: "disponible", libelle: "Qui cherchent une équipe", coche: (f) => f.disponible },
   { nom: "sans_equipe", libelle: "Sans équipe", coche: (f) => f.sansEquipe },
 ];
@@ -72,7 +88,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
-    redirect("/connexion");
+    redirect("/connexion?suite=%2Flol%2Frecherche");
   }
 
   const { offre } = await chargerOffre(supabase, userData.user.id);
@@ -131,6 +147,13 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
   const palierActuel = paliers.find((p) => p.nom === params.palier_min)?.nom ?? "";
   const ratingPrecis = params.rating_min && /^\d{1,4}$/.test(params.rating_min) ? params.rating_min : null;
   const actifs = filtresActifs(filtres);
+  // Adresse de la recherche en cours : « Suivre » y ramène, filtres compris.
+  const courants = new URLSearchParams();
+  for (const cle of PARAMETRES_FILTRES) {
+    const valeur = params[cle];
+    if (valeur) courants.set(cle, valeur);
+  }
+  const adresseCourante = courants.toString() ? `/lol/recherche?${courants.toString()}` : "/lol/recherche";
   const ia = iaDisponible();
   const moi = userData.user.id;
 
@@ -150,11 +173,15 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
             <LibelleSection className="mt-6">Offre Organisateur</LibelleSection>
             <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Recherche de joueurs</h1>
             <p className="mt-4 max-w-2xl text-text-2">
-              Parmi tous les comptes Riot vérifiés : niveau officiel, progression sur 30 jours, activité, fiabilité et
-              disponibilité. Rien n&apos;est déclaré par le joueur, sauf son poste.
+              {typographie(
+                "Parmi tous les comptes Riot vérifiés. Niveau, progression, activité et fiabilité sont lus dans des parties vérifiées ; seuls le poste et les annonces « cherche une équipe » ou « cherche un duo » sont déclarés par le joueur.",
+              )}
             </p>
           </div>
-          <Link href="/moi/watchlist" className="text-sm text-text underline underline-offset-3 hover:text-accent">
+          <Link
+            href="/moi/watchlist"
+            className="inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent"
+          >
             Ma watchlist
           </Link>
         </Apparition>
@@ -177,7 +204,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                     rows={2}
                     maxLength={300}
                     defaultValue={demande ?? ""}
-                    placeholder="Ex. « un mid EUW au-dessus de 1 700 qui cherche une équipe »"
+                    placeholder={typographie("Ex. « un mid EUW au-dessus de 1 700 qui cherche une équipe »")}
                     className={`${classeChamp()} resize-none`}
                   />
                 </label>
@@ -271,7 +298,10 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                   Filtrer
                 </button>
                 {actifs && (
-                  <Link href="/lol/recherche" className="text-sm text-muted underline underline-offset-3 hover:text-text">
+                  <Link
+                    href="/lol/recherche"
+                    className="inline-flex min-h-11 items-center text-sm text-muted underline underline-offset-3 hover:text-text"
+                  >
                     Réinitialiser
                   </Link>
                 )}
@@ -302,7 +332,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
           <section aria-labelledby="recherche-resultats" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line-strong pb-4">
               <LibelleSection as="h2" id="recherche-resultats">
-                {resultats.length} joueur{resultats.length !== 1 ? "s" : ""}
+                {erreurRecherche ? "Résultats" : `${resultats.length} joueur${resultats.length !== 1 ? "s" : ""}`}
               </LibelleSection>
               {resultats.length === LIMITE_RESULTATS && (
                 <span className="text-xs text-muted">Les {LIMITE_RESULTATS} premiers : affine les filtres pour aller plus loin.</span>
@@ -311,7 +341,17 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
             {erreurRecherche ? (
               <Alerte type="erreur">La recherche est indisponible pour l&apos;instant : réessaie dans un moment.</Alerte>
             ) : resultats.length === 0 ? (
-              <p className="text-text-2">Aucun joueur ne correspond à ces critères.</p>
+              <Panneau reperes className="flex flex-col items-start gap-3 p-8">
+                <p className="font-titre text-3xl font-black uppercase">Aucun joueur.</p>
+                <p className="max-w-md text-text-2">
+                  {typographie("Personne ne correspond à tous ces critères : élargis la recherche en retirant un filtre.")}
+                </p>
+                {actifs && (
+                  <BoutonLien href="/lol/recherche" variante="contour">
+                    Réinitialiser les filtres
+                  </BoutonLien>
+                )}
+              </Panneau>
             ) : (
               <Tableau legende="Joueurs correspondant à la recherche">
                 <thead>
@@ -356,6 +396,21 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                               ]
                                 .filter(Boolean)
                                 .join(" · ")}
+                            </span>
+                            {/* Petits écrans : les colonnes masquées, en une ligne. */}
+                            <span className="text-xs font-normal text-muted tabular-nums md:hidden">
+                              {[
+                                r.role ? LABEL_ROLE[r.role] : null,
+                                r.region,
+                                r.progression !== null ? `${r.progression} sur 30 j` : null,
+                                r.activite,
+                                r.fiabilite,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                            <span className="hidden text-xs font-normal text-muted tabular-nums md:block xl:hidden">
+                              {[r.activite, r.fiabilite].filter(Boolean).join(" · ")}
                             </span>
                           </span>
                         </Link>
@@ -410,7 +465,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                         ) : (
                           <form action={suivreJoueur}>
                             <input type="hidden" name="joueur_suivi_id" value={r.profileId} />
-                            <input type="hidden" name="retour" value="/lol/recherche" />
+                            <input type="hidden" name="retour" value={adresseCourante} />
                             <button
                               type="submit"
                               aria-label={`Suivre ${r.pseudo}`}
@@ -429,7 +484,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
             <p className="text-xs text-muted">
               Le rating, la confiance et la progression (somme des variations du registre sur 30 jours) ne sont donnés que pour
               un joueur classé. L&apos;activité compte les parties dont le résultat a été lu chez Riot ; la fiabilité reprend le
-              bloc du CV (matchs 1v1). Le poste est celui que le joueur a déclaré.
+              bloc du CV (matchs 1v1). Seuls le poste et les annonces (équipe, duo) sont déclarés par le joueur.
             </p>
           </section>
         </Apparition>

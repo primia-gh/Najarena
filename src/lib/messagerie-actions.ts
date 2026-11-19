@@ -158,10 +158,10 @@ export async function bloquerJoueur(formData: FormData) {
   const retour = destinationInterne(String(formData.get("retour") ?? "") || null, "/moi/messages");
   const { error } = await supabase.rpc("bloquer_joueur", { p_joueur: joueurId });
   if (error) {
-    redirect(`${retour}?erreur=${encodeURIComponent("Impossible de bloquer ce joueur pour l'instant.")}`);
+    redirect(`${retour}?erreur=${encodeURIComponent("Impossible de bloquer ce joueur pour l'instant.")}#retour`);
   }
   redirect(
-    `${retour}?message=${encodeURIComponent("Joueur bloqué : plus aucun message ne passe entre vous, ni demande de duo. Il n'en est pas prévenu.")}`,
+    `${retour}?message=${encodeURIComponent("Joueur bloqué : plus aucun message ne passe entre vous, ni demande de duo. Il n'en est pas prévenu.")}#retour`,
   );
 }
 
@@ -174,5 +174,5 @@ export async function debloquerJoueur(formData: FormData) {
   const joueurId = String(formData.get("joueur_id") ?? "");
   const retour = destinationInterne(String(formData.get("retour") ?? "") || null, "/moi/messages");
   await supabase.rpc("debloquer_joueur", { p_joueur: joueurId });
-  redirect(`${retour}?message=${encodeURIComponent("Joueur débloqué.")}`);
+  redirect(`${retour}?message=${encodeURIComponent("Joueur débloqué.")}#retour`);
 }

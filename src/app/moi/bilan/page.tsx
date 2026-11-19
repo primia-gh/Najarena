@@ -33,6 +33,7 @@ import VueBilan, { MethodeBilan, type ExtrasClassees } from "@/components/bilan/
 import ReglagesAnalyse, { type EtatReglages } from "@/components/bilan/ReglagesAnalyse";
 import AnalyseProgressionIA from "@/components/bilan/AnalyseProgressionIA";
 import { progressionMesurable } from "@/lib/progression-ia";
+import { iaDisponible } from "@/lib/claude";
 
 // Mon bilan (05/10/2026) : forces, axes de travail, plan, progression,
 // champions et builds, calculés sur les parties vérifiées du joueur
@@ -304,6 +305,7 @@ export default async function BilanPage({ searchParams }: BilanPageProps) {
         <AnalyseProgressionIA
           format={format}
           elite={complet}
+          disponible={iaDisponible()}
           mesurable={progressionMesurable(bilan)}
           partiesComparees={bilan.partiesComparees}
           derniere={bilan.derniere}

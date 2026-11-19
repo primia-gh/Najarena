@@ -97,5 +97,19 @@ export async function annulerDemandeDuo(formData: FormData) {
   const { supabase } = await session();
   const { data: fait } = await supabase.rpc("annuler_demande_duo", { p_demande: demandeId });
   if (!fait) retour("erreur", "Cette demande n'attend plus de réponse : rien à retirer.");
-  retour("message", `Demande retirée. Tu pourras en renvoyer une à ce joueur dans ${DUREE_DEMANDE_DUO_JOURS} jours.`);
+  // Une demande au même joueur par 7 jours, comptés depuis l'envoi.
+  const { data: demande } = await supabase.from("demandes_duo").select("cree_le").eq("id", demandeId).maybeSingle();
+  const prochaine = demande
+    ? new Date(new Date(demande.cree_le).getTime() + DUREE_DEMANDE_DUO_JOURS * 24 * 3600 * 1000).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        timeZone: "Europe/Paris",
+      })
+    : null;
+  retour(
+    "message",
+    prochaine
+      ? `Demande retirée. Tu pourras en renvoyer une à ce joueur à partir du ${prochaine}.`
+      : `Demande retirée. Une seule demande au même joueur par ${DUREE_DEMANDE_DUO_JOURS} jours, comptés depuis l'envoi.`,
+  );
 }

@@ -12,6 +12,7 @@ import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import FondEcailles from "@/components/design/FondEcailles";
 import Icone from "@/components/design/Icone";
 import LibelleSection from "@/components/design/LibelleSection";
+import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 
 export const metadata: Metadata = {
   title: "Conversation — Najarena",
@@ -97,7 +98,7 @@ export default async function ConversationPage({ params, searchParams }: Convers
             {autre?.slug && (
               <Link
                 href={`/joueur/${autre.slug}`}
-                className="ml-auto hidden shrink-0 text-sm text-muted underline underline-offset-3 hover:text-text sm:inline"
+                className="ml-auto inline-flex min-h-11 shrink-0 items-center text-sm text-muted underline underline-offset-3 hover:text-text"
               >
                 Voir son CV
               </Link>
@@ -106,7 +107,7 @@ export default async function ConversationPage({ params, searchParams }: Convers
         </Apparition>
 
         {(erreur || message) && (
-          <div className="flex flex-col gap-3">
+          <div id="retour" className="flex scroll-mt-28 flex-col gap-3">
             {erreur && <Alerte type="erreur">{erreur}</Alerte>}
             {message && <Alerte type="succes">{message}</Alerte>}
           </div>
@@ -184,17 +185,21 @@ export default async function ConversationPage({ params, searchParams }: Convers
             </form>
           )}
           {!blocage && (
-            <form action={bloquerJoueur} className="mt-6 flex flex-wrap items-center gap-x-3 border-t border-line pt-4">
+            <form action={bloquerJoueur} className="mt-6 flex flex-col items-start gap-1 border-t border-line pt-4">
               <input type="hidden" name="joueur_id" value={autreId} />
               <input type="hidden" name="retour" value={`/moi/messages/${conversation.id}`} />
-              <span className="text-xs text-muted">Un problème avec ce joueur&nbsp;?</span>
-              <button
+              <p id="aide-bloquer" className="text-xs text-muted">
+                Un problème avec ce joueur&nbsp;? Le bloquer coupe vos messages dans les deux sens et ses demandes de
+                duo&nbsp;; il n&apos;en est pas prévenu. Tu pourras le débloquer.
+              </p>
+              <BoutonConfirmation
                 type="submit"
-                aria-label={`Bloquer ${autre?.pseudo ?? "ce joueur"}`}
+                aria-describedby="aide-bloquer"
+                confirmation={`Bloquer ${autre?.pseudo ?? "ce joueur"} ? Plus aucun message ne passera entre vous, ni demande de duo.`}
                 className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger"
               >
                 Bloquer ce joueur
-              </button>
+              </BoutonConfirmation>
             </form>
           )}
         </Apparition>

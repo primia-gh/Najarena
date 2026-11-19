@@ -6,6 +6,8 @@ import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
+import Icone, { type NomIcone } from "@/components/design/Icone";
+import { typographie } from "@/lib/typographie";
 
 // Analyse de progression rédigée par l'IA (18/11/2026, offre Elite) : sous
 // le bilan chiffré, un texte rédigé à partir de ces seuls chiffres. Toujours
@@ -40,15 +42,18 @@ function dateCourte(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
 }
 
-function Liste({ titre, elements }: { titre: string; elements: string[] }) {
+function Liste({ titre, icone, elements }: { titre: string; icone: NomIcone; elements: string[] }) {
   if (elements.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="font-texte text-mini font-medium text-muted uppercase">{titre}</h3>
+      <h3 className="inline-flex items-center gap-2 font-texte text-mini font-medium text-muted uppercase">
+        <Icone nom={icone} taille={13} />
+        {titre}
+      </h3>
       <ul className="flex flex-col gap-2">
         {elements.map((e) => (
           <li key={e} className="border-l-2 border-line-strong pl-3 text-text-2">
-            {e}
+            {typographie(e)}
           </li>
         ))}
       </ul>
@@ -59,6 +64,7 @@ function Liste({ titre, elements }: { titre: string; elements: string[] }) {
 export default function AnalyseProgressionIA({
   format,
   elite,
+  disponible,
   mesurable,
   partiesComparees,
   derniere,
@@ -67,7 +73,9 @@ export default function AnalyseProgressionIA({
 }: {
   format: FormatBilan;
   elite: boolean;
-  /** Assez de parties pour une tendance (10 dans le format). */
+  /** La rédaction par l'IA est branchée (clé présente sur le serveur). */
+  disponible: boolean;
+  /** Assez de parties pour une tendance (10 dans le format, une tendance mesurée). */
   mesurable: boolean;
   partiesComparees: number;
   derniere: string | null;
@@ -77,34 +85,36 @@ export default function AnalyseProgressionIA({
 }) {
   const message = retour ? RETOURS[retour] : undefined;
   const nouvelles = analyse !== null && (analyse.parties !== partiesComparees || analyse.derniere_partie !== derniere);
+  // Parties classées : lues chez Riot avec l'accord du joueur, pas jouées en tournoi.
+  const parties = format === "classees" ? "parties classées lues chez Riot" : "parties vérifiées";
 
-  const bouton = (libelle: string) => (
-    <form action={demanderAnalyseProgression}>
-      <input type="hidden" name="format" value={format} />
-      <BoutonEnvoi variante={analyse ? "contour" : "principal"} libelleEnCours="Rédaction…">
-        {libelle}
-      </BoutonEnvoi>
-    </form>
-  );
+  const bouton = (libelle: string) =>
+    disponible ? (
+      <form action={demanderAnalyseProgression} className="flex flex-col items-start gap-2">
+        <input type="hidden" name="format" value={format} />
+        <BoutonEnvoi variante={analyse ? "contour" : "principal"} libelleEnCours="Rédaction en cours…">
+          {libelle}
+        </BoutonEnvoi>
+        <p className="text-xs text-muted">{typographie("La rédaction prend quelques secondes : reste sur la page.")}</p>
+      </form>
+    ) : (
+      <p className="text-sm text-muted">{typographie("La rédaction par l'IA est indisponible pour l'instant.")}</p>
+    );
 
   return (
     <section id="analyse-ia" aria-labelledby="titre-analyse-ia" className="flex max-w-3xl scroll-mt-28 flex-col gap-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line-strong pb-4">
-        <LibelleSection as="h2" id="titre-analyse-ia">
-          Analyse de ta progression
-        </LibelleSection>
-        <span className="rounded-bouton border border-line-strong px-2 py-0.5 font-texte text-mini font-semibold tracking-[2px] text-muted uppercase">
-          Rédigée par une IA
-        </span>
-      </div>
+      <LibelleSection as="h2" id="titre-analyse-ia" className="border-b border-line-strong pb-4">
+        Analyse de ta progression
+      </LibelleSection>
 
       {message && <Alerte type={message.type}>{message.texte}</Alerte>}
 
       {!elite ? (
         <Panneau className="flex flex-col items-start gap-4 p-6">
           <p className="text-text-2">
-            Avec l&apos;offre Elite, une IA lit les chiffres de ce bilan et rédige ce qui progresse, ce qui recule et
-            quoi travailler à tes prochaines parties. Elle ne voit que ces chiffres, lus dans tes parties vérifiées.
+            {typographie(
+              `Avec l'offre Elite, une IA lit les chiffres de ce bilan et rédige ce qui progresse, ce qui recule et quoi travailler à tes prochaines parties. Elle ne voit que ces chiffres et tes champions, lus dans tes ${parties}.`,
+            )}
           </p>
           <BoutonLien href="/tarifs" variante="secondaire">
             Voir l&apos;offre Elite
@@ -112,40 +122,63 @@ export default function AnalyseProgressionIA({
         </Panneau>
       ) : analyse ? (
         <Panneau className="flex flex-col gap-6 p-6 sm:p-8">
-          <p className="text-xs text-muted tabular-nums">
-            Rédigée le {dateCourte(analyse.cree_le)}, sur {analyse.parties} parties vérifiées
-            {analyse.derniere_partie ? ` (jusqu'au ${dateCourte(analyse.derniere_partie)})` : ""}.
-          </p>
-          <p className="text-courant text-text">{analyse.resume}</p>
-          <Liste titre="Ce qui progresse" elements={analyse.progres} />
-          <Liste titre="Ce qui recule" elements={analyse.reculs} />
-          <Liste titre="À travailler" elements={analyse.priorites} />
-          {nouvelles && mesurable && (
-            <div className="flex flex-col items-start gap-2 border-t border-line pt-5">
-              <p className="text-sm text-text-2">Tu as joué depuis : l&apos;analyse peut tenir compte de tes nouvelles parties.</p>
-              {bouton("Refaire l'analyse")}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="rounded-bouton border border-line-strong px-2 py-0.5 font-texte text-mini font-semibold tracking-[2px] text-muted uppercase">
+              Rédigée par une IA
+            </span>
+            <span className="text-xs text-muted tabular-nums">
+              {typographie(
+                `le ${dateCourte(analyse.cree_le)}, sur ${analyse.parties} ${parties}${
+                  analyse.derniere_partie ? ` (jusqu'au ${dateCourte(analyse.derniere_partie)})` : ""
+                }`,
+              )}
+            </span>
+          </div>
+          <p className="text-courant text-text">{typographie(analyse.resume)}</p>
+          <Liste titre="Ce qui progresse" icone="fleche-droite" elements={analyse.progres} />
+          <Liste titre="Ce qui recule" icone="alerte" elements={analyse.reculs} />
+          <Liste titre="À travailler" icone="coche" elements={analyse.priorites} />
+          <div className="flex flex-col items-start gap-2 border-t border-line pt-5">
+            {nouvelles && mesurable ? (
+              <>
+                <p className="text-sm text-text-2">
+                  {typographie("Tu as joué depuis : l'analyse peut tenir compte de tes nouvelles parties.")}
+                </p>
+                {bouton("Refaire l'analyse")}
+              </>
+            ) : (
+              <p className="text-xs text-muted">{typographie("Tu pourras la refaire après tes prochaines parties.")}</p>
+            )}
+          </div>
         </Panneau>
       ) : mesurable ? (
         <Panneau className="flex flex-col items-start gap-4 p-6">
           <p className="text-text-2">
-            L&apos;IA lit tes tendances (tes 5 dernières parties contre les 5 précédentes), tes forces, tes axes de travail
-            et ton plan, puis rédige ce qui progresse, ce qui recule et quoi travailler.
+            {typographie(
+              "L'IA lit tes tendances (tes 5 dernières parties contre les 5 précédentes), tes forces, tes axes de travail, ton plan et tes champions, puis rédige ce qui progresse, ce qui recule et quoi travailler.",
+            )}
           </p>
           {bouton("Rédiger mon analyse")}
         </Panneau>
+      ) : partiesComparees < PARTIES_MIN_PROGRESSION ? (
+        <p className="text-text-2">
+          {typographie(
+            `Il faut ${PARTIES_MIN_PROGRESSION} ${parties} dans ce format pour comparer tes 5 dernières parties aux 5 précédentes : tu en as ${partiesComparees}.`,
+          )}
+        </p>
       ) : (
         <p className="text-text-2">
-          Il faut {PARTIES_MIN_PROGRESSION} parties vérifiées dans ce format pour comparer tes 5 dernières parties aux 5
-          précédentes : tu en as {partiesComparees}.
+          {typographie(
+            "Tes dernières parties ne permettent pas encore de mesurer une tendance : rejoue, l'analyse s'ouvrira ensuite.",
+          )}
         </p>
       )}
 
       {elite && (
         <p className="text-xs text-muted">
-          L&apos;IA ne voit que les chiffres de cette page : ni le déroulé de tes parties, ni le KDA, ni l&apos;or par minute.
-          Elle peut se tromper ; les chiffres du bilan font foi. 10 demandes à l&apos;IA par 24 h, revues de match comprises.
+          {typographie(
+            "L'IA ne voit que les chiffres et les champions de cette page : ni le déroulé de tes parties, ni le KDA, ni l'or par minute. Elle peut se tromper ; les chiffres du bilan font foi. 10 demandes à l'IA par 24 h, revues de match comprises.",
+          )}
         </p>
       )}
     </section>
