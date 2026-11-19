@@ -7,6 +7,7 @@ import {
   instantParis,
   jourParis,
   nomTournoi,
+  saisieParisDepuisInstant,
   slugTournoi,
   CRENEAUX,
 } from "./creneaux";
@@ -115,5 +116,21 @@ describe("instantDepuisSaisieParis", () => {
     expect(instantDepuisSaisieParis("2026-09-30T24:30")).toBeNull();
     expect(instantDepuisSaisieParis("30/09/2026 20:00")).toBeNull();
     expect(instantDepuisSaisieParis("")).toBeNull();
+  });
+});
+
+describe("saisieParisDepuisInstant", () => {
+  it("donne l'heure de Paris, été comme hiver", () => {
+    expect(saisieParisDepuisInstant("2026-09-30T18:00:00.000Z")).toBe("2026-09-30T20:00");
+    expect(saisieParisDepuisInstant("2026-12-05T19:00:00.000Z")).toBe("2026-12-05T20:00");
+  });
+
+  it("minuit à Paris s'écrit 00:00, le bon jour", () => {
+    expect(saisieParisDepuisInstant("2026-12-05T23:00:00.000Z")).toBe("2026-12-06T00:00");
+  });
+
+  it("relue par instantDepuisSaisieParis, redonne le même instant", () => {
+    const iso = "2026-10-24T22:15:00.000Z";
+    expect(instantDepuisSaisieParis(saisieParisDepuisInstant(iso))?.toISOString()).toBe(iso);
   });
 });

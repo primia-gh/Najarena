@@ -12104,3 +12104,201 @@ end;
 $$;
 revoke execute on function public.rechercher_joueurs(text, text, numeric, boolean, boolean, boolean, integer, boolean, boolean, text, integer) from public, anon;
 grant execute on function public.rechercher_joueurs(text, text, numeric, boolean, boolean, boolean, integer, boolean, boolean, text, integer) to authenticated;
+
+-- ---------- Modifier un tournoi avant la première inscription (2026-11-19, audit M7) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (formulaire « Modifier le tournoi » du cockpit).
+-- Les réglages d'un tournoi sont figés dès sa création (controler_ecriture_tournoi) :
+-- une faute dans le nom ou la date imposait d'annuler et de recréer. Tant
+-- que personne ne s'est inscrit (ni joueur, ni équipe, ni agent libre, ni
+-- remplaçant), l'organisateur peut changer le nom, la capacité, le Best-of,
+-- le serveur, la date de début et l'ouverture du check-in — avec les mêmes
+-- règles qu'à la création. Le format, la condition de victoire, le
+-- caractère amical, la communauté et l'adresse restent figés. Les
+-- fonctions d'inscription verrouillent la ligne du tournoi : une
+-- inscription et une modification simultanées passent l'une après l'autre.
+--
+-- Date changée après publication : la nouvelle date n'est connue du public
+-- que maintenant. publie_le est donc reposée à l'heure de la modification,
+-- sans quoi un tournoi publié de longue date pour dans un mois, puis
+-- avancé à dans deux heures, compterait encore comme « publié 24 h avant »
+-- (criteres_tournoi_classe).
+create or replace function public.controler_classement_tournoi()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.publie_le := case when new.statut = 'brouillon' then null else now() end;
+    if current_user = 'authenticated' and new.classe is not null then
+      raise exception 'CHAMP_RESERVE';
+    end if;
+    return new;
+  end if;
+
+  if old.statut = 'brouillon' and new.statut = 'ouvert' then
+    new.publie_le := now();
+  elsif old.publie_le is not null and new.debute_le is distinct from old.debute_le then
+    new.publie_le := now();
+  else
+    new.publie_le := old.publie_le;
+  end if;
+
+  if new.classe is distinct from old.classe then
+    if old.classe is not null then
+      raise exception 'CLASSEMENT_FIGE';
+    end if;
+    if current_user = 'authenticated' then
+      raise exception 'CHAMP_NON_MODIFIABLE';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_classement_tournoi() from public, anon, authenticated;
+
+-- Plafond : 10 modifications par organisateur et par 24 h.
+create or replace function public.consommer_limite(p_action text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_plafond integer;
+  v_fenetre interval;
+  v_nombre integer;
+begin
+  case p_action
+    when 'liaison_riot' then v_plafond := 10; v_fenetre := interval '1 hour';
+    when 'creation_tournoi' then v_plafond := 5; v_fenetre := interval '24 hours';
+    when 'litige' then v_plafond := 10; v_fenetre := interval '24 hours';
+    when 'message' then v_plafond := 30; v_fenetre := interval '1 hour';
+    when 'creation_equipe' then v_plafond := 3; v_fenetre := interval '24 hours';
+    when 'recherche_joueurs' then v_plafond := 120; v_fenetre := interval '1 hour';
+    when 'modification_tournoi' then v_plafond := 10; v_fenetre := interval '24 hours';
+    else raise exception 'ACTION_INCONNUE';
+  end case;
+
+  if v_joueur is null then
+    return false;
+  end if;
+
+  -- Une demande à la fois par joueur : deux onglets ne dépassent pas la limite.
+  perform 1 from public.profiles where id = v_joueur for update;
+
+  delete from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le < now() - interval '7 days';
+
+  select count(*) into v_nombre
+  from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le > now() - v_fenetre;
+
+  if v_nombre >= v_plafond then
+    return false;
+  end if;
+
+  insert into public.limites_usage (profile_id, action) values (v_joueur, p_action);
+  return true;
+end;
+$$;
+revoke execute on function public.consommer_limite(text) from public, anon;
+grant execute on function public.consommer_limite(text) to authenticated;
+
+create or replace function public.modifier_tournoi(
+  p_tournament_id uuid,
+  p_nom text,
+  p_capacite integer,
+  p_best_of integer,
+  p_region text,
+  p_debute_le timestamptz,
+  p_checkin_ouvre_le timestamptz
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_tournoi record;
+  v_nom text := btrim(coalesce(p_nom, ''));
+  v_premium boolean;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select id, organisateur_id, statut, nature, creneau_auto, capacite, best_of
+  into v_tournoi
+  from public.tournaments
+  where id = p_tournament_id
+  for update;
+
+  if not found or v_tournoi.organisateur_id <> v_moi then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  -- Ni défi, ni scrim, ni tournoi automatique : leurs réglages sont écrits
+  -- par la base ou le serveur.
+  if v_tournoi.nature <> 'tournoi' or v_tournoi.creneau_auto is not null
+     or v_tournoi.statut not in ('brouillon', 'ouvert') then
+    raise exception 'TOURNOI_NON_MODIFIABLE';
+  end if;
+  if exists (select 1 from public.registrations where tournament_id = p_tournament_id)
+     or exists (select 1 from public.alignements where tournament_id = p_tournament_id)
+     or exists (select 1 from public.agents_libres where tournament_id = p_tournament_id)
+     or exists (select 1 from public.remplacants_disponibles where tournament_id = p_tournament_id) then
+    raise exception 'INSCRIPTIONS_COMMENCEES';
+  end if;
+  if exists (select 1 from public.dotations where tournament_id = p_tournament_id) then
+    raise exception 'DOTATION_ENREGISTREE';
+  end if;
+
+  if char_length(v_nom) not between 3 and 60 then
+    raise exception 'NOM_INVALIDE';
+  end if;
+  if p_capacite is null or p_capacite not in (4, 8, 16, 32, 64, 128) then
+    raise exception 'CAPACITE_INVALIDE';
+  end if;
+  if p_best_of is null or p_best_of not in (1, 3, 5) then
+    raise exception 'BEST_OF_INVALIDE';
+  end if;
+  -- Comme à la création : 128 places et Best-of 3 ou 5 demandent l'offre
+  -- Organisateur. Une valeur obtenue avec l'offre et laissée telle quelle
+  -- reste acceptée.
+  select exists (
+    select 1 from public.comptes_offres where profile_id = v_moi and offre = 'organisateur'
+  ) into v_premium;
+  if not v_premium and (
+       (p_capacite = 128 and v_tournoi.capacite <> 128)
+    or (p_best_of > 1 and p_best_of <> v_tournoi.best_of)) then
+    raise exception 'OFFRE_ORGANISATEUR_REQUISE';
+  end if;
+  if p_region is null or p_region not in ('EUW', 'EUNE', 'TR', 'RU', 'NA', 'BR', 'LAN', 'LAS', 'OCE', 'KR', 'JP') then
+    raise exception 'REGION_INVALIDE';
+  end if;
+  if p_debute_le is null or p_debute_le <= now() then
+    raise exception 'DATE_PASSEE';
+  end if;
+  if p_checkin_ouvre_le is null or p_checkin_ouvre_le > p_debute_le then
+    raise exception 'CHECKIN_APRES_DEBUT';
+  end if;
+
+  if not public.consommer_limite('modification_tournoi') then
+    raise exception 'LIMITE_ATTEINTE';
+  end if;
+
+  -- Le nom passe par la modération (moderer_tournoi), comme à la création.
+  update public.tournaments
+  set nom = v_nom,
+      capacite = p_capacite,
+      best_of = p_best_of,
+      region = p_region,
+      debute_le = p_debute_le,
+      checkin_ouvre_le = p_checkin_ouvre_le
+  where id = p_tournament_id;
+end;
+$$;
+revoke execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz) from public, anon;
+grant execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz) to authenticated;

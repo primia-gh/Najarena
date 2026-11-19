@@ -27,6 +27,8 @@ import Tableau from "@/components/design/Tableau";
 import CarteMatchCockpit from "@/components/organisation/CarteMatchCockpit";
 import { libelleEquipe } from "@/lib/cinq-contre-cinq";
 import DossierLitige, { lireSynthese } from "@/components/litige/DossierLitige";
+import ModifierTournoi from "@/components/organisation/ModifierTournoi";
+import { chargerOffre } from "@/lib/offres";
 
 export const metadata: Metadata = {
   title: "Cockpit organisateur — Najarena",
@@ -51,7 +53,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     supabase.auth.getUser(),
     supabase
       .from("tournaments")
-      .select("id, slug, nom, statut, capacite, region, debute_le, checkin_ouvre_le, organisateur_id, format")
+      .select("id, slug, nom, statut, capacite, best_of, region, debute_le, checkin_ouvre_le, organisateur_id, format, nature, creneau_auto")
       .eq("id", id)
       .maybeSingle(),
   ]);
@@ -149,6 +151,17 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const matchsATrancher = matchs.filter((m) => m.statut === "litige" && !verdictParMatch.has(m.id)).length;
   const unite = tournoi.format === "5v5" ? "équipes" : "joueurs";
   const actionsAvantLancement = ["brouillon", "ouvert", "checkin"].includes(tournoi.statut);
+  // Modifier avant la première inscription (19/11/2026, audit M7) — la base
+  // revérifie tout, inscriptions d'agents libres et de remplaçants comprises.
+  const modifiable =
+    ["brouillon", "ouvert"].includes(tournoi.statut) &&
+    tournoi.nature === "tournoi" &&
+    !tournoi.creneau_auto &&
+    inscriptions.length === 0 &&
+    (nbAgentsConfirmes ?? 0) === 0;
+  const organisateurPremium = modifiable
+    ? (await chargerOffre(supabase, userData.user.id)).offre === "organisateur"
+    : false;
   const debut = partiesDate(tournoi.debute_le);
 
   // Ordre de la page (revue visuelle du 05/10/2026) : pendant le tournoi,
@@ -477,11 +490,13 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
         </Apparition>
 
         {(erreur || message) && (
-          <div className="flex max-w-2xl flex-col gap-3">
+          <div id="retour" className="flex max-w-2xl scroll-mt-28 flex-col gap-3">
             {erreur && <Alerte type="erreur">{erreur}</Alerte>}
             {message && <Alerte type="succes">{message}</Alerte>}
           </div>
         )}
+
+        {modifiable && <ModifierTournoi tournoi={tournoi} organisateurPremium={organisateurPremium} />}
 
         <Apparition delai={0.08} className="flex flex-col gap-14">
           {bracketGenere ? (

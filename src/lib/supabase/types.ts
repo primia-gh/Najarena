@@ -3476,6 +3476,18 @@ export type Database = {
       }
       repondre_demande_duo: { Args: { p_demande: string; p_accepte: boolean }; Returns: string | null }
       annuler_demande_duo: { Args: { p_demande: string }; Returns: boolean }
+      modifier_tournoi: {
+        Args: {
+          p_tournament_id: string
+          p_nom: string
+          p_capacite: number
+          p_best_of: number
+          p_region: string
+          p_debute_le: string
+          p_checkin_ouvre_le: string
+        }
+        Returns: undefined
+      }
       retirer_disponibilite: { Args: { p_debut: string }; Returns: boolean }
       disponibilites_creneaux: { Args: { p_region: string }; Returns: { debut: string; joueurs: number }[] }
       ouvrir_tournois_a_la_demande: {

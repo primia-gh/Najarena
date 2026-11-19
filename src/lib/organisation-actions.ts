@@ -12,6 +12,8 @@ import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
 import { formerEquipes } from "@/lib/agents-libres";
 import { ROLES, type Role } from "@/lib/roles";
+import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
+import { messageRefusModification } from "@/lib/modifier-tournoi";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -434,6 +436,39 @@ export async function publierTournoi(formData: FormData) {
   );
 
   redirect(`/moi/organisation/${tournamentId}?message=${encodeURIComponent("Tournoi publié : les inscriptions sont ouvertes.")}`);
+}
+
+// Modification avant la première inscription (19/11/2026, audit M7) : nom,
+// capacité, Best-of, serveur, dates. La base (modifier_tournoi) vérifie
+// tout — propriétaire, statut, aucune inscription, mêmes règles qu'à la
+// création, modération du nom — et repose la date de publication si la
+// date de début change. Personne n'est inscrit : personne à prévenir.
+export async function modifierTournoi(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+  const supabase = await createClient();
+  await verifierOrganisateur(supabase, tournamentId);
+
+  const page = `/moi/organisation/${tournamentId}`;
+  const debuteLe = instantDepuisSaisieParis(String(formData.get("debute_le") ?? ""));
+  const checkinOuvreLe = instantDepuisSaisieParis(String(formData.get("checkin_ouvre_le") ?? ""));
+  if (!debuteLe || !checkinOuvreLe) {
+    redirect(`${page}?erreur=${encodeURIComponent("Dates invalides.")}#retour`);
+  }
+
+  const { error } = await supabase.rpc("modifier_tournoi", {
+    p_tournament_id: tournamentId,
+    p_nom: String(formData.get("nom") ?? "").slice(0, 200),
+    p_capacite: Number(formData.get("capacite")),
+    p_best_of: Number(formData.get("best_of") ?? 1),
+    p_region: String(formData.get("region") ?? ""),
+    p_debute_le: debuteLe.toISOString(),
+    p_checkin_ouvre_le: checkinOuvreLe.toISOString(),
+  });
+  if (error) {
+    redirect(`${page}?erreur=${encodeURIComponent(messageRefusModification(error.message))}#retour`);
+  }
+
+  redirect(`${page}?message=${encodeURIComponent("Tournoi modifié.")}#retour`);
 }
 
 // Annulation par l'organisateur (28/09/2026, audit M7), tant que le bracket
