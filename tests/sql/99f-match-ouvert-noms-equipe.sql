@@ -97,4 +97,19 @@ select refus('Eva crée « Lès Loups 99f »',
   $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'les-loups-99f-3', 'Lès Loups 99f', 'LL', '99f00000-0000-0000-0000-000000000005')$q$, 'duplicate key value violates unique constraint "teams_nom_unique"');
 select essai('Eva crée « Les Loups 99f 2 »',
   $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'les-loups-99f-4', 'Les Loups 99f 2', 'LL', '99f00000-0000-0000-0000-000000000005')$q$, 'passe');
+select refus('Eva crée « Lеs Loups 99f » avec un « е » cyrillique',
+  $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'les-loups-99f-5', 'Lеs Loups 99f', 'LL', '99f00000-0000-0000-0000-000000000005')$q$, 'NOM_EQUIPE_INVALIDE');
+select refus('Eva crée « Agents libres 7 », nom réservé aux équipes formées par la base',
+  $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'agents-libres-99f', 'Agents libres 7', 'AL', '99f00000-0000-0000-0000-000000000005')$q$, 'NOM_EQUIPE_INVALIDE');
+select refus('Eva crée une équipe au nom de deux lettres',
+  $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'xy-99f', 'XY', 'XY', '99f00000-0000-0000-0000-000000000005')$q$, 'NOM_EQUIPE_INVALIDE');
+select essai('Eva crée « L''Équipe d''Éva 99f » (accents, apostrophes)',
+  $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'equipe-eva-99f', 'L''Équipe d''Éva 99f', 'EE', '99f00000-0000-0000-0000-000000000005')$q$, 'passe');
+select refus('Eva crée une quatrième équipe en 24 h',
+  $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'quatrieme-99f', 'Quatrième 99f', 'QQ', '99f00000-0000-0000-0000-000000000005')$q$, 'LIMITE_ATTEINTE');
 reset role;
+-- Plafond de 5 équipes dont on est capitaine (compté même hors limite d'usage).
+insert into teams (game_id, slug, nom, tag, capitaine_id)
+select 1, 'capitaine-99f-' || n, 'Capitaine 99f ' || n, 'CP', '99f00000-0000-0000-0000-000000000004' from generate_series(1, 5) n;
+select refus('Une sixième équipe pour le même capitaine',
+  $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'capitaine-99f-6', 'Capitaine 99f 6', 'CP', '99f00000-0000-0000-0000-000000000004')$q$, 'TROP_D_EQUIPES');

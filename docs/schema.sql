@@ -11215,6 +11215,88 @@ as $$
 $$;
 create unique index if not exists teams_nom_unique on public.teams (game_id, public.cle_nom_equipe(nom));
 
+-- Avec des noms uniques, un compte ne doit pas pouvoir réserver d'avance
+-- les noms connus (contrôle de sécurité du 18/11/2026) : 3 équipes créées
+-- par 24 h, 5 équipes au plus dont on est capitaine, et un nom en lettres
+-- latines (accents compris), chiffres et ponctuation simple — pas de
+-- lettres sosies d'un autre alphabet (« е » cyrillique pour « e »). Les
+-- noms « Agents libres… » sont réservés aux équipes formées par la base.
+create or replace function public.consommer_limite(p_action text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_plafond integer;
+  v_fenetre interval;
+  v_nombre integer;
+begin
+  case p_action
+    when 'liaison_riot' then v_plafond := 10; v_fenetre := interval '1 hour';
+    when 'creation_tournoi' then v_plafond := 5; v_fenetre := interval '24 hours';
+    when 'litige' then v_plafond := 10; v_fenetre := interval '24 hours';
+    when 'message' then v_plafond := 30; v_fenetre := interval '1 hour';
+    when 'creation_equipe' then v_plafond := 3; v_fenetre := interval '24 hours';
+    else raise exception 'ACTION_INCONNUE';
+  end case;
+
+  if v_joueur is null then
+    return false;
+  end if;
+
+  -- Une demande à la fois par joueur : deux onglets ne dépassent pas la limite.
+  perform 1 from public.profiles where id = v_joueur for update;
+
+  delete from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le < now() - interval '7 days';
+
+  select count(*) into v_nombre
+  from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le > now() - v_fenetre;
+
+  if v_nombre >= v_plafond then
+    return false;
+  end if;
+
+  insert into public.limites_usage (profile_id, action) values (v_joueur, p_action);
+  return true;
+end;
+$$;
+revoke execute on function public.consommer_limite(text) from public, anon;
+grant execute on function public.consommer_limite(text) to authenticated;
+
+drop trigger if exists teams_limite on public.teams;
+create trigger teams_limite
+  before insert on public.teams
+  for each row execute function public.limiter_ecriture('creation_equipe');
+
+create or replace function public.controler_nom_equipe()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if char_length(btrim(new.nom)) not between 3 and 40
+     or new.nom !~ '^[A-Za-zÀ-ÖØ-öø-ÿŒœ0-9 ''’.&!?#+:()_-]+$'
+     or public.cle_nom_equipe(new.nom) is null
+     or public.cle_nom_equipe(new.nom) like 'agentslibres%' then
+    raise exception 'NOM_EQUIPE_INVALIDE';
+  end if;
+  if tg_op = 'INSERT' and (
+    select count(*) from public.teams where capitaine_id = new.capitaine_id
+  ) >= 5 then
+    raise exception 'TROP_D_EQUIPES';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_nom_equipe() from public, anon, authenticated;
+drop trigger if exists controler_nom_equipe on public.teams;
+create trigger controler_nom_equipe
+  before insert or update of nom on public.teams
+  for each row execute function public.controler_nom_equipe();
+
 -- ---------- Matching duo (2026-11-18, roadmap phase 3) ----------
 -- À appliquer sur la base AVANT la mise en ligne du code du même commit.
 -- Un joueur au compte Riot vérifié publie une annonce « cherche un duo » :
@@ -11284,6 +11366,107 @@ drop policy if exists "demande duo lue par ses deux joueurs" on public.demandes_
 create policy "demande duo lue par ses deux joueurs" on public.demandes_duo
   for select using ((select auth.uid()) in (demandeur_id, destinataire_id));
 revoke insert, update, delete on public.demandes_duo from anon, authenticated;
+
+-- Blocage d'un joueur (contrôle de sécurité du 18/11/2026) : une
+-- conversation ouverte par une demande de duo acceptée ne doit pas pouvoir
+-- devenir un canal de harcèlement. Bloquer un joueur coupe les messages
+-- dans les deux sens (règle d'envoi des messages), ses demandes de duo et
+-- son annonce dans la liste de l'autre ; il n'en est pas prévenu. Visible
+-- de celui qui bloque seulement.
+create table if not exists public.blocages (
+  bloqueur_id uuid not null references public.profiles(id) on delete cascade,
+  bloque_id   uuid not null references public.profiles(id) on delete cascade,
+  cree_le     timestamptz not null default now(),
+  primary key (bloqueur_id, bloque_id),
+  check (bloqueur_id <> bloque_id)
+);
+create index if not exists blocages_bloque_idx on public.blocages (bloque_id);
+alter table public.blocages enable row level security;
+drop policy if exists "chacun voit qui il bloque" on public.blocages;
+create policy "chacun voit qui il bloque" on public.blocages
+  for select using (bloqueur_id = (select auth.uid()));
+revoke insert, update, delete on public.blocages from anon, authenticated;
+
+-- Un blocage entre deux joueurs, dans un sens ou dans l'autre.
+create or replace function public.blocage_entre(p_a uuid, p_b uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.blocages
+    where (bloqueur_id = p_a and bloque_id = p_b) or (bloqueur_id = p_b and bloque_id = p_a)
+  );
+$$;
+revoke all on function public.blocage_entre(uuid, uuid) from public, anon, authenticated;
+
+-- Pour la règle d'envoi des messages (évaluée avec les droits du joueur) :
+-- un blocage entre lui et un autre joueur, rien sur les autres paires.
+create or replace function public.blocage_avec_moi(p_autre uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select auth.uid() is not null and public.blocage_entre(auth.uid(), p_autre);
+$$;
+revoke all on function public.blocage_avec_moi(uuid) from public, anon;
+grant execute on function public.blocage_avec_moi(uuid) to authenticated;
+
+create or replace function public.bloquer_joueur(p_joueur uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if p_joueur is null or p_joueur = v_moi or not exists (select 1 from public.profiles where id = p_joueur) then
+    raise exception 'JOUEUR_INTROUVABLE';
+  end if;
+  insert into public.blocages (bloqueur_id, bloque_id) values (v_moi, p_joueur) on conflict do nothing;
+  -- Les demandes de duo encore en attente entre eux tombent.
+  update public.demandes_duo set statut = 'annulee', repondu_le = now()
+  where statut = 'en_attente'
+    and ((demandeur_id = v_moi and destinataire_id = p_joueur) or (demandeur_id = p_joueur and destinataire_id = v_moi));
+end;
+$$;
+revoke execute on function public.bloquer_joueur(uuid) from public, anon;
+grant execute on function public.bloquer_joueur(uuid) to authenticated;
+
+create or replace function public.debloquer_joueur(p_joueur uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  delete from public.blocages where bloqueur_id = auth.uid() and bloque_id = p_joueur;
+  return found;
+end;
+$$;
+revoke execute on function public.debloquer_joueur(uuid) from public, anon;
+grant execute on function public.debloquer_joueur(uuid) to authenticated;
+
+-- Règle d'envoi des messages : plus rien ne passe entre deux joueurs dont
+-- l'un a bloqué l'autre.
+drop policy if exists "participants repondent" on public.messages;
+create policy "participants repondent" on public.messages
+  for insert with check (
+    expediteur_id = (select auth.uid())
+    and exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id
+        and (select auth.uid()) in (c.profile_a, c.profile_b)
+        and not public.blocage_avec_moi(case when c.profile_a = (select auth.uid()) then c.profile_b else c.profile_a end)
+    )
+  );
 
 -- Annonce active d'un joueur apte au duo : en cours, compte vérifié, pas
 -- suspendu, compte pas supprimé. Renvoie sa région, ou nul.
@@ -11355,7 +11538,10 @@ begin
   on conflict (profile_id) do update
   set poste = excluded.poste, postes_cherches = excluded.postes_cherches, creneaux = excluded.creneaux,
       objectif = excluded.objectif, message = excluded.message,
-      maj_le = now(), expire_le = now() + interval '14 days';
+      -- Republier sans cesse ne garde pas l'annonce en tête de liste : sa
+      -- date ne remonte qu'une fois par heure (contrôle du 18/11/2026).
+      maj_le = case when annonces_duo.maj_le < now() - interval '1 hour' then now() else annonces_duo.maj_le end,
+      expire_le = now() + interval '14 days';
 end;
 $$;
 revoke execute on function public.publier_annonce_duo(text, text[], text[], text, text) from public, anon;
@@ -11408,6 +11594,8 @@ as $$
   where a.expire_le > now()
     and not exists (select 1 from public.suspensions su where su.profile_id = a.profile_id and su.levee_le is null)
     and (p_region is null or g.region = p_region)
+    -- Ni ceux que le visiteur a bloqués, ni ceux qui l'ont bloqué.
+    and (auth.uid() is null or not public.blocage_entre(auth.uid(), a.profile_id))
   order by a.maj_le desc
   limit 300;
 $$;
@@ -11440,9 +11628,14 @@ begin
   if v_region is null then
     raise exception 'ANNONCE_REQUISE';
   end if;
+  -- Une demande à la fois par joueur : des envois simultanés ne dépassent
+  -- pas le plafond (contrôle du 18/11/2026).
+  perform 1 from public.profiles where id = v_joueur for update;
   -- Deux clics simultanés (dans un sens et dans l'autre) : un seul passe.
   perform pg_advisory_xact_lock(hashtext('duo:' || least(v_joueur, p_destinataire)::text || greatest(v_joueur, p_destinataire)::text));
-  if public.region_annonce_duo(p_destinataire) is null then
+  -- Un joueur bloqué (dans un sens ou l'autre) ne cherche plus de duo
+  -- pour l'autre : même réponse qu'une annonce retirée.
+  if public.region_annonce_duo(p_destinataire) is null or public.blocage_entre(v_joueur, p_destinataire) then
     raise exception 'ANNONCE_INTROUVABLE';
   end if;
   if public.region_annonce_duo(p_destinataire) <> v_region then
@@ -11474,6 +11667,16 @@ begin
       and statut = 'refusee' and repondu_le > now() - interval '30 days'
   ) then
     raise exception 'DEMANDE_REFUSEE_RECEMMENT';
+  end if;
+  -- Retirer puis renvoyer sa demande ne relance pas le même joueur : une
+  -- demande au même joueur par 7 jours, quel que soit son sort (contrôle
+  -- du 18/11/2026).
+  if exists (
+    select 1 from public.demandes_duo
+    where demandeur_id = v_joueur and destinataire_id = p_destinataire
+      and cree_le > now() - interval '7 days'
+  ) then
+    raise exception 'DEMANDE_RECENTE';
   end if;
   if (select count(*) from public.demandes_duo
       where demandeur_id = v_joueur and cree_le > now() - interval '24 hours') >= 10 then
@@ -11577,6 +11780,7 @@ as $$
 begin
   delete from public.annonces_duo where profile_id = new.id;
   delete from public.demandes_duo where demandeur_id = new.id or destinataire_id = new.id;
+  delete from public.blocages where bloqueur_id = new.id or bloque_id = new.id;
   return null;
 end;
 $$;

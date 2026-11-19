@@ -21,3 +21,22 @@ describe("logo d'équipe", () => {
     expect(estLogoEquipeValide(`${BASE}/storage/v1/object/public/logos/equipe/${EQUIPE}.png`, EQUIPE, undefined)).toBe(false);
   });
 });
+
+describe("nom d'équipe", () => {
+  it("accepte les lettres latines accentuées, les chiffres et la ponctuation simple", async () => {
+    const { estNomEquipeValide } = await import("./equipe");
+    expect(estNomEquipeValide("L'Équipe d'Éva 2")).toBe(true);
+    expect(estNomEquipeValide("Les Loups #1 (Paris)")).toBe(true);
+    expect(estNomEquipeValide("Cœur & Âme")).toBe(true);
+  });
+
+  it("refuse les lettres sosies, les noms trop courts et « Agents libres »", async () => {
+    const { estNomEquipeValide } = await import("./equipe");
+    expect(estNomEquipeValide("Lеs Loups")).toBe(false); // « е » cyrillique
+    expect(estNomEquipeValide("Les Ｌoups")).toBe(false); // L pleine largeur
+    expect(estNomEquipeValide("XY")).toBe(false);
+    expect(estNomEquipeValide("!!!")).toBe(false);
+    expect(estNomEquipeValide("Agents Libres 3")).toBe(false);
+    expect(estNomEquipeValide("x".repeat(41))).toBe(false);
+  });
+});

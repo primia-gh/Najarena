@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { envoyerMessage } from "@/lib/messagerie-actions";
+import { bloquerJoueur, debloquerJoueur, envoyerMessage } from "@/lib/messagerie-actions";
 import { formaterDate } from "@/lib/tournois";
 import { classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
@@ -49,12 +49,17 @@ export default async function ConversationPage({ params, searchParams }: Convers
   }
 
   const autre = conversation.profile_a === userData.user.id ? conversation.b : conversation.a;
+  const autreId = conversation.profile_a === userData.user.id ? conversation.profile_b : conversation.profile_a;
 
-  const { data: messagesData } = await supabase
-    .from("messages")
-    .select("id, expediteur_id, contenu, envoye_le, lu_le, en_revue")
-    .eq("conversation_id", id)
-    .order("envoye_le", { ascending: true });
+  const [{ data: messagesData }, { data: blocage }] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("id, expediteur_id, contenu, envoye_le, lu_le, en_revue")
+      .eq("conversation_id", id)
+      .order("envoye_le", { ascending: true }),
+    // Blocage posé par moi (18/11/2026) ; celui de l'autre ne se voit pas.
+    supabase.from("blocages").select("cree_le").eq("bloqueur_id", userData.user.id).eq("bloque_id", autreId).maybeSingle(),
+  ]);
 
   const messages = messagesData ?? [];
 
@@ -143,23 +148,55 @@ export default async function ConversationPage({ params, searchParams }: Convers
         </Apparition>
 
         <Apparition delai={0.12}>
-          <form action={envoyerMessage} className="flex flex-col gap-3 border-t border-line pt-6">
-            <input type="hidden" name="conversation_id" value={conversation.id} />
-            <label className="flex flex-col gap-1.5">
-              <span className="font-texte text-mini font-medium text-muted uppercase">Ton message</span>
-              <textarea
-                name="message"
-                rows={3}
-                maxLength={2000}
-                required
-                placeholder="Écris ton message…"
-                className={`${classeChamp()} resize-none`}
-              />
-            </label>
-            <BoutonEnvoi libelleEnCours="Envoi…" className="self-start">
-              Envoyer
-            </BoutonEnvoi>
-          </form>
+          {blocage ? (
+            <div className="flex flex-col items-start gap-3 border-t border-line pt-6">
+              <p className="text-text-2">
+                Tu as bloqué {autre?.pseudo ?? "ce joueur"}&nbsp;: plus aucun message ne passe entre vous, ni demande de duo.
+              </p>
+              <form action={debloquerJoueur}>
+                <input type="hidden" name="joueur_id" value={autreId} />
+                <input type="hidden" name="retour" value={`/moi/messages/${conversation.id}`} />
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 cursor-pointer items-center text-sm text-text underline underline-offset-3 hover:text-accent"
+                >
+                  Débloquer {autre?.pseudo ?? "ce joueur"}
+                </button>
+              </form>
+            </div>
+          ) : (
+            <form action={envoyerMessage} className="flex flex-col gap-3 border-t border-line pt-6">
+              <input type="hidden" name="conversation_id" value={conversation.id} />
+              <label className="flex flex-col gap-1.5">
+                <span className="font-texte text-mini font-medium text-muted uppercase">Ton message</span>
+                <textarea
+                  name="message"
+                  rows={3}
+                  maxLength={2000}
+                  required
+                  placeholder="Écris ton message…"
+                  className={`${classeChamp()} resize-none`}
+                />
+              </label>
+              <BoutonEnvoi libelleEnCours="Envoi…" className="self-start">
+                Envoyer
+              </BoutonEnvoi>
+            </form>
+          )}
+          {!blocage && (
+            <form action={bloquerJoueur} className="mt-6 flex flex-wrap items-center gap-x-3 border-t border-line pt-4">
+              <input type="hidden" name="joueur_id" value={autreId} />
+              <input type="hidden" name="retour" value={`/moi/messages/${conversation.id}`} />
+              <span className="text-xs text-muted">Un problème avec ce joueur&nbsp;?</span>
+              <button
+                type="submit"
+                aria-label={`Bloquer ${autre?.pseudo ?? "ce joueur"}`}
+                className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger"
+              >
+                Bloquer ce joueur
+              </button>
+            </form>
+          )}
         </Apparition>
       </div>
     </main>

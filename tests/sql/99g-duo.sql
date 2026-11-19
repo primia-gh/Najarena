@@ -142,6 +142,62 @@ select en_tant_que(:'ana');
 select verifie('Ana retire sa demande', public.annuler_demande_duo(:'demande_gus'));
 select en_tant_que(:'gus');
 select refus('Gus accepte une demande retirée', format($q$select public.repondre_demande_duo(%L, true)$q$, :'demande_gus'), 'DEMANDE_DEJA_TRAITEE');
+select en_tant_que(:'ana');
+select refus('Ana renvoie aussitôt sa demande à Gus (relance après retrait)', format($q$select public.demander_duo(%L)$q$, :'gus'), 'DEMANDE_RECENTE');
+reset role;
+-- Republier son annonce ne la remet en tête qu'une fois par heure.
+select maj_le as maj_ana from annonces_duo where profile_id = :'ana' \gset
+set role authenticated;
+select en_tant_que(:'ana');
+select essai('Ana republie son annonce', $q$select public.publier_annonce_duo('adc', array['support'], array['semaine_soir', 'weekend_soir'], 'classees', 'Toujours là')$q$, 'passe');
+reset role;
+select verifie('Republiée dans l''heure : sa date ne remonte pas, son message change',
+  (select maj_le = :'maj_ana'::timestamptz and message = 'Toujours là' from annonces_duo where profile_id = :'ana'));
+update annonces_duo set maj_le = now() - interval '2 hours' where profile_id = :'ana';
+set role authenticated;
+select en_tant_que(:'ana');
+select essai('Ana republie deux heures plus tard', $q$select public.publier_annonce_duo('adc', array['support'], array['semaine_soir'], 'classees')$q$, 'passe');
+reset role;
+select verifie('Après une heure, sa date remonte', (select maj_le > now() - interval '1 minute' from annonces_duo where profile_id = :'ana'));
+
+-- Blocage : Bob bloque Ana, avec qui il a une conversation.
+set role authenticated;
+select en_tant_que(:'bob');
+select refus('Bob se bloque lui-même', format($q$select public.bloquer_joueur(%L)$q$, :'bob'), 'JOUEUR_INTROUVABLE');
+select essai('Bob bloque Ana', format($q$select public.bloquer_joueur(%L)$q$, :'ana'), 'passe');
+select essai('Bob voit son blocage', $q$select 1 from blocages$q$, 'passe');
+select refus('Bob interroge lui-même un blocage entre deux autres joueurs',
+  format($q$select public.blocage_entre(%L, %L)$q$, :'ana', :'gus'), 'permission denied for function blocage_entre');
+select essai('Bob écrit lui-même un blocage au nom d''Ana',
+  format($q$insert into blocages (bloqueur_id, bloque_id) values (%L, %L)$q$, :'ana', :'gus'), 'bloque');
+select en_tant_que(:'ana');
+select essai('Ana ne voit pas qu''elle est bloquée', $q$select 1 from blocages$q$, 'bloque');
+select essai('Ana écrit encore à Bob : refusé', format($q$insert into messages (conversation_id, expediteur_id, contenu) values (%L, '9990d000-0000-0000-0000-000000000001', 'Tu es là ?')$q$, :'conv'), 'bloque');
+select en_tant_que(:'bob');
+select essai('Bob non plus n''écrit pas à Ana', format($q$insert into messages (conversation_id, expediteur_id, contenu) values (%L, '9990d000-0000-0000-0000-000000000002', 'Salut')$q$, :'conv'), 'bloque');
+reset role;
+set role authenticated;
+select en_tant_que(:'bob');
+select verifie('Bob ne voit plus l''annonce d''Ana', not exists (select 1 from public.annonces_duo_publiques() where pseudo = 'Duo99g1'));
+select en_tant_que(:'gus');
+select verifie('Gus la voit toujours', exists (select 1 from public.annonces_duo_publiques() where pseudo = 'Duo99g1'));
+select en_tant_que(:'bob');
+select verifie('Bob débloque Ana', public.debloquer_joueur(:'ana'));
+select en_tant_que(:'ana');
+select essai('Débloquée, Ana écrit à Bob', format($q$insert into messages (conversation_id, expediteur_id, contenu) values (%L, '9990d000-0000-0000-0000-000000000001', 'Re')$q$, :'conv'), 'passe');
+reset role;
+
+-- Bloquer annule les demandes en attente entre eux.
+set role authenticated;
+select en_tant_que(:'gus');
+select essai('Gus demande Ana en duo', format($q$select public.demander_duo(%L)$q$, :'ana'), 'passe');
+select en_tant_que(:'ana');
+select essai('Ana bloque Gus', format($q$select public.bloquer_joueur(%L)$q$, :'gus'), 'passe');
+reset role;
+select verifie('La demande de Gus est annulée', not exists (select 1 from demandes_duo where demandeur_id = :'gus' and destinataire_id = :'ana' and statut = 'en_attente'));
+set role authenticated;
+select en_tant_que(:'gus');
+select refus('Gus, bloqué, demande encore Ana : son annonce ne lui est plus proposée', format($q$select public.demander_duo(%L)$q$, :'ana'), 'ANNONCE_INTROUVABLE');
 reset role;
 
 -- Demande de plus de 7 jours : expirée.
@@ -203,7 +259,9 @@ select verifie('Annonce expirée : plus visible', not exists (select 1 from publ
 reset role;
 
 -- Compte supprimé : annonce et demandes effacées.
+insert into blocages (bloqueur_id, bloque_id) values (:'eve', :'dan');
 update profiles set supprime_le = now() where id = :'eve';
-select verifie('Compte d''Eve supprimé : son annonce et ses demandes ont disparu',
+select verifie('Compte d''Eve supprimé : son annonce, ses demandes et ses blocages ont disparu',
   not exists (select 1 from annonces_duo where profile_id = :'eve')
-  and not exists (select 1 from demandes_duo where demandeur_id = :'eve' or destinataire_id = :'eve'));
+  and not exists (select 1 from demandes_duo where demandeur_id = :'eve' or destinataire_id = :'eve')
+  and not exists (select 1 from blocages where bloqueur_id = :'eve'));

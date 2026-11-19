@@ -4,10 +4,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { slugifier } from "@/lib/slug";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
-import { estLogoEquipeValide, TAILLE_MAX_EQUIPE } from "@/lib/equipe";
+import { estLogoEquipeValide, estNomEquipeValide, TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { chargerOffre, ORDRE_OFFRE } from "@/lib/offres";
 import type { TablesUpdate } from "@/lib/supabase/types";
 import { messageModeration } from "@/lib/moderation";
+
+const MESSAGE_NOM_INVALIDE =
+  "Nom refusé : lettres (accents compris), chiffres, espaces et ponctuation simple seulement, 3 à 40 caractères ; « Agents libres » est réservé.";
 
 // 2 à 5 lettres/chiffres, convention standard des tags d'équipe esport.
 const TAG_REGEX = /^[A-Za-z0-9]{2,5}$/;
@@ -32,6 +35,9 @@ export async function creerEquipe(formData: FormData) {
       `/equipe/nouvelle?erreur=${encodeURIComponent("Le nom doit faire entre 3 et 40 caractères.")}`,
     );
   }
+  if (!estNomEquipeValide(nom)) {
+    redirect(`/equipe/nouvelle?erreur=${encodeURIComponent(MESSAGE_NOM_INVALIDE)}`);
+  }
 
   if (!TAG_REGEX.test(tag)) {
     redirect(
@@ -55,9 +61,16 @@ export async function creerEquipe(formData: FormData) {
   if (error || !equipe) {
     // Nom déjà pris, à la casse, aux accents et aux espaces près : refusé
     // par la base (index teams_nom_unique, 18/11/2026).
-    const message = error?.message.includes("teams_nom_unique")
+    const erreur = error?.message ?? "";
+    const message = erreur.includes("teams_nom_unique")
       ? "Une équipe porte déjà ce nom (ou presque : seules les majuscules, les accents ou les espaces changent). Choisis-en un autre."
-      : (messageModeration(error?.message) ?? "Impossible de créer l'équipe pour l'instant.");
+      : erreur.includes("NOM_EQUIPE_INVALIDE")
+        ? MESSAGE_NOM_INVALIDE
+        : erreur.includes("TROP_D_EQUIPES")
+          ? "Tu es déjà capitaine de 5 équipes : c'est le maximum."
+          : erreur.includes("LIMITE_ATTEINTE")
+            ? "Tu as créé 3 équipes ces dernières 24 heures : réessaie plus tard."
+            : (messageModeration(erreur) ?? "Impossible de créer l'équipe pour l'instant.");
     redirect(`/equipe/nouvelle?erreur=${encodeURIComponent(message)}`);
   }
 

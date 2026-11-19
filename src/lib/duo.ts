@@ -180,6 +180,8 @@ const MESSAGES_REFUS_DUO: Record<string, string> = {
   DEJA_EN_CONTACT: "Vous avez déjà une conversation : écris-lui depuis ta messagerie.",
   DEMANDE_DEJA_EN_COURS: "Une demande entre vous attend déjà une réponse.",
   DEMANDE_REFUSEE_RECEMMENT: `Ce joueur a décliné ta demande : tu pourras le recontacter ${DELAI_APRES_REFUS_JOURS} jours après.`,
+  DEMANDE_RECENTE: `Tu as déjà envoyé une demande à ce joueur il y a moins de ${DUREE_DEMANDE_DUO_JOURS} jours : une seule par semaine.`,
+  JOUEUR_INTROUVABLE: "Ce joueur n'existe pas.",
   LIMITE_DEMANDES_DUO: `Tu as envoyé ${DEMANDES_DUO_PAR_JOUR} demandes en 24 h : attends des réponses.`,
   DEMANDE_INTROUVABLE: "Cette demande n'existe pas.",
   NON_DESTINATAIRE: "Cette demande ne t'est pas adressée.",

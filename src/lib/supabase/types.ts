@@ -976,6 +976,39 @@ export type Database = {
           },
         ]
       }
+      blocages: {
+        Row: {
+          bloque_id: string
+          bloqueur_id: string
+          cree_le: string
+        }
+        Insert: {
+          bloque_id: string
+          bloqueur_id: string
+          cree_le?: string
+        }
+        Update: {
+          bloque_id?: string
+          bloqueur_id?: string
+          cree_le?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocages_bloqueur_id_fkey"
+            columns: ["bloqueur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocages_bloque_id_fkey"
+            columns: ["bloque_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bilans_hebdo: {
         Row: {
           envoye_le: string
@@ -3403,6 +3436,8 @@ export type Database = {
         }[]
       }
       demander_duo: { Args: { p_destinataire: string }; Returns: string }
+      bloquer_joueur: { Args: { p_joueur: string }; Returns: undefined }
+      debloquer_joueur: { Args: { p_joueur: string }; Returns: boolean }
       rechercher_joueurs: {
         Args: {
           p_role?: string | null

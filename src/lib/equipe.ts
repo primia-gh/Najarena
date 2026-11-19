@@ -3,6 +3,28 @@
 // fonctions serveur (Server Actions), pas une constante simple.
 export const TAILLE_MAX_EQUIPE = 5;
 
+/**
+ * Nom d'équipe (18/11/2026), même règle que la base (controler_nom_equipe) :
+ * 3 à 40 caractères, lettres latines (accents compris), chiffres, espaces
+ * et ponctuation simple — pas de lettre sosie d'un autre alphabet, qui
+ * contournerait l'unicité des noms — et jamais « Agents libres… », réservé
+ * aux équipes formées par la base.
+ */
+const CARACTERES_NOM_EQUIPE = /^[A-Za-zÀ-ÖØ-öø-ÿŒœ0-9 '’.&!?#+:()_-]+$/;
+
+export function estNomEquipeValide(nom: string): boolean {
+  const n = nom.trim();
+  if (n.length < 3 || n.length > 40 || !CARACTERES_NOM_EQUIPE.test(n)) return false;
+  const cle = n
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/œ/g, "o")
+    .replace(/æ/g, "a")
+    .replace(/[^a-z0-9]/g, "");
+  return cle.length > 0 && !cle.startsWith("agentslibres");
+}
+
 function echapperRegex(texte: string): string {
   return texte.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
