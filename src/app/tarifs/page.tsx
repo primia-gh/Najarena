@@ -14,7 +14,7 @@ import Tableau from "@/components/design/Tableau";
 export const metadata: Metadata = {
   title: "Tarifs — Najarena",
   description:
-    "Les paliers Najarena : le classement, les verdicts et le profil public restent gratuits pour toujours. Vérifié, Elite et Organisateur ajoutent de l'identité et du confort, jamais un péage sur la preuve.",
+    "Les paliers Najarena : le classement, les verdicts et le profil public restent gratuits pour toujours. Plus, Pro et Organisateur ajoutent de l'identité et du confort, jamais un péage sur la preuve.",
 };
 
 interface Palier {
@@ -53,7 +53,7 @@ const FILTRES: { pour: Profil | null; libelle: string; href: string }[] = [
 ];
 
 // Les paliers sont cumulatifs : « je joue » n'a pas besoin de la colonne
-// Organisateur, « j'organise » n'a pas besoin de Vérifié/Elite.
+// Organisateur, « j'organise » n'a pas besoin de Plus/Pro.
 const OFFRES_VISIBLES: Record<Profil, Offre[]> = {
   joueur: ["gratuit", "verifie", "elite"],
   organiser: ["gratuit", "organisateur"],
@@ -80,8 +80,8 @@ function PastilleBientot() {
 
 const TITRE_GROUPE: Record<Offre, string> = {
   gratuit: "Pour tous, gratuit",
-  verifie: "Dès Vérifié",
-  elite: "Dès Elite",
+  verifie: "Dès Plus",
+  elite: "Dès Pro",
   organisateur: "Organisateur",
 };
 
@@ -101,13 +101,13 @@ const PALIERS: Palier[] = [
     cta: { libelle: "Créer mon compte", href: "/inscription" },
   },
   {
-    nom: "Vérifié",
+    nom: "Plus",
     cle: "verifie",
     prix: "3–4\u00a0€",
     periode: "/mois",
     accroche: "Une identité qui se remarque.",
     inclus: [
-      "Badge Vérifié sur le profil et le classement",
+      "Badge Plus sur le profil et dans la recherche de coéquipiers",
       "Qui a consulté mon profil",
       "Personnalisation du profil",
       "Inscription prioritaire aux tournois",
@@ -115,13 +115,13 @@ const PALIERS: Palier[] = [
     cta: { libelle: "S'abonner" },
   },
   {
-    nom: "Elite",
+    nom: "Pro",
     cle: "elite",
     prix: "7–8\u00a0€",
     periode: "/mois",
     accroche: "Pour suivre sa progression de près.",
     inclus: [
-      "Tout Vérifié",
+      "Tout Plus",
       "Bilan complet : plan d'entraînement, progression, champions, builds",
       "Analyse de ta progression rédigée par l'IA, à partir de tes chiffres vérifiés",
       "Classées : niveau, hygiène de jeu, carte des morts, sang-froid",
@@ -162,7 +162,7 @@ const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
   { fonctionnalite: "Tournois 1v1 quotidiens", depuis: "gratuit" },
   { fonctionnalite: "Recherche de coéquipier", depuis: "gratuit" },
   { fonctionnalite: "Bilan express : forces et axes de travail, tournois et classées", depuis: "gratuit" },
-  { fonctionnalite: "Badge Vérifié sur le profil et le classement", depuis: "verifie" },
+  { fonctionnalite: "Badge Plus sur le profil et dans la recherche de coéquipiers", depuis: "verifie" },
   { fonctionnalite: "Qui a consulté mon profil", depuis: "verifie" },
   { fonctionnalite: "Personnalisation du profil", depuis: "verifie" },
   { fonctionnalite: "Inscription prioritaire aux tournois", depuis: "verifie" },
@@ -190,7 +190,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
   const lignesVisibles = pour === "joueur" ? MATRICE.filter((l) => l.depuis !== "organisateur") : MATRICE;
 
   // Un seul palier mis en avant, un seul bouton vert (MASTER §2 : le vert
-  // est rare) : Elite pour un joueur, Organisateur pour qui organise.
+  // est rare) : Pro pour un joueur, Organisateur pour qui organise.
   const enAvant: Offre = pour === "organiser" ? "organisateur" : "elite";
   const groupes = (Object.keys(TITRE_GROUPE) as Offre[])
     .map((offre) => ({ offre, lignes: lignesVisibles.filter((l) => l.depuis === offre) }))
@@ -299,7 +299,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
               })}
             </div>
             <p className="max-w-2xl text-sm text-muted">
-              Vérifié, Elite et Organisateur sont en cours de lancement — ces prix sont indicatifs et pourront évoluer.
+              Plus, Pro et Organisateur sont en cours de lancement — ces prix sont indicatifs et pourront évoluer.
             </p>
           </section>
         </Apparition>

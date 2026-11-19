@@ -1,5 +1,5 @@
 // Analyse de progression rédigée par l'IA (18/11/2026, roadmap phase 3) —
-// offre Elite. L'IA ne lit que les chiffres du bilan déjà calculés
+// offre Pro. L'IA ne lit que les chiffres du bilan déjà calculés
 // (src/lib/bilan.ts) sur les parties vérifiées du joueur : tendances
 // (5 dernières parties contre les 5 précédentes), forces et axes comparés à
 // un repère, plan, champions. Jamais le KDA ni l'or par minute (décision du

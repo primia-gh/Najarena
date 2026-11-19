@@ -74,7 +74,7 @@ export async function attribuerOffreAdmin(formData: FormData) {
 }
 
 // L'utilisateur modifie sa propre bio/lien externe — réservé à qui a au
-// moins l'offre Vérifié. comptes_offres n'ayant aucune policy client,
+// moins l'offre Plus. comptes_offres n'ayant aucune policy client,
 // l'écriture passe elle aussi par le client admin, après vérification
 // serveur de l'identité ET de l'offre (jamais une simple case cachée
 // côté UI).
@@ -92,7 +92,7 @@ export async function mettreAJourBioProfile(formData: FormData) {
     .maybeSingle();
 
   if (!compte || ORDRE_OFFRE[compte.offre as Offre] < ORDRE_OFFRE.verifie) {
-    redirect(`/moi?erreur=${encodeURIComponent("La personnalisation du profil demande l'offre Vérifié ou plus.")}`);
+    redirect(`/moi?erreur=${encodeURIComponent("La personnalisation du profil demande l'offre Plus ou au-dessus.")}`);
   }
 
   // Retour sur le CV, au formulaire (relecture design du 12/10/2026 : sur

@@ -1,5 +1,5 @@
 // Revue de match détaillée, rédigée par l'IA (03/10/2026, audit N25) —
-// offre Elite. Complète la revue à base de règles (src/lib/revue-match.ts) :
+// offre Pro. Complète la revue à base de règles (src/lib/revue-match.ts) :
 // mêmes chiffres officiels (lus chez Riot pendant le rapprochement), mis en
 // perspective avec l'adversaire et les moyennes du joueur. L'IA ne connaît
 // pas le déroulé de la partie (pas de chronologie avec la clé de

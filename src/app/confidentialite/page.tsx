@@ -56,7 +56,7 @@ export default function ConfidentialitePage() {
             </li>
             <li><strong>Historique</strong>&nbsp;: tournois, matchs et résultats.</li>
             <li>
-              <strong>Bio et lien du CV</strong>&nbsp;: avec l&apos;offre Vérifié ou plus, la bio et le lien externe que tu
+              <strong>Bio et lien du CV</strong>&nbsp;: avec l&apos;offre Plus ou au-dessus, la bio et le lien externe que tu
               ajoutes sont publics sur ton CV (le lien y apparaît par le nom de son site).
             </li>
             <li>
@@ -89,7 +89,7 @@ export default function ConfidentialitePage() {
               voient que des moyennes anonymes (5&nbsp;joueurs au moins). Retirer ton accord les efface, avec ton rang.
             </li>
             <li>
-              <strong>Bilan de la semaine</strong>&nbsp;: si tu le demandes (offre Elite), un message privé Discord chaque lundi, avec tes
+              <strong>Bilan de la semaine</strong>&nbsp;: si tu le demandes (offre Pro), un message privé Discord chaque lundi, avec tes
               chiffres de la semaine&nbsp;; Najarena garde la date de chaque envoi.
             </li>
             <li>
@@ -214,7 +214,7 @@ export default function ConfidentialitePage() {
           <p className="mt-2 text-muted">
             Quand tu consultes le profil d&apos;un joueur en étant connecté, ta
             visite (ton pseudo et la date) est enregistrée. Ce joueur la voit
-            dans «&nbsp;Qui a vu ton profil&nbsp;» s&apos;il a l&apos;offre Vérifié. Tu
+            dans «&nbsp;Qui a vu ton profil&nbsp;» s&apos;il a l&apos;offre Plus. Tu
             peux t&apos;y opposer à tout moment depuis{" "}
             <Link href="/moi/profil" className="text-text underline underline-offset-3">
               Modifier mon profil
@@ -302,9 +302,9 @@ export default function ConfidentialitePage() {
               fonction d&apos;IA est utilisée&nbsp;: le texte saisi dans l&apos;assistant de création de
               tournoi ou dans la recherche de joueurs&nbsp;; les statistiques Riot d&apos;un match
               (champion, KDA, sbires, or, durée) pour son analyse détaillée, demandée par le joueur
-              ou rédigée automatiquement après chaque partie vérifiée d&apos;un abonné Elite&nbsp;; les chiffres de ton bilan
+              ou rédigée automatiquement après chaque partie vérifiée d&apos;un abonné Pro&nbsp;; les chiffres de ton bilan
               (tendances, forces, axes de travail, objectifs, champions joués, sans ton pseudo) pour l&apos;analyse de ta
-              progression, à ta demande (offre Elite)&nbsp;; les faits d&apos;un litige (pseudos, Riot ID, horaires, parties Riot
+              progression, à ta demande (offre Pro)&nbsp;; les faits d&apos;un litige (pseudos, Riot ID, horaires, parties Riot
               retrouvées, motif du litige) pour son dossier. Ni e-mail, ni mot de passe, ni moyen
               de paiement ne lui sont envoyés, et l&apos;IA n&apos;écrit aucun résultat.
             </li>

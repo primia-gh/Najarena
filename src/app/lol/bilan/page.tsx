@@ -93,7 +93,7 @@ export default async function BilanExemplePage({ searchParams }: BilanExemplePag
           Le bilan express (forces et axes de travail) est gratuit pour tous les joueurs, sur leurs tournois comme sur
           leurs parties classées. Le plan d&apos;entraînement, la progression, les champions, les builds, le niveau,
           l&apos;hygiène de jeu, la carte des morts, le sang-froid et le bilan de la semaine sur Discord font partie de
-          l&apos;offre Elite.
+          l&apos;offre Pro.
         </p>
       </div>
     </main>

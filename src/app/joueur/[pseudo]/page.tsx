@@ -77,7 +77,7 @@ interface JoueurPageProps {
 const MESSAGES_REVUE_IA: Record<string, { texte: string; erreur: boolean }> = {
   ok: { texte: "Analyse détaillée prête : elle est rangée sous le match.", erreur: false },
   deja: { texte: "Ce match a déjà son analyse détaillée.", erreur: false },
-  offre: { texte: "L'analyse détaillée fait partie de l'offre Elite.", erreur: true },
+  offre: { texte: "L'analyse détaillée fait partie de l'offre Pro.", erreur: true },
   "sans-stats": { texte: "Pas de statistiques Riot pour ce match : rien à analyser.", erreur: true },
   limite: { texte: "Tu as atteint tes 10 demandes à l'IA des dernières 24 heures : réessaie demain.", erreur: true },
   refus: { texte: "L'IA n'a pas pu rédiger cette analyse.", erreur: true },
@@ -181,7 +181,7 @@ const chargerJoueur = cache(async (slug: string) => {
     dejaSuivi = Boolean(suivi);
   }
 
-  // "Qui a vu mon profil" — réservé au propriétaire, offre Vérifié+.
+  // "Qui a vu mon profil" — réservé au propriétaire, offre Plus et au-dessus.
   const visiteurs: Array<{ pseudo: string; slug: string; derniereVueLe: string }> = [];
   if (estProprietaire && ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie) {
     const { data } = await supabase
@@ -224,7 +224,7 @@ const chargerJoueur = cache(async (slug: string) => {
     (autresParticipantsData ?? []).map((a) => [a.match_id, a.profile]),
   );
 
-  // Revue de match écrite — réservée au propriétaire, offre Elite+.
+  // Revue de match écrite — réservée au propriétaire, offre Pro et au-dessus.
   // stats_match_joueur/chargerMoyennes ne sont interrogés que si les deux
   // conditions sont réunies, pour ne pas alourdir la page pour tout le monde.
   const peutRevue = estProprietaire && ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.elite;

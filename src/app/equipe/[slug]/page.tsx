@@ -734,7 +734,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
               </>
             ) : (
               <p className="text-[0.78rem] text-muted">
-                Logo et couleur d&apos;accent demandent l&apos;offre Vérifié ou plus.
+                Logo et couleur d&apos;accent demandent l&apos;offre Plus ou au-dessus.
               </p>
             )}
 

@@ -35,11 +35,11 @@ import IconeJeu from "./IconeJeu";
 // Affichage du bilan du joueur (étape 1, 05/10/2026), commun à la vraie page
 // (/moi/bilan) et à l'exemple (/lol/bilan). Le bilan express (résumé,
 // forces, axes de travail) est gratuit ; le plan, la progression, les
-// champions et les builds sont réservés à l'offre Elite. Rien n'est montré
+// champions et les builds sont réservés à l'offre Pro. Rien n'est montré
 // sans donnée : une section sans chiffres dit ce qu'il manque.
 // Étape 2 (05/10/2026) : pour les parties classées, le niveau parmi les
 // joueurs du même rang et du même poste, l'hygiène de jeu, la carte des
-// morts et le sang-froid (offre Elite).
+// morts et le sang-froid (offre Pro).
 
 /** Analyses propres aux parties classées (étape 2). */
 export interface ExtrasClassees {
@@ -57,7 +57,7 @@ interface VueBilanProps {
   bilan: Bilan;
   builds: BuildChampion[];
   donnees: DonneesJeu | null;
-  /** Bilan complet (offre Elite, ou page d'exemple) ; sinon le bilan express seul. */
+  /** Bilan complet (offre Pro, ou page d'exemple) ; sinon le bilan express seul. */
   complet: boolean;
   extras?: ExtrasClassees;
 }
@@ -843,14 +843,14 @@ function SangFroidJoueur({ sangFroid }: { sangFroid: SangFroid | null }) {
   );
 }
 
-// ---------- Offre Elite ----------
+// ---------- Offre Pro ----------
 
 function Verrou() {
   return (
     <section aria-labelledby="bilan-elite">
       <Panneau className="flex flex-col gap-5 p-6 sm:p-8">
         <LibelleSection as="h2" id="bilan-elite">
-          Bilan complet · offre Elite
+          Bilan complet · offre Pro
         </LibelleSection>
         <ul className="flex flex-col gap-2 text-text-2">
           <li>Ton plan d&apos;entraînement : un objectif chiffré par axe de travail, suivi partie après partie.</li>
@@ -864,7 +864,7 @@ function Verrou() {
           <li>Ton bilan de la semaine, chaque lundi sur Discord.</li>
         </ul>
         <div className="flex flex-wrap items-center gap-4">
-          <BoutonLien href="/tarifs?pour=joueur">Voir l&apos;offre Elite</BoutonLien>
+          <BoutonLien href="/tarifs?pour=joueur">Voir l&apos;offre Pro</BoutonLien>
           <BoutonLien href="/lol/bilan" variante="secondaire">
             Voir un bilan d&apos;exemple
           </BoutonLien>
@@ -919,7 +919,7 @@ export function MethodeBilan() {
         </li>
         <li>
           Chaque constat est un calcul sur tes parties, avec ses chiffres : aucun n&apos;est rédigé par une IA. Seule
-          l&apos;« Analyse de ta progression » (offre Elite, à ta demande) est rédigée par une IA, à partir de ces seuls
+          l&apos;« Analyse de ta progression » (offre Pro, à ta demande) est rédigée par une IA, à partir de ces seuls
           chiffres, et porte cette mention. Les icônes et les noms du jeu viennent de Data Dragon, la bibliothèque publique
           de Riot Games.
         </li>

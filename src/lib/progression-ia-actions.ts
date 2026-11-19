@@ -8,7 +8,7 @@ import { estFormatBilan } from "@/lib/bilan";
 import { redigerAnalyseProgression } from "@/lib/progression-ia-serveur";
 
 // Analyse de progression rédigée par l'IA (18/11/2026) : à la demande du
-// joueur (offre Elite), depuis /moi/bilan, dans la limite des demandes à
+// joueur (offre Pro), depuis /moi/bilan, dans la limite des demandes à
 // l'IA (10 par 24 h, partagée avec la revue de match et l'assistant
 // organisateur). Le résultat ?analyse=… est lu par la page du bilan.
 export async function demanderAnalyseProgression(formData: FormData) {

@@ -10,17 +10,45 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "19 novembre",
+    titre: "Les offres payantes s'appellent Plus et Pro",
+    texte:
+      "« Vérifié » ne désigne plus qu'une chose sur Najarena : une preuve — un résultat lu chez Riot, un compte Riot dont tu as prouvé la possession. Les offres payantes qui s'appelaient Vérifié et Elite deviennent donc Plus et Pro, et leur badge n'est plus vert : un abonnement ne doit jamais pouvoir passer pour une vérification. Rien ne change dans leur contenu.",
+    tags: ["Fiabilité"],
+  },
+  {
+    date: "18 novembre",
+    titre: "Trouve ton duo",
+    texte:
+      "Publie une annonce « cherche un duo » : ton poste, les postes que tu cherches, tes créneaux et ton objectif. Najarena te propose les joueurs de ton serveur qui te correspondent, avec la raison de chaque proposition. Tu leur envoies une demande ; la conversation ne s'ouvre que s'ils acceptent. Et tu peux bloquer un joueur depuis une conversation : il ne peut plus t'écrire, te défier ni te proposer un duo.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "18 novembre",
+    titre: "Ta progression, rédigée à partir de tes chiffres",
+    texte:
+      "Avec l'offre Pro, une IA lit les chiffres de ton bilan — tes 5 dernières parties contre les 5 précédentes, tes forces, tes axes de travail, tes champions — et rédige ce qui progresse, ce qui recule et quoi travailler. Elle ne voit ni le déroulé de tes parties ni le KDA, son texte est toujours étiqueté « Rédigée par une IA », et les chiffres du bilan font foi.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "18 novembre",
+    titre: "La recherche des recruteurs porte sur tous les comptes vérifiés",
+    texte:
+      "La recherche de joueurs de l'offre Organisateur lit maintenant tous les comptes Riot vérifiés, avec des critères tirés de données déjà publiques sur les CV : niveau et confiance, progression sur 30 jours, activité, fiabilité, disponibilité. Le poste reste celui que le joueur déclare.",
+    tags: ["Fonctionnalité"],
+  },
+  {
     date: "5 octobre",
     titre: "Tes parties classées dans ton bilan",
     texte:
-      "Si tu le demandes, ton bilan lit aussi tes parties classées chez Riot : tu te situes parmi les joueurs Najarena de ton rang et de ton poste, tu vois tes résultats après une ou deux défaites (et ta règle d'arrêt quand l'écart est net), où et quand tu meurs sur une carte dessinée par nos soins, et ton sang-froid — ce que tu fais en tournoi comparé à tes classées. Elles ne comptent jamais pour le classement, restent visibles de toi seul, et tu peux tout effacer d'un clic. Avec l'offre Elite, ton bilan de la semaine arrive chaque lundi sur Discord.",
+      "Si tu le demandes, ton bilan lit aussi tes parties classées chez Riot : tu te situes parmi les joueurs Najarena de ton rang et de ton poste, tu vois tes résultats après une ou deux défaites (et ta règle d'arrêt quand l'écart est net), où et quand tu meurs sur une carte dessinée par nos soins, et ton sang-froid — ce que tu fais en tournoi comparé à tes classées. Elles ne comptent jamais pour le classement, restent visibles de toi seul, et tu peux tout effacer d'un clic. Avec l'offre Pro, ton bilan de la semaine arrive chaque lundi sur Discord.",
     tags: ["Fonctionnalité"],
   },
   {
     date: "5 octobre",
     titre: "Ton bilan de joueur",
     texte:
-      "Tes parties vérifiées disent maintenant ce que tu fais bien et ce qui te coûte des victoires : farm, morts, dégâts, vision, premier sang, comparés à la moyenne des vainqueurs des autres joueurs, avec un conseil par axe de travail. Avec l'offre Elite : un plan d'entraînement suivi partie après partie, tes courbes de progression, tes champions et tes builds comparés à ceux des vainqueurs. Chaque constat donne ses chiffres et le nombre de parties derrière ; aucun n'est rédigé par une IA.",
+      "Tes parties vérifiées disent maintenant ce que tu fais bien et ce qui te coûte des victoires : farm, morts, dégâts, vision, premier sang, comparés à la moyenne des vainqueurs des autres joueurs, avec un conseil par axe de travail. Avec l'offre Pro : un plan d'entraînement suivi partie après partie, tes courbes de progression, tes champions et tes builds comparés à ceux des vainqueurs. Chaque constat donne ses chiffres et le nombre de parties derrière ; aucun n'est rédigé par une IA.",
     tags: ["Fonctionnalité"],
   },
   {
@@ -83,7 +111,7 @@ export const JOURNAL: EntreeJournal[] = [
     date: "3 octobre",
     titre: "L'IA rédige, elle ne décide pas",
     texte:
-      "Trois nouveaux usages, toujours à la demande et sur des données déjà vérifiées : une analyse détaillée de tes matchs (offre Elite), un dossier qui rassemble les faits d'un litige pour l'organisateur — sans jamais désigner de vainqueur —, et une recherche de joueurs en langage naturel pour les recruteurs, traduite en filtres sur des comptes vérifiés. Aucun résultat ni point n'est jamais écrit par l'IA.",
+      "Trois nouveaux usages, toujours à la demande et sur des données déjà vérifiées : une analyse détaillée de tes matchs (offre Pro), un dossier qui rassemble les faits d'un litige pour l'organisateur — sans jamais désigner de vainqueur —, et une recherche de joueurs en langage naturel pour les recruteurs, traduite en filtres sur des comptes vérifiés. Aucun résultat ni point n'est jamais écrit par l'IA.",
     tags: ["Fonctionnalité", "Fiabilité"],
   },
   {

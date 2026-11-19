@@ -38,7 +38,7 @@ import { iaDisponible } from "@/lib/claude";
 // Mon bilan (05/10/2026) : forces, axes de travail, plan, progression,
 // champions et builds, calculés sur les parties vérifiées du joueur
 // (src/lib/bilan.ts). Visible de lui seul. Bilan express gratuit, bilan
-// complet avec l'offre Elite. Étape 2 : onglet « Classées » pour les
+// complet avec l'offre Pro. Étape 2 : onglet « Classées » pour les
 // parties classées lues chez Riot avec son accord (niveau, hygiène de jeu,
 // carte des morts, sang-froid) et réglages de l'analyse.
 
@@ -251,7 +251,7 @@ export default async function BilanPage({ searchParams }: BilanPageProps) {
       ? supabase.rpc("percentiles_classees", { p_palier: palier ?? undefined, p_poste: poste })
       : Promise.resolve({ data: [] }),
     chargerDonneesJeu(),
-    // Analyse de progression rédigée par l'IA (18/11/2026, offre Elite).
+    // Analyse de progression rédigée par l'IA (18/11/2026, offre Pro).
     complet
       ? supabase
           .from("analyses_progression_ia")

@@ -582,8 +582,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto"
             >
               <option value="gratuit">Gratuit (révoquer)</option>
-              <option value="verifie">Vérifié</option>
-              <option value="elite">Elite</option>
+              <option value="verifie">Plus</option>
+              <option value="elite">Pro</option>
               <option value="organisateur">Organisateur</option>
             </select>
           </label>

@@ -19,7 +19,7 @@ interface CvPageProps {
 
 // Page publique dédiée (comme /joueur/[pseudo] lui-même) : un recruteur ou
 // un sponsor qui reçoit ce lien n'a pas besoin de compte Najarena. Ce qui
-// est réservé à l'offre Elite, c'est le BOUTON d'accès depuis le profil
+// est réservé à l'offre Pro, c'est le BOUTON d'accès depuis le profil
 // (voir joueur/[pseudo]/page.tsx), pas la page une fois le lien partagé —
 // exactement l'esprit "lien à envoyer directement à une équipe ou un
 // sponsor" de la fonctionnalité.

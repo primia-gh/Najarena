@@ -190,7 +190,7 @@ export default async function ModifierProfilPage({ searchParams }: ModifierProfi
           >
             ton profil public
           </Link>{" "}
-          (offre Vérifié).
+          (offre Plus).
         </p>
 
         <section aria-labelledby="titre-suppression" className="flex flex-col gap-4 rounded-carte border border-danger/30 p-6">

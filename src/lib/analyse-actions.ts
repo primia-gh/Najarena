@@ -7,7 +7,7 @@ import { messageRefusAnalyse } from "@/lib/analyse-reglages";
 
 // Réglages de l'analyse du joueur (bilan, étape 2) : accord pour lire ses
 // parties classées, bilan de la semaine sur Discord. Les règles (compte
-// Riot vérifié, offre Elite, Discord lié, effacement au retrait de
+// Riot vérifié, offre Pro, Discord lié, effacement au retrait de
 // l'accord) sont appliquées par la base (regler_analyse) ; cette action
 // l'appelle.
 

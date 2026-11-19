@@ -6,7 +6,7 @@ import { construireDemandeRevue, SCHEMA_REVUE, validerRevue } from "@/lib/revue-
 
 // Revue de match détaillée rédigée par l'IA (audit N25), côté serveur : à la
 // demande (bouton du CV, src/lib/revue-ia-actions.ts) ou automatiquement
-// après chaque partie vérifiée d'un joueur Elite (tâche de recherche des
+// après chaque partie vérifiée d'un joueur Pro (tâche de recherche des
 // résultats). Client du serveur (service) : il écrit dans revues_match_ia,
 // qu'aucun joueur ne peut écrire lui-même.
 
@@ -103,7 +103,7 @@ export async function parcourirRevues(
 }
 
 /**
- * Revues automatiques (offre Elite) : la base choisit les parties vérifiées
+ * Revues automatiques (offre Pro) : la base choisit les parties vérifiées
  * récentes à analyser (revues_a_rediger : 10 par joueur et par 24 h au
  * plus), quelques-unes à chaque passage de la tâche.
  */

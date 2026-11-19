@@ -98,7 +98,7 @@ async function chargerCoequipiers() {
     annonces.map((a) => a.profile_id),
   );
 
-  // Offre payante d'abord (Vérifié/Elite/Organisateur), puis classés du
+  // Offre payante d'abord (Plus/Pro/Organisateur), puis classés du
   // meilleur rating au plus modeste, non-classés en dernier.
   const annoncesTriees = [...annonces].sort((a, b) => {
     const oa = ORDRE_OFFRE[offresParJoueur.get(a.profile_id)?.offre ?? "gratuit"];

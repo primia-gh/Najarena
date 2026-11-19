@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 
   const resultat = await traiterRechercheResultats();
 
-  // Analyses détaillées automatiques de l'offre Elite (audit N25), dans le
+  // Analyses détaillées automatiques de l'offre Pro (audit N25), dans le
   // temps qui reste : aucune n'est commencée au-delà de 45 s (limite de la
   // fonction : 60 s). Une panne de l'IA ne fait jamais échouer la tâche.
   const admin = creerClientAdmin();

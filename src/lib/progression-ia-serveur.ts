@@ -83,7 +83,7 @@ export async function bilanPourAnalyse(supabase: Client, moi: string, format: Fo
 /**
  * Rédige (ou refait) l'analyse d'un format. `supabase` : client du joueur
  * (lecture de ses parties, réservation d'une demande à l'IA) ; `admin` :
- * client du serveur (écriture). L'offre Elite est vérifiée par l'appelant.
+ * client du serveur (écriture). L'offre Pro est vérifiée par l'appelant.
  */
 export async function redigerAnalyseProgression(
   supabase: Client,

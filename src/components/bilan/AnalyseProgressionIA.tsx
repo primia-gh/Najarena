@@ -9,7 +9,7 @@ import Panneau from "@/components/design/Panneau";
 import Icone, { type NomIcone } from "@/components/design/Icone";
 import { typographie } from "@/lib/typographie";
 
-// Analyse de progression rédigée par l'IA (18/11/2026, offre Elite) : sous
+// Analyse de progression rédigée par l'IA (18/11/2026, offre Pro) : sous
 // le bilan chiffré, un texte rédigé à partir de ces seuls chiffres. Toujours
 // étiqueté comme rédigé par une IA, avec sa date et le nombre de parties
 // lues ; jamais présenté comme un verdict.
@@ -36,7 +36,7 @@ const RETOURS: Record<string, { type: "succes" | "erreur"; texte: string }> = {
   },
   "a-jour": { type: "succes", texte: "Ton analyse est déjà à jour : rejoue des parties pour la refaire." },
   limite: { type: "erreur", texte: "Tu as fait 10 demandes à l'IA ces dernières 24 h : réessaie plus tard." },
-  offre: { type: "erreur", texte: "L'analyse rédigée par l'IA fait partie de l'offre Elite." },
+  offre: { type: "erreur", texte: "L'analyse rédigée par l'IA fait partie de l'offre Pro." },
   indisponible: { type: "erreur", texte: "L'analyse par l'IA n'est pas disponible pour l'instant : réessaie plus tard." },
   refus: { type: "erreur", texte: "L'IA n'a pas pu rédiger cette analyse : réessaie plus tard." },
   invalide: { type: "erreur", texte: "La réponse de l'IA n'a pas passé nos vérifications : réessaie plus tard." },
@@ -117,11 +117,11 @@ export default function AnalyseProgressionIA({
         <Panneau className="flex flex-col items-start gap-4 p-6">
           <p className="text-text-2">
             {typographie(
-              `Avec l'offre Elite, une IA lit les chiffres de ce bilan et rédige ce qui progresse, ce qui recule et quoi travailler à tes prochaines parties. Elle ne voit que ces chiffres et tes champions, lus dans tes ${parties}.`,
+              `Avec l'offre Pro, une IA lit les chiffres de ce bilan et rédige ce qui progresse, ce qui recule et quoi travailler à tes prochaines parties. Elle ne voit que ces chiffres et tes champions, lus dans tes ${parties}.`,
             )}
           </p>
           <BoutonLien href="/tarifs" variante="secondaire">
-            Voir l&apos;offre Elite
+            Voir l&apos;offre Pro
           </BoutonLien>
         </Panneau>
       ) : analyse ? (

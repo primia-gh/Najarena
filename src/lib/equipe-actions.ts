@@ -221,7 +221,7 @@ export async function refuserInvitation(formData: FormData) {
 }
 
 // Description/contact recrutement restent ouverts à tout capitaine ; logo
-// et couleur d'accent sont réservés à l'offre Vérifié+ — vérifié ici, pas
+// et couleur d'accent sont réservés à l'offre Plus et au-dessus — vérifié ici, pas
 // seulement caché côté formulaire. L'update passe par le client RLS normal
 // (pas creerClientAdmin) : "capitaine modifie son equipe" l'autorise déjà,
 // contrairement à comptes_offres qui n'a aucune policy client.

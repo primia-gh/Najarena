@@ -2,21 +2,25 @@ import type { createClient } from "@/lib/supabase/server";
 
 type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 
-// Offre payante d'un compte (Vérifié / Elite / Organisateur) — distinct du
+// Offre payante d'un compte (Plus / Pro / Organisateur ; clés historiques
+// « verifie » et « elite » en base, jamais affichées) — distinct du
 // "palier" de classement (Bronze/Argent/Or..., voir src/lib/paliers.ts) :
 // deux concepts sans rapport, jamais le même mot dans le code.
 export type Offre = "gratuit" | "verifie" | "elite" | "organisateur";
 
 export const LABEL_OFFRE: Record<Exclude<Offre, "gratuit">, string> = {
-  verifie: "Compte Vérifié",
-  elite: "Elite",
+  verifie: "Plus",
+  elite: "Pro",
   organisateur: "Organisateur",
 };
 
 export const COULEUR_OFFRE: Record<Exclude<Offre, "gratuit">, string> = {
-  // Refonte Venin (24/09/2026) : Vérifié en vert, Elite en or, Organisateur
-  // en bleu-vert — trois teintes distinctes, lisibles sur fond sombre (≥ 4.5:1).
-  verifie: "var(--color-accent)",
+  // Plus en lavande, Pro en or, Organisateur en bleu-vert — trois teintes
+  // distinctes, lisibles sur fond sombre (≥ 4.5:1). Audit E10 (19/11/2026) :
+  // l'offre payante n'est plus en vert ni nommée « Vérifié », réservés à la
+  // preuve (verdict lu chez Riot, compte Riot vérifié) — un badge acheté ne
+  // doit jamais pouvoir passer pour une vérification.
+  verifie: "#b49cf0",
   elite: "#d2a257",
   organisateur: "#4fb8ae",
 };
