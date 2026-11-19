@@ -222,7 +222,7 @@ export default async function OrganiserNouveauPage({
               </fieldset>
 
               {/* Tournoi par niveau (19/11/2026) : 1v1 seulement, vérifié par la base. */}
-              <fieldset className="flex flex-col gap-2" aria-describedby="aide-niveau">
+              <fieldset className="flex flex-col gap-2" aria-describedby="aide-niveau aide-niveau-seuils">
                 <legend className="mb-1.5 font-texte text-mini font-medium text-muted uppercase">Niveau (1v1)</legend>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Champ libelle="Palier minimum">
@@ -248,8 +248,11 @@ export default async function OrganiserNouveauPage({
                 </div>
                 <p id="aide-niveau" className="text-xs text-muted">
                   {typographie(
-                    `Facultatif. Selon le rating Najarena de la saison (1500 pour qui n'a pas encore joué), vérifié à l'inscription et de nouveau au check-in. ${AIDE_LIMITE_HAUTE} Seuils : ${SEUILS_LISIBLES}.`,
+                    `Facultatif. Selon le rating Najarena de la saison (1500 pour qui n'a pas encore joué), vérifié à l'inscription et de nouveau au check-in. ${AIDE_LIMITE_HAUTE}`,
                   )}
+                </p>
+                <p id="aide-niveau-seuils" className="text-xs text-muted tabular-nums">
+                  {typographie(`Seuils : ${SEUILS_LISIBLES}.`)}
                 </p>
               </fieldset>
             </GroupeFormulaire>

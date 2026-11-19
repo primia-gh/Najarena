@@ -151,5 +151,12 @@ select refus('Cid, redescendu à 1350 après 1500, n''entre pas en « Bronze à 
 select essai('Eve (meilleur 1420) entre en « Bronze à Argent »',
   $q$insert into registrations (tournament_id, profile_id, statut) values ('9b0b0000-0000-0000-0000-0000000000a2', '9b0b0000-0000-0000-0000-000000000005', 'inscrit')$q$,
   'passe');
-select verifie('Le plancher reste lu sur le rating actuel : Cid (1350) entre en « Argent et plus »',
-  public.rating_niveau('9b0b0000-0000-0000-0000-000000000004') >= 1300);
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, rating_min)
+values ('9b0b0000-0000-0000-0000-0000000000a3', 1, '9b0b0000-0000-0000-0000-000000000001', 'tournoi-99k-g', 'Coupe niveau G', '1v1', 8, 'EUW',
+        now() + interval '3 days', now() + interval '3 days', 'ouvert', 1300);
+select essai('Le plancher reste lu sur le rating actuel : Cid (1350, meilleur 1500) entre en « Argent et plus »',
+  $q$insert into registrations (tournament_id, profile_id, statut) values ('9b0b0000-0000-0000-0000-0000000000a3', '9b0b0000-0000-0000-0000-000000000004', 'inscrit')$q$,
+  'passe');
+select refus('… et Eve (1380) n''entre pas en « Or et plus » sur la foi de son meilleur rating (1420 < 1450 de toute façon) : plancher sur le rating actuel',
+  $q$insert into registrations (tournament_id, profile_id, statut) values ('9b0b0000-0000-0000-0000-0000000000a1', '9b0b0000-0000-0000-0000-000000000005', 'inscrit')$q$,
+  'NIVEAU_HORS_TOURNOI');

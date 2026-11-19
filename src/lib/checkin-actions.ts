@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { MESSAGE_NIVEAU_CHECKIN } from "@/lib/niveau-tournoi";
 import { createClient } from "@/lib/supabase/server";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { heureParis } from "@/lib/tournois-auto/creneaux";
@@ -77,7 +78,7 @@ export async function confirmerMaPresence(formData: FormData) {
   // Tournoi par niveau (19/11/2026) : revérifié au check-in.
   if (error?.message.includes("NIVEAU_HORS_TOURNOI")) {
     redirect(
-      `${page}?erreur=${encodeURIComponent("Ton rating de la saison n'est plus dans le niveau de ce tournoi : tu ne peux pas confirmer ta présence.")}`,
+      `${page}?erreur=${encodeURIComponent(MESSAGE_NIVEAU_CHECKIN)}`,
     );
   }
 

@@ -14,7 +14,7 @@ import { formerEquipes } from "@/lib/agents-libres";
 import { ROLES, type Role } from "@/lib/roles";
 import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 import { messageRefusModification } from "@/lib/modifier-tournoi";
-import { lireNiveau } from "@/lib/niveau-tournoi";
+import { lireNiveau, MESSAGE_NIVEAU_ORGANISATEUR } from "@/lib/niveau-tournoi";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -68,7 +68,7 @@ export async function confirmerInscription(formData: FormData) {
   // Tournoi par niveau (19/11/2026) : revérifié à la confirmation.
   if (erreurConfirmation?.message.includes("NIVEAU_HORS_TOURNOI")) {
     redirect(
-      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Le rating de ce joueur n'est plus dans le niveau du tournoi : sa présence ne peut pas être confirmée.")}`,
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(MESSAGE_NIVEAU_ORGANISATEUR)}`,
     );
   }
 

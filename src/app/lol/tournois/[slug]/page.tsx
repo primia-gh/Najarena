@@ -1208,7 +1208,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 {checkinOuvert && inscriptionActuelle.statut === "inscrit" && eligibleMembres && !eligibleNiveau && (
                   <Alerte type="erreur">
                     {typographie(
-                      `${situationNiveau(monRatingNiveau, tournoi.rating_min, tournoi.rating_max, monMeilleurRating)} Ton rating a changé depuis ton inscription : tu ne peux pas confirmer ta présence.`,
+                      `${situationNiveau(monRatingNiveau, tournoi.rating_min, tournoi.rating_max, monMeilleurRating)} Ton niveau a changé depuis ton inscription : tu ne peux pas confirmer ta présence.`,
                     )}
                   </Alerte>
                 )}

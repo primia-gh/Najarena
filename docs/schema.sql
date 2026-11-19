@@ -12414,10 +12414,12 @@ $$;
 revoke all on function public.rating_niveau(uuid) from public, anon, authenticated;
 
 -- Meilleur rating atteint dans la saison en cours (rating actuel compris),
--- pour la limite haute d'un tournoi par niveau. Le départ à 1500 d'un
--- joueur qui n'a jamais joué n'est pas un rating « atteint » : sinon aucun
--- vrai débutant n'entrerait dans un tournoi « Bronze à Argent » de toute sa
--- première saison.
+-- pour la limite haute d'un tournoi par niveau : le plus haut des ratings
+-- obtenus à la fin de ses tournois de la saison. Un joueur qui n'a jamais
+-- joué compte pour 1500, comme pour le plancher ; mais le point de départ
+-- (1500) d'un joueur qui a joué n'est pas un rating « atteint » : sinon un
+-- vrai débutant, même redescendu à 1300, n'entrerait dans aucun tournoi
+-- « Bronze à Argent » de toute sa première saison.
 create or replace function public.rating_niveau_meilleur(p_profile_id uuid)
 returns numeric
 language sql
@@ -12435,9 +12437,10 @@ as $$
 $$;
 revoke all on function public.rating_niveau_meilleur(uuid) from public, anon, authenticated;
 
--- Pour la page d'un tournoi : le joueur connecté, et lui seul, lit son
--- rating de la saison, son meilleur rating et s'il a déjà joué (un rating
--- provisoire n'est pas public).
+-- Pour la page d'un tournoi : le joueur connecté lit son rating de la
+-- saison, son meilleur rating et s'il a déjà joué, calculés comme par le
+-- contrôle d'inscription (les mêmes données sont publiques dans le
+-- registre ; la fonction évite seulement de refaire le calcul ailleurs).
 create or replace function public.mon_niveau_tournoi()
 returns table (actuel numeric, meilleur numeric, a_joue boolean)
 language sql

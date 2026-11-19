@@ -145,7 +145,7 @@ export default function ModifierTournoi({
           Heures de Paris. Le check-in ouvre au plus tard au début du tournoi.
         </p>
         {tournoi.format === "1v1" && (
-          <fieldset className="flex flex-col gap-2" aria-describedby="modifier-aide-niveau">
+          <fieldset className="flex flex-col gap-2" aria-describedby="modifier-aide-niveau modifier-aide-niveau-seuils">
             <legend className="mb-1.5 font-texte text-mini font-medium text-muted uppercase">Niveau</legend>
             <div className="grid gap-5 sm:grid-cols-2">
               <Champ libelle="Palier minimum">
@@ -181,8 +181,11 @@ export default function ModifierTournoi({
             </div>
             <p id="modifier-aide-niveau" className="text-xs text-muted">
               {typographie(
-                `Rating Najarena de la saison (1500 pour qui n'a pas encore joué). ${AIDE_LIMITE_HAUTE} Seuils : ${SEUILS_LISIBLES}.`,
+                `Rating Najarena de la saison (1500 pour qui n'a pas encore joué), vérifié à l'inscription et au check-in. ${AIDE_LIMITE_HAUTE}`,
               )}
+            </p>
+            <p id="modifier-aide-niveau-seuils" className="text-xs text-muted tabular-nums">
+              {typographie(`Seuils : ${SEUILS_LISIBLES}.`)}
             </p>
           </fieldset>
         )}
