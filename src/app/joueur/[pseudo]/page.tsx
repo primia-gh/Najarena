@@ -414,10 +414,11 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
   const tauxVictoire = matchsCalibres > 0 ? Math.round((victoires / matchsCalibres) * 100) : null;
 
   // Face-à-face : uniquement les adversaires affrontés au moins deux fois —
-  // une seule rencontre n'est pas une rivalité, juste un match.
+  // une seule rencontre n'est pas une rivalité, juste un match. Comme la
+  // page face-à-face (19/11/2026) : matchs 1v1 lus chez Riot seulement.
   const rivalites = Array.from(
     historique.reduce((carte, h) => {
-      if (!h.adversaire) return carte;
+      if (!h.adversaire || h.niveau === "manuel" || h.tournoi?.format !== "1v1") return carte;
       const existant = carte.get(h.adversaire.slug);
       if (existant) {
         existant.victoires += h.estGagnant ? 1 : 0;
@@ -1310,11 +1311,19 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                       >
                         {r.pseudo}
                       </Link>
-                      <span className="text-sm font-bold tabular-nums">
+                      <Link
+                        href={`/lol/face-a-face/${profil.slug}/${r.slug}`}
+                        className="inline-flex min-h-11 items-center gap-2 text-sm font-bold tabular-nums hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
                         <span className="text-accent">{r.victoires} V</span>
                         <span className="text-faint"> · </span>
                         <span className="text-danger">{r.defaites} D</span>
-                      </span>
+                        <span className="sr-only">
+                          {" "}
+                          — voir le face-à-face avec {r.pseudo}
+                        </span>
+                        <Icone nom="fleche-droite" taille={13} className="text-muted" />
+                      </Link>
                     </li>
                   ))}
                 </ul>

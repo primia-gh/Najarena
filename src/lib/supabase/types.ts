@@ -3436,6 +3436,19 @@ export type Database = {
         }[]
       }
       demander_duo: { Args: { p_destinataire: string }; Returns: string }
+      face_a_face: {
+        Args: { p_a: string; p_b: string }
+        Returns: {
+          match_id: string
+          joue_le: string
+          tournoi_slug: string
+          tournoi_nom: string
+          nature: string
+          gagnant_id: string | null
+          niveau: Database["public"]["Enums"]["verdict_level"]
+          forfait: boolean
+        }[]
+      }
       bloquer_joueur: { Args: { p_joueur: string }; Returns: undefined }
       debloquer_joueur: { Args: { p_joueur: string }; Returns: boolean }
       rechercher_joueurs: {

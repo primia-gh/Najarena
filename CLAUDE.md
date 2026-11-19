@@ -134,6 +134,8 @@ Anti-abus : 3 victoires max contre le même adversaire par 24 h, forfait = zéro
 
 *Mise à jour du 19/11/2026 : **tournois par niveau** — un tournoi 1v1 d'organisateur peut être réservé à une fourchette de paliers (`tournaments.rating_min` inclus, `rating_max` exclu, toujours un seuil de palier de la table `tiers`), choisie à la création ou dans « Modifier le tournoi ». Rating pris en compte : celui de la saison, provisoire compris, 1500 sans partie (`rating_niveau`). Contrôlé par la base à l'inscription et de nouveau au check-in (`controler_inscription_niveau`, refus `NIVEAU_HORS_TOURNOI`) ; jamais pour un 5v5, un tournoi automatique, un défi ni un scrim (`controler_niveau_tournoi`). Libellés et choix : `src/lib/niveau-tournoi.ts`.*
 
+*Mise à jour du 19/11/2026 : **face-à-face** — `/lol/face-a-face/[a]/[b]` : matchs 1v1 entre deux joueurs (`face_a_face`, avec les droits du lecteur), bilan des seuls verdicts lus chez Riot (décisions manuelles et forfaits listés, jamais comptés), série en cours, chance estimée entre deux joueurs classés ; adresse canonique dans l'ordre alphabétique (`src/lib/face-a-face.ts`). Bloc « Face-à-face » du CV aligné sur la même règle (adversaires affrontés deux fois en 1v1 lu chez Riot) et lié à la page.*
+
 **Chaque variation de points est journalisée** dans `rating_events`, avec le rating avant et après. Ce journal est public et ne se modifie jamais.
 
 *Mise à jour du 28/09/2026 (audit N8) : le journal est **scellé** — chaque ligne porte l'empreinte SHA-256 de son contenu et de la ligne précédente, la base refuse toute modification ou suppression, l'empreinte du jour part chaque soir sur Discord. Page publique `/registre`, vérification indépendante `scripts/verifier-registre.mjs`. Ne jamais changer la formule du contenu scellé (elle invaliderait toute la chaîne).*
@@ -222,6 +224,7 @@ Schéma de base de données : `docs/schema.sql`.
 /lol/divisions             divisions mensuelles : poules de 4 par niveau, un match par semaine, montée et descente
 /lol/meteo                 météo du classement : précision du classement, matchs par joueur, part lue chez Riot
 /lol/match/[id]            fiche de preuve d'un match : verdict et source, partie Riot, registre (non indexée)
+/lol/face-a-face/[a]/[b]   face-à-face de deux joueurs : leurs matchs 1v1, bilan des seuls verdicts lus chez Riot (indexée s'il y en a un)
 /lol/pronostics            pronostics gratuits : matchs ouverts, classement des pronostiqueurs
 /lol/ecoles                ligue des écoles : écoles classées par la moyenne des 5 meilleurs membres vérifiés
 /lol/bilan                 bilan du joueur d'exemple (joueur fictif, données statiques, jamais en base)

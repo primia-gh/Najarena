@@ -12466,3 +12466,47 @@ drop trigger if exists controle_inscription_niveau on public.registrations;
 create trigger controle_inscription_niveau
   before insert or update of statut on public.registrations
   for each row execute function public.controler_inscription_niveau();
+
+-- ---------- Face-à-face entre deux joueurs (2026-11-19) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (page /lol/face-a-face/[a]/[b]).
+-- Les matchs 1v1 (tournois, défis, arène, divisions) entre deux joueurs, avec
+-- leur verdict définitif. Avec les droits de celui qui lit (security
+-- invoker) : seulement ce que les pages publiques montrent déjà (tournois
+-- publiés, verdicts publics). Le bilan affiché ne compte que les verdicts
+-- lus chez Riot ; décisions manuelles et forfaits sont listés à part.
+create or replace function public.face_a_face(p_a uuid, p_b uuid)
+returns table (
+  match_id uuid,
+  joue_le timestamptz,
+  tournoi_slug text,
+  tournoi_nom text,
+  nature text,
+  gagnant_id uuid,
+  niveau public.verdict_level,
+  forfait boolean
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select m.id,
+         coalesce(m.demarre_le, v.cree_le),
+         t.slug,
+         t.nom,
+         t.nature,
+         v.gagnant_id,
+         v.niveau,
+         m.statut = 'forfait'
+  from public.match_participants pa
+  join public.match_participants pb on pb.match_id = pa.match_id and pb.profile_id = p_b
+  join public.matches m on m.id = pa.match_id
+  join public.tournaments t on t.id = m.tournament_id and t.format = '1v1'
+  join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+  where pa.profile_id = p_a and p_a <> p_b
+  order by coalesce(m.demarre_le, v.cree_le) desc
+  limit 200;
+$$;
+revoke execute on function public.face_a_face(uuid, uuid) from public;
+grant execute on function public.face_a_face(uuid, uuid) to anon, authenticated;
