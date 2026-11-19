@@ -2,6 +2,7 @@ import { modifierTournoi } from "@/lib/organisation-actions";
 import { classeChamp } from "@/lib/design";
 import { REGIONS } from "@/lib/regions";
 import { saisieParisDepuisInstant } from "@/lib/tournois-auto/creneaux";
+import { CHOIX_MAXIMUM, CHOIX_MINIMUM } from "@/lib/niveau-tournoi";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import Icone from "@/components/design/Icone";
 import { Champ } from "@/components/design/Formulaire";
@@ -29,6 +30,8 @@ export default function ModifierTournoi({
     region: string;
     debute_le: string;
     checkin_ouvre_le: string;
+    rating_min: number | null;
+    rating_max: number | null;
   };
   organisateurPremium: boolean;
   /** Déplié d'office après une erreur, pour corriger sans chercher le bloc. */
@@ -140,6 +143,46 @@ export default function ModifierTournoi({
         <p id="modifier-aide-heures" className="-mt-3 text-xs text-muted">
           Heures de Paris. Le check-in ouvre au plus tard au début du tournoi.
         </p>
+        {tournoi.format === "1v1" && (
+          <fieldset className="flex flex-col gap-2" aria-describedby="modifier-aide-niveau">
+            <legend className="mb-1.5 font-texte text-mini font-medium text-muted uppercase">Niveau</legend>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Champ libelle="Palier minimum">
+                <select
+                  id="modifier-niveau-min"
+                  name="niveau_min"
+                  defaultValue={tournoi.rating_min ?? ""}
+                  className={classeChamp()}
+                >
+                  <option value="">Ouvert à tous</option>
+                  {CHOIX_MINIMUM.map((c) => (
+                    <option key={c.valeur} value={c.valeur}>
+                      {c.libelle}
+                    </option>
+                  ))}
+                </select>
+              </Champ>
+              <Champ libelle="Palier maximum">
+                <select
+                  id="modifier-niveau-max"
+                  name="niveau_max"
+                  defaultValue={tournoi.rating_max ?? ""}
+                  className={classeChamp()}
+                >
+                  <option value="">Sans limite</option>
+                  {CHOIX_MAXIMUM.map((c) => (
+                    <option key={c.valeur} value={c.valeur}>
+                      {c.libelle}
+                    </option>
+                  ))}
+                </select>
+              </Champ>
+            </div>
+            <p id="modifier-aide-niveau" className="text-xs text-muted">
+              Rating Najarena de la saison (1500 pour qui n&apos;a pas encore joué).
+            </p>
+          </fieldset>
+        )}
         <div>
           <BoutonEnvoi variante="contour" libelleEnCours="Enregistrement…">
             Enregistrer les modifications

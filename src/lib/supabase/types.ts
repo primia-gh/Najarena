@@ -3485,6 +3485,8 @@ export type Database = {
           p_region: string
           p_debute_le: string
           p_checkin_ouvre_le: string
+          p_rating_min?: number | null
+          p_rating_max?: number | null
         }
         Returns: undefined
       }

@@ -156,6 +156,14 @@ export default function CguPage() {
             joueurs.
           </p>
           <p className="mt-2 text-muted">
+            Un tournoi 1v1 peut aussi être réservé à un niveau, c&apos;est-à-dire
+            à une fourchette de paliers (par exemple «&nbsp;Argent à Or&nbsp;»)&nbsp;:
+            le rating Najarena de la saison du joueur (1500 s&apos;il n&apos;a pas
+            encore joué) est vérifié à l&apos;inscription, puis de nouveau au
+            check-in. Un joueur sorti de la fourchette entre-temps ne confirme
+            plus sa place.
+          </p>
+          <p className="mt-2 text-muted">
             Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq
             de ses membres, lui compris, chacun titulaire d&apos;un compte
             Riot vérifié dans la région du tournoi ; un joueur ne joue que

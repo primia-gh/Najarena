@@ -1,4 +1,5 @@
 import { messageModeration } from "@/lib/moderation";
+import { messageNiveau } from "@/lib/niveau-tournoi";
 
 // Modification d'un tournoi avant la première inscription (19/11/2026,
 // audit M7). Toutes les règles sont appliquées par la base
@@ -28,5 +29,5 @@ export function messageRefusModification(erreur: string | undefined | null): str
   const texte = erreur ?? "";
   const code = Object.keys(MESSAGES).find((c) => texte.includes(c));
   if (code) return MESSAGES[code];
-  return messageModeration(texte) ?? "Impossible de modifier le tournoi pour l'instant.";
+  return messageNiveau(texte) ?? messageModeration(texte) ?? "Impossible de modifier le tournoi pour l'instant.";
 }

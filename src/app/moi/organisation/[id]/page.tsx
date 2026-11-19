@@ -53,7 +53,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     supabase.auth.getUser(),
     supabase
       .from("tournaments")
-      .select("id, slug, nom, statut, capacite, best_of, region, debute_le, checkin_ouvre_le, organisateur_id, format, nature, creneau_auto")
+      .select("id, slug, nom, statut, capacite, best_of, region, debute_le, checkin_ouvre_le, organisateur_id, format, nature, creneau_auto, rating_min, rating_max")
       .eq("id", id)
       .maybeSingle(),
   ]);

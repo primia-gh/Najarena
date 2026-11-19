@@ -10,6 +10,7 @@ import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 import { echapperDiscord } from "@/lib/echappement";
 import { messageModeration } from "@/lib/moderation";
 import { REGIONS } from "@/lib/regions";
+import { lireNiveau, messageNiveau } from "@/lib/niveau-tournoi";
 
 const CAPACITES = [4, 8, 16, 32, 64] as const;
 const CAPACITE_ETENDUE = 128;
@@ -45,6 +46,11 @@ export async function creerTournoi(formData: FormData) {
   // aux membres vérifiés pour une école. Contrôlé par la base à chaque
   // inscription, et figé à la publication.
   const reserveMembres = communauteId !== null && formData.get("reserve_membres") === "oui";
+  // Tournoi par niveau (19/11/2026) : fourchette de paliers, 1v1 seulement.
+  const niveau = lireNiveau(formData.get("niveau_min"), formData.get("niveau_max"), format);
+  if (!niveau.ok) {
+    redirect(`/organiser/nouveau?erreur=${encodeURIComponent(niveau.erreur)}`);
+  }
 
   if (nom.length < 3 || nom.length > 60) {
     redirect(
@@ -135,6 +141,8 @@ export async function creerTournoi(formData: FormData) {
     condition_victoire: condition,
     communaute_id: communauteId,
     reserve_membres: reserveMembres,
+    rating_min: niveau.min,
+    rating_max: niveau.max,
   });
 
   if (error) {
@@ -146,7 +154,9 @@ export async function creerTournoi(formData: FormData) {
             ? "Seuls le fondateur et les administrateurs publient des tournois dans cette communauté."
             : error.message.includes("RESERVE_SANS_COMMUNAUTE")
               ? "Choisis la communauté dont les membres pourront s'inscrire."
-              : (messageModeration(error.message) ?? "Impossible de créer le tournoi pour l'instant."),
+              : (messageNiveau(error.message) ??
+                messageModeration(error.message) ??
+                "Impossible de créer le tournoi pour l'instant."),
       )}`,
     );
   }

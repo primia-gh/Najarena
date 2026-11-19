@@ -77,6 +77,7 @@ import { pronostiquer } from "@/lib/pronostic-actions";
 import { cashPrizesActifs, formaterEuros, LIBELLE_RANG } from "@/lib/dotations";
 import { publicReserve, typeCommunaute } from "@/lib/ecoles";
 import { classeChamp } from "@/lib/design";
+import { libelleNiveau, ratingDansNiveau } from "@/lib/niveau-tournoi";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
@@ -112,7 +113,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, reserve_non_classes, communaute:communautes(id, slug, nom, type), objectif:echeances(nom)",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, reserve_non_classes, rating_min, rating_max, communaute:communautes(id, slug, nom, type), objectif:echeances(nom)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -210,6 +211,7 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: monAdhesion },
     { data: monClassement },
     { data: partiesAdversaire },
+    { data: monRatingNiveau },
   ] = await Promise.all([
     profileIds.length > 0
       ? (() => {
@@ -309,6 +311,18 @@ const chargerTournoi = cache(async (slug: string) => {
           .order("cree_le", { ascending: false })
           .limit(20)
       : Promise.resolve({ data: [] }),
+    // Tournoi par niveau (19/11/2026) : rating de la saison du visiteur
+    // (même règle que rating_niveau : 1500 sans partie).
+    userData.user && (tournoi.rating_min !== null || tournoi.rating_max !== null)
+      ? supabase
+          .from("ratings")
+          .select("rating, season:seasons!inner(est_courante)")
+          .eq("profile_id", userData.user.id)
+          .eq("game_id", tournoi.game_id)
+          .eq("season.est_courante", true)
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const ratingParProfile = new Map((ratingsData ?? []).map((r) => [r.profile_id, r]));
@@ -376,6 +390,12 @@ const chargerTournoi = cache(async (slug: string) => {
         (monAdhesion !== null &&
           (typeCommunaute(tournoi.communaute?.type) !== "ecole" || monAdhesion.verifie_le !== null))) &&
       (!tournoi.reserve_non_classes || monClassement === null),
+    // Même règle que controler_inscription_niveau, revérifiée au check-in.
+    eligibleNiveau: ratingDansNiveau(
+      monRatingNiveau ? Number(monRatingNiveau.rating) : null,
+      tournoi.rating_min,
+      tournoi.rating_max,
+    ),
   };
 });
 
@@ -476,7 +496,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     resumeOrganisateur,
     eligibleMembres,
     eligibleReserve,
+    eligibleNiveau,
   } = donnees;
+  const niveau = libelleNiveau(tournoi.rating_min, tournoi.rating_max);
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
   const statut = tournoi.statut as StatutPublic;
   // Duel issu d'un défi entre deux joueurs (audit N16), scrim entre deux
@@ -1086,6 +1108,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               {condition === "classique" ? " · 1v1 classique" : ""}
               {tournoi.reserve_membres ? " · Réservé aux membres" : ""}
               {tournoi.reserve_non_classes ? " · Réservé aux joueurs non classés" : ""}
+              {niveau ? ` · Niveau ${niveau}` : ""}
             </span>
           </>
         }
@@ -1162,7 +1185,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             ) : inscriptionActuelle ? (
               <>
                 {checkinOuvert && inscriptionActuelle.statut === "inscrit" && !eligibleMembres && avisCheckinReserve}
-                {checkinOuvert && inscriptionActuelle.statut === "inscrit" && eligibleMembres && (
+                {checkinOuvert && inscriptionActuelle.statut === "inscrit" && eligibleMembres && !eligibleNiveau && (
+                  <Alerte type="erreur">
+                    {`Ce tournoi est réservé au niveau ${niveau ?? ""}, et ton rating de la saison n'y est plus : tu ne peux pas confirmer ta présence.`}
+                  </Alerte>
+                )}
+                {checkinOuvert && inscriptionActuelle.statut === "inscrit" && eligibleMembres && eligibleNiveau && (
                   <form action={confirmerMaPresence} className="flex flex-col gap-2">
                     <input type="hidden" name="tournament_id" value={tournoi.id} />
                     <BoutonEnvoi libelleEnCours="Confirmation…" className="w-full">
@@ -1214,6 +1242,15 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             ) : statut === "ouvert" ? (
               utilisateur && !eligibleReserve ? (
                 avisReserve
+              ) : utilisateur && !eligibleNiveau ? (
+                <div className="flex flex-col gap-3">
+                  <p className="text-[13px] leading-normal text-muted">
+                    {`Tournoi réservé au niveau ${niveau ?? ""} (rating Najarena de la saison, 1500 si tu n'as pas encore joué) : le tien n'y est pas.`}
+                  </p>
+                  <BoutonLien href="/lol/tournois" className="w-full">
+                    Voir les autres tournois
+                  </BoutonLien>
+                </div>
               ) : utilisateur && !compteRiotValide ? (
                 <div className="flex flex-col gap-3">
                   <p className="text-[13px] leading-normal text-muted">

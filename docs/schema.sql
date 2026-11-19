@@ -12223,7 +12223,10 @@ create or replace function public.modifier_tournoi(
   p_best_of integer,
   p_region text,
   p_debute_le timestamptz,
-  p_checkin_ouvre_le timestamptz
+  p_checkin_ouvre_le timestamptz,
+  -- Niveau (tournois par niveau, 19/11/2026) : bornes de rating, ou nul.
+  p_rating_min integer default null,
+  p_rating_max integer default null
 )
 returns void
 language plpgsql
@@ -12299,19 +12302,22 @@ begin
     raise exception 'LIMITE_ATTEINTE';
   end if;
 
-  -- Le nom passe par la modération (moderer_tournoi), comme à la création.
+  -- Le nom passe par la modération (moderer_tournoi), le niveau par
+  -- controler_niveau_tournoi, comme à la création.
   update public.tournaments
   set nom = v_nom,
       capacite = p_capacite,
       best_of = p_best_of,
       region = p_region,
       debute_le = p_debute_le,
-      checkin_ouvre_le = p_checkin_ouvre_le
+      checkin_ouvre_le = p_checkin_ouvre_le,
+      rating_min = p_rating_min,
+      rating_max = p_rating_max
   where id = p_tournament_id;
 end;
 $$;
-revoke execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz) from public, anon;
-grant execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz) to authenticated;
+revoke execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz, integer, integer) from public, anon;
+grant execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz, integer, integer) to authenticated;
 
 -- « Je peux remplacer » (bourse aux remplaçants) lit le tournoi avec un
 -- verrou partagé, comme les inscriptions : un joueur ne s'ajoute plus à la
@@ -12371,3 +12377,92 @@ end;
 $$;
 revoke execute on function public.proposer_remplacement(uuid, text) from public, anon;
 grant execute on function public.proposer_remplacement(uuid, text) to authenticated;
+
+-- ---------- Tournois par niveau (2026-11-19) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (création et modification de tournoi, page du tournoi).
+-- Un organisateur peut réserver son tournoi 1v1 à une fourchette de
+-- niveau : « Or et plus », « jusqu'à Argent », « Argent à Or ». Les bornes
+-- sont des seuils de paliers (table tiers) : rating_min inclus, rating_max
+-- exclu (« jusqu'à Argent » = rating sous 1450, seuil de l'Or). Le rating
+-- pris en compte est celui de la saison en cours, provisoire compris, et
+-- 1500 (rating de départ) pour un joueur qui n'a pas encore joué. Contrôlé
+-- à l'inscription et de nouveau au check-in : un joueur qui a changé de
+-- niveau entre les deux ne confirme plus sa place. Jamais pour un tournoi
+-- automatique, un défi, un scrim ni un 5v5.
+
+-- Rating d'un joueur pour le niveau d'un tournoi : saison en cours, sinon
+-- 1500.
+create or replace function public.rating_niveau(p_profile_id uuid)
+returns numeric
+language sql
+stable
+security definer set search_path = public
+as $$
+  select coalesce((
+    select r.rating from public.ratings r
+    join public.seasons s on s.id = r.season_id and s.est_courante
+    where r.profile_id = p_profile_id and r.game_id = 1
+  ), 1500);
+$$;
+revoke all on function public.rating_niveau(uuid) from public, anon, authenticated;
+
+create or replace function public.controler_niveau_tournoi()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.rating_min is null and new.rating_max is null then
+    return new;
+  end if;
+  if new.format <> '1v1' or new.nature <> 'tournoi' or new.creneau_auto is not null then
+    raise exception 'NIVEAU_1V1_SEULEMENT';
+  end if;
+  if (new.rating_min is not null and not exists (
+        select 1 from public.tiers where game_id = new.game_id and rating_min = new.rating_min and rating_min > 0))
+     or (new.rating_max is not null and not exists (
+        select 1 from public.tiers where game_id = new.game_id and rating_min = new.rating_max and rating_min > 0))
+     or (new.rating_min is not null and new.rating_max is not null and new.rating_min >= new.rating_max) then
+    raise exception 'NIVEAU_INVALIDE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_niveau_tournoi() from public, anon, authenticated;
+drop trigger if exists controle_niveau_tournoi on public.tournaments;
+create trigger controle_niveau_tournoi
+  before insert or update of rating_min, rating_max, format, nature, creneau_auto on public.tournaments
+  for each row execute function public.controler_niveau_tournoi();
+
+-- Inscription (et check-in) : le joueur doit être dans la fourchette.
+create or replace function public.controler_inscription_niveau()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_min integer;
+  v_max integer;
+  v_rating numeric;
+begin
+  if new.statut not in ('inscrit', 'confirme')
+     or (tg_op = 'UPDATE' and new.statut is not distinct from old.statut) then
+    return new;
+  end if;
+  select rating_min, rating_max into v_min, v_max from public.tournaments where id = new.tournament_id;
+  if v_min is null and v_max is null then
+    return new;
+  end if;
+  v_rating := public.rating_niveau(new.profile_id);
+  if (v_min is not null and v_rating < v_min) or (v_max is not null and v_rating >= v_max) then
+    raise exception 'NIVEAU_HORS_TOURNOI';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_inscription_niveau() from public, anon, authenticated;
+drop trigger if exists controle_inscription_niveau on public.registrations;
+create trigger controle_inscription_niveau
+  before insert or update of statut on public.registrations
+  for each row execute function public.controler_inscription_niveau();

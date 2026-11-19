@@ -14,6 +14,7 @@ import { formerEquipes } from "@/lib/agents-libres";
 import { ROLES, type Role } from "@/lib/roles";
 import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 import { messageRefusModification } from "@/lib/modifier-tournoi";
+import { lireNiveau } from "@/lib/niveau-tournoi";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -61,6 +62,13 @@ export async function confirmerInscription(formData: FormData) {
   if (erreurConfirmation?.message.includes("RESERVE_MEMBRES")) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce joueur (ou un joueur de cette équipe) n'est plus membre de la communauté, ou n'a plus son adresse d'école vérifiée : sa présence ne peut pas être confirmée.")}`,
+    );
+  }
+
+  // Tournoi par niveau (19/11/2026) : revérifié à la confirmation.
+  if (erreurConfirmation?.message.includes("NIVEAU_HORS_TOURNOI")) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Le rating de ce joueur n'est plus dans le niveau du tournoi : sa présence ne peut pas être confirmée.")}`,
     );
   }
 
@@ -439,20 +447,25 @@ export async function publierTournoi(formData: FormData) {
 }
 
 // Modification avant la première inscription (19/11/2026, audit M7) : nom,
-// capacité, Best-of, serveur, dates. La base (modifier_tournoi) vérifie
+// capacité, Best-of, serveur, dates, niveau. La base (modifier_tournoi) vérifie
 // tout — propriétaire, statut, aucune inscription, mêmes règles qu'à la
 // création, modération du nom — et repose la date de publication si la
 // date de début change. Personne n'est inscrit : personne à prévenir.
 export async function modifierTournoi(formData: FormData) {
   const tournamentId = String(formData.get("tournament_id") ?? "");
   const supabase = await createClient();
-  await verifierOrganisateur(supabase, tournamentId);
+  const { tournoi } = await verifierOrganisateur(supabase, tournamentId);
 
   const page = `/moi/organisation/${tournamentId}`;
   const debuteLe = instantDepuisSaisieParis(String(formData.get("debute_le") ?? ""));
   const checkinOuvreLe = instantDepuisSaisieParis(String(formData.get("checkin_ouvre_le") ?? ""));
   if (!debuteLe || !checkinOuvreLe) {
     redirect(`${page}?erreur=${encodeURIComponent("Dates invalides.")}#retour`);
+  }
+
+  const niveau = lireNiveau(formData.get("niveau_min"), formData.get("niveau_max"), tournoi.format);
+  if (!niveau.ok) {
+    redirect(`${page}?erreur=${encodeURIComponent(niveau.erreur)}#retour`);
   }
 
   const { error } = await supabase.rpc("modifier_tournoi", {
@@ -463,6 +476,8 @@ export async function modifierTournoi(formData: FormData) {
     p_region: String(formData.get("region") ?? ""),
     p_debute_le: debuteLe.toISOString(),
     p_checkin_ouvre_le: checkinOuvreLe.toISOString(),
+    p_rating_min: niveau.min,
+    p_rating_max: niveau.max,
   });
   if (error) {
     redirect(`${page}?erreur=${encodeURIComponent(messageRefusModification(error.message))}#retour`);

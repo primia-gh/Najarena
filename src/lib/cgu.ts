@@ -6,7 +6,8 @@
 // écoles et tournois réservés aux membres d'une communauté. Allumer les
 // cash prizes (CASH_PRIZES_ACTIFS) ajoute un paragraphe aux CGU : changer
 // alors cette version. 19/11/2026 : suppression du compte en libre-service,
-// renvoi aux conditions générales de vente des offres payantes.
+// renvoi aux conditions générales de vente des offres payantes, tournois
+// par niveau.
 export const VERSION_CGU = "2026-11-19";
 export const DATE_CGU_LISIBLE = "19 novembre 2026";
 

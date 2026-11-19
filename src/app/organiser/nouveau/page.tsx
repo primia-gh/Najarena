@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
+import { CHOIX_MAXIMUM, CHOIX_MINIMUM } from "@/lib/niveau-tournoi";
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { chargerOffre } from "@/lib/offres";
@@ -196,6 +197,37 @@ export default async function OrganiserNouveauPage({
                   ))}
                 </select>
               </Champ>
+
+              {/* Tournoi par niveau (19/11/2026) : 1v1 seulement, vérifié par la base. */}
+              <fieldset className="flex flex-col gap-2" aria-describedby="aide-niveau">
+                <legend className="mb-1.5 font-texte text-mini font-medium text-muted uppercase">Niveau (1v1)</legend>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <Champ libelle="Palier minimum">
+                    <select id="niveau_min" name="niveau_min" defaultValue="" className={classeChamp()}>
+                      <option value="">Ouvert à tous</option>
+                      {CHOIX_MINIMUM.map((c) => (
+                        <option key={c.valeur} value={c.valeur}>
+                          {c.libelle}
+                        </option>
+                      ))}
+                    </select>
+                  </Champ>
+                  <Champ libelle="Palier maximum">
+                    <select id="niveau_max" name="niveau_max" defaultValue="" className={classeChamp()}>
+                      <option value="">Sans limite</option>
+                      {CHOIX_MAXIMUM.map((c) => (
+                        <option key={c.valeur} value={c.valeur}>
+                          {c.libelle}
+                        </option>
+                      ))}
+                    </select>
+                  </Champ>
+                </div>
+                <p id="aide-niveau" className="text-xs text-muted">
+                  Facultatif. Selon le rating Najarena de la saison (1500 pour qui n&apos;a pas encore joué),
+                  vérifié à l&apos;inscription et de nouveau au check-in.
+                </p>
+              </fieldset>
             </GroupeFormulaire>
 
             <GroupeFormulaire numero={numero()} titre="Date et serveur" id="groupe-date">

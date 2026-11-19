@@ -26,6 +26,8 @@ const MESSAGES_REFUS: Record<string, string> = {
   // Coupe des nouveaux (09/10/2026, idée en réserve n°12).
   RESERVE_NON_CLASSES:
     "La Coupe des nouveaux est réservée aux joueurs pas encore classés cette saison : inscris-toi au tournoi quotidien.",
+  // Tournoi par niveau (19/11/2026).
+  NIVEAU_HORS_TOURNOI: "Ton rating de la saison n'est pas dans le niveau de ce tournoi (1500 si tu n'as pas encore joué).",
 };
 
 // Tournois 5v5 (03/10/2026, audit N21) : refus de s_inscrire_equipe et de
