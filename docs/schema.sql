@@ -12510,3 +12510,423 @@ as $$
 $$;
 revoke execute on function public.face_a_face(uuid, uuid) from public;
 grant execute on function public.face_a_face(uuid, uuid) to anon, authenticated;
+
+-- ---------- Équipes qui recrutent (2026-11-19) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (page d'équipe, /lol/recrutement).
+-- Le sens inverse de « cherche une équipe » : le capitaine publie
+-- « on cherche un support, Or et plus », valable 30 jours, sur la région de
+-- son compte Riot vérifié. Un joueur vérifié de la même région, au bon
+-- niveau, postule en un clic pour l'un des postes cherchés ; le capitaine
+-- accepte (le joueur entre dans l'équipe, l'acceptation vient de sa
+-- candidature) ou décline. Le capitaine voit aussi les joueurs qui
+-- cherchent une équipe et correspondent. Une candidature en attente par
+-- joueur et par équipe, 10 par 24 h, expirée après 14 jours, pas de
+-- nouvelle candidature à la même équipe 30 jours après un refus.
+
+create table if not exists public.annonces_recrutement (
+  team_id     uuid primary key references public.teams(id) on delete cascade,
+  postes      text[] not null check (
+    cardinality(postes) between 1 and 5
+    and postes <@ array['top', 'jungle', 'mid', 'adc', 'support']::text[]
+  ),
+  niveau_min  integer,
+  region      text not null,
+  message     text check (char_length(message) <= 300),
+  cree_le     timestamptz not null default now(),
+  maj_le      timestamptz not null default now(),
+  expire_le   timestamptz not null default now() + interval '30 days'
+);
+alter table public.annonces_recrutement enable row level security;
+drop policy if exists "annonces de recrutement lisibles par tous" on public.annonces_recrutement;
+create policy "annonces de recrutement lisibles par tous" on public.annonces_recrutement
+  for select using (true);
+revoke insert, update, delete on public.annonces_recrutement from anon, authenticated;
+drop trigger if exists moderation_annonce_recrutement on public.annonces_recrutement;
+create trigger moderation_annonce_recrutement
+  before insert or update of message on public.annonces_recrutement
+  for each row execute function public.moderer_annonce();
+
+create table if not exists public.candidatures_equipe (
+  id          uuid primary key default gen_random_uuid(),
+  team_id     uuid not null references public.teams(id) on delete cascade,
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  poste       text not null check (poste in ('top', 'jungle', 'mid', 'adc', 'support')),
+  message     text check (char_length(message) <= 300),
+  statut      text not null default 'en_attente'
+              check (statut in ('en_attente', 'acceptee', 'refusee', 'annulee', 'expiree')),
+  cree_le     timestamptz not null default now(),
+  repondu_le  timestamptz
+);
+create unique index if not exists candidatures_equipe_une_en_attente on public.candidatures_equipe (team_id, profile_id)
+  where statut = 'en_attente';
+create index if not exists candidatures_equipe_profile_idx on public.candidatures_equipe (profile_id, cree_le);
+alter table public.candidatures_equipe enable row level security;
+drop policy if exists "candidature lue par le candidat et le capitaine" on public.candidatures_equipe;
+create policy "candidature lue par le candidat et le capitaine" on public.candidatures_equipe
+  for select using (
+    profile_id = (select auth.uid())
+    or exists (select 1 from public.teams t where t.id = team_id and t.capitaine_id = (select auth.uid()))
+  );
+revoke insert, update, delete on public.candidatures_equipe from anon, authenticated;
+drop trigger if exists moderation_candidature_equipe on public.candidatures_equipe;
+create trigger moderation_candidature_equipe
+  before insert or update of message on public.candidatures_equipe
+  for each row execute function public.moderer_annonce();
+
+-- Effectif accepté d'une équipe (capitaine compris).
+create or replace function public.effectif_equipe(p_team uuid)
+returns integer
+language sql
+stable
+security definer set search_path = public
+as $$
+  select count(*)::integer from public.team_members where team_id = p_team and accepte_le is not null;
+$$;
+revoke all on function public.effectif_equipe(uuid) from public, anon, authenticated;
+
+-- Seuil de palier valide pour un niveau minimum (comme les tournois par niveau).
+create or replace function public.seuil_palier_valide(p_seuil integer)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select p_seuil is null or exists (select 1 from public.tiers where game_id = 1 and rating_min = p_seuil and rating_min > 0);
+$$;
+revoke all on function public.seuil_palier_valide(integer) from public, anon, authenticated;
+
+create or replace function public.publier_recrutement(
+  p_team uuid,
+  p_postes text[],
+  p_niveau_min integer default null,
+  p_message text default null
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_region text;
+  v_postes text[];
+  v_message text := nullif(btrim(coalesce(p_message, '')), '');
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  perform 1 from public.teams where id = p_team and capitaine_id = v_moi and game_id = 1 for update;
+  if not found then
+    raise exception 'NON_CAPITAINE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_moi);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if public.effectif_equipe(p_team) >= 5 then
+    raise exception 'EQUIPE_COMPLETE';
+  end if;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_postes from unnest(coalesce(p_postes, '{}')) as x;
+  if cardinality(v_postes) not between 1 and 5
+     or not v_postes <@ array['top', 'jungle', 'mid', 'adc', 'support']::text[] then
+    raise exception 'POSTES_INVALIDES';
+  end if;
+  if not public.seuil_palier_valide(p_niveau_min) then
+    raise exception 'NIVEAU_INVALIDE';
+  end if;
+  if char_length(v_message) > 300 then
+    raise exception 'MESSAGE_TROP_LONG';
+  end if;
+
+  insert into public.annonces_recrutement (team_id, postes, niveau_min, region, message)
+  values (p_team, v_postes, p_niveau_min, v_region, v_message)
+  on conflict (team_id) do update
+  set postes = excluded.postes, niveau_min = excluded.niveau_min, region = excluded.region,
+      message = excluded.message,
+      -- Republier sans cesse ne remonte pas l'annonce : une fois par heure.
+      maj_le = case when annonces_recrutement.maj_le < now() - interval '1 hour' then now() else annonces_recrutement.maj_le end,
+      expire_le = now() + interval '30 days';
+end;
+$$;
+revoke execute on function public.publier_recrutement(uuid, text[], integer, text) from public, anon;
+grant execute on function public.publier_recrutement(uuid, text[], integer, text) to authenticated;
+
+create or replace function public.retirer_recrutement(p_team uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if not exists (select 1 from public.teams where id = p_team and capitaine_id = auth.uid()) then
+    raise exception 'NON_CAPITAINE';
+  end if;
+  update public.annonces_recrutement set expire_le = now() where team_id = p_team and expire_le > now();
+  return found;
+end;
+$$;
+revoke execute on function public.retirer_recrutement(uuid) from public, anon;
+grant execute on function public.retirer_recrutement(uuid) to authenticated;
+
+-- Annonces en cours, pour /lol/recrutement : équipe pas complète,
+-- capitaine ni suspendu ni supprimé, ni bloqué par le visiteur (ou
+-- l'inverse).
+create or replace function public.annonces_recrutement_publiques(p_region text default null)
+returns table (
+  team_id uuid, slug text, nom text, tag text, logo_url text,
+  postes text[], niveau_min integer, region text, message text, maj_le timestamptz, effectif integer
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select t.id, t.slug, t.nom, t.tag, t.logo_url,
+         a.postes, a.niveau_min, a.region, a.message, a.maj_le, public.effectif_equipe(t.id)
+  from public.annonces_recrutement a
+  join public.teams t on t.id = a.team_id
+  join public.profiles p on p.id = t.capitaine_id and p.supprime_le is null
+  where a.expire_le > now()
+    and (p_region is null or a.region = p_region)
+    and public.effectif_equipe(t.id) < 5
+    and not exists (select 1 from public.suspensions s where s.profile_id = t.capitaine_id and s.levee_le is null)
+    and (auth.uid() is null or not public.blocage_entre(auth.uid(), t.capitaine_id))
+  order by a.maj_le desc
+  limit 200;
+$$;
+revoke execute on function public.annonces_recrutement_publiques(text) from public;
+grant execute on function public.annonces_recrutement_publiques(text) to anon, authenticated;
+
+create or replace function public.postuler_equipe(p_team uuid, p_poste text, p_message text default null)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_annonce record;
+  v_capitaine uuid;
+  v_region text;
+  v_message text := nullif(btrim(coalesce(p_message, '')), '');
+  v_id uuid;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_moi);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  -- Une candidature à la fois par joueur : le plafond tient face à des
+  -- envois simultanés.
+  perform 1 from public.profiles where id = v_moi for update;
+
+  select a.* into v_annonce from public.annonces_recrutement a where a.team_id = p_team and a.expire_le > now();
+  select capitaine_id into v_capitaine from public.teams where id = p_team;
+  -- Annonce retirée, équipe disparue ou capitaine bloqué (dans un sens ou
+  -- l'autre) : même réponse.
+  if v_annonce.team_id is null or v_capitaine is null or public.blocage_entre(v_moi, v_capitaine) then
+    raise exception 'ANNONCE_INTROUVABLE';
+  end if;
+  if v_annonce.region <> v_region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  if exists (select 1 from public.team_members where team_id = p_team and profile_id = v_moi and accepte_le is not null) then
+    raise exception 'DEJA_MEMBRE';
+  end if;
+  if public.effectif_equipe(p_team) >= 5 then
+    raise exception 'EQUIPE_COMPLETE';
+  end if;
+  if p_poste is null or not (p_poste = any (v_annonce.postes)) then
+    raise exception 'POSTE_NON_RECHERCHE';
+  end if;
+  if v_annonce.niveau_min is not null and public.rating_niveau(v_moi) < v_annonce.niveau_min then
+    raise exception 'NIVEAU_INSUFFISANT';
+  end if;
+  if char_length(v_message) > 300 then
+    raise exception 'MESSAGE_TROP_LONG';
+  end if;
+  -- Une candidature sans réponse depuis 14 jours a expiré.
+  update public.candidatures_equipe set statut = 'expiree'
+  where team_id = p_team and profile_id = v_moi and statut = 'en_attente' and cree_le <= now() - interval '14 days';
+  if exists (select 1 from public.candidatures_equipe where team_id = p_team and profile_id = v_moi and statut = 'en_attente') then
+    raise exception 'CANDIDATURE_EN_COURS';
+  end if;
+  if exists (
+    select 1 from public.candidatures_equipe
+    where team_id = p_team and profile_id = v_moi and statut = 'refusee' and repondu_le > now() - interval '30 days'
+  ) then
+    raise exception 'CANDIDATURE_REFUSEE_RECEMMENT';
+  end if;
+  if exists (
+    select 1 from public.candidatures_equipe
+    where team_id = p_team and profile_id = v_moi and cree_le > now() - interval '7 days'
+  ) then
+    raise exception 'CANDIDATURE_RECENTE';
+  end if;
+  if (select count(*) from public.candidatures_equipe where profile_id = v_moi and cree_le > now() - interval '24 hours') >= 10 then
+    raise exception 'LIMITE_CANDIDATURES';
+  end if;
+
+  insert into public.candidatures_equipe (team_id, profile_id, poste, message)
+  values (p_team, v_moi, p_poste, v_message)
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke execute on function public.postuler_equipe(uuid, text, text) from public, anon;
+grant execute on function public.postuler_equipe(uuid, text, text) to authenticated;
+
+create or replace function public.repondre_candidature(p_candidature uuid, p_accepte boolean)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_c record;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select c.* into v_c from public.candidatures_equipe c where c.id = p_candidature for update;
+  if not found then
+    raise exception 'CANDIDATURE_INTROUVABLE';
+  end if;
+  -- L'équipe verrouillée : deux acceptations simultanées ne dépassent pas
+  -- cinq joueurs.
+  perform 1 from public.teams where id = v_c.team_id and capitaine_id = v_moi for update;
+  if not found then
+    raise exception 'NON_CAPITAINE';
+  end if;
+  if v_c.statut <> 'en_attente' then
+    raise exception 'CANDIDATURE_DEJA_TRAITEE';
+  end if;
+  if v_c.cree_le <= now() - interval '14 days' then
+    update public.candidatures_equipe set statut = 'expiree' where id = p_candidature;
+    raise exception 'CANDIDATURE_EXPIREE';
+  end if;
+
+  if not coalesce(p_accepte, false) then
+    update public.candidatures_equipe set statut = 'refusee', repondu_le = now() where id = p_candidature;
+    return;
+  end if;
+
+  if exists (select 1 from public.suspensions where profile_id = v_c.profile_id and levee_le is null)
+     or exists (select 1 from public.profiles where id = v_c.profile_id and supprime_le is not null) then
+    raise exception 'CANDIDAT_INDISPONIBLE';
+  end if;
+  if public.effectif_equipe(v_c.team_id) >= 5 then
+    raise exception 'EQUIPE_COMPLETE';
+  end if;
+
+  -- Le joueur a lui-même demandé à entrer : sa candidature vaut
+  -- acceptation (le blocage entre eux reste refusé par refuser_si_bloque).
+  insert into public.team_members (team_id, profile_id, role, accepte_le)
+  values (
+    v_c.team_id, v_c.profile_id,
+    case v_c.poste when 'top' then 'Top' when 'jungle' then 'Jungle' when 'mid' then 'Mid'
+                   when 'adc' then 'ADC' else 'Support' end,
+    now()
+  )
+  on conflict (team_id, profile_id) do update set accepte_le = now(), role = coalesce(team_members.role, excluded.role);
+  update public.candidatures_equipe set statut = 'acceptee', repondu_le = now() where id = p_candidature;
+
+  -- Équipe complète : l'annonce se ferme, les autres candidatures tombent
+  -- (sans délai de 30 jours : elles n'ont pas été refusées).
+  if public.effectif_equipe(v_c.team_id) >= 5 then
+    update public.annonces_recrutement set expire_le = now() where team_id = v_c.team_id and expire_le > now();
+    update public.candidatures_equipe set statut = 'annulee', repondu_le = now()
+    where team_id = v_c.team_id and statut = 'en_attente';
+  end if;
+end;
+$$;
+revoke execute on function public.repondre_candidature(uuid, boolean) from public, anon;
+grant execute on function public.repondre_candidature(uuid, boolean) to authenticated;
+
+create or replace function public.annuler_candidature(p_candidature uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  update public.candidatures_equipe set statut = 'annulee', repondu_le = now()
+  where id = p_candidature and profile_id = auth.uid() and statut = 'en_attente';
+  return found;
+end;
+$$;
+revoke execute on function public.annuler_candidature(uuid) from public, anon;
+grant execute on function public.annuler_candidature(uuid) to authenticated;
+
+-- Pour le capitaine : les joueurs qui cherchent une équipe (annonce
+-- « cherche une équipe ») et correspondent à son annonce — région, poste
+-- déclaré, niveau. Rating montré seulement pour un joueur classé.
+create or replace function public.joueurs_pour_recrutement(p_team uuid)
+returns table (profile_id uuid, pseudo text, slug text, role_prefere text, rating numeric, message text)
+language plpgsql
+stable
+security definer set search_path = public
+as $$
+declare
+  v_annonce record;
+begin
+  if not exists (select 1 from public.teams where id = p_team and capitaine_id = auth.uid()) then
+    raise exception 'NON_CAPITAINE';
+  end if;
+  select a.* into v_annonce from public.annonces_recrutement a where a.team_id = p_team and a.expire_le > now();
+  if v_annonce.team_id is null then
+    return;
+  end if;
+  return query
+  select g.profile_id, p.pseudo, p.slug, g.role_prefere,
+         case when r.est_classe then r.rating end,
+         rc.message
+  from public.recherches_coequipiers rc
+  join public.game_accounts g on g.profile_id = rc.profile_id and g.game_id = 1 and g.est_principal and g.verifie_le is not null
+  join public.profiles p on p.id = rc.profile_id and p.supprime_le is null
+  left join public.seasons s on s.game_id = 1 and s.est_courante
+  left join public.ratings r on r.profile_id = rc.profile_id and r.game_id = 1 and r.season_id = s.id
+  where g.region = v_annonce.region
+    and g.role_prefere = any (v_annonce.postes)
+    and (v_annonce.niveau_min is null or public.rating_niveau(rc.profile_id) >= v_annonce.niveau_min)
+    and not exists (select 1 from public.team_members tm where tm.team_id = p_team and tm.profile_id = rc.profile_id)
+    and not exists (select 1 from public.suspensions su where su.profile_id = rc.profile_id and su.levee_le is null)
+    and not public.blocage_entre(auth.uid(), rc.profile_id)
+  order by case when r.est_classe then r.rating end desc nulls last, p.pseudo
+  limit 20;
+end;
+$$;
+revoke execute on function public.joueurs_pour_recrutement(uuid) from public, anon;
+grant execute on function public.joueurs_pour_recrutement(uuid) to authenticated;
+
+-- Compte supprimé : ses candidatures disparaissent, les annonces de ses
+-- équipes se ferment.
+create or replace function public.effacer_recrutement_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.candidatures_equipe where profile_id = new.id;
+  update public.annonces_recrutement set expire_le = now()
+  where expire_le > now() and team_id in (select id from public.teams where capitaine_id = new.id);
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_recrutement_compte_supprime() from public, anon, authenticated;
+drop trigger if exists recrutement_compte_supprime on public.profiles;
+create trigger recrutement_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_recrutement_compte_supprime();

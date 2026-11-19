@@ -880,6 +880,95 @@ export type Database = {
           },
         ]
       }
+      annonces_recrutement: {
+        Row: {
+          cree_le: string
+          expire_le: string
+          maj_le: string
+          message: string | null
+          niveau_min: number | null
+          postes: string[]
+          region: string
+          team_id: string
+        }
+        Insert: {
+          cree_le?: string
+          expire_le?: string
+          maj_le?: string
+          message?: string | null
+          niveau_min?: number | null
+          postes: string[]
+          region: string
+          team_id: string
+        }
+        Update: {
+          cree_le?: string
+          expire_le?: string
+          maj_le?: string
+          message?: string | null
+          niveau_min?: number | null
+          postes?: string[]
+          region?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annonces_recrutement_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidatures_equipe: {
+        Row: {
+          cree_le: string
+          id: string
+          message: string | null
+          poste: string
+          profile_id: string
+          repondu_le: string | null
+          statut: string
+          team_id: string
+        }
+        Insert: {
+          cree_le?: string
+          id?: string
+          message?: string | null
+          poste: string
+          profile_id: string
+          repondu_le?: string | null
+          statut?: string
+          team_id: string
+        }
+        Update: {
+          cree_le?: string
+          id?: string
+          message?: string | null
+          poste?: string
+          profile_id?: string
+          repondu_le?: string | null
+          statut?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidatures_equipe_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidatures_equipe_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       annonces_duo: {
         Row: {
           cree_le: string
@@ -3436,6 +3525,41 @@ export type Database = {
         }[]
       }
       demander_duo: { Args: { p_destinataire: string }; Returns: string }
+      publier_recrutement: {
+        Args: { p_team: string; p_postes: string[]; p_niveau_min?: number | null; p_message?: string | null }
+        Returns: undefined
+      }
+      retirer_recrutement: { Args: { p_team: string }; Returns: boolean }
+      annonces_recrutement_publiques: {
+        Args: { p_region?: string | null }
+        Returns: {
+          team_id: string
+          slug: string
+          nom: string
+          tag: string
+          logo_url: string | null
+          postes: string[]
+          niveau_min: number | null
+          region: string
+          message: string | null
+          maj_le: string
+          effectif: number
+        }[]
+      }
+      postuler_equipe: { Args: { p_team: string; p_poste: string; p_message?: string | null }; Returns: string }
+      repondre_candidature: { Args: { p_candidature: string; p_accepte: boolean }; Returns: undefined }
+      annuler_candidature: { Args: { p_candidature: string }; Returns: boolean }
+      joueurs_pour_recrutement: {
+        Args: { p_team: string }
+        Returns: {
+          profile_id: string
+          pseudo: string
+          slug: string
+          role_prefere: string | null
+          rating: number | null
+          message: string | null
+        }[]
+      }
       face_a_face: {
         Args: { p_a: string; p_b: string }
         Returns: {

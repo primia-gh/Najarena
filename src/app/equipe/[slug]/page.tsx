@@ -27,6 +27,7 @@ import { etatScrim, LIBELLE_ETAT_SCRIM, resultatScrim } from "@/lib/scrims";
 import { libelleEquipe, TAILLE_ALIGNEMENT } from "@/lib/cinq-contre-cinq";
 import { ChoixAlignement } from "@/components/tournoi/FormulaireAlignement";
 import ChimieEquipe from "@/components/equipe/ChimieEquipe";
+import RecrutementEquipe from "@/components/equipe/RecrutementEquipe";
 
 interface EquipePageProps {
   params: Promise<{ slug: string }>;
@@ -247,7 +248,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
       <FondEcailles />
       <div className="relative px-grille">
       {(erreur || message) && (
-        <div className="mb-10 flex max-w-2xl flex-col gap-3">
+        <div id="retour" className="mb-10 flex max-w-2xl scroll-mt-28 flex-col gap-3">
           {erreur && <Alerte type="erreur">{erreur}</Alerte>}
           {message && <Alerte type="succes">{message}</Alerte>}
         </div>
@@ -428,6 +429,16 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
         )}
       </section>
       </Apparition>
+
+      {/* Équipes qui recrutent (19/11/2026). */}
+      <RecrutementEquipe
+        equipe={{ id: equipe.id, slug: equipe.slug, nom: equipe.nom }}
+        estCapitaine={estCapitaine}
+        estMembre={estCapitaine || peutQuitter}
+        effectif={membres.length + 1}
+        visiteurId={visiteurId}
+        regionVisiteur={regionVisiteur}
+      />
 
       <Apparition delai={0.11}>
       <section className="mt-10">

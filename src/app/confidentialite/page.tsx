@@ -69,6 +69,12 @@ export default function ConfidentialitePage() {
               visée par une annonce «&nbsp;cherche une équipe&nbsp;».
             </li>
             <li>
+              <strong>Équipes qui recrutent</strong>&nbsp;: l&apos;annonce d&apos;une équipe (postes, niveau demandé, région,
+              message) est publique pendant 30&nbsp;jours. Une candidature (poste, message) n&apos;est visible que de toi et du
+              capitaine de l&apos;équipe, qui en est prévenu (notification du navigateur, message privé Discord)&nbsp;; s&apos;il
+              l&apos;accepte, tu apparais dans l&apos;effectif public de l&apos;équipe.
+            </li>
+            <li>
               <strong>Recherche d&apos;un duo</strong>&nbsp;: ton annonce (poste, postes cherchés, créneaux, objectif, message) est
               publique avec ton pseudo, ton avatar et ton rating si tu es classé, pendant 14&nbsp;jours ou jusqu&apos;à ce que tu
               la retires. Une demande de duo n&apos;est visible que de vous deux et prévient le joueur demandé (notification du

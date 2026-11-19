@@ -235,6 +235,9 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <BoutonLien href="/lol/recrutement" variante="contour">
+              Équipes qui recrutent
+            </BoutonLien>
             <BoutonLien href="/lol/duo" variante="contour">
               Trouver un duo
             </BoutonLien>
