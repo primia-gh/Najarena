@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
-import { CHOIX_MAXIMUM, CHOIX_MINIMUM, SEUILS_LISIBLES } from "@/lib/niveau-tournoi";
+import { AIDE_LIMITE_HAUTE, CHOIX_MAXIMUM, CHOIX_MINIMUM, SEUILS_LISIBLES } from "@/lib/niveau-tournoi";
 import { typographie } from "@/lib/typographie";
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
@@ -248,7 +248,7 @@ export default async function OrganiserNouveauPage({
                 </div>
                 <p id="aide-niveau" className="text-xs text-muted">
                   {typographie(
-                    `Facultatif. Selon le rating Najarena de la saison (1500 pour qui n'a pas encore joué), vérifié à l'inscription et de nouveau au check-in. Seuils : ${SEUILS_LISIBLES}.`,
+                    `Facultatif. Selon le rating Najarena de la saison (1500 pour qui n'a pas encore joué), vérifié à l'inscription et de nouveau au check-in. ${AIDE_LIMITE_HAUTE} Seuils : ${SEUILS_LISIBLES}.`,
                   )}
                 </p>
               </fieldset>

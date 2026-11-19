@@ -160,8 +160,10 @@ export default function CguPage() {
             à une fourchette de paliers (par exemple «&nbsp;Argent à Or&nbsp;»)&nbsp;:
             le rating Najarena de la saison du joueur (1500 s&apos;il n&apos;a pas
             encore joué) est vérifié à l&apos;inscription, puis de nouveau au
-            check-in. Un joueur sorti de la fourchette entre-temps ne confirme
-            plus sa place.
+            check-in. Pour la limite haute, c&apos;est le meilleur rating atteint
+            dans la saison qui compte&nbsp;: redescendre en perdant ne rouvre pas
+            un tournoi de niveau inférieur. Un joueur sorti de la fourchette
+            entre-temps ne confirme plus sa place.
           </p>
           <p className="mt-2 text-muted">
             Un tournoi 1v1 peut se jouer au format suisse plutôt qu&apos;en

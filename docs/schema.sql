@@ -12389,10 +12389,13 @@ grant execute on function public.proposer_remplacement(uuid, text) to authentica
 -- sont des seuils de paliers (table tiers) : rating_min inclus, rating_max
 -- exclu (« jusqu'à Argent » = rating sous 1450, seuil de l'Or). Le rating
 -- pris en compte est celui de la saison en cours, provisoire compris, et
--- 1500 (rating de départ) pour un joueur qui n'a pas encore joué. Contrôlé
--- à l'inscription et de nouveau au check-in : un joueur qui a changé de
--- niveau entre les deux ne confirme plus sa place. Jamais pour un tournoi
--- automatique, un défi, un scrim ni un 5v5.
+-- 1500 (rating de départ) pour un joueur qui n'a pas encore joué. Pour la
+-- limite haute, c'est le meilleur rating atteint dans la saison qui compte
+-- (décision du porteur du 19/11/2026) : redescendre exprès en perdant ne
+-- rouvre pas un tournoi de niveau inférieur. Contrôlé à l'inscription et
+-- de nouveau au check-in : un joueur qui a changé de niveau entre les deux
+-- ne confirme plus sa place. Jamais pour un tournoi automatique, un défi,
+-- un scrim ni un 5v5.
 
 -- Rating d'un joueur pour le niveau d'un tournoi : saison en cours, sinon
 -- 1500.
@@ -12409,6 +12412,49 @@ as $$
   ), 1500);
 $$;
 revoke all on function public.rating_niveau(uuid) from public, anon, authenticated;
+
+-- Meilleur rating atteint dans la saison en cours (rating actuel compris),
+-- pour la limite haute d'un tournoi par niveau. Le départ à 1500 d'un
+-- joueur qui n'a jamais joué n'est pas un rating « atteint » : sinon aucun
+-- vrai débutant n'entrerait dans un tournoi « Bronze à Argent » de toute sa
+-- première saison.
+create or replace function public.rating_niveau_meilleur(p_profile_id uuid)
+returns numeric
+language sql
+stable
+security definer set search_path = public
+as $$
+  select greatest(
+    public.rating_niveau(p_profile_id),
+    coalesce((
+      select max(e.rating_apres) from public.rating_events e
+      join public.seasons s on s.id = e.season_id and s.est_courante
+      where e.profile_id = p_profile_id and e.game_id = 1
+    ), 0)
+  );
+$$;
+revoke all on function public.rating_niveau_meilleur(uuid) from public, anon, authenticated;
+
+-- Pour la page d'un tournoi : le joueur connecté, et lui seul, lit son
+-- rating de la saison, son meilleur rating et s'il a déjà joué (un rating
+-- provisoire n'est pas public).
+create or replace function public.mon_niveau_tournoi()
+returns table (actuel numeric, meilleur numeric, a_joue boolean)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select public.rating_niveau(auth.uid()),
+         public.rating_niveau_meilleur(auth.uid()),
+         exists (
+           select 1 from public.ratings r
+           join public.seasons s on s.id = r.season_id and s.est_courante
+           where r.profile_id = auth.uid() and r.game_id = 1
+         )
+  where auth.uid() is not null;
+$$;
+revoke execute on function public.mon_niveau_tournoi() from public, anon;
+grant execute on function public.mon_niveau_tournoi() to authenticated;
 
 create or replace function public.controler_niveau_tournoi()
 returns trigger
@@ -12458,7 +12504,8 @@ begin
     return new;
   end if;
   v_rating := public.rating_niveau(new.profile_id);
-  if (v_min is not null and v_rating < v_min) or (v_max is not null and v_rating >= v_max) then
+  if (v_min is not null and v_rating < v_min)
+     or (v_max is not null and public.rating_niveau_meilleur(new.profile_id) >= v_max) then
     raise exception 'NIVEAU_HORS_TOURNOI';
   end if;
   return new;

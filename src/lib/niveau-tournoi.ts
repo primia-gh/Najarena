@@ -1,9 +1,12 @@
 // Tournois par niveau (19/11/2026). Un tournoi 1v1 d'organisateur peut être
 // réservé à une fourchette de paliers : bornes = seuils de paliers (CLAUDE.md
 // §4, seuils fixes, mêmes valeurs que la table tiers), rating_min inclus,
-// rating_max exclu. Les règles sont appliquées par la base
-// (controler_niveau_tournoi, controler_inscription_niveau) ; ici, les
-// libellés et les choix des formulaires.
+// rating_max exclu. Plancher lu sur le rating de la saison ; limite haute
+// sur le meilleur rating atteint dans la saison (décision du porteur du
+// 19/11/2026 : redescendre exprès ne rouvre pas un tournoi de niveau
+// inférieur). Les règles sont appliquées par la base
+// (controler_niveau_tournoi, controler_inscription_niveau,
+// rating_niveau_meilleur) ; ici, les libellés et les choix des formulaires.
 
 export const RATING_DEPART = 1500;
 
@@ -16,6 +19,10 @@ export const SEUILS_PALIERS: { nom: string; min: number }[] = [
   { nom: "Diamant", min: 1750 },
   { nom: "Champion", min: 1900 },
 ];
+
+/** Pour l'aide des formulaires : pourquoi la limite haute lit le meilleur rating. */
+export const AIDE_LIMITE_HAUTE =
+  "Pour le palier maximum, c'est le meilleur rating atteint dans la saison qui compte : perdre exprès pour redescendre ne rouvre pas un tournoi de niveau inférieur.";
 
 /** Seuils lisibles pour l'aide des formulaires : « Argent 1 300 · Or 1 450 · … ». */
 export const SEUILS_LISIBLES = SEUILS_PALIERS.slice(1)
@@ -69,10 +76,17 @@ function formaterRatingNiveau(rating: number): string {
  * Pourquoi un joueur n'entre pas dans un tournoi par niveau, avec son
  * rating : « Ton rating de la saison : 1 380 (Argent). Ce tournoi est
  * réservé aux joueurs de niveau Or et plus : il te manque 70 points. »
+ * `meilleur` : meilleur rating atteint dans la saison (limite haute).
  */
-export function situationNiveau(rating: number | null, min: number | null, max: number | null): string {
+export function situationNiveau(
+  rating: number | null,
+  min: number | null,
+  max: number | null,
+  meilleur: number | null = null,
+): string {
   const niveau = libelleNiveau(min, max);
   const r = rating ?? RATING_DEPART;
+  const m = Math.max(r, meilleur ?? r);
   const tonRating =
     rating === null
       ? `Tu n'as pas encore joué cette saison : ton rating compte pour ${formaterRatingNiveau(r)} (${palierDuRating(r)}).`
@@ -84,13 +98,25 @@ export function situationNiveau(rating: number | null, min: number | null, max: 
   if (max !== null && r >= max) {
     return `${tonRating} ${reserve} : ton niveau le dépasse, c'est un tournoi pour des joueurs moins avancés.`;
   }
+  if (max !== null && m >= max) {
+    return `${tonRating} ${reserve} : pour cette limite, c'est ton meilleur rating de la saison qui compte, ${formaterRatingNiveau(m)} (${palierDuRating(m)}), et il la dépasse.`;
+  }
   return `${tonRating} ${reserve}.`;
 }
 
-/** Le rating (saison en cours, 1500 sans partie) entre-t-il dans la fourchette ? */
-export function ratingDansNiveau(rating: number | null, min: number | null, max: number | null): boolean {
+/**
+ * Le joueur entre-t-il dans la fourchette ? Plancher : rating de la saison
+ * (1500 sans partie). Limite haute : meilleur rating atteint dans la saison.
+ */
+export function ratingDansNiveau(
+  rating: number | null,
+  min: number | null,
+  max: number | null,
+  meilleur: number | null = null,
+): boolean {
   const r = rating ?? RATING_DEPART;
-  return (min === null || r >= min) && (max === null || r < max);
+  const m = Math.max(r, meilleur ?? r);
+  return (min === null || r >= min) && (max === null || m < max);
 }
 
 export type LectureNiveau = { ok: true; min: number | null; max: number | null } | { ok: false; erreur: string };
@@ -117,7 +143,7 @@ export const MESSAGES_NIVEAU: Record<string, string> = {
   NIVEAU_INVALIDE: "Niveau incohérent : le palier minimum doit être en dessous du palier maximum.",
   NIVEAU_1V1_SEULEMENT: "Un niveau ne se choisit que pour un tournoi 1v1.",
   NIVEAU_HORS_TOURNOI:
-    "Ton rating de la saison n'est pas dans le niveau de ce tournoi (1500 si tu n'as pas encore joué).",
+    "Ton niveau n'est pas celui de ce tournoi : rating de la saison (1500 si tu n'as pas encore joué), et pour la limite haute, ton meilleur rating de la saison.",
 };
 
 /** Message d'un refus de la base lié au niveau, sinon nul. */

@@ -6,7 +6,7 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1314 vérifications de
+elle se rejoue une seconde fois sans erreur, et les 1319 vérifications de
 `tests/sql/` passent ensuite (contrôle refait le 19/11/2026, après l'ajout
 des tournois par niveau, du face-à-face, du recrutement, du format suisse
 et de leur contrôle de sécurité).
@@ -43,6 +43,8 @@ Dix sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, six du
    redéfinie (verrou partagé sur le tournoi).
 6. **Tournois par niveau.** Colonnes `rating_min` / `rating_max` déjà
    présentes, désormais contrôlées : `rating_niveau`,
+   `rating_niveau_meilleur` (limite haute : meilleur rating de la saison),
+   `mon_niveau_tournoi`,
    `controler_niveau_tournoi` (seuils de palier, 1v1 d'organisateur
    seulement) et `controler_inscription_niveau` (inscription et check-in).
    `modifier_tournoi` reçoit les bornes de niveau.
@@ -122,7 +124,8 @@ from unnest(array[
   'publier_annonce_duo', 'demander_duo', 'repondre_demande_duo', 'annuler_demande_duo',
   'annonces_duo_publiques', 'bloquer_joueur', 'debloquer_joueur', 'conversation_ouverte',
   'rechercher_joueurs', 'modifier_tournoi',
-  'rating_niveau', 'controler_niveau_tournoi', 'controler_inscription_niveau',
+  'rating_niveau', 'rating_niveau_meilleur', 'mon_niveau_tournoi',
+  'controler_niveau_tournoi', 'controler_inscription_niveau',
   'face_a_face',
   'publier_recrutement', 'retirer_recrutement', 'annonces_recrutement_publiques',
   'postuler_equipe', 'repondre_candidature', 'annuler_candidature', 'joueurs_pour_recrutement',

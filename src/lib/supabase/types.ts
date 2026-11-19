@@ -3577,6 +3577,10 @@ export type Database = {
           message: string | null
         }[]
       }
+      mon_niveau_tournoi: {
+        Args: Record<PropertyKey, never>
+        Returns: { actuel: number; meilleur: number; a_joue: boolean }[]
+      }
       face_a_face: {
         Args: { p_a: string; p_b: string }
         Returns: {

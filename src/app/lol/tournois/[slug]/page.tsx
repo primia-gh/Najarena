@@ -315,16 +315,10 @@ const chargerTournoi = cache(async (slug: string) => {
           .limit(20)
       : Promise.resolve({ data: [] }),
     // Tournoi par niveau (19/11/2026) : rating de la saison du visiteur
-    // (même règle que rating_niveau : 1500 sans partie).
+    // (1500 sans partie) et son meilleur rating de la saison (limite
+    // haute), lus par la base pour lui seul.
     userData.user && (tournoi.rating_min !== null || tournoi.rating_max !== null)
-      ? supabase
-          .from("ratings")
-          .select("rating, season:seasons!inner(est_courante)")
-          .eq("profile_id", userData.user.id)
-          .eq("game_id", tournoi.game_id)
-          .eq("season.est_courante", true)
-          .limit(1)
-          .maybeSingle()
+      ? supabase.rpc("mon_niveau_tournoi")
       : Promise.resolve({ data: null }),
   ]);
 
@@ -395,11 +389,13 @@ const chargerTournoi = cache(async (slug: string) => {
       (!tournoi.reserve_non_classes || monClassement === null),
     // Même règle que controler_inscription_niveau, revérifiée au check-in.
     eligibleNiveau: ratingDansNiveau(
-      monRatingNiveau ? Number(monRatingNiveau.rating) : null,
+      niveauVisiteur(monRatingNiveau).actuel,
       tournoi.rating_min,
       tournoi.rating_max,
+      niveauVisiteur(monRatingNiveau).meilleur,
     ),
-    monRatingNiveau: monRatingNiveau ? Number(monRatingNiveau.rating) : null,
+    monRatingNiveau: niveauVisiteur(monRatingNiveau).actuel,
+    monMeilleurRating: niveauVisiteur(monRatingNiveau).meilleur,
   };
 });
 
@@ -430,6 +426,16 @@ function crestJoueur(
     couleur: COULEUR_PALIER[palier.nom.toLowerCase()] ?? COULEUR_NON_CLASSE,
     progression,
   };
+}
+
+// Niveau du visiteur (mon_niveau_tournoi) : rating de la saison (null s'il
+// n'a pas encore joué : 1500 par défaut) et meilleur rating de la saison.
+function niveauVisiteur(
+  lignes: { actuel: number; meilleur: number; a_joue: boolean }[] | null,
+): { actuel: number | null; meilleur: number | null } {
+  const l = lignes?.[0];
+  if (!l) return { actuel: null, meilleur: null };
+  return { actuel: l.a_joue ? Number(l.actuel) : null, meilleur: Number(l.meilleur) };
 }
 
 export async function generateMetadata({
@@ -502,6 +508,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     eligibleReserve,
     eligibleNiveau,
     monRatingNiveau,
+    monMeilleurRating,
   } = donnees;
   const niveau = libelleNiveau(tournoi.rating_min, tournoi.rating_max);
   const compteRiotValide = Boolean(monCompteRiot?.verifie_le) && monCompteRiot?.region === tournoi.region;
@@ -1201,7 +1208,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 {checkinOuvert && inscriptionActuelle.statut === "inscrit" && eligibleMembres && !eligibleNiveau && (
                   <Alerte type="erreur">
                     {typographie(
-                      `${situationNiveau(monRatingNiveau, tournoi.rating_min, tournoi.rating_max)} Ton rating a changé depuis ton inscription : tu ne peux pas confirmer ta présence.`,
+                      `${situationNiveau(monRatingNiveau, tournoi.rating_min, tournoi.rating_max, monMeilleurRating)} Ton rating a changé depuis ton inscription : tu ne peux pas confirmer ta présence.`,
                     )}
                   </Alerte>
                 )}
@@ -1260,7 +1267,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
               ) : utilisateur && !eligibleNiveau ? (
                 <div className="flex flex-col gap-3">
                   <p className="text-[13px] leading-normal text-muted tabular-nums">
-                    {typographie(situationNiveau(monRatingNiveau, tournoi.rating_min, tournoi.rating_max))}
+                    {typographie(
+                      situationNiveau(monRatingNiveau, tournoi.rating_min, tournoi.rating_max, monMeilleurRating),
+                    )}
                   </p>
                   <BoutonLien href="/lol/tournois" className="w-full">
                     Voir les autres tournois

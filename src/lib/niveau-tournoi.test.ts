@@ -40,6 +40,21 @@ describe("situationNiveau", () => {
   });
 });
 
+describe("limite haute : meilleur rating de la saison", () => {
+  it("un joueur redescendu n'entre pas sous un plafond qu'il a dépassé", () => {
+    expect(ratingDansNiveau(1350, null, 1450, 1500)).toBe(false);
+    expect(ratingDansNiveau(1380, null, 1450, 1420)).toBe(true);
+    // Le plancher reste lu sur le rating actuel.
+    expect(ratingDansNiveau(1350, 1300, null, 1500)).toBe(true);
+  });
+
+  it("le dit au joueur, avec son meilleur rating", () => {
+    expect(situationNiveau(1350, null, 1450, 1500)).toContain(
+      "c'est ton meilleur rating de la saison qui compte, 1\u202f500 (Or), et il la dépasse.",
+    );
+  });
+});
+
 describe("ratingDansNiveau", () => {
   it("borne basse incluse, borne haute exclue, 1500 sans partie", () => {
     expect(ratingDansNiveau(1450, 1450, 1600)).toBe(true);
@@ -70,7 +85,7 @@ describe("lireNiveau", () => {
 
 describe("messageNiveau", () => {
   it("traduit les codes de la base", () => {
-    expect(messageNiveau("NIVEAU_HORS_TOURNOI")).toMatch(/niveau de ce tournoi/);
+    expect(messageNiveau("NIVEAU_HORS_TOURNOI")).toMatch(/pas celui de ce tournoi.*meilleur rating de la saison/);
     expect(messageNiveau("autre chose")).toBeNull();
   });
 });

@@ -123,3 +123,33 @@ select refus('Pas de niveau pour un tournoi automatique',
   $q$insert into tournaments (game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, creneau_auto, rating_min)
      values (1, '9b0b0000-0000-0000-0000-000000000001', 'najarena-99k-auto', 'Daily niveau', '1v1', 16, 'EUW', now() + interval '6 hours', now() + interval '5 hours', 'ouvert', 'test-99k', 1450)$q$,
   'NIVEAU_1V1_SEULEMENT');
+
+-- ---------- Limite haute : meilleur rating de la saison (décision du 19/11/2026) ----------
+-- Tournoi « Bronze à Argent » (sous 1450). Cid est à 1350 mais avait
+-- atteint 1500 cette saison (il est redescendu) ; Eve est à 1380, son
+-- meilleur est 1420.
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('9b0b0000-0000-0000-0000-000000000005', 'p99k5@test', '{"pseudo": "Niveau99k5", "slug": "niveau99k5"}'::jsonb);
+insert into ratings (profile_id, game_id, season_id, rating, rd, volatilite, matchs_joues) values
+  ('9b0b0000-0000-0000-0000-000000000005', 1, (select id from seasons where est_courante), 1380, 200, 0.06, 4);
+insert into rating_events (profile_id, game_id, season_id, motif, rating_avant, rd_avant, rating_apres, rd_apres) values
+  ('9b0b0000-0000-0000-0000-000000000004', 1, (select id from seasons where est_courante), 'tournoi', 1450, 220, 1500, 210),
+  ('9b0b0000-0000-0000-0000-000000000004', 1, (select id from seasons where est_courante), 'tournoi', 1500, 210, 1350, 200),
+  ('9b0b0000-0000-0000-0000-000000000005', 1, (select id from seasons where est_courante), 'tournoi', 1500, 250, 1420, 230),
+  ('9b0b0000-0000-0000-0000-000000000005', 1, (select id from seasons where est_courante), 'tournoi', 1420, 230, 1380, 200);
+set role authenticated;
+select en_tant_que('9b0b0000-0000-0000-0000-000000000004');
+select verifie('Cid lit son niveau : 1350 aujourd''hui, 1500 au mieux, a déjà joué',
+  (select actuel = 1350 and meilleur = 1500 and a_joue from public.mon_niveau_tournoi()));
+select en_tant_que('9b0b0000-0000-0000-0000-000000000005');
+select verifie('Eve lit son niveau : 1380 aujourd''hui, 1420 au mieux',
+  (select actuel = 1380 and meilleur = 1420 from public.mon_niveau_tournoi()));
+reset role;
+select refus('Cid, redescendu à 1350 après 1500, n''entre pas en « Bronze à Argent »',
+  $q$insert into registrations (tournament_id, profile_id, statut) values ('9b0b0000-0000-0000-0000-0000000000a2', '9b0b0000-0000-0000-0000-000000000004', 'inscrit')$q$,
+  'NIVEAU_HORS_TOURNOI');
+select essai('Eve (meilleur 1420) entre en « Bronze à Argent »',
+  $q$insert into registrations (tournament_id, profile_id, statut) values ('9b0b0000-0000-0000-0000-0000000000a2', '9b0b0000-0000-0000-0000-000000000005', 'inscrit')$q$,
+  'passe');
+select verifie('Le plancher reste lu sur le rating actuel : Cid (1350) entre en « Argent et plus »',
+  public.rating_niveau('9b0b0000-0000-0000-0000-000000000004') >= 1300);
