@@ -20,7 +20,7 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
   const { data: m } = await admin
     .from("matches")
     .select(
-      "tournament_id, match_suivant_id, tournament:tournaments(nom, slug, format, nature), match_participants(profile_id, profile:profiles(pseudo))",
+      "tournament_id, tour, match_suivant_id, tournament:tournaments(nom, slug, format, nature, type_bracket), match_participants(profile_id, profile:profiles(pseudo))",
     )
     .eq("id", matchId)
     .maybeSingle();
@@ -70,6 +70,12 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
     );
   }
 
+  // Format suisse (19/11/2026) : ni match suivant ni finale.
+  if (tournoi.type_bracket === "suisse") {
+    await suiteSuisse(m.tournament_id, m.tour);
+    return;
+  }
+
   if (m.match_suivant_id) {
     await prevenirMatchOuvert(m.match_suivant_id);
   }
@@ -79,6 +85,34 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
     await cloturerTournoi(m.tournament_id);
     await annoncerVainqueur(m.tournament_id, gagnantId);
   }
+}
+
+/**
+ * Format suisse (19/11/2026), après un verdict : toutes les rondes jouées,
+ * on clôture et on annonce le premier du classement ; sinon, si ce verdict
+ * a clos la ronde, la base vient d'ouvrir la suivante : ses joueurs sont
+ * prévenus (salle de match, « Je suis prêt »).
+ */
+export async function suiteSuisse(tournamentId: string, tour: number): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  const { data: fini } = await admin.rpc("suisse_terminee", { p_tournament: tournamentId });
+  if (fini) {
+    await cloturerTournoi(tournamentId);
+    const { data: classement } = await admin.rpc("classement_suisse", { p_tournament: tournamentId });
+    const premier = (classement ?? []).find((l) => l.rang === 1);
+    if (premier) await annoncerVainqueur(tournamentId, premier.profile_id);
+    return;
+  }
+  const recemment = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+  const { data: ouverts } = await admin
+    .from("matches")
+    .select("id")
+    .eq("tournament_id", tournamentId)
+    .eq("tour", tour + 1)
+    .eq("statut", "en_cours")
+    .gt("demarre_le", recemment);
+  await Promise.all((ouverts ?? []).map((o) => prevenirMatchOuvert(o.id)));
 }
 
 /**

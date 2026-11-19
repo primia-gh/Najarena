@@ -11,6 +11,7 @@ import { libelleNiveau } from "@/lib/niveau-tournoi";
 
 const LABEL_BRACKET: Record<string, string> = {
   elim_simple: "Élimination directe",
+  suisse: "Format suisse",
 };
 
 export async function chargerComplementsTournoi(tournoiId: string) {

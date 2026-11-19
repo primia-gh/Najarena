@@ -54,6 +54,8 @@ export interface PreuveMatch {
   id: string;
   tour: number;
   dernierTour: number;
+  /** Format suisse (19/11/2026) : des rondes, pas de finale. */
+  suisse: boolean;
   statut: string;
   demarreLe: string | null;
   tournoi: { nom: string; slug: string; format: string; nature: string; classe: boolean | null; statut: string };
@@ -81,7 +83,7 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
   const { data: m } = await supabase
     .from("matches")
     .select(
-      "id, tour, statut, demarre_le, defaite_reconnue_par, defaite_reconnue_le, tournament:tournaments(id, nom, slug, format, nature, classe, statut, capacite), match_participants(profile_id, est_gagnant, pret_le, profile:profiles(pseudo, slug)), match_verdicts(niveau, gagnant_id, riot_match_id, motif, est_definitif, cree_le, decideur:profiles!match_verdicts_decide_par_fkey(pseudo))",
+      "id, tour, statut, demarre_le, defaite_reconnue_par, defaite_reconnue_le, tournament:tournaments(id, nom, slug, format, nature, classe, statut, capacite, type_bracket), match_participants(profile_id, est_gagnant, pret_le, profile:profiles(pseudo, slug)), match_verdicts(niveau, gagnant_id, riot_match_id, motif, est_definitif, cree_le, decideur:profiles!match_verdicts_decide_par_fkey(pseudo))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -181,6 +183,7 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
     id: m.id,
     tour: m.tour,
     dernierTour: Math.max(1, Math.round(Math.log2(m.tournament.capacite))),
+    suisse: m.tournament.type_bracket === "suisse",
     statut: m.statut,
     demarreLe: m.demarre_le,
     tournoi: {

@@ -115,7 +115,11 @@ export default async function PreuveMatchPage({ params }: PageProps) {
   const { verdict, tournoi } = preuve;
   const titre = titreMatch(preuve);
   const tourLisible =
-    tournoi.nature === "tournoi" ? libelleTour(preuve.tour, preuve.dernierTour).toLowerCase() : "duel en une partie";
+    tournoi.nature !== "tournoi"
+      ? "duel en une partie"
+      : preuve.suisse
+        ? `ronde ${preuve.tour} (format suisse)`
+        : libelleTour(preuve.tour, preuve.dernierTour).toLowerCase();
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">

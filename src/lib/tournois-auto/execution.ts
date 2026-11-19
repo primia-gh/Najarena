@@ -267,12 +267,26 @@ async function reprendreCloturesEnAttente(admin: ClientAdmin): Promise<string[]>
     .select("tournament_id, tournament:tournaments!inner(slug, statut)")
     .is("match_suivant_id", null)
     .in("statut", ["termine", "forfait"])
-    .eq("tournament.statut", "en_cours");
+    .eq("tournament.statut", "en_cours")
+    // Format suisse : aucun match n'a de suivant, ce n'est pas une finale.
+    .eq("tournament.type_bracket", "elim_simple");
 
   const resultats: string[] = [];
   for (const finale of finales ?? []) {
     await cloturerTournoi(finale.tournament_id);
     resultats.push(`clôture reprise ${finale.tournament?.slug ?? finale.tournament_id}`);
+  }
+  // Format suisse (19/11/2026) : toutes les rondes jouées, clôture pas faite.
+  const { data: suisses } = await admin
+    .from("tournaments")
+    .select("id, slug")
+    .eq("type_bracket", "suisse")
+    .eq("statut", "en_cours");
+  for (const t of suisses ?? []) {
+    const { data: fini } = await admin.rpc("suisse_terminee", { p_tournament: t.id });
+    if (!fini) continue;
+    await cloturerTournoi(t.id);
+    resultats.push(`clôture reprise ${t.slug}`);
   }
   return resultats;
 }

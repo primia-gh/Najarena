@@ -164,6 +164,17 @@ export default function CguPage() {
             plus sa place.
           </p>
           <p className="mt-2 text-muted">
+            Un tournoi 1v1 peut se jouer au format suisse plutôt qu&apos;en
+            élimination directe&nbsp;: chaque joueur confirmé dispute toutes
+            les rondes, contre un adversaire au même bilan. Avec un nombre
+            impair de joueurs, l&apos;un d&apos;eux est exempté à chaque ronde
+            (jamais deux fois s&apos;il est possible de l&apos;éviter)&nbsp;:
+            l&apos;exemption compte comme une victoire au classement du
+            tournoi, jamais au classement Najarena. Le classement final suit
+            les victoires, puis la somme des victoires des adversaires
+            affrontés.
+          </p>
+          <p className="mt-2 text-muted">
             Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq
             de ses membres, lui compris, chacun titulaire d&apos;un compte
             Riot vérifié dans la région du tournoi ; un joueur ne joue que

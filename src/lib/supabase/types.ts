@@ -2988,6 +2988,7 @@ export type Database = {
       }
       tournaments: {
         Row: {
+          rondes: number | null
           best_of: number
           capacite: number
           checkin_ouvre_le: string
@@ -3020,6 +3021,7 @@ export type Database = {
           verrouille_le: string | null
         }
         Insert: {
+          rondes?: number | null
           best_of?: number
           capacite: number
           checkin_ouvre_le: string
@@ -3052,6 +3054,7 @@ export type Database = {
           verrouille_le?: string | null
         }
         Update: {
+          rondes?: number | null
           best_of?: number
           capacite?: number
           checkin_ouvre_le?: string
@@ -3525,6 +3528,20 @@ export type Database = {
         }[]
       }
       demander_duo: { Args: { p_destinataire: string }; Returns: string }
+      demarrer_suisse: { Args: { p_tournament: string }; Returns: number }
+      suisse_terminee: { Args: { p_tournament: string }; Returns: boolean }
+      classement_suisse: {
+        Args: { p_tournament: string }
+        Returns: {
+          profile_id: string
+          pseudo: string
+          slug: string
+          victoires: number
+          defaites: number
+          buchholz: number
+          rang: number
+        }[]
+      }
       publier_recrutement: {
         Args: { p_team: string; p_postes: string[]; p_niveau_min?: number | null; p_message?: string | null }
         Returns: undefined

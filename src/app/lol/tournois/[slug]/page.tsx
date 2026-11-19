@@ -78,6 +78,8 @@ import { cashPrizesActifs, formaterEuros, LIBELLE_RANG } from "@/lib/dotations";
 import { publicReserve, typeCommunaute } from "@/lib/ecoles";
 import { classeChamp } from "@/lib/design";
 import { libelleNiveau, ratingDansNiveau } from "@/lib/niveau-tournoi";
+import { recitSuisse } from "@/lib/suisse";
+import ClassementSuisse from "@/components/tournoi/ClassementSuisse";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
 // maquette najarena-design/maquettes/tournoi.dc.html) : seule l'apparence a
@@ -113,7 +115,7 @@ const chargerTournoi = cache(async (slug: string) => {
   const { data: tournoi, error: erreurTournoi } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, reserve_non_classes, rating_min, rating_max, communaute:communautes(id, slug, nom, type), objectif:echeances(nom)",
+      "id, slug, nom, format, capacite, region, statut, debute_le, checkin_ouvre_le, best_of, organisateur_id, game_id, season_id, condition_victoire, nature, reserve_membres, reserve_non_classes, rating_min, rating_max, type_bracket, rondes, communaute:communautes(id, slug, nom, type), objectif:echeances(nom)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -516,8 +518,15 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
   // Récit factuel du tournoi terminé (vainqueur, parcours, exploit, part de
   // matchs vérifiés) — src/lib/recit-tournoi.ts.
+  // Format suisse (19/11/2026) : classement par victoires, pas de finale.
+  const estSuisse = tournoi.type_bracket === "suisse";
+  const classementSuisse = estSuisse
+    ? ((await (await createClient()).rpc("classement_suisse", { p_tournament: tournoi.id })).data ?? [])
+    : [];
   const recit =
-    statut === "termine"
+    statut === "termine" && estSuisse
+      ? recitSuisse(tournoi.nom, tournoi.rondes, classementSuisse)
+      : statut === "termine"
       ? recitTournoi({
           nom: tournoi.nom,
           nbJoueurs: new Set(matchs.flatMap((m) => m.match_participants.map((p) => p.profile_id))).size,
@@ -563,7 +572,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   // ratings au début du tournoi, avant le tournoi et au fil des résultats.
   // Tournois 1v1 seulement (en 5v5, le capitaine représente l'équipe).
   const titre =
-    !estEquipes && tournoi.nature === "tournoi" && matchs.length > 0 && (statut === "en_cours" || statut === "termine")
+    !estEquipes && !estSuisse && tournoi.nature === "tournoi" && matchs.length > 0 && (statut === "en_cours" || statut === "termine")
       ? (() => {
           const matchsTitre: MatchTitre[] = matchs.map((m) => ({
             tour: m.tour,
@@ -598,7 +607,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   // (jamais d'un défi ni d'un scrim), dès que les deux adversaires sont
   // connus. Les joueurs du tournoi et l'organisateur ne pronostiquent pas.
   const matchsPronostic =
-    tournoi.nature === "tournoi"
+    tournoi.nature === "tournoi" && !estSuisse
       ? matchs.filter((m) => pointsPronostic(m.tour, tournoi.capacite) > 0 && m.match_participants.length === 2)
       : [];
   const pronostics =
@@ -649,6 +658,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   // Nom des colonnes : tous les tours sont créés dès la génération du
   // bracket (lib/organisation-actions.ts), le dernier est donc la finale.
   const libelleTour = (index: number) => {
+    if (estSuisse) return `Ronde ${toursOrdonnes[index]}${tournoi.rondes ? ` / ${tournoi.rondes}` : ""}`;
     const reste = toursOrdonnes.length - index;
     if (reste === 1) return estDefi ? "Duel" : estScrim ? "Scrim" : "Finale";
     if (reste === 2) return "Demi-finales";
@@ -1383,8 +1393,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       {/* ================= BRACKET ================= */}
       <section id="bracket" className="scroll-mt-28 px-gouttiere pt-12">
         <div className="mx-auto flex max-w-contenu flex-col gap-6">
+          {/* Format suisse (19/11/2026) : le classement d'abord, les rondes ensuite. */}
+          {estSuisse && toursOrdonnes.length > 0 && (
+            <ClassementSuisse lignes={classementSuisse} rondes={tournoi.rondes} termine={statut === "termine"} />
+          )}
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <LibelleSection as="h2">Bracket</LibelleSection>
+            <LibelleSection as="h2">{estSuisse ? "Rondes" : "Bracket"}</LibelleSection>
             {/* Pas de légende tant qu'il n'y a pas de bracket ; en 5v5, ni
                 estimation ni exploit (le capitaine représente l'équipe). */}
             {toursOrdonnes.length > 0 && (
@@ -1401,7 +1415,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             </Panneau>
           ) : (
             <ColonnesBracket
-              legende={`Bracket du tournoi ${tournoi.nom}`}
+              sansConnecteurs={estSuisse}
+              legende={estSuisse ? `Rondes du tournoi ${tournoi.nom}` : `Bracket du tournoi ${tournoi.nom}`}
               tours={toursOrdonnes.map((tour, indexTour) => ({
                 numero: tour,
                 libelle: libelleTour(indexTour),

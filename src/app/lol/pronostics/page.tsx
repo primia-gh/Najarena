@@ -45,6 +45,8 @@ export default async function PronosticsPage() {
       )
       .eq("tournament.statut", "en_cours")
       .eq("tournament.nature", "tournoi")
+      // Format suisse (19/11/2026) : ni demi-finale ni finale.
+      .eq("tournament.type_bracket", "elim_simple")
       .in("statut", ["en_attente", "en_cours"])
       .order("demarre_le", { ascending: true, nullsFirst: false })
       .limit(200),

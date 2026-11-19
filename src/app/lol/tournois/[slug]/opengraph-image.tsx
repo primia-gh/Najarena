@@ -17,13 +17,17 @@ async function chargerAffiche(slug: string): Promise<AfficheTournoi | null> {
   const supabase = creerClientPublic();
   const { data: tournoi } = await supabase
     .from("tournaments")
-    .select("id, slug, nom, format, capacite, region, statut, debute_le, best_of")
+    .select("id, slug, nom, format, capacite, region, statut, debute_le, best_of, type_bracket")
     .eq("slug", slug)
     .maybeSingle();
   if (!tournoi || !estVisiblePubliquement(tournoi.statut)) return null;
 
   let vainqueur: string | null = null;
-  if (tournoi.statut === "termine") {
+  // Format suisse (19/11/2026) : le premier du classement, pas une finale.
+  if (tournoi.statut === "termine" && tournoi.type_bracket === "suisse") {
+    const { data: classement } = await supabase.rpc("classement_suisse", { p_tournament: tournoi.id });
+    vainqueur = (classement ?? []).find((l) => l.rang === 1)?.pseudo ?? null;
+  } else if (tournoi.statut === "termine") {
     const { data: finale } = await supabase
       .from("matches")
       .select("id")

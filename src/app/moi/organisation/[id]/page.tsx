@@ -53,7 +53,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     supabase.auth.getUser(),
     supabase
       .from("tournaments")
-      .select("id, slug, nom, statut, capacite, best_of, region, debute_le, checkin_ouvre_le, organisateur_id, format, nature, creneau_auto, rating_min, rating_max")
+      .select("id, slug, nom, statut, capacite, best_of, region, debute_le, checkin_ouvre_le, organisateur_id, format, nature, creneau_auto, rating_min, rating_max, type_bracket, rondes")
       .eq("id", id)
       .maybeSingle(),
   ]);
@@ -238,15 +238,24 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
           <form action={genererBracket}>
             <input type="hidden" name="tournament_id" value={tournoi.id} />
             <BoutonEnvoi disabled={nbConfirmes + equipesAgents < 2} libelleEnCours="Génération…">
-              Générer le bracket
+              {tournoi.type_bracket === "suisse" ? "Lancer la première ronde" : "Générer le bracket"}
             </BoutonEnvoi>
+            {tournoi.type_bracket === "suisse" && (
+              <p className="mt-2 max-w-2xl text-xs text-muted">
+                Format suisse : chaque ronde se crée d&apos;elle-même quand la précédente est entièrement jouée.
+              </p>
+            )}
           </form>
         </div>
       ) : (
         <div className="flex flex-col gap-8">
           {toursOrdonnes.map((tour) => (
             <div key={tour} className="flex flex-col gap-3">
-              <h3 className="font-texte text-mini font-medium text-faint uppercase">{libelleTour(tour, dernierTour)}</h3>
+              <h3 className="font-texte text-mini font-medium text-faint uppercase">
+                {tournoi.type_bracket === "suisse"
+                  ? `Ronde ${tour}${tournoi.rondes ? ` / ${tournoi.rondes}` : ""}`
+                  : libelleTour(tour, dernierTour)}
+              </h3>
               <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {rounds.get(tour)!.map((m) => {
                   const verdict = verdictParMatch.get(m.id);

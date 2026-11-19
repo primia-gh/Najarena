@@ -7,7 +7,7 @@ import { envoyerRappel, notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/
 import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { echapperDiscord, echapperHtml } from "@/lib/echappement";
-import { matchsOuverts, prevenirMatchOuvert } from "@/lib/apres-verdict";
+import { matchsOuverts, prevenirMatchOuvert, suiteSuisse } from "@/lib/apres-verdict";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
 import { formerEquipes } from "@/lib/agents-libres";
@@ -24,7 +24,7 @@ async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createCl
 
   const { data: tournoi } = await supabase
     .from("tournaments")
-    .select("id, nom, slug, capacite, organisateur_id, statut, format")
+    .select("id, nom, slug, capacite, organisateur_id, statut, format, type_bracket")
     .eq("id", tournamentId)
     .maybeSingle();
 
@@ -200,6 +200,25 @@ export async function genererBracket(formData: FormData) {
     );
   }
 
+  // Format suisse (19/11/2026) : la base fixe le nombre de rondes et
+  // apparie la première ; les suivantes se créent au fil des verdicts.
+  if (tournoi.type_bracket === "suisse") {
+    const { error } = await supabase.rpc("demarrer_suisse", { p_tournament: tournamentId });
+    if (error) {
+      redirect(
+        `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+          error.message.includes("PAS_ASSEZ_DE_JOUEURS")
+            ? "Il faut au moins 2 joueurs confirmés pour lancer le tournoi."
+            : error.message.includes("TOURNOI_DEJA_LANCE")
+              ? "Le tournoi est déjà lancé."
+              : "Impossible de lancer le tournoi pour l'instant.",
+        )}`,
+      );
+    }
+    await Promise.all((await matchsOuverts(tournamentId)).map((m) => prevenirMatchOuvert(m.matchId)));
+    redirect(`/moi/organisation/${tournamentId}`);
+  }
+
   // Tournoi 5v5 (audit N23) : les agents libres confirmés forment d'abord
   // leurs équipes, inscrites comme les autres.
   if (tournoi.format === "5v5") {
@@ -312,7 +331,7 @@ export async function enregistrerResultat(formData: FormData) {
   const { data: matchDecide } = await supabase
     .from("matches")
     .select(
-      "match_suivant_id, tournament:tournaments(nom, slug, format), match_participants(profile_id, profile:profiles(pseudo))",
+      "match_suivant_id, tour, tournament:tournaments(nom, slug, format, type_bracket), match_participants(profile_id, profile:profiles(pseudo))",
     )
     .eq("id", matchId)
     .maybeSingle();
@@ -344,11 +363,14 @@ export async function enregistrerResultat(formData: FormData) {
     );
   }
 
-  if (matchDecide?.match_suivant_id) {
+  // Format suisse (19/11/2026) : ronde suivante ou fin, jamais de finale.
+  if (matchDecide?.tournament?.type_bracket === "suisse") {
+    await suiteSuisse(tournamentId, matchDecide.tour);
+  } else if (matchDecide?.match_suivant_id) {
     await prevenirMatchOuvert(matchDecide.match_suivant_id);
   }
 
-  if (matchDecide && matchDecide.match_suivant_id === null) {
+  if (matchDecide && matchDecide.match_suivant_id === null && matchDecide.tournament?.type_bracket !== "suisse") {
     await cloturerTournoi(tournamentId);
     // Le récit dit que la finale a été tranchée à la main (hors classement).
     await annoncerVainqueur(tournamentId, gagnantId);

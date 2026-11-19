@@ -12930,3 +12930,383 @@ create trigger recrutement_compte_supprime
   for each row
   when (old.supprime_le is null and new.supprime_le is not null)
   execute function public.effacer_recrutement_compte_supprime();
+
+-- ---------- Tournois au format suisse (2026-11-19) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (création de tournoi, cockpit, page du tournoi).
+-- Un tournoi 1v1 d'organisateur peut se jouer au format suisse plutôt
+-- qu'en élimination directe : chaque joueur dispute toutes les rondes,
+-- même après une défaite — plus de matchs par joueur, donc un classement
+-- plus précis (CLAUDE.md §10). Nombre de rondes fixé au lancement :
+-- ⌈log2(joueurs)⌉, 5 au plus. Ronde 1 : la première moitié (par rating à
+-- l'inscription) contre la seconde. Rondes suivantes : joueurs au même
+-- bilan l'un contre l'autre, sans revanche quand c'est possible ; nombre
+-- impair : le moins bien placé qui n'en a pas encore eu est exempté
+-- (victoire tranchée « manuel », jamais comptée au classement). Classement
+-- final : victoires, puis Buchholz (victoires cumulées des adversaires),
+-- puis rating à l'inscription. Chaque match reste un match ordinaire :
+-- même salle, même lecture Riot, même verdict, même clôture Glicko-2.
+alter table public.tournaments add column if not exists rondes smallint;
+alter table public.tournaments drop constraint if exists tournaments_type_bracket_check;
+alter table public.tournaments add constraint tournaments_type_bracket_check
+  check (type_bracket in ('elim_simple', 'suisse'));
+alter table public.tournaments drop constraint if exists tournaments_rondes_check;
+alter table public.tournaments add constraint tournaments_rondes_check
+  check (rondes is null or (type_bracket = 'suisse' and rondes between 1 and 5));
+
+-- Le format suisse : 1v1, tournoi d'organisateur. Le nombre de rondes
+-- n'est écrit que par la base (demarrer_suisse).
+create or replace function public.controler_format_suisse()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.type_bracket = 'suisse'
+     and (new.format <> '1v1' or new.nature <> 'tournoi' or new.creneau_auto is not null) then
+    raise exception 'SUISSE_1V1_SEULEMENT';
+  end if;
+  if current_user = 'authenticated'
+     and ((tg_op = 'INSERT' and new.rondes is not null)
+          or (tg_op = 'UPDATE' and new.rondes is distinct from old.rondes)) then
+    raise exception 'CHAMP_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_format_suisse() from public, anon, authenticated;
+drop trigger if exists controle_format_suisse on public.tournaments;
+create trigger controle_format_suisse
+  before insert or update of type_bracket, format, nature, creneau_auto, rondes on public.tournaments
+  for each row execute function public.controler_format_suisse();
+
+-- Classement d'un tournoi suisse : joueurs confirmés, victoires, défaites,
+-- Buchholz. Lisible de tous (tournoi publié).
+create or replace function public.classement_suisse(p_tournament uuid)
+returns table (
+  profile_id uuid,
+  pseudo text,
+  slug text,
+  victoires integer,
+  defaites integer,
+  buchholz integer,
+  rang integer
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  with joueurs as (
+    select r.profile_id, r.rating_a_inscription
+    from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id and t.type_bracket = 'suisse' and t.statut <> 'brouillon'
+    where r.tournament_id = p_tournament and r.statut = 'confirme'
+  ),
+  bilans as (
+    select j.profile_id, j.rating_a_inscription,
+           count(*) filter (where mp.est_gagnant is true)::integer as victoires,
+           count(*) filter (where mp.est_gagnant is false)::integer as defaites
+    from joueurs j
+    left join public.match_participants mp on mp.profile_id = j.profile_id
+      and mp.match_id in (select id from public.matches where tournament_id = p_tournament)
+    group by j.profile_id, j.rating_a_inscription
+  ),
+  avec_buchholz as (
+    select b.*,
+           coalesce((
+             select sum(ba.victoires)
+             from public.match_participants moi
+             join public.matches m on m.id = moi.match_id and m.tournament_id = p_tournament
+             join public.match_participants adv on adv.match_id = moi.match_id and adv.profile_id <> moi.profile_id
+             join bilans ba on ba.profile_id = adv.profile_id
+             where moi.profile_id = b.profile_id
+           ), 0)::integer as buchholz
+    from bilans b
+  )
+  select a.profile_id, p.pseudo, p.slug, a.victoires, a.defaites, a.buchholz,
+         (row_number() over (order by a.victoires desc, a.buchholz desc, a.rating_a_inscription desc nulls last, p.pseudo))::integer
+  from avec_buchholz a
+  join public.profiles p on p.id = a.profile_id
+  order by 7;
+$$;
+revoke execute on function public.classement_suisse(uuid) from public;
+grant execute on function public.classement_suisse(uuid) to anon, authenticated, service_role;
+
+-- Crée la ronde suivante si la ronde en cours est entièrement jouée.
+-- Appelée par avancer_vainqueur après chaque verdict, et au lancement.
+-- Renvoie le numéro de la ronde créée, ou nul.
+create or replace function public.ronde_suisse_suivante(p_tournament uuid)
+returns smallint
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_t record;
+  v_tour smallint;
+  v_ordre uuid[];
+  v_libres uuid[];
+  v_bye uuid;
+  v_p uuid;
+  v_q uuid;
+  v_moitie integer;
+  v_n integer;
+  v_pos smallint := 0;
+  v_match uuid;
+  i integer;
+begin
+  -- Un seul appariement à la fois : deux verdicts simultanés ne créent pas
+  -- deux fois la même ronde.
+  select id, type_bracket, rondes, statut, organisateur_id into v_t
+  from public.tournaments where id = p_tournament for update;
+  if v_t.type_bracket is distinct from 'suisse' or v_t.statut <> 'en_cours' or v_t.rondes is null then
+    return null;
+  end if;
+  select coalesce(max(tour), 0) into v_tour from public.matches where tournament_id = p_tournament;
+  if v_tour >= v_t.rondes then
+    return null;
+  end if;
+  if v_tour > 0 and exists (
+    select 1 from public.matches where tournament_id = p_tournament and tour = v_tour and statut not in ('termine', 'forfait')
+  ) then
+    return null;
+  end if;
+
+  if v_tour = 0 then
+    -- Ronde 1 : par rating à l'inscription (égalités départagées par un
+    -- tirage stable), la première moitié contre la seconde.
+    select array_agg(r.profile_id order by r.rating_a_inscription desc nulls last, md5(r.profile_id::text || p_tournament::text))
+    into v_ordre
+    from public.registrations r where r.tournament_id = p_tournament and r.statut = 'confirme';
+  else
+    select array_agg(c.profile_id order by c.rang) into v_ordre from public.classement_suisse(p_tournament) c;
+  end if;
+  v_n := coalesce(array_length(v_ordre, 1), 0);
+  if v_n < 2 then
+    return null;
+  end if;
+
+  -- Nombre impair : le moins bien placé qui n'a pas encore été exempté.
+  if v_n % 2 = 1 then
+    for i in reverse v_n..1 loop
+      if not exists (
+        select 1 from public.matches m
+        join public.match_participants mp on mp.match_id = m.id and mp.profile_id = v_ordre[i]
+        where m.tournament_id = p_tournament
+          and (select count(*) from public.match_participants x where x.match_id = m.id) = 1
+      ) then
+        v_bye := v_ordre[i];
+        exit;
+      end if;
+    end loop;
+    v_bye := coalesce(v_bye, v_ordre[v_n]);
+    v_ordre := array_remove(v_ordre, v_bye);
+    v_n := v_n - 1;
+  end if;
+
+  -- Ronde 1 : 1 contre (n/2 + 1), 2 contre (n/2 + 2)… mis côte à côte.
+  if v_tour = 0 then
+    v_moitie := v_n / 2;
+    v_libres := '{}';
+    for i in 1..v_moitie loop
+      v_libres := v_libres || v_ordre[i] || v_ordre[i + v_moitie];
+    end loop;
+  else
+    v_libres := v_ordre;
+  end if;
+
+  while coalesce(array_length(v_libres, 1), 0) >= 2 loop
+    v_p := v_libres[1];
+    v_q := null;
+    for i in 2..array_length(v_libres, 1) loop
+      if not exists (
+        select 1 from public.match_participants a
+        join public.match_participants b on b.match_id = a.match_id and b.profile_id = v_libres[i]
+        join public.matches m on m.id = a.match_id and m.tournament_id = p_tournament
+        where a.profile_id = v_p
+      ) then
+        v_q := v_libres[i];
+        exit;
+      end if;
+    end loop;
+    -- Plus personne de neuf à affronter : revanche plutôt que pas de match.
+    v_q := coalesce(v_q, v_libres[2]);
+    v_pos := v_pos + 1;
+    insert into public.matches (tournament_id, tour, position, statut, demarre_le)
+    values (p_tournament, v_tour + 1, v_pos, 'en_cours', now())
+    returning id into v_match;
+    insert into public.match_participants (match_id, profile_id, slot) values (v_match, v_p, 1), (v_match, v_q, 2);
+    v_libres := array_remove(array_remove(v_libres, v_p), v_q);
+  end loop;
+
+  if v_bye is not null then
+    v_pos := v_pos + 1;
+    insert into public.matches (tournament_id, tour, position, statut)
+    values (p_tournament, v_tour + 1, v_pos, 'termine')
+    returning id into v_match;
+    insert into public.match_participants (match_id, profile_id, slot, est_gagnant) values (v_match, v_bye, 1, true);
+    insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+    values (v_match, 'manuel', v_bye, v_t.organisateur_id,
+            'Exemption : nombre impair de joueurs (format suisse), hors classement.', true);
+  end if;
+
+  return v_tour + 1;
+end;
+$$;
+revoke execute on function public.ronde_suisse_suivante(uuid) from public, anon, authenticated;
+
+create or replace function public.avancer_vainqueur(p_match_id uuid, p_gagnant_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi uuid;
+  v_match_suivant_id uuid;
+  v_slot_libre smallint;
+  v_nb_participants int;
+begin
+  update match_participants
+  set est_gagnant = (profile_id = p_gagnant_id)
+  where match_id = p_match_id;
+
+  update matches set statut = 'termine' where id = p_match_id;
+
+  select tournament_id, match_suivant_id into v_tournoi, v_match_suivant_id
+  from matches where id = p_match_id;
+  if v_match_suivant_id is null then
+    -- Format suisse (19/11/2026) : pas de match suivant ; la ronde
+    -- suivante se crée quand la ronde en cours est entièrement jouée.
+    if exists (select 1 from tournaments where id = v_tournoi and type_bracket = 'suisse') then
+      perform public.ronde_suisse_suivante(v_tournoi);
+    end if;
+    return;
+  end if;
+
+  perform 1 from matches
+  where id = v_match_suivant_id and tournament_id = v_tournoi
+  for update;
+  if not found then
+    raise exception 'MATCH_SUIVANT_INVALIDE';
+  end if;
+
+  if exists (select 1 from match_participants where match_id = v_match_suivant_id and profile_id = p_gagnant_id) then
+    return;
+  end if;
+
+  if (select count(*) from match_participants where match_id = v_match_suivant_id) >= 2 then
+    raise exception 'MATCH_COMPLET';
+  end if;
+
+  select case
+    when exists (select 1 from match_participants where match_id = v_match_suivant_id and slot = 1)
+    then 2 else 1
+  end into v_slot_libre;
+
+  insert into match_participants (match_id, profile_id, slot)
+  values (v_match_suivant_id, p_gagnant_id, v_slot_libre)
+  on conflict (match_id, profile_id) do nothing;
+
+  select count(*) into v_nb_participants from match_participants where match_id = v_match_suivant_id;
+  if v_nb_participants = 2 then
+    update matches set statut = 'en_cours', demarre_le = now() where id = v_match_suivant_id;
+  end if;
+end;
+$$;
+revoke execute on function public.avancer_vainqueur from public, anon, authenticated;
+
+-- Lancement par l'organisateur (bouton « Générer le bracket » du cockpit).
+create or replace function public.demarrer_suisse(p_tournament uuid)
+returns smallint -- nombre de rondes
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_t record;
+  v_n integer;
+  v_rondes smallint;
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, organisateur_id, type_bracket, statut into v_t from public.tournaments where id = p_tournament for update;
+  if not found or v_t.organisateur_id <> auth.uid() then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_t.type_bracket <> 'suisse' then
+    raise exception 'PAS_UN_TOURNOI_SUISSE';
+  end if;
+  if v_t.statut not in ('ouvert', 'checkin')
+     or exists (select 1 from public.matches where tournament_id = p_tournament) then
+    raise exception 'TOURNOI_DEJA_LANCE';
+  end if;
+  select count(*) into v_n from public.registrations where tournament_id = p_tournament and statut = 'confirme';
+  if v_n < 2 then
+    raise exception 'PAS_ASSEZ_DE_JOUEURS';
+  end if;
+  v_rondes := least(5, greatest(1, ceil(log(2, v_n::numeric))))::smallint;
+  update public.tournaments set statut = 'en_cours', rondes = v_rondes where id = p_tournament;
+  perform public.ronde_suisse_suivante(p_tournament);
+  return v_rondes;
+end;
+$$;
+revoke execute on function public.demarrer_suisse(uuid) from public, anon;
+grant execute on function public.demarrer_suisse(uuid) to authenticated;
+
+-- Toutes les rondes jouées : le tournoi peut être clôturé.
+create or replace function public.suisse_terminee(p_tournament uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.tournaments t
+    where t.id = p_tournament and t.type_bracket = 'suisse' and t.rondes is not null
+      and (select coalesce(max(tour), 0) from public.matches where tournament_id = t.id) = t.rondes
+      and not exists (select 1 from public.matches m where m.tournament_id = t.id and m.statut not in ('termine', 'forfait'))
+  );
+$$;
+revoke execute on function public.suisse_terminee(uuid) from public;
+grant execute on function public.suisse_terminee(uuid) to anon, authenticated, service_role;
+
+-- Pas de pronostic en format suisse : il n'a ni demi-finale ni finale.
+create or replace function public.refuser_pronostic_suisse()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from public.matches m join public.tournaments t on t.id = m.tournament_id
+    where m.id = new.match_id and t.type_bracket = 'suisse'
+  ) then
+    raise exception 'PRONOSTIC_HORS_PHASE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_pronostic_suisse() from public, anon, authenticated;
+drop trigger if exists pronostics_suisse on public.pronostics;
+create trigger pronostics_suisse
+  before insert on public.pronostics
+  for each row execute function public.refuser_pronostic_suisse();
+
+-- Cash prizes (désactivés) : leurs gagnants se lisent dans un bracket à
+-- élimination directe ; pas de dotation sur un tournoi suisse.
+create or replace function public.refuser_dotation_suisse()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (select 1 from public.tournaments where id = new.tournament_id and type_bracket = 'suisse') then
+    raise exception 'DOTATION_SUISSE_INDISPONIBLE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_dotation_suisse() from public, anon, authenticated;
+drop trigger if exists dotations_suisse on public.dotations;
+create trigger dotations_suisse
+  before insert on public.dotations
+  for each row execute function public.refuser_dotation_suisse();

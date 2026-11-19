@@ -198,6 +198,26 @@ export default async function OrganiserNouveauPage({
                 </select>
               </Champ>
 
+              {/* Format du bracket (19/11/2026) : élimination directe ou suisse, 1v1. */}
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-1.5 font-texte text-mini font-medium text-muted uppercase">Déroulement (1v1)</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Choix
+                    name="type_bracket"
+                    value="elim_simple"
+                    defaultChecked
+                    titre="Élimination directe"
+                    detail="Le perdant d'un match est éliminé, jusqu'à la finale."
+                  />
+                  <Choix
+                    name="type_bracket"
+                    value="suisse"
+                    titre="Format suisse"
+                    detail="Chacun joue toutes les rondes (3 pour 8 joueurs) contre un adversaire au même bilan. Plus de matchs, un classement plus précis."
+                  />
+                </div>
+              </fieldset>
+
               {/* Tournoi par niveau (19/11/2026) : 1v1 seulement, vérifié par la base. */}
               <fieldset className="flex flex-col gap-2" aria-describedby="aide-niveau">
                 <legend className="mb-1.5 font-texte text-mini font-medium text-muted uppercase">Niveau (1v1)</legend>
