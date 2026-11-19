@@ -97,8 +97,12 @@ export async function inviterMembre(formData: FormData) {
   const teamId = String(formData.get("team_id") ?? "");
   const slug = String(formData.get("slug") ?? "");
   const pseudoInvite = String(formData.get("pseudo") ?? "").trim();
+  // Depuis les propositions du recrutement : le joueur est désigné par son
+  // identifiant, pas par son pseudo (qui peut avoir changé entre-temps).
+  const idInvite = String(formData.get("profile_id") ?? "").trim();
+  const parIdentifiant = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idInvite);
 
-  if (!pseudoInvite) {
+  if (!pseudoInvite && !parIdentifiant) {
     redirect(
       `/equipe/${slug}?erreur=${encodeURIComponent("Indique le pseudo du joueur à inviter.")}`,
     );
@@ -108,7 +112,15 @@ export async function inviterMembre(formData: FormData) {
   // de l'autre — lancés en parallèle plutôt qu'en série (correctif du
   // 13/09/2026, même logique que sur l'accueil).
   const [{ data: profil }, { count }] = await Promise.all([
-    supabase.from("profiles").select("id, pseudo").ilike("pseudo", pseudoInvite).maybeSingle(),
+    parIdentifiant
+      ? supabase.from("profiles").select("id, pseudo").eq("id", idInvite).maybeSingle()
+      : // Pseudo exact, sans tenir compte des majuscules : « _ » et « % »
+        // (permis ou non dans un pseudo) ne servent pas de jokers.
+        supabase
+          .from("profiles")
+          .select("id, pseudo")
+          .ilike("pseudo", pseudoInvite.replace(/[\\%_]/g, (c) => `\\${c}`))
+          .maybeSingle(),
     // Vérification applicative, en plus de la policy RLS "capitaine invite
     // un membre" (qui revérifie elle-même l'identité du capitaine) : rien
     // côté base n'empêche encore un roster de dépasser 5 joueurs, et

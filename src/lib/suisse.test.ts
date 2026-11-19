@@ -23,6 +23,11 @@ describe("recitSuisse", () => {
     expect(r?.[1]).toMatch(/même bilan.*Buchholz 5 contre 4/);
   });
 
+  it("égalité complète : ne prétend pas que le Buchholz a départagé", () => {
+    const r = recitSuisse("Coupe", 2, [ligne(1, "Ahri", 2, 0, 2), ligne(2, "Zed", 2, 0, 2)]);
+    expect(r?.[1]).toMatch(/même force \(Buchholz 2\).*rating à l'inscription, puis par tirage au sort/);
+  });
+
   it("rien sans classement", () => {
     expect(recitSuisse("Coupe", 3, [])).toBeNull();
   });

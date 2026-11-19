@@ -305,6 +305,10 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     retire: { libelle: "Retiré", classe: "text-faint" },
   };
 
+  // Une fois le tournoi lancé, les inscriptions sont figées par la base
+  // (contrôle de sécurité du 19/11/2026) : plus de boutons.
+  const inscriptionsModifiables = ["brouillon", "ouvert", "checkin"].includes(tournoi.statut);
+
   const sectionInscrits = (
     <section aria-labelledby="cockpit-inscrits" className="flex flex-col gap-4">
       <LibelleSection as="h2" id="cockpit-inscrits" className="border-b border-line-strong pb-4">
@@ -351,7 +355,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                   <td className="py-2!">
                     <span className="flex items-center justify-end gap-4">
                       {/* Un joueur qui s'est désinscrit ne se réinscrit que lui-même. */}
-                      {i.statut !== "confirme" && i.statut !== "retire" && (
+                      {inscriptionsModifiables && i.statut !== "confirme" && i.statut !== "retire" && (
                         <form action={confirmerInscription}>
                           <input type="hidden" name="registration_id" value={i.id} />
                           <input type="hidden" name="tournament_id" value={tournoi.id} />
@@ -364,7 +368,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                           </button>
                         </form>
                       )}
-                      {i.statut !== "absent" && i.statut !== "retire" && (
+                      {inscriptionsModifiables && i.statut !== "absent" && i.statut !== "retire" && (
                         <form action={marquerAbsent}>
                           <input type="hidden" name="registration_id" value={i.id} />
                           <input type="hidden" name="tournament_id" value={tournoi.id} />

@@ -6,9 +6,10 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1292 vérifications de
+elle se rejoue une seconde fois sans erreur, et les 1312 vérifications de
 `tests/sql/` passent ensuite (contrôle refait le 19/11/2026, après l'ajout
-des tournois par niveau, du face-à-face, du recrutement et du format suisse).
+des tournois par niveau, du face-à-face, du recrutement, du format suisse
+et de leur contrôle de sécurité).
 
 Branche : `claude/nice-faraday-nsoe9q`. Comme les fois précédentes, **la base
 d'abord, le code ensuite** : le code appelle des fonctions et lit des tables
@@ -19,7 +20,7 @@ les pages d'équipe et de tournoi, et les conversations.
 
 ## Ce que contient la migration
 
-Neuf sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, cinq du
+Dix sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, six du
 19/11/2026) :
 
 1. **Défis et arène : pas de duel pendant un match ouvert ; noms d'équipe
@@ -57,6 +58,17 @@ Neuf sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, cinq du
    **`avancer_vainqueur` redéfinie** (crée la ronde suivante d'un tournoi
    suisse, rien de changé pour l'élimination directe) ; pronostics et
    dotations refusés en suisse.
+10. **Contrôle de sécurité des nouveautés.** Inscriptions figées une fois un
+   tournoi lancé (`figer_inscriptions_lancees`, déclencheur
+   `registrations_figees`) ; `engage_en_tournoi` et
+   `figer_classement_tournoi` redéfinies ; un tournoi suisse n'est lancé que
+   par `demarrer_suisse` et jamais clos avant sa dernière ronde
+   (`controler_statut_suisse`, `refuser_match_suisse_client`) ;
+   `controler_membre_equipe` redéfinie (verrou d'effectif à 5 joueurs) ;
+   ancienne signature de `modifier_tournoi` supprimée si elle existe.
+   (Les sections 5, 8 et 9 ont aussi été corrigées sur place : le niveau
+   repose la date de publication, classement suisse tiré des matchs,
+   capitaine suspendu.)
 
 ## 1. Vérifications avant migration (lecture seule)
 
@@ -114,8 +126,14 @@ from unnest(array[
   'face_a_face',
   'publier_recrutement', 'retirer_recrutement', 'annonces_recrutement_publiques',
   'postuler_equipe', 'repondre_candidature', 'annuler_candidature', 'joueurs_pour_recrutement',
-  'classement_suisse', 'ronde_suisse_suivante', 'demarrer_suisse', 'suisse_terminee'
+  'classement_suisse', 'ronde_suisse_suivante', 'demarrer_suisse', 'suisse_terminee',
+  'figer_inscriptions_lancees', 'controler_statut_suisse', 'refuser_match_suisse_client'
 ]) as f;  -- toutes « true »
+
+select tgname from pg_trigger
+where tgname in ('registrations_figees', 'tournaments_statut_suisse', 'matches_suisse_client')
+  and not tgisinternal;  -- 3 lignes
+select oid::regprocedure from pg_proc where proname = 'modifier_tournoi';  -- 1 ligne (9 paramètres)
 
 select column_name from information_schema.columns
 where table_schema = 'public' and table_name = 'tournaments' and column_name = 'rondes';  -- 1 ligne

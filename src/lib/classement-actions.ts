@@ -51,7 +51,7 @@ async function compterVictoiresRecentes(
  * l'organisateur a enregistré le dernier verdict du tournoi (voir
  * organisation-actions.ts), dans une session déjà vérifiée.
  */
-export async function cloturerTournoi(tournamentId: string): Promise<void> {
+export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
   const supabase = await createClient();
   // Le cron de rapprochement clôture sans session utilisateur : le client à
   // cookies n'a alors aucun droit d'écriture sur `tournaments` (règle RLS
@@ -67,7 +67,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     .maybeSingle();
 
   if (!tournoi || tournoi.statut === "termine") {
-    return;
+    return false;
   }
 
   // Pour un tournoi qui compte, « terminé » est écrit EN DERNIER, une fois
@@ -75,13 +75,22 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
   // donc l'écrire avant laissait un tournoi clos avec des joueurs jamais
   // crédités si une écriture échouait ou si la fonction expirait. Relancer
   // reste sans danger : la fonction SQL refuse tout double crédit.
-  const terminer = async () => {
-    await ecriture.from("tournaments").update({ statut: "termine" }).eq("id", tournamentId);
+  //
+  // Renvoie vrai seulement pour l'appel qui a lui-même écrit « terminé » :
+  // de deux clôtures simultanées, une seule annonce le vainqueur
+  // (contrôle de sécurité du 19/11/2026).
+  const terminer = async (): Promise<boolean> => {
+    const { data } = await ecriture
+      .from("tournaments")
+      .update({ statut: "termine" })
+      .eq("id", tournamentId)
+      .neq("statut", "termine")
+      .select("id");
+    return (data ?? []).length > 0;
   };
 
   if (!tournoi.compte_pour_classement) {
-    await terminer();
-    return;
+    return terminer();
   }
 
   // Tournoi créé avant l'existence d'une saison courante (brouillon
@@ -105,8 +114,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
   // (season_id y est NOT NULL). Le tournoi est clôturé, sans effet sur le
   // classement.
   if (!seasonId) {
-    await terminer();
-    return;
+    return terminer();
   }
 
   // Tournoi classé (audit E12 / N12) : la base décide d'après les critères
@@ -123,11 +131,10 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
       console.error(
         `cloturerTournoi : critères de classement illisibles pour le tournoi ${tournamentId} (${erreurClassement.message}) — clôture reportée.`,
       );
-      return;
+      return false;
     }
     if (!classe) {
-      await terminer();
-      return;
+      return terminer();
     }
   }
 
@@ -145,8 +152,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     for (const p of m.match_participants) joueursDuBracket.add(p.profile_id);
   }
   if (joueursDuBracket.size === 0) {
-    await terminer();
-    return;
+    return terminer();
   }
 
   // Ne retenir que les verdicts définitifs de niveau 2/3, hors forfait —
@@ -237,8 +243,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     console.error(
       `cloturerTournoi : SUPABASE_SERVICE_ROLE_KEY absente, ratings non écrits pour le tournoi ${tournamentId}.`,
     );
-    await terminer();
-    return;
+    return terminer();
   }
 
   // Écritures indépendantes (une par joueur, idempotentes côté SQL) : lancées
@@ -281,10 +286,10 @@ export async function cloturerTournoi(tournamentId: string): Promise<void> {
     console.error(
       `cloturerTournoi : écriture du rating échouée pour ${joueursEnEchec.length} joueur(s) du tournoi ${tournamentId} — tournoi laissé ouvert pour reprise.`,
     );
-    return;
+    return false;
   }
 
-  await terminer();
+  return terminer();
 }
 
 /**

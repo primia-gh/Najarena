@@ -125,3 +125,67 @@ select refus('Pas de dotation sur un tournoi suisse',
   $q$insert into dotations (tournament_id, sponsor_nom, repartition, cree_par)
      values ('9e0e0000-0000-0000-0000-0000000000a1', 'Sponsor', array[1000], '9e0e0000-0000-0000-0000-000000000000')$q$,
   'DOTATION_SUISSE_INDISPONIBLE');
+
+-- ---------- Contrôle de sécurité du 19/11/2026 ----------
+
+-- Inscriptions figées une fois le tournoi lancé : l'organisateur ne retire
+-- pas le premier du classement en le déclarant absent.
+set role authenticated;
+select en_tant_que('9e0e0000-0000-0000-0000-000000000000');
+select refus('L''organisateur ne passe pas J1 « absent » une fois le tournoi lancé',
+  $q$update registrations set statut = 'absent'
+     where tournament_id = '9e0e0000-0000-0000-0000-0000000000a1' and profile_id = '9e0e0000-0000-0000-0000-000000000001'$q$,
+  'INSCRIPTIONS_FIGEES');
+reset role;
+-- Même forcé par le serveur, le classement suit les matchs, pas les inscriptions.
+update registrations set statut = 'absent'
+where tournament_id = '9e0e0000-0000-0000-0000-0000000000a1' and profile_id = '9e0e0000-0000-0000-0000-000000000001';
+select verifie('Le classement ne bouge pas : J1 reste premier, 7 joueurs',
+  (select profile_id = '9e0e0000-0000-0000-0000-000000000001' from public.classement_suisse('9e0e0000-0000-0000-0000-0000000000a1') where rang = 1)
+  and (select count(*) = 7 from public.classement_suisse('9e0e0000-0000-0000-0000-0000000000a1')));
+select verifie('J1, placé dans les matchs d''un tournoi en cours, reste engagé (pas de changement de compte Riot principal)',
+  public.engage_en_tournoi('9e0e0000-0000-0000-0000-000000000001', 1::smallint));
+select verifie('Toutes les rondes jouées : la clôture fige le classement du tournoi',
+  public.figer_classement_tournoi('9e0e0000-0000-0000-0000-0000000000a1') is not null);
+select essai('Toutes les rondes jouées : le tournoi passe « terminé »',
+  $q$update tournaments set statut = 'termine' where id = '9e0e0000-0000-0000-0000-0000000000a1'$q$,
+  'passe');
+set role authenticated;
+select en_tant_que('9e0e0000-0000-0000-0000-000000000000');
+select refus('Tournoi terminé : inscriptions toujours figées',
+  $q$update registrations set statut = 'confirme'
+     where tournament_id = '9e0e0000-0000-0000-0000-0000000000a1' and profile_id = '9e0e0000-0000-0000-0000-000000000001'$q$,
+  'INSCRIPTIONS_FIGEES');
+
+-- Un second tournoi suisse : lancé seulement par demarrer_suisse, jamais
+-- clos avant sa dernière ronde.
+select essai('Org crée un second tournoi suisse',
+  $q$insert into tournaments (id, game_id, organisateur_id, slug, nom, format, type_bracket, capacite, region, debute_le, checkin_ouvre_le, statut)
+     values ('9e0e0000-0000-0000-0000-0000000000a2', 1, '9e0e0000-0000-0000-0000-000000000000', 'coupe-suisse-99n-b', 'Coupe suisse bis', '1v1', 'suisse', 4, 'EUW',
+             now() + interval '1 hour', now() - interval '1 hour', 'ouvert')$q$,
+  'passe');
+reset role;
+insert into registrations (tournament_id, profile_id, statut, rating_a_inscription)
+select '9e0e0000-0000-0000-0000-0000000000a2', ('9e0e0000-0000-0000-0000-00000000000' || n)::uuid, 'confirme', 1800 - n * 100
+from generate_series(1, 4) n;
+set role authenticated;
+select en_tant_que('9e0e0000-0000-0000-0000-000000000000');
+select refus('Pas de match inséré à la main dans un tournoi suisse',
+  $q$insert into matches (tournament_id, tour, position, match_suivant_id) values ('9e0e0000-0000-0000-0000-0000000000a2', 2, 1, null)$q$,
+  'BRACKET_SUISSE_RESERVE');
+select refus('Pas de lancement « à la main » d''un tournoi suisse',
+  $q$update tournaments set statut = 'en_cours' where id = '9e0e0000-0000-0000-0000-0000000000a2'$q$,
+  'LANCEMENT_SUISSE_RESERVE');
+select verifie('demarrer_suisse lance : 2 rondes pour 4 joueurs',
+  (select public.demarrer_suisse('9e0e0000-0000-0000-0000-0000000000a2') = 2));
+select refus('Tournoi lancé : l''organisateur ne déclare plus un joueur absent',
+  $q$update registrations set statut = 'absent'
+     where tournament_id = '9e0e0000-0000-0000-0000-0000000000a2' and profile_id = '9e0e0000-0000-0000-0000-000000000004'$q$,
+  'INSCRIPTIONS_FIGEES');
+reset role;
+select refus('Après la ronde 1 seulement : pas de clôture du classement',
+  $q$select public.figer_classement_tournoi('9e0e0000-0000-0000-0000-0000000000a2')$q$,
+  'SUISSE_NON_TERMINEE');
+select refus('Après la ronde 1 seulement : pas de passage à « terminé », même par le serveur',
+  $q$update tournaments set statut = 'termine' where id = '9e0e0000-0000-0000-0000-0000000000a2'$q$,
+  'SUISSE_NON_TERMINEE');

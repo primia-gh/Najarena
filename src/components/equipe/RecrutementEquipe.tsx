@@ -284,7 +284,7 @@ export default async function RecrutementEquipe({
                       <form action={inviterMembre} className="mt-auto">
                         <input type="hidden" name="team_id" value={equipe.id} />
                         <input type="hidden" name="slug" value={equipe.slug} />
-                        <input type="hidden" name="pseudo" value={p.pseudo} />
+                        <input type="hidden" name="profile_id" value={p.profile_id} />
                         <BoutonEnvoi variante="contour" libelleEnCours="Invitation…">
                           Inviter dans l&apos;équipe
                         </BoutonEnvoi>
@@ -380,7 +380,11 @@ export default async function RecrutementEquipe({
     action = (
       <p className="text-sm text-muted">
         {typographie(
-          `L'équipe demande le niveau ${niveau ?? ""} : ton rating de la saison n'y est pas encore (${RATING_DEPART} si tu n'as pas encore joué).`,
+          `L'équipe demande le niveau ${niveau ?? libelleNiveauRecrutement(annonce.niveau_min)}. ${
+            monRating
+              ? `Ton rating de la saison : ${arrondir(ratingVisiteur)} (${palierDuRating(ratingVisiteur)})`
+              : `Tu n'as pas encore joué cette saison : ton rating compte pour ${arrondir(RATING_DEPART)} (${palierDuRating(RATING_DEPART)})`
+          }, il te manque ${arrondir((annonce.niveau_min ?? 0) - ratingVisiteur)} points.`,
         )}
       </p>
     );

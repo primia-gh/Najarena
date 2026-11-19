@@ -98,10 +98,10 @@ export async function suiteSuisse(tournamentId: string, tour: number): Promise<v
   if (!admin) return;
   const { data: fini } = await admin.rpc("suisse_terminee", { p_tournament: tournamentId });
   if (fini) {
-    await cloturerTournoi(tournamentId);
-    const { data: classement } = await admin.rpc("classement_suisse", { p_tournament: tournamentId });
-    const premier = (classement ?? []).find((l) => l.rang === 1);
-    if (premier) await annoncerVainqueur(tournamentId, premier.profile_id);
+    // Deux verdicts qui finissent la dernière ronde au même moment : seul
+    // l'appel qui écrit « terminé » annonce le premier. Clôture reportée
+    // (échec d'écriture) : la reprise automatique clôturera et annoncera.
+    if (await cloturerTournoi(tournamentId)) await annoncerPremierSuisse(tournamentId);
     return;
   }
   const recemment = new Date(Date.now() - 2 * 60 * 1000).toISOString();
@@ -113,6 +113,15 @@ export async function suiteSuisse(tournamentId: string, tour: number): Promise<v
     .eq("statut", "en_cours")
     .gt("demarre_le", recemment);
   await Promise.all((ouverts ?? []).map((o) => prevenirMatchOuvert(o.id)));
+}
+
+/** Annonce le premier du classement d'un tournoi suisse qui vient d'être clos. */
+export async function annoncerPremierSuisse(tournamentId: string): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  const { data: classement } = await admin.rpc("classement_suisse", { p_tournament: tournamentId });
+  const premier = (classement ?? []).find((l) => l.rang === 1);
+  if (premier) await annoncerVainqueur(tournamentId, premier.profile_id);
 }
 
 /**

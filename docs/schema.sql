@@ -12149,7 +12149,10 @@ begin
   elsif old.publie_le is not null
         and new.creneau_auto is null
         and old.statut in ('brouillon', 'ouvert')
-        and (new.debute_le, new.region, new.capacite) is distinct from (old.debute_le, old.region, old.capacite) then
+        and (new.debute_le, new.region, new.capacite, new.rating_min, new.rating_max)
+            is distinct from (old.debute_le, old.region, old.capacite, old.rating_min, old.rating_max) then
+    -- Le niveau aussi (contrôle de sécurité du 19/11/2026) : passer de
+    -- « Champion » à « Bronze à Argent » la veille change qui peut jouer.
     new.publie_le := now();
   else
     new.publie_le := old.publie_le;
@@ -12730,9 +12733,11 @@ begin
 
   select a.* into v_annonce from public.annonces_recrutement a where a.team_id = p_team and a.expire_le > now();
   select capitaine_id into v_capitaine from public.teams where id = p_team;
-  -- Annonce retirée, équipe disparue ou capitaine bloqué (dans un sens ou
-  -- l'autre) : même réponse.
-  if v_annonce.team_id is null or v_capitaine is null or public.blocage_entre(v_moi, v_capitaine) then
+  -- Annonce retirée, équipe disparue, capitaine suspendu, supprimé ou bloqué
+  -- (dans un sens ou l'autre) : même réponse.
+  if v_annonce.team_id is null or v_capitaine is null or public.blocage_entre(v_moi, v_capitaine)
+     or exists (select 1 from public.suspensions where profile_id = v_capitaine and levee_le is null)
+     or exists (select 1 from public.profiles where id = v_capitaine and supprime_le is not null) then
     raise exception 'ANNONCE_INTROUVABLE';
   end if;
   if v_annonce.region <> v_region then
@@ -12801,10 +12806,15 @@ begin
     raise exception 'CANDIDATURE_INTROUVABLE';
   end if;
   -- L'équipe verrouillée : deux acceptations simultanées ne dépassent pas
-  -- cinq joueurs.
+  -- cinq joueurs. Le verrou d'effectif est aussi pris par l'acceptation
+  -- d'une invitation (controler_membre_equipe).
   perform 1 from public.teams where id = v_c.team_id and capitaine_id = v_moi for update;
   if not found then
     raise exception 'NON_CAPITAINE';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('effectif_equipe:' || v_c.team_id::text, 0));
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
   end if;
   if v_c.statut <> 'en_attente' then
     raise exception 'CANDIDATURE_DEJA_TRAITEE';
@@ -12996,11 +13006,16 @@ language sql
 stable
 security definer set search_path = public
 as $$
+  -- Les joueurs sont ceux des matchs du tournoi, pas les inscriptions :
+  -- une fois les rondes lancées, changer le statut d'une inscription ne
+  -- retire personne du classement (contrôle de sécurité du 19/11/2026).
   with joueurs as (
-    select r.profile_id, r.rating_a_inscription
-    from public.registrations r
-    join public.tournaments t on t.id = r.tournament_id and t.type_bracket = 'suisse' and t.statut <> 'brouillon'
-    where r.tournament_id = p_tournament and r.statut = 'confirme'
+    select distinct mp.profile_id, r.rating_a_inscription
+    from public.matches m
+    join public.tournaments t on t.id = m.tournament_id and t.type_bracket = 'suisse' and t.statut <> 'brouillon'
+    join public.match_participants mp on mp.match_id = m.id
+    left join public.registrations r on r.tournament_id = m.tournament_id and r.profile_id = mp.profile_id
+    where m.tournament_id = p_tournament
   ),
   bilans as (
     select j.profile_id, j.rating_a_inscription,
@@ -13024,7 +13039,10 @@ as $$
     from bilans b
   )
   select a.profile_id, p.pseudo, p.slug, a.victoires, a.defaites, a.buchholz,
-         (row_number() over (order by a.victoires desc, a.buchholz desc, a.rating_a_inscription desc nulls last, p.pseudo))::integer
+         -- Dernier départage : un tirage stable, jamais le pseudo (qu'un
+         -- joueur peut changer pour passer devant).
+         (row_number() over (order by a.victoires desc, a.buchholz desc, a.rating_a_inscription desc nulls last,
+                                      md5(a.profile_id::text || p_tournament::text)))::integer
   from avec_buchholz a
   join public.profiles p on p.id = a.profile_id
   order by 7;
@@ -13310,3 +13328,220 @@ drop trigger if exists dotations_suisse on public.dotations;
 create trigger dotations_suisse
   before insert on public.dotations
   for each row execute function public.refuser_dotation_suisse();
+
+-- ---------- Contrôle de sécurité des nouveautés du 19/11/2026 ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- (Les sections « Modifier un tournoi », « Équipes qui recrutent » et
+-- « Format suisse » ci-dessus ont aussi été corrigées sur place : niveau
+-- pris en compte dans la date de publication, classement suisse tiré des
+-- matchs, capitaine suspendu, verrou d'effectif.)
+
+-- Ancienne signature de modifier_tournoi (sans niveau), si une base l'a
+-- reçue : une seule version doit rester.
+drop function if exists public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz);
+
+-- Inscriptions figées une fois le tournoi lancé : un organisateur ne passe
+-- plus un joueur « absent » en plein tournoi (ni après) pour le retirer
+-- d'un classement suisse ou le libérer de son compte Riot principal. Les
+-- fonctions de la base et le serveur (rôle service) ne sont pas concernés.
+create or replace function public.figer_inscriptions_lancees()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+  if new.statut is distinct from old.statut
+     and exists (
+       select 1 from public.tournaments
+       where id = new.tournament_id and statut not in ('brouillon', 'ouvert', 'checkin')
+     ) then
+    raise exception 'INSCRIPTIONS_FIGEES';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.figer_inscriptions_lancees() from public, anon, authenticated;
+drop trigger if exists registrations_figees on public.registrations;
+create trigger registrations_figees
+  before update of statut on public.registrations
+  for each row execute function public.figer_inscriptions_lancees();
+
+-- Un joueur placé dans un match d'un tournoi en cours reste engagé (il ne
+-- change pas de compte Riot principal), quel que soit le statut de son
+-- inscription.
+create or replace function public.engage_en_tournoi(p_profile_id uuid, p_game_id smallint)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = p_profile_id and r.statut in ('inscrit', 'confirme')
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) or exists (
+    select 1 from public.alignements a
+    join public.registrations r on r.id = a.registration_id
+    join public.tournaments t on t.id = a.tournament_id
+    where a.profile_id = p_profile_id and r.statut in ('inscrit', 'confirme')
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) or exists (
+    select 1 from public.agents_libres g
+    join public.tournaments t on t.id = g.tournament_id
+    where g.profile_id = p_profile_id and g.statut <> 'place'
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin')
+  ) or exists (
+    select 1 from public.match_participants mp
+    join public.matches m on m.id = mp.match_id
+    join public.tournaments t on t.id = m.tournament_id
+    where mp.profile_id = p_profile_id and t.game_id = p_game_id and t.statut = 'en_cours'
+  );
+$$;
+revoke all on function public.engage_en_tournoi(uuid, smallint) from public, anon, authenticated;
+
+-- Clôture d'un tournoi suisse : seulement toutes ses rondes jouées. En
+-- suisse, aucun match n'a de suivant : « un match sans suivant terminé »
+-- ne prouve pas que le tournoi est fini.
+create or replace function public.figer_classement_tournoi(p_tournament_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_classe boolean;
+  v_type text;
+begin
+  select classe, type_bracket into v_classe, v_type
+  from public.tournaments
+  where id = p_tournament_id
+  for update;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if v_classe is not null then
+    return v_classe;
+  end if;
+
+  if v_type = 'suisse' then
+    if not public.suisse_terminee(p_tournament_id) then
+      raise exception 'SUISSE_NON_TERMINEE';
+    end if;
+  elsif not exists (
+    select 1 from public.matches
+    where tournament_id = p_tournament_id and match_suivant_id is null
+      and statut in ('termine', 'forfait')
+  ) then
+    raise exception 'FINALE_NON_JOUEE';
+  end if;
+
+  select c.classe into v_classe from public.criteres_tournoi_classe(p_tournament_id) c;
+  update public.tournaments set classe = v_classe where id = p_tournament_id;
+  return v_classe;
+end;
+$$;
+revoke all on function public.figer_classement_tournoi(uuid) from public, anon, authenticated;
+grant execute on function public.figer_classement_tournoi(uuid) to service_role;
+
+-- Tournoi suisse : lancé seulement par demarrer_suisse (ses rondes), clos
+-- seulement une fois toutes les rondes jouées — pour tous les rôles,
+-- serveur compris, pour la clôture.
+create or replace function public.controler_statut_suisse()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.type_bracket is distinct from 'suisse' or new.statut is not distinct from old.statut then
+    return new;
+  end if;
+  if new.statut = 'en_cours' and current_user = 'authenticated' then
+    raise exception 'LANCEMENT_SUISSE_RESERVE';
+  end if;
+  if new.statut = 'termine' and not public.suisse_terminee(new.id) then
+    raise exception 'SUISSE_NON_TERMINEE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_statut_suisse() from public, anon, authenticated;
+drop trigger if exists tournaments_statut_suisse on public.tournaments;
+create trigger tournaments_statut_suisse
+  before update of statut on public.tournaments
+  for each row execute function public.controler_statut_suisse();
+
+-- Les matchs d'un tournoi suisse ne sont créés que par la base
+-- (ronde_suisse_suivante) : pas de bracket inséré à la main.
+create or replace function public.refuser_match_suisse_client()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user = 'authenticated'
+     and exists (select 1 from public.tournaments where id = new.tournament_id and type_bracket = 'suisse') then
+    raise exception 'BRACKET_SUISSE_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_match_suisse_client() from public, anon, authenticated;
+drop trigger if exists matches_suisse_client on public.matches;
+create trigger matches_suisse_client
+  before insert on public.matches
+  for each row execute function public.refuser_match_suisse_client();
+
+-- Cinq joueurs au plus, même quand une invitation est acceptée au même
+-- instant qu'une candidature : les deux chemins prennent le même verrou
+-- avant de compter (repondre_candidature le prend aussi).
+create or replace function public.controler_membre_equipe()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_capitaine uuid;
+  v_effectif int;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' and (new.team_id, new.profile_id) is distinct from (old.team_id, old.profile_id) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+
+  select capitaine_id into v_capitaine from public.teams where id = new.team_id;
+
+  if tg_op = 'UPDATE' and new.role is distinct from old.role and v_capitaine <> auth.uid() then
+    raise exception 'ROLE_FIXE_PAR_LE_CAPITAINE';
+  end if;
+
+  -- Une acceptation n'est faite que par le joueur concerné (le capitaine
+  -- s'ajoute lui-même, déjà accepté, à la création de l'équipe).
+  if new.accepte_le is not null and (tg_op = 'INSERT' or old.accepte_le is null) then
+    if new.profile_id <> auth.uid() then
+      raise exception 'ACCEPTATION_PAR_LE_JOUEUR';
+    end if;
+
+    perform pg_advisory_xact_lock(hashtextextended('effectif_equipe:' || new.team_id::text, 0));
+
+    -- 5 joueurs maximum : même limite que TAILLE_MAX_EQUIPE (src/lib/equipe.ts).
+    select count(*) into v_effectif
+    from public.team_members
+    where team_id = new.team_id and accepte_le is not null;
+
+    if v_effectif >= 5 then
+      raise exception 'EQUIPE_COMPLETE';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+revoke execute on function public.controler_membre_equipe() from public, anon, authenticated;

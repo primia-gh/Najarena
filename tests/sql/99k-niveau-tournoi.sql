@@ -94,6 +94,30 @@ reset role;
 select verifie('Plus de niveau',
   (select rating_min is null and rating_max is null from tournaments where id = '9b0b0000-0000-0000-0000-0000000000a2'));
 
+-- Contrôle de sécurité du 19/11/2026 : changer seulement le niveau d'un
+-- tournoi publié repose sa date de publication (règle « publié 24 h
+-- avant » d'un tournoi classé), comme la date, le serveur ou la capacité.
+-- Tournoi dans 2 heures, publié il y a 3 jours (le déclencheur pose seul
+-- la date de publication : il est suspendu le temps de la préparer).
+alter table tournaments disable trigger controle_classement_tournoi;
+update tournaments
+set publie_le = now() - interval '3 days', debute_le = now() + interval '2 hours', checkin_ouvre_le = now() + interval '1 hour'
+where id = '9b0b0000-0000-0000-0000-0000000000a2';
+alter table tournaments enable trigger controle_classement_tournoi;
+select verifie('Avant : publié à temps',
+  (select publie_a_temps from public.criteres_tournoi_classe('9b0b0000-0000-0000-0000-0000000000a2')));
+set role authenticated;
+select en_tant_que('9b0b0000-0000-0000-0000-000000000001');
+select essai('Oli ne change que le niveau (« Bronze à Argent »)',
+  $q$select public.modifier_tournoi('9b0b0000-0000-0000-0000-0000000000a2', 'Coupe niveau F', 8, 1, 'EUW',
+     (select debute_le from tournaments where id = '9b0b0000-0000-0000-0000-0000000000a2'),
+     (select checkin_ouvre_le from tournaments where id = '9b0b0000-0000-0000-0000-0000000000a2'), null, 1450)$q$,
+  'passe');
+reset role;
+select verifie('Changer le niveau repose la date de publication : plus « publié à temps »',
+  (select rating_max = 1450 and publie_le > now() - interval '1 minute' from tournaments where id = '9b0b0000-0000-0000-0000-0000000000a2')
+  and not (select publie_a_temps from public.criteres_tournoi_classe('9b0b0000-0000-0000-0000-0000000000a2')));
+
 -- Jamais pour un tournoi automatique.
 select refus('Pas de niveau pour un tournoi automatique',
   $q$insert into tournaments (game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, creneau_auto, rating_min)

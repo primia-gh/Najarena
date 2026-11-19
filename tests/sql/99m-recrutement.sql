@@ -127,3 +127,31 @@ select refus('Équipe complète : pas de nouvelle annonce',
   'EQUIPE_COMPLETE');
 select verifie('Retirer l''annonce', (select public.retirer_recrutement('9d0d0000-0000-0000-0000-0000000000e1')));
 reset role;
+
+-- ---------- Contrôle de sécurité du 19/11/2026 : capitaine suspendu ----------
+-- Lou (EUW) crée une équipe et recrute ; Pia postule ; Lou est suspendu.
+insert into teams (id, game_id, slug, nom, tag, capitaine_id) values
+  ('9d0d0000-0000-0000-0000-0000000000e2', 1, 'equipe-99m-b', 'Les Suspendus', 'SUS', '9d0d0000-0000-0000-0000-000000000004');
+insert into team_members (team_id, profile_id, role, accepte_le) values
+  ('9d0d0000-0000-0000-0000-0000000000e2', '9d0d0000-0000-0000-0000-000000000004', 'Mid', now());
+set role authenticated;
+select en_tant_que('9d0d0000-0000-0000-0000-000000000004');
+select essai('Lou publie une annonce (support)',
+  $q$select public.publier_recrutement('9d0d0000-0000-0000-0000-0000000000e2', array['support'], null, null)$q$,
+  'passe');
+select en_tant_que('9d0d0000-0000-0000-0000-000000000002');
+select essai('Pia postule chez Lou',
+  $q$select public.postuler_equipe('9d0d0000-0000-0000-0000-0000000000e2', 'support', null)$q$,
+  'passe');
+reset role;
+insert into suspensions (profile_id, motif) values ('9d0d0000-0000-0000-0000-000000000004', 'Test suspension');
+set role authenticated;
+select en_tant_que('9d0d0000-0000-0000-0000-000000000004');
+select refus('Lou, suspendu, n''accepte pas de candidature',
+  $q$select public.repondre_candidature((select id from candidatures_equipe where team_id = '9d0d0000-0000-0000-0000-0000000000e2'), true)$q$,
+  'COMPTE_SUSPENDU');
+select en_tant_que('9d0d0000-0000-0000-0000-000000000005');
+select refus('Sam ne postule pas chez un capitaine suspendu',
+  $q$select public.postuler_equipe('9d0d0000-0000-0000-0000-0000000000e2', 'support', null)$q$,
+  'ANNONCE_INTROUVABLE');
+reset role;

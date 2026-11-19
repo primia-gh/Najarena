@@ -31,9 +31,13 @@ export function recitSuisse(nom: string, rondes: number | null, lignes: LigneCla
   ];
   if (second) {
     phrases.push(
-      second.victoires === premier.victoires
-        ? `${second.pseudo} termine deuxième avec le même bilan : départagés par la force de leurs adversaires (Buchholz ${premier.buchholz} contre ${second.buchholz}).`
-        : `${second.pseudo} termine deuxième avec ${v(second.victoires)}.`,
+      second.victoires !== premier.victoires
+        ? `${second.pseudo} termine deuxième avec ${v(second.victoires)}.`
+        : second.buchholz !== premier.buchholz
+          ? `${second.pseudo} termine deuxième avec le même bilan : départagés par la force de leurs adversaires (Buchholz ${premier.buchholz} contre ${second.buchholz}).`
+          : // Égalité complète : rating à l'inscription, puis tirage stable
+            // (classement_suisse), jamais le pseudo.
+            `${second.pseudo} termine deuxième avec le même bilan et des adversaires de même force (Buchholz ${premier.buchholz}) : départagés par le rating à l'inscription, puis par tirage au sort.`,
     );
   }
   phrases.push("Les exemptions (nombre impair de joueurs) comptent comme une victoire au classement du tournoi, jamais au classement Najarena.");

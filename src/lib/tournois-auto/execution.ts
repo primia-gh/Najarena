@@ -16,7 +16,7 @@ import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction
 import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { boutonCheckin, boutonPret } from "@/lib/suites-joueur";
 import { configAncrage, deposerEmpreinte } from "@/lib/ancrage-github";
-import { matchsOuverts } from "@/lib/apres-verdict";
+import { annoncerPremierSuisse, matchsOuverts } from "@/lib/apres-verdict";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { verifierCleRiot } from "@/lib/riot";
 import {
@@ -264,7 +264,7 @@ async function surveillerCleRiot(
 async function reprendreCloturesEnAttente(admin: ClientAdmin): Promise<string[]> {
   const { data: finales } = await admin
     .from("matches")
-    .select("tournament_id, tournament:tournaments!inner(slug, statut)")
+    .select("tournament_id, tournament:tournaments!inner(slug, statut, type_bracket)")
     .is("match_suivant_id", null)
     .in("statut", ["termine", "forfait"])
     .eq("tournament.statut", "en_cours")
@@ -285,7 +285,8 @@ async function reprendreCloturesEnAttente(admin: ClientAdmin): Promise<string[]>
   for (const t of suisses ?? []) {
     const { data: fini } = await admin.rpc("suisse_terminee", { p_tournament: t.id });
     if (!fini) continue;
-    await cloturerTournoi(t.id);
+    // Clôture reportée après la dernière ronde : c'est elle qui annonce.
+    if (await cloturerTournoi(t.id)) await annoncerPremierSuisse(t.id);
     resultats.push(`clôture reprise ${t.slug}`);
   }
   return resultats;
