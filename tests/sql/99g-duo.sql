@@ -199,6 +199,25 @@ set role authenticated;
 select en_tant_que(:'gus');
 select refus('Gus, bloqué, demande encore Ana : son annonce ne lui est plus proposée', format($q$select public.demander_duo(%L)$q$, :'ana'), 'ANNONCE_INTROUVABLE');
 reset role;
+insert into comptes_offres (profile_id, offre) values (:'gus', 'organisateur') on conflict (profile_id) do update set offre = 'organisateur';
+set role authenticated;
+select en_tant_que(:'gus');
+select refus('Gus, bloqué, défie Ana', format($q$select public.lancer_defi(%L)$q$, :'ana'), 'JOUEUR_INDISPONIBLE');
+select refus('Gus, bloqué mais organisateur, ouvre une conversation avec Ana',
+  format($q$insert into conversations (profile_a, profile_b) values ('9990d000-0000-0000-0000-000000000007', %L)$q$, :'ana'), 'JOUEUR_INDISPONIBLE');
+select essai('Gus crée une équipe', $q$insert into teams (id, game_id, slug, nom, tag, capitaine_id) values ('9990d000-0000-0000-0000-0000000000e9', 1, 'gus-99g', 'Gus 99g', 'GU', '9990d000-0000-0000-0000-000000000007')$q$, 'passe');
+select refus('Gus invite Ana dans son équipe', format($q$insert into team_members (team_id, profile_id) values ('9990d000-0000-0000-0000-0000000000e9', %L)$q$, :'ana'), 'JOUEUR_INDISPONIBLE');
+select refus('Gus interroge l''état d''une conversation dont il ne fait pas partie',
+  format($q$select 1 where public.conversation_ouverte(%L)$q$, :'conv'), '(aucune erreur)');
+select verifie('… et n''en apprend rien', not public.conversation_ouverte(:'conv'));
+select en_tant_que(:'ana');
+select refus('Ana, qui a bloqué Gus, le défie', format($q$select public.lancer_defi(%L)$q$, :'gus'), 'JOUEUR_INDISPONIBLE');
+reset role;
+set role service_role;
+select refus('Revanche par le bouton Discord entre eux',
+  $q$insert into defis (lanceur_id, adversaire_id, condition_victoire, expire_le) values ('9990d000-0000-0000-0000-000000000007', '9990d000-0000-0000-0000-000000000001', 'nexus', now() + interval '1 day')$q$,
+  'JOUEUR_INDISPONIBLE');
+reset role;
 
 -- Demande de plus de 7 jours : expirée.
 set role authenticated;
@@ -248,9 +267,18 @@ set role authenticated;
 select en_tant_que(:'fay');
 select verifie('Fay retire son annonce', public.retirer_annonce_duo());
 reset role;
-select verifie('Annonce retirée, demande de Fay annulée',
-  not exists (select 1 from annonces_duo where profile_id = :'fay')
+select verifie('Annonce retirée (expirée, plus visible), demande de Fay annulée',
+  not exists (select 1 from annonces_duo where profile_id = :'fay' and expire_le > now())
+  and not exists (select 1 from public.annonces_duo_publiques() where pseudo = 'Duo99g6')
   and not exists (select 1 from demandes_duo where demandeur_id = :'fay' and statut = 'en_attente'));
+
+select maj_le as maj_fay from annonces_duo where profile_id = :'fay' \gset
+set role authenticated;
+select en_tant_que(:'fay');
+select essai('Fay republie aussitôt son annonce', $q$select public.publier_annonce_duo('top', array['jungle'], array['semaine_journee'], 'loisir')$q$, 'passe');
+reset role;
+select verifie('Retirée puis republiée dans l''heure : elle ne remonte pas en tête',
+  (select maj_le = :'maj_fay'::timestamptz and expire_le > now() from annonces_duo where profile_id = :'fay'));
 
 -- Annonce de plus de 14 jours : plus visible, plus demandable.
 update annonces_duo set expire_le = now() - interval '1 minute' where profile_id = :'cyd';

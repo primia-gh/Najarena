@@ -23,7 +23,15 @@ import { construireDemandeProgression, progressionMesurable, SCHEMA_PROGRESSION,
 
 type Client = SupabaseClient<Database>;
 
-export type IssueProgression = "ok" | "insuffisant" | "a-jour" | "limite" | "indisponible" | "refus" | "invalide";
+export type IssueProgression =
+  | "ok"
+  | "insuffisant"
+  | "sans-accord"
+  | "a-jour"
+  | "limite"
+  | "indisponible"
+  | "refus"
+  | "invalide";
 
 /** Bilan d'un format, calculé comme sur /moi/bilan (client du joueur : ses seules données). */
 export async function bilanPourAnalyse(supabase: Client, moi: string, format: FormatBilan): Promise<Bilan | null> {
@@ -84,6 +92,10 @@ export async function redigerAnalyseProgression(
   format: FormatBilan,
 ): Promise<IssueProgression> {
   if (!iaDisponible()) return "indisponible";
+  if (format === "classees") {
+    const { data: reglages } = await supabase.from("analyse_reglages").select("classees").eq("profile_id", moi).maybeSingle();
+    if (!reglages?.classees) return "sans-accord";
+  }
   const bilan = await bilanPourAnalyse(supabase, moi, format);
   if (!bilan || !progressionMesurable(bilan)) return "insuffisant";
 
@@ -120,5 +132,7 @@ export async function redigerAnalyseProgression(
     modele: MODELE_IA,
     cree_le: new Date().toISOString(),
   });
-  return error ? "indisponible" : "ok";
+  // Accord retiré pendant la rédaction : la base refuse (ANALYSE_NON_ACTIVEE).
+  if (error) return error.message.includes("ANALYSE_NON_ACTIVEE") ? "sans-accord" : "indisponible";
+  return "ok";
 }

@@ -152,7 +152,8 @@ export default async function ConversationPage({ params, searchParams }: Convers
           {blocage ? (
             <div className="flex flex-col items-start gap-3 border-t border-line pt-6">
               <p className="text-text-2">
-                Tu as bloqué {autre?.pseudo ?? "ce joueur"}&nbsp;: plus aucun message ne passe entre vous, ni demande de duo.
+                Tu as bloqué {autre?.pseudo ?? "ce joueur"}&nbsp;: plus aucun message ne passe entre vous, ni défi, ni
+                demande de duo.
               </p>
               <form action={debloquerJoueur}>
                 <input type="hidden" name="joueur_id" value={autreId} />
@@ -189,8 +190,9 @@ export default async function ConversationPage({ params, searchParams }: Convers
               <input type="hidden" name="joueur_id" value={autreId} />
               <input type="hidden" name="retour" value={`/moi/messages/${conversation.id}`} />
               <p id="aide-bloquer" className="text-xs text-muted">
-                Un problème avec ce joueur&nbsp;? Le bloquer coupe vos messages dans les deux sens et ses demandes de
-                duo&nbsp;; il n&apos;en est pas prévenu. Tu pourras le débloquer.
+                Un problème avec ce joueur&nbsp;? Le bloquer coupe vos messages dans les deux sens, ses défis et ses
+                demandes de duo. Il ne reçoit aucune notification, mais verra que ses messages ne passent plus. Tu
+                pourras le débloquer.
               </p>
               <BoutonConfirmation
                 type="submit"

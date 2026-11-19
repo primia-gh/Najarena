@@ -11173,6 +11173,8 @@ begin
     )
     -- Pas un adversaire contre qui un match est encore ouvert (18/11/2026).
     and not public.match_ouvert_entre(p_joueur, f.profile_id)
+    -- Ni un joueur bloqué, dans un sens ou l'autre (blocages, 19/11/2026).
+    and not public.blocage_entre(p_joueur, f.profile_id)
   order by abs(f.rating - v_moi.rating), f.entree_le
   limit 1
   for update;
@@ -11208,8 +11210,9 @@ language sql
 immutable
 set search_path = public
 as $$
+  -- ð ø þ ß (contrôle du 19/11/2026) : sans eux, « ÐRX » passait à côté de « DRX ».
   select nullif(regexp_replace(
-    translate(lower(p_nom), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ', 'aaaaaaceeeeiiiinooooouuuuyyoa'),
+    replace(translate(lower(p_nom), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæðøþ', 'aaaaaaceeeeiiiinooooouuuuyyoadot'), 'ß', 'ss'),
     '[^a-z0-9]', '', 'g'
   ), '');
 $$;
@@ -11238,6 +11241,7 @@ begin
     when 'litige' then v_plafond := 10; v_fenetre := interval '24 hours';
     when 'message' then v_plafond := 30; v_fenetre := interval '1 hour';
     when 'creation_equipe' then v_plafond := 3; v_fenetre := interval '24 hours';
+    when 'recherche_joueurs' then v_plafond := 120; v_fenetre := interval '1 hour';
     else raise exception 'ACTION_INCONNUE';
   end case;
 
@@ -11277,6 +11281,9 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
+  -- Une création à la fois par capitaine : des envois simultanés ne
+  -- dépassent pas le plafond de 5 équipes.
+  perform 1 from public.profiles where id = new.capitaine_id for update;
   if char_length(btrim(new.nom)) not between 3 and 40
      or new.nom !~ '^[A-Za-zÀ-ÖØ-öø-ÿŒœ0-9 ''’.&!?#+:()_-]+$'
      or public.cle_nom_equipe(new.nom) is null
@@ -11402,17 +11409,72 @@ $$;
 revoke all on function public.blocage_entre(uuid, uuid) from public, anon, authenticated;
 
 -- Pour la règle d'envoi des messages (évaluée avec les droits du joueur) :
--- un blocage entre lui et un autre joueur, rien sur les autres paires.
-create or replace function public.blocage_avec_moi(p_autre uuid)
+-- une conversation dont il fait partie, sans blocage entre les deux. Elle
+-- ne répond rien sur une conversation des autres (contrôle du 19/11/2026 :
+-- une fonction qui prenait n'importe quel joueur permettait de dresser la
+-- liste de ceux qui vous ont bloqué).
+create or replace function public.conversation_ouverte(p_conversation uuid)
 returns boolean
 language sql
 stable
 security definer set search_path = public
 as $$
-  select auth.uid() is not null and public.blocage_entre(auth.uid(), p_autre);
+  select exists (
+    select 1 from public.conversations c
+    where c.id = p_conversation
+      and auth.uid() in (c.profile_a, c.profile_b)
+      and not public.blocage_entre(c.profile_a, c.profile_b)
+  );
 $$;
-revoke all on function public.blocage_avec_moi(uuid) from public, anon;
-grant execute on function public.blocage_avec_moi(uuid) to authenticated;
+revoke all on function public.conversation_ouverte(uuid) from public, anon;
+grant execute on function public.conversation_ouverte(uuid) to authenticated;
+
+-- Le blocage coupe aussi les autres façons de solliciter quelqu'un :
+-- défi (site, lien, bouton Discord), invitation d'équipe, demande de suivi
+-- à un coach, recommandation, nouvelle conversation (offre Organisateur).
+-- Le joueur bloqué n'est pas prévenu ; il voit seulement que l'action ne
+-- passe pas (JOUEUR_INDISPONIBLE).
+create or replace function public.refuser_si_bloque()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_a uuid;
+  v_b uuid;
+begin
+  case tg_table_name
+    when 'defis' then v_a := new.lanceur_id; v_b := new.adversaire_id;
+    when 'team_members' then
+      v_a := new.profile_id;
+      select capitaine_id into v_b from public.teams where id = new.team_id;
+    when 'coachings' then v_a := new.coach_id; v_b := new.eleve_id;
+    when 'recommandations' then v_a := new.auteur_id; v_b := new.destinataire_id;
+    when 'conversations' then v_a := new.profile_a; v_b := new.profile_b;
+    else return new;
+  end case;
+  if v_a is not null and v_b is not null and v_a <> v_b and public.blocage_entre(v_a, v_b) then
+    raise exception 'JOUEUR_INDISPONIBLE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_si_bloque() from public, anon, authenticated;
+drop trigger if exists defis_blocage on public.defis;
+create trigger defis_blocage before insert or update of adversaire_id on public.defis
+  for each row execute function public.refuser_si_bloque();
+drop trigger if exists team_members_blocage on public.team_members;
+create trigger team_members_blocage before insert on public.team_members
+  for each row execute function public.refuser_si_bloque();
+drop trigger if exists coachings_blocage on public.coachings;
+create trigger coachings_blocage before insert on public.coachings
+  for each row execute function public.refuser_si_bloque();
+drop trigger if exists recommandations_blocage on public.recommandations;
+create trigger recommandations_blocage before insert on public.recommandations
+  for each row execute function public.refuser_si_bloque();
+drop trigger if exists conversations_blocage on public.conversations;
+create trigger conversations_blocage before insert on public.conversations
+  for each row execute function public.refuser_si_bloque();
 
 create or replace function public.bloquer_joueur(p_joueur uuid)
 returns void
@@ -11464,8 +11526,8 @@ create policy "participants repondent" on public.messages
       select 1 from public.conversations c
       where c.id = conversation_id
         and (select auth.uid()) in (c.profile_a, c.profile_b)
-        and not public.blocage_avec_moi(case when c.profile_a = (select auth.uid()) then c.profile_b else c.profile_a end)
     )
+    and public.conversation_ouverte(conversation_id)
   );
 
 -- Annonce active d'un joueur apte au duo : en cours, compte vérifié, pas
@@ -11561,7 +11623,10 @@ begin
   if v_joueur is null then
     raise exception 'NON_CONNECTE';
   end if;
-  delete from public.annonces_duo where profile_id = v_joueur;
+  -- Expire au lieu d'être effacée : la retirer puis la republier ne la
+  -- remet pas en tête de liste (contrôle du 19/11/2026).
+  update public.annonces_duo set expire_le = now()
+  where profile_id = v_joueur and expire_le > now();
   v_fait := found;
   update public.demandes_duo set statut = 'annulee', repondu_le = now()
   where demandeur_id = v_joueur and statut = 'en_attente';
@@ -11821,6 +11886,32 @@ create policy "un joueur lit ses analyses de progression" on public.analyses_pro
   for select using (profile_id = (select auth.uid()));
 revoke insert, update, delete on public.analyses_progression_ia from anon, authenticated;
 
+-- Jamais écrite sans accord pour les classées, ni pour un compte supprimé,
+-- même par le serveur : la rédaction prend quelques secondes, l'accord peut
+-- être retiré entre-temps (contrôle du 19/11/2026).
+create or replace function public.controler_analyse_progression()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (select 1 from public.profiles where id = new.profile_id and supprime_le is not null) then
+    raise exception 'COMPTE_SUPPRIME';
+  end if;
+  if new.format = 'classees' and not exists (
+    select 1 from public.analyse_reglages where profile_id = new.profile_id and classees
+  ) then
+    raise exception 'ANALYSE_NON_ACTIVEE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_analyse_progression() from public, anon, authenticated;
+drop trigger if exists controle_analyse_progression on public.analyses_progression_ia;
+create trigger controle_analyse_progression
+  before insert or update on public.analyses_progression_ia
+  for each row execute function public.controler_analyse_progression();
+
 -- Accord retiré pour les parties classées : tout ce qui en est tiré
 -- disparaît, l'analyse rédigée comprise (comme parties_classees).
 create or replace function public.effacer_analyse_classees_sans_accord()
@@ -11914,7 +12005,6 @@ returns table (
   forfaits integer
 )
 language plpgsql
-stable
 security definer set search_path = public
 as $$
 begin
@@ -11925,6 +12015,11 @@ begin
   end if;
   if p_tri not in ('rating', 'progression', 'activite') then
     raise exception 'TRI_INVALIDE';
+  end if;
+  -- Une recherche parcourt tous les comptes vérifiés : 120 par heure au
+  -- plus (contrôle du 19/11/2026, saturation de la base).
+  if not public.consommer_limite('recherche_joueurs') then
+    raise exception 'LIMITE_ATTEINTE';
   end if;
 
   return query
@@ -11973,22 +12068,37 @@ begin
       and (not p_sans_equipe or not e.en_equipe)
       and (p_actif_jours is null or e.derniere_partie > now() - make_interval(days => least(greatest(p_actif_jours, 1), 365)))
       and (not p_en_progression or e.progression_30j > 0)
+  ),
+  -- La fiabilité (plusieurs sous-requêtes par joueur) n'est calculée pour
+  -- tous que si elle filtre ; sinon, seulement pour les joueurs gardés.
+  avec_fiabilite as (
+    select f.*, fj.tournois, fj.checkins, fj.matchs_joues, fj.forfaits
+    from (
+      select x.* from filtres x
+      order by
+        case when p_tri = 'progression' then x.progression_30j end desc nulls last,
+        case when p_tri = 'activite' then x.parties_90j end desc nulls last,
+        case when p_tri = 'activite' then x.derniere_partie end desc nulls last,
+        x.rating desc nulls last,
+        x.pseudo
+      limit case when p_fiable then null else least(greatest(coalesce(p_limite, 50), 1), 100) end
+    ) f
+    cross join lateral public.fiabilite_joueur(f.profile_id) fj
   )
-  select f.profile_id, f.pseudo, f.slug, f.avatar_url, f.region, f.role_prefere, f.rating, f.rd,
-         f.progression_30j, f.tournois_30j, f.parties_90j, f.derniere_partie,
-         f.cherche_equipe, f.cherche_duo, f.en_equipe,
-         fj.tournois, fj.checkins, fj.matchs_joues, fj.forfaits
-  from filtres f
-  cross join lateral public.fiabilite_joueur(f.profile_id) fj
+  select a.profile_id, a.pseudo, a.slug, a.avatar_url, a.region, a.role_prefere, a.rating, a.rd,
+         a.progression_30j, a.tournois_30j, a.parties_90j, a.derniere_partie,
+         a.cherche_equipe, a.cherche_duo, a.en_equipe,
+         a.tournois, a.checkins, a.matchs_joues, a.forfaits
+  from avec_fiabilite a
   where not p_fiable
-     or (fj.matchs_joues >= 3 and fj.forfaits = 0
-         and (fj.tournois < 5 or fj.checkins * 100 >= 80 * fj.tournois))
+     or (a.matchs_joues >= 3 and a.forfaits = 0
+         and (a.tournois < 5 or a.checkins * 100 >= 80 * a.tournois))
   order by
-    case when p_tri = 'progression' then f.progression_30j end desc nulls last,
-    case when p_tri = 'activite' then f.parties_90j end desc nulls last,
-    case when p_tri = 'activite' then f.derniere_partie end desc nulls last,
-    f.rating desc nulls last,
-    f.pseudo
+    case when p_tri = 'progression' then a.progression_30j end desc nulls last,
+    case when p_tri = 'activite' then a.parties_90j end desc nulls last,
+    case when p_tri = 'activite' then a.derniere_partie end desc nulls last,
+    a.rating desc nulls last,
+    a.pseudo
   limit least(greatest(coalesce(p_limite, 50), 1), 100);
 end;
 $$;

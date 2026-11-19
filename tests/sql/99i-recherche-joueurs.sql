@@ -103,4 +103,13 @@ select verifie('Gus : annonce de duo en cours',
   (select cherche_duo from public.rechercher_joueurs(p_region => 'OCE') where pseudo = 'Scout99i9'));
 select verifie('Limite : 1 résultat demandé, 1 reçu',
   (select count(*) = 1 from public.rechercher_joueurs(p_region => 'OCE', p_limite => 1)));
+select verifie('Sans « fiables », la fiabilité est quand même donnée pour les joueurs gardés',
+  (select matchs_joues = 3 from public.rechercher_joueurs(p_region => 'OCE', p_limite => 1) where pseudo = 'Scout99i3'));
+reset role;
+-- 120 recherches par heure au plus.
+insert into limites_usage (profile_id, action)
+select :'oli', 'recherche_joueurs' from generate_series(1, 120);
+set role authenticated;
+select en_tant_que(:'oli');
+select refus('Oli lance une 121e recherche dans l''heure', $q$select * from public.rechercher_joueurs()$q$, 'LIMITE_ATTEINTE');
 reset role;

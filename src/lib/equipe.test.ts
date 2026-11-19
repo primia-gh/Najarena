@@ -38,5 +38,7 @@ describe("nom d'équipe", () => {
     expect(estNomEquipeValide("!!!")).toBe(false);
     expect(estNomEquipeValide("Agents Libres 3")).toBe(false);
     expect(estNomEquipeValide("x".repeat(41))).toBe(false);
+    // Ð, Ø, Þ, ß : lettres latines acceptées, comparées comme D, O, T, SS (même règle que la base).
+    expect(estNomEquipeValide("ÐRX Esports")).toBe(true);
   });
 });

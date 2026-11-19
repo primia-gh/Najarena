@@ -71,7 +71,8 @@ export default function ConfidentialitePage() {
               publique avec ton pseudo, ton avatar et ton rating si tu es classé, pendant 14&nbsp;jours ou jusqu&apos;à ce que tu
               la retires. Une demande de duo n&apos;est visible que de vous deux et prévient le joueur demandé (notification du
               navigateur, message privé Discord)&nbsp;; la conversation ne s&apos;ouvre que s&apos;il accepte. Bloquer un joueur
-              coupe vos messages dans les deux sens&nbsp;; il n&apos;en est pas prévenu. Ton annonce, tes demandes et tes blocages
+              coupe vos messages dans les deux sens, ses défis, invitations et demandes&nbsp;; il ne reçoit aucune notification, mais
+              voit que ses messages ne passent plus. Ton annonce, tes demandes et tes blocages
               sont effacés avec ton compte.
             </li>
             <li>

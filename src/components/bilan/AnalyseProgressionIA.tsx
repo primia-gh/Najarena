@@ -30,6 +30,10 @@ const RETOURS: Record<string, { type: "succes" | "erreur"; texte: string }> = {
     type: "erreur",
     texte: `Il faut ${PARTIES_MIN_PROGRESSION} parties vérifiées dans ce format pour mesurer une progression.`,
   },
+  "sans-accord": {
+    type: "erreur",
+    texte: "L'analyse de tes parties classées demande ton accord : active-la dans les réglages ci-dessous.",
+  },
   "a-jour": { type: "succes", texte: "Ton analyse est déjà à jour : rejoue des parties pour la refaire." },
   limite: { type: "erreur", texte: "Tu as fait 10 demandes à l'IA ces dernières 24 h : réessaie plus tard." },
   offre: { type: "erreur", texte: "L'analyse rédigée par l'IA fait partie de l'offre Elite." },

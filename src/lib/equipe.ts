@@ -21,6 +21,10 @@ export function estNomEquipeValide(nom: string): boolean {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/œ/g, "o")
     .replace(/æ/g, "a")
+    .replace(/ð/g, "d")
+    .replace(/ø/g, "o")
+    .replace(/þ/g, "t")
+    .replace(/ß/g, "ss")
     .replace(/[^a-z0-9]/g, "");
   return cle.length > 0 && !cle.startsWith("agentslibres");
 }

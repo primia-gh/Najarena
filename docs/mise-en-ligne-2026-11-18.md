@@ -39,7 +39,7 @@ Quatre sections datées du 18/11/2026, à la fin de `docs/schema.sql` :
 -- a) Des noms d'équipe « presque identiques » empêcheraient la création de
 --    l'index d'unicité. Doit renvoyer 0 ligne (0 équipe au 18/11/2026).
 select game_id,
-       nullif(regexp_replace(translate(lower(nom), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ', 'aaaaaaceeeeiiiinooooouuuuyyoa'),
+       nullif(regexp_replace(replace(translate(lower(nom), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæðøþ', 'aaaaaaceeeeiiiinooooouuuuyyoadot'), 'ß', 'ss'),
                              '[^a-z0-9]', '', 'g'), '') as cle,
        count(*)
 from public.teams group by 1, 2 having count(*) > 1;
@@ -70,7 +70,7 @@ select f as fonction,
 from unnest(array[
   'match_ouvert_entre', 'cle_nom_equipe', 'controler_nom_equipe',
   'publier_annonce_duo', 'demander_duo', 'repondre_demande_duo', 'annuler_demande_duo',
-  'annonces_duo_publiques', 'bloquer_joueur', 'debloquer_joueur', 'blocage_avec_moi',
+  'annonces_duo_publiques', 'bloquer_joueur', 'debloquer_joueur', 'conversation_ouverte',
   'rechercher_joueurs'
 ]) as f;  -- toutes « true »
 

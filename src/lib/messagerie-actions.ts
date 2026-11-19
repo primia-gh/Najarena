@@ -46,7 +46,13 @@ export async function demarrerConversation(formData: FormData) {
       .single();
 
     if (error || !nouvelle) {
-      redirect(`${retour}?erreur=${encodeURIComponent("Impossible de démarrer la conversation — offre Organisateur requise.")}`);
+      redirect(
+        `${retour}?erreur=${encodeURIComponent(
+          error?.message.includes("JOUEUR_INDISPONIBLE")
+            ? "Ce joueur n'est pas joignable par message."
+            : "Impossible de démarrer la conversation — offre Organisateur requise.",
+        )}`,
+      );
     }
     conversationId = nouvelle.id;
   }
@@ -115,7 +121,7 @@ export async function envoyerMessage(formData: FormData) {
     redirect(
       `/moi/messages/${conversationId}?erreur=${encodeURIComponent(
         messageModeration(error.message) ??
-          (bloque ? "Message non envoyé : cette conversation est fermée (l'un de vous a bloqué l'autre)." : "Message non envoyé."),
+          (bloque ? "Message non envoyé : cette conversation est fermée." : "Message non envoyé."),
       )}`,
     );
   }
@@ -147,7 +153,8 @@ export async function envoyerMessage(formData: FormData) {
 
 // Blocage d'un joueur (18/11/2026) : coupe les messages dans les deux sens
 // (règle d'envoi des messages, en base), ses demandes de duo et son
-// annonce de duo. Il n'en est pas prévenu.
+// annonce de duo. Il ne reçoit aucune notification, mais voit que ses
+// messages ne passent plus.
 export async function bloquerJoueur(formData: FormData) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -161,7 +168,7 @@ export async function bloquerJoueur(formData: FormData) {
     redirect(`${retour}?erreur=${encodeURIComponent("Impossible de bloquer ce joueur pour l'instant.")}#retour`);
   }
   redirect(
-    `${retour}?message=${encodeURIComponent("Joueur bloqué : plus aucun message ne passe entre vous, ni demande de duo. Il n'en est pas prévenu.")}#retour`,
+    `${retour}?message=${encodeURIComponent("Joueur bloqué : plus aucun message ne passe entre vous, ni défi, ni demande de duo. Il ne reçoit aucune notification.")}#retour`,
   );
 }
 

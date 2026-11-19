@@ -226,11 +226,23 @@ export async function traiterSignalement(formData: FormData) {
           .eq("id", signalement.cible_id)
           .maybeSingle()
       : { data: null };
-    if (message?.conversation) {
-      const destinataire =
-        message.conversation.profile_a === message.expediteur_id
-          ? message.conversation.profile_b
-          : message.conversation.profile_a;
+    const destinataire = message?.conversation
+      ? message.conversation.profile_a === message.expediteur_id
+        ? message.conversation.profile_b
+        : message.conversation.profile_a
+      : null;
+    // Pas de notification si l'un a bloqué l'autre entre-temps (contrôle
+    // de sécurité du 19/11/2026).
+    const { count: blocages } =
+      message && destinataire
+        ? await admin
+            .from("blocages")
+            .select("bloqueur_id", { count: "exact", head: true })
+            .or(
+              `and(bloqueur_id.eq.${destinataire},bloque_id.eq.${message.expediteur_id}),and(bloqueur_id.eq.${message.expediteur_id},bloque_id.eq.${destinataire})`,
+            )
+        : { count: 0 };
+    if (message?.conversation && destinataire && !blocages) {
       await notifierJoueur(
         destinataire,
         "Nouveau message — Najarena",

@@ -18,6 +18,9 @@ select essai('Le serveur enregistre l''analyse 1v1 d''Ana',
 select essai('Le serveur enregistre l''analyse des classées d''Ana',
   $q$insert into analyses_progression_ia (profile_id, format, resume, priorites, parties, modele)
      values ('9990e000-0000-0000-0000-000000000001', 'classees', 'Résumé.', array['Priorité'], 20, 'essai')$q$, 'passe');
+select refus('Le serveur écrit une analyse des classées pour Bob, qui n''a pas donné son accord',
+  $q$insert into analyses_progression_ia (profile_id, format, resume, priorites, parties, modele)
+     values ('9990e000-0000-0000-0000-000000000002', 'classees', 'Résumé.', array['P'], 20, 'essai')$q$, 'ANALYSE_NON_ACTIVEE');
 select refus('Une analyse sans priorité',
   $q$insert into analyses_progression_ia (profile_id, format, resume, priorites, parties, modele)
      values ('9990e000-0000-0000-0000-000000000002', '1v1', 'Résumé.', '{}', 12, 'essai')$q$,
@@ -55,3 +58,8 @@ select verifie('Accord retiré : l''analyse des classées est effacée, celle du
 update profiles set supprime_le = now() where id = :'ana';
 select verifie('Compte supprimé : plus aucune analyse',
   not exists (select 1 from analyses_progression_ia where profile_id = :'ana'));
+set role service_role;
+select refus('Le serveur écrit une analyse pour un compte supprimé',
+  $q$insert into analyses_progression_ia (profile_id, format, resume, priorites, parties, modele)
+     values ('9990e000-0000-0000-0000-000000000001', '1v1', 'Résumé.', array['P'], 12, 'essai')$q$, 'COMPTE_SUPPRIME');
+reset role;

@@ -99,6 +99,9 @@ select essai('Eva crée « Les Loups 99f 2 »',
   $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'les-loups-99f-4', 'Les Loups 99f 2', 'LL', '99f00000-0000-0000-0000-000000000005')$q$, 'passe');
 select refus('Eva crée « Lеs Loups 99f » avec un « е » cyrillique',
   $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'les-loups-99f-5', 'Lеs Loups 99f', 'LL', '99f00000-0000-0000-0000-000000000005')$q$, 'NOM_EQUIPE_INVALIDE');
+select verifie('Lettres latines sosies ramenées à la même clé (Ð, Ø, Þ, ß)',
+  public.cle_nom_equipe('ÐRX Esports') = public.cle_nom_equipe('DRX Esports')
+  and public.cle_nom_equipe('Tøm') = 'tom' and public.cle_nom_equipe('Großen') = 'grossen');
 select refus('Eva crée « Agents libres 7 », nom réservé aux équipes formées par la base',
   $q$insert into teams (game_id, slug, nom, tag, capitaine_id) values (1, 'agents-libres-99f', 'Agents libres 7', 'AL', '99f00000-0000-0000-0000-000000000005')$q$, 'NOM_EQUIPE_INVALIDE');
 select refus('Eva crée une équipe au nom de deux lettres',

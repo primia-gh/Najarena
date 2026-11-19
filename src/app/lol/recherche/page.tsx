@@ -339,7 +339,11 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
               )}
             </div>
             {erreurRecherche ? (
-              <Alerte type="erreur">La recherche est indisponible pour l&apos;instant : réessaie dans un moment.</Alerte>
+              <Alerte type="erreur">
+                {erreurRecherche.message.includes("LIMITE_ATTEINTE")
+                  ? "Tu as lancé 120 recherches en une heure, le maximum : réessaie un peu plus tard."
+                  : "La recherche est indisponible pour l'instant : réessaie dans un moment."}
+              </Alerte>
             ) : resultats.length === 0 ? (
               <Panneau reperes className="flex flex-col items-start gap-3 p-8">
                 <p className="font-titre text-3xl font-black uppercase">Aucun joueur.</p>
