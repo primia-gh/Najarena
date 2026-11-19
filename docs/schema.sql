@@ -12812,6 +12812,9 @@ begin
   if not found then
     raise exception 'NON_CAPITAINE';
   end if;
+  -- Même ordre que l'acceptation d'une invitation (ligne du joueur, puis
+  -- verrou d'effectif) : pas d'interblocage si les deux arrivent ensemble.
+  perform 1 from public.team_members where team_id = v_c.team_id and profile_id = v_c.profile_id for update;
   perform pg_advisory_xact_lock(hashtextextended('effectif_equipe:' || v_c.team_id::text, 0));
   if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
     raise exception 'COMPTE_SUSPENDU';

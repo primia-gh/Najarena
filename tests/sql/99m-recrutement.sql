@@ -155,3 +155,30 @@ select refus('Sam ne postule pas chez un capitaine suspendu',
   $q$select public.postuler_equipe('9d0d0000-0000-0000-0000-0000000000e2', 'support', null)$q$,
   'ANNONCE_INTROUVABLE');
 reset role;
+
+-- ---------- Blocage dans les deux sens (contrôle de sécurité du 19/11/2026) ----------
+-- Équipe de Cap remise à trois places libres, annonce rouverte.
+delete from team_members where team_id = '9d0d0000-0000-0000-0000-0000000000e1'
+  and profile_id in ('9d0d0000-0000-0000-0000-000000000006', '9d0d0000-0000-0000-0000-000000000007', '9d0d0000-0000-0000-0000-000000000008');
+delete from candidatures_equipe where team_id = '9d0d0000-0000-0000-0000-0000000000e1';
+insert into annonces_recrutement (team_id, postes, region, expire_le) values
+  ('9d0d0000-0000-0000-0000-0000000000e1', array['jungle', 'support'], 'EUW', now() + interval '30 days')
+on conflict (team_id) do update set postes = excluded.postes, niveau_min = null, expire_le = excluded.expire_le;
+-- Sam bloque le capitaine : il ne postule pas.
+insert into blocages (bloqueur_id, bloque_id) values ('9d0d0000-0000-0000-0000-000000000005', '9d0d0000-0000-0000-0000-000000000001');
+set role authenticated;
+select en_tant_que('9d0d0000-0000-0000-0000-000000000005');
+select refus('Sam, qui a bloqué le capitaine, ne postule pas',
+  $q$select public.postuler_equipe('9d0d0000-0000-0000-0000-0000000000e1', 'jungle', null)$q$,
+  'ANNONCE_INTROUVABLE');
+reset role;
+-- Candidature de Rio posée, puis le capitaine le bloque : pas d'acceptation.
+insert into candidatures_equipe (team_id, profile_id, poste) values
+  ('9d0d0000-0000-0000-0000-0000000000e1', '9d0d0000-0000-0000-0000-000000000006', 'jungle');
+insert into blocages (bloqueur_id, bloque_id) values ('9d0d0000-0000-0000-0000-000000000001', '9d0d0000-0000-0000-0000-000000000006');
+set role authenticated;
+select en_tant_que('9d0d0000-0000-0000-0000-000000000001');
+select refus('Cap n''accepte pas la candidature d''un joueur qu''il a bloqué',
+  $q$select public.repondre_candidature((select id from candidatures_equipe where team_id = '9d0d0000-0000-0000-0000-0000000000e1' and profile_id = '9d0d0000-0000-0000-0000-000000000006'), true)$q$,
+  'JOUEUR_INDISPONIBLE');
+reset role;
