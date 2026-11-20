@@ -149,3 +149,80 @@ select verifie('Grande finale jouée, quatre éliminés battus deux fois',
 select verifie('L''élimination directe ne change pas : aucun match d''un tournoi ordinaire n''a de tableau',
   not exists (select 1 from matches m join tournaments t on t.id = m.tournament_id
               where t.type_bracket = 'elim_simple' and (m.tableau is not null or m.match_perdant_suivant_id is not null)));
+
+-- Contrôle de sécurité du 20/11/2026 : pas de verdict manuel sur un match
+-- qui attend encore son second joueur, ni sur un match déjà décidé.
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, type_bracket, capacite, region, debute_le, checkin_ouvre_le, statut)
+values ('9f0f0000-0000-0000-0000-0000000000a3', 1, '9f0f0000-0000-0000-0000-000000000000', 'coupe-double-99o-c', 'Coupe double ter', '1v1', 'double_elim', 4, 'EUW',
+        now() + interval '1 hour', now() - interval '1 hour', 'ouvert');
+insert into registrations (tournament_id, profile_id, statut, rating_a_inscription)
+select '9f0f0000-0000-0000-0000-0000000000a3', ('9f0f0000-0000-0000-0000-00000000000' || n)::uuid, 'confirme', 1800 - n * 100
+from generate_series(1, 4) n;
+set role authenticated;
+select en_tant_que('9f0f0000-0000-0000-0000-000000000000');
+select verifie('Quatre joueurs : lancé', (select public.demarrer_double_elim('9f0f0000-0000-0000-0000-0000000000a3') = 2));
+reset role;
+-- J1 bat J4 chez Riot : J4 descend seul chez les perdants.
+select public.enregistrer_verdict_historique(m.id, '9f0f0000-0000-0000-0000-000000000001', 'EUW_99O_C1')
+from matches m join match_participants mp on mp.match_id = m.id
+where m.tournament_id = '9f0f0000-0000-0000-0000-0000000000a3' and m.tableau = 'gagnants' and m.tour = 1
+  and mp.profile_id = '9f0f0000-0000-0000-0000-000000000001';
+set role authenticated;
+select en_tant_que('9f0f0000-0000-0000-0000-000000000000');
+select refus('L''organisateur ne tranche pas un match du tableau des perdants avant l''arrivée du second joueur',
+  $q$select public.enregistrer_verdict_manuel(
+       (select id from matches where tournament_id = '9f0f0000-0000-0000-0000-0000000000a3' and tableau = 'perdants' and tour = 3),
+       '9f0f0000-0000-0000-0000-000000000004', 'Arrangement')$q$,
+  'ADVERSAIRE_ATTENDU');
+select refus('Ni un match déjà décidé chez Riot',
+  $q$select public.enregistrer_verdict_manuel(
+       (select m.id from matches m join match_participants mp on mp.match_id = m.id
+        where m.tournament_id = '9f0f0000-0000-0000-0000-0000000000a3' and m.tableau = 'gagnants' and m.tour = 1
+          and mp.profile_id = '9f0f0000-0000-0000-0000-000000000001'),
+       '9f0f0000-0000-0000-0000-000000000004', 'Revirement')$q$,
+  'MATCH_DEJA_DECIDE');
+reset role;
+-- J2 bat J3 : J3 rejoint J4 chez les perdants, le match s'ouvre.
+select public.enregistrer_verdict_historique(m.id, '9f0f0000-0000-0000-0000-000000000002', 'EUW_99O_C2')
+from matches m join match_participants mp on mp.match_id = m.id
+where m.tournament_id = '9f0f0000-0000-0000-0000-0000000000a3' and m.tableau = 'gagnants' and m.tour = 1
+  and mp.profile_id = '9f0f0000-0000-0000-0000-000000000002';
+set role authenticated;
+select en_tant_que('9f0f0000-0000-0000-0000-000000000000');
+select essai('Avec ses deux joueurs, le match du tableau des perdants se tranche à la main',
+  $q$select public.enregistrer_verdict_manuel(
+       (select id from matches where tournament_id = '9f0f0000-0000-0000-0000-0000000000a3' and tableau = 'perdants' and tour = 3),
+       '9f0f0000-0000-0000-0000-000000000003', 'Litige tranché')$q$,
+  'passe');
+reset role;
+
+-- Élimination directe : les exemptions du lancement, en cascade derrière des
+-- places vides, passent toujours (8 places, 2 joueurs).
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut)
+values ('9f0f0000-0000-0000-0000-0000000000a4', 1, '9f0f0000-0000-0000-0000-000000000000', 'coupe-simple-99o', 'Coupe simple', '1v1', 8, 'EUW',
+        now() + interval '1 hour', now() - interval '1 hour', 'en_cours');
+insert into matches (id, tournament_id, tour, position, match_suivant_id) values
+  ('9f0f0000-0000-0000-0000-0000000000f1', '9f0f0000-0000-0000-0000-0000000000a4', 3, 1, null);
+insert into matches (id, tournament_id, tour, position, match_suivant_id) values
+  ('9f0f0000-0000-0000-0000-0000000000e1', '9f0f0000-0000-0000-0000-0000000000a4', 2, 1, '9f0f0000-0000-0000-0000-0000000000f1'),
+  ('9f0f0000-0000-0000-0000-0000000000e2', '9f0f0000-0000-0000-0000-0000000000a4', 2, 2, '9f0f0000-0000-0000-0000-0000000000f1');
+insert into matches (id, tournament_id, tour, position, match_suivant_id) values
+  ('9f0f0000-0000-0000-0000-0000000000d1', '9f0f0000-0000-0000-0000-0000000000a4', 1, 1, '9f0f0000-0000-0000-0000-0000000000e1'),
+  ('9f0f0000-0000-0000-0000-0000000000d2', '9f0f0000-0000-0000-0000-0000000000a4', 1, 2, '9f0f0000-0000-0000-0000-0000000000e1'),
+  ('9f0f0000-0000-0000-0000-0000000000d3', '9f0f0000-0000-0000-0000-0000000000a4', 1, 3, '9f0f0000-0000-0000-0000-0000000000e2'),
+  ('9f0f0000-0000-0000-0000-0000000000d4', '9f0f0000-0000-0000-0000-0000000000a4', 1, 4, '9f0f0000-0000-0000-0000-0000000000e2');
+insert into match_participants (match_id, profile_id, slot) values
+  ('9f0f0000-0000-0000-0000-0000000000d1', '9f0f0000-0000-0000-0000-000000000001', 1),
+  ('9f0f0000-0000-0000-0000-0000000000d3', '9f0f0000-0000-0000-0000-000000000002', 1);
+set role authenticated;
+select en_tant_que('9f0f0000-0000-0000-0000-000000000000');
+select essai('Exemption du premier tour',
+  $q$select public.enregistrer_verdict_manuel('9f0f0000-0000-0000-0000-0000000000d1', '9f0f0000-0000-0000-0000-000000000001', 'Bye')$q$,
+  'passe');
+select essai('Exemption en cascade : le match voisin du premier tour est vide pour toujours',
+  $q$select public.enregistrer_verdict_manuel('9f0f0000-0000-0000-0000-0000000000e1', '9f0f0000-0000-0000-0000-000000000001', 'Bye')$q$,
+  'passe');
+select refus('Pas de finale tranchée tant que l''autre moitié du tableau peut encore amener un joueur',
+  $q$select public.enregistrer_verdict_manuel('9f0f0000-0000-0000-0000-0000000000f1', '9f0f0000-0000-0000-0000-000000000001', 'Arrangement')$q$,
+  'ADVERSAIRE_ATTENDU');
+reset role;

@@ -13743,7 +13743,6 @@ alter table public.matches add column if not exists match_perdant_suivant_id uui
 alter table public.matches drop constraint if exists matches_tableau_check;
 alter table public.matches add constraint matches_tableau_check
   check (tableau is null or tableau in ('gagnants', 'perdants', 'finale'));
-create index if not exists matches_suivant_idx on public.matches (match_suivant_id);
 create index if not exists matches_perdant_suivant_idx on public.matches (match_perdant_suivant_id);
 alter table public.tournaments drop constraint if exists tournaments_type_bracket_check;
 alter table public.tournaments add constraint tournaments_type_bracket_check
@@ -14164,3 +14163,77 @@ end;
 $$;
 revoke execute on function public.demarrer_double_elim(uuid) from public, anon;
 grant execute on function public.demarrer_double_elim(uuid) to authenticated;
+
+-- Verdict manuel (contrôle de sécurité du 20/11/2026) : jamais sur un match
+-- déjà décidé, et jamais sur un match à un seul joueur tant qu'un adversaire
+-- peut encore y arriver (un match en amont, par la route du vainqueur ou
+-- celle du perdant, pas terminé et qui a ou recevra des joueurs). Sinon un
+-- organisateur tranchait un match du tableau des perdants avant l'arrivée
+-- du second joueur, éliminé sans jouer. Les exemptions du lancement (match
+-- du premier tour seul, en cascade derrière des places vides) passent
+-- toujours : rien en amont ne peut plus amener personne.
+create or replace function public.enregistrer_verdict_manuel(
+  p_match_id uuid,
+  p_gagnant_id uuid,
+  p_motif text
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_organisateur_id uuid;
+  v_statut text;
+  v_joueurs integer;
+begin
+  select t.organisateur_id, m.statut
+  into v_organisateur_id, v_statut
+  from public.matches m
+  join public.tournaments t on t.id = m.tournament_id
+  where m.id = p_match_id
+  for update of m;
+
+  if v_organisateur_id is null then
+    raise exception 'MATCH_INTROUVABLE';
+  end if;
+
+  if v_organisateur_id <> auth.uid() then
+    raise exception 'NON_AUTORISE';
+  end if;
+
+  if not exists (
+    select 1 from public.match_participants
+    where match_id = p_match_id and profile_id = p_gagnant_id
+  ) then
+    raise exception 'GAGNANT_INVALIDE';
+  end if;
+
+  if v_statut in ('termine', 'forfait')
+     or exists (select 1 from public.match_verdicts where match_id = p_match_id and est_definitif) then
+    raise exception 'MATCH_DEJA_DECIDE';
+  end if;
+
+  select count(*) into v_joueurs from public.match_participants where match_id = p_match_id;
+  if v_joueurs = 1 and exists (
+    with recursive amont as (
+      select p.id, p.statut from public.matches p
+      where (p.match_suivant_id = p_match_id or p.match_perdant_suivant_id = p_match_id)
+        and p.statut not in ('termine', 'forfait')
+      union
+      select p.id, p.statut from public.matches p
+      join amont a on p.match_suivant_id = a.id or p.match_perdant_suivant_id = a.id
+      where p.statut not in ('termine', 'forfait')
+    )
+    select 1 from amont a where exists (select 1 from public.match_participants x where x.match_id = a.id)
+  ) then
+    raise exception 'ADVERSAIRE_ATTENDU';
+  end if;
+
+  insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+  values (p_match_id, 'manuel', p_gagnant_id, auth.uid(), p_motif, true);
+
+  perform public.avancer_vainqueur(p_match_id, p_gagnant_id);
+end;
+$$;
+revoke execute on function public.enregistrer_verdict_manuel(uuid, uuid, text) from public, anon;
+grant execute on function public.enregistrer_verdict_manuel(uuid, uuid, text) to authenticated;

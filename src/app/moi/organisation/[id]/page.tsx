@@ -237,7 +237,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
           {estDouble && nbConfirmes >= 4 && (
             <p className="max-w-2xl text-sm text-muted">
               {typographie(
-                `Double élimination : ${nbConfirmes} joueurs dans un tableau de ${2 ** Math.ceil(Math.log2(nbConfirmes))}. Un joueur battu passe dans le tableau des perdants et n'est éliminé qu'à sa deuxième défaite ; les places vides donnent des exemptions aux mieux classés.`,
+                `Double élimination : ${nbConfirmes} joueurs dans un tableau de ${2 ** Math.ceil(Math.log2(nbConfirmes))}. Un joueur battu passe dans le tableau des perdants et n'est éliminé qu'à sa deuxième défaite ; grande finale en un seul match, sans revanche ; les places vides donnent des exemptions aux mieux classés.`,
               )}
             </p>
           )}

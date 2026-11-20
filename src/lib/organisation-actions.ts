@@ -339,7 +339,11 @@ export async function enregistrerResultat(formData: FormData) {
   if (error) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
-        "Impossible d'enregistrer ce résultat pour l'instant.",
+        error.message.includes("ADVERSAIRE_ATTENDU")
+          ? "Ce match attend encore son second joueur : tu pourras le trancher quand il sera arrivé."
+          : error.message.includes("MATCH_DEJA_DECIDE")
+            ? "Ce match est déjà décidé."
+            : "Impossible d'enregistrer ce résultat pour l'instant.",
       )}`,
     );
   }

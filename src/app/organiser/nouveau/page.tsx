@@ -215,7 +215,7 @@ export default async function OrganiserNouveauPage({
                     value="double_elim"
                     titre="Double élimination"
                     detail={typographie(
-                      "Un joueur battu passe dans le tableau des perdants : il n'est éliminé qu'à sa deuxième défaite. Grande finale en un match entre les deux tableaux. 4 joueurs confirmés au moins.",
+                      "Un joueur n'est éliminé qu'à sa deuxième défaite. Grande finale en un seul match, sans revanche. 4 joueurs confirmés au moins.",
                     )}
                   />
                   <Choix

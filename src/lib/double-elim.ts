@@ -33,6 +33,6 @@ export function libelleTourDouble(tableau: Tableau, tour: number, toursGagnants:
 export function recitDouble(nom: string, gagnant: string, finaliste: string | null, joueurs: number): string[] {
   return [
     `${gagnant} remporte ${nom} en double élimination (${joueurs} joueurs)${finaliste ? `, en grande finale contre ${finaliste}` : ""}.`,
-    "Chaque joueur battu a disputé le tableau des perdants : seul le vainqueur n'a pas été éliminé. Les exemptions (places vides) ne comptent jamais au classement Najarena.",
+    "Un joueur n'est éliminé qu'à sa deuxième défaite, sauf en grande finale, jouée en un seul match. Les exemptions (places vides) ne comptent jamais au classement Najarena.",
   ];
 }

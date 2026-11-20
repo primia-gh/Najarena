@@ -6,7 +6,7 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1365 vérifications de
+elle se rejoue une seconde fois sans erreur, et les 1372 vérifications de
 `tests/sql/` passent ensuite (contrôle refait le 19/11/2026, après l'ajout
 des tournois par niveau, du face-à-face, du recrutement, du format suisse
 et de leur contrôle de sécurité).
@@ -78,7 +78,11 @@ Onze sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, six du
    `avancer_vainqueur_simple`, `resoudre_double_elim` ; **`avancer_vainqueur`
    redéfinie** (le perdant descend dans le tableau des perdants ; rien de
    changé pour l'élimination directe ni le suisse) ; matchs et lancement
-   réservés à la base, pronostics et dotations refusés.
+   réservés à la base, pronostics et dotations refusés ;
+   **`enregistrer_verdict_manuel` redéfinie** : refus `MATCH_DEJA_DECIDE`
+   sur un match déjà décidé, `ADVERSAIRE_ATTENDU` sur un match à un seul
+   joueur tant qu'un adversaire peut encore y arriver (les exemptions du
+   lancement passent toujours).
 
 ## 1. Vérifications avant migration (lecture seule)
 

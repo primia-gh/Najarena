@@ -170,7 +170,9 @@ export default function CguPage() {
             Un tournoi 1v1 peut aussi se jouer en double élimination&nbsp;: un
             joueur battu passe dans le tableau des perdants et n&apos;est
             éliminé qu&apos;à sa deuxième défaite. La grande finale oppose, en
-            un seul match, le vainqueur de chaque tableau. Avec moins de
+            un seul match et sans revanche, le vainqueur de chaque
+            tableau&nbsp;: le joueur venu du tableau des perdants qui la gagne
+            remporte le tournoi. Avec moins de
             joueurs confirmés que de places, les mieux classés sont exemptés
             de certains matchs&nbsp;: une exemption compte comme une victoire
             dans le tableau, jamais au classement Najarena.

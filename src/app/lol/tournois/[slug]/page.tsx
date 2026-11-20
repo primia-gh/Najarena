@@ -87,6 +87,11 @@ const TITRE_TABLEAU: Record<TableauDouble, string> = {
   perdants: "Tableau des perdants",
   finale: "Grande finale",
 };
+const AIDE_TABLEAU: Record<TableauDouble, string> = {
+  gagnants: "",
+  perdants: "Chaque joueur battu chez les gagnants y descend : une défaite ici élimine.",
+  finale: "Le vainqueur de chaque tableau, en un seul match, sans revanche.",
+};
 import ClassementSuisse from "@/components/tournoi/ClassementSuisse";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
@@ -1205,7 +1210,11 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                         }))}
                         etat={etat}
                         libelleSeul={
-                          estSuisse ? "Exempté cette ronde" : estDouble ? "Sans adversaire (exemption)" : undefined
+                          estSuisse
+                            ? "Exempté cette ronde"
+                            : estDouble && m.statut === "termine"
+                              ? "Exemption (pas d'adversaire)"
+                              : undefined
                         }
                         niveau={verdict?.niveau}
                         motif={verdict?.motif}
@@ -1647,6 +1656,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 return (
                   <div key={tableau} className="flex flex-col gap-3">
                     <h3 className="font-texte text-mini font-medium text-text-2 uppercase">{TITRE_TABLEAU[tableau]}</h3>
+                    {tableau !== "gagnants" && (
+                      <p className="-mt-2 text-xs text-muted">{AIDE_TABLEAU[tableau]}</p>
+                    )}
                     <ColonnesBracket
                       sansConnecteurs={tableau !== "gagnants"}
                       legende={`${TITRE_TABLEAU[tableau]} du tournoi ${tournoi.nom}`}
