@@ -55,6 +55,39 @@ describe("widgets", () => {
     expect(html).not.toContain("✓ vérifié");
   });
 
+  it("double élimination : trois blocs titrés et des colonnes nommées", () => {
+    const joueur = (nom: string, gagnant: boolean | null) => ({ nom, slug: nom.toLowerCase(), score: gagnant ? 1 : 0, gagnant });
+    const html = widgetBracket(
+      {
+        slug: "d",
+        nom: "Coupe double",
+        statut: "en_cours",
+        format: "1v1",
+        capacite: 4,
+        region: "EUW",
+        debuteLe: "2026-11-21T19:00:00Z",
+        url: "https://x",
+        matchs: [
+          { tour: 1, position: 1, tableau: "gagnants", participants: [joueur("Ana", true), joueur("Bob", false)], verdict: { niveau: "historique", verifie: true } },
+          { tour: 1, position: 2, tableau: "gagnants", participants: [joueur("Cid", true), joueur("Dan", false)], verdict: { niveau: "historique", verifie: true } },
+          { tour: 2, position: 1, tableau: "gagnants", participants: [joueur("Ana", null), joueur("Cid", null)], verdict: null },
+          { tour: 3, position: 1, tableau: "perdants", participants: [joueur("Bob", null), joueur("Dan", null)], verdict: null },
+          { tour: 4, position: 1, tableau: "perdants", participants: [], verdict: null },
+          { tour: 5, position: 1, tableau: "finale", participants: [], verdict: null },
+        ],
+      },
+      opaque,
+    );
+    expect(html).toContain("Tableau des gagnants");
+    expect(html).toContain("Tableau des perdants");
+    expect(html).toContain(">Grande finale<");
+    expect(html).toContain("Gagnants · tour 1");
+    expect(html).toContain("Finale des gagnants");
+    expect(html).toContain("Perdants · tour 1");
+    expect(html).toContain("Finale des perdants");
+    expect(html.indexOf("Tableau des gagnants")).toBeLessThan(html.indexOf("Tableau des perdants"));
+  });
+
   it("pas de rating affiché avant l'entrée au classement", () => {
     const base = {
       pseudo: "Ana",

@@ -5,7 +5,8 @@
 // Logique pure, testée dans widgets.test.ts.
 
 import { echapperHtml } from "@/lib/echappement";
-import type { JoueurPublic, LigneTop, TournoiPublic } from "@/lib/donnees-publiques";
+import type { JoueurPublic, LigneTop, MatchPublic, TournoiPublic } from "@/lib/donnees-publiques";
+import { estTableau, libelleTourDouble, type Tableau } from "@/lib/double-elim";
 
 export const RAFRAICHISSEMENT_WIDGET_SECONDES = 60;
 
@@ -45,6 +46,12 @@ a{color:inherit;text-decoration:none}
 table{width:100%;border-collapse:collapse}
 td{padding:4px 6px;border-bottom:1px solid rgba(245,245,244,.08)}
 .pied{margin-top:8px;font-size:11px}
+.tableau+.tableau{margin-top:12px}
+.colonne{display:flex;flex-direction:column;gap:6px}
+.colonne .tour{flex:1}
+.sous-titre,.entete{font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.sous-titre{font-weight:700;margin-bottom:6px}
+.entete{color:#9ca39c}
 </style>
 </head>
 <body>
@@ -59,32 +66,69 @@ function badgeVerdict(verdict: TournoiPublic["matchs"][number]["verdict"]): stri
   return verdict.verifie ? `<span class="badge accent">✓ vérifié</span>` : `<span class="badge muted">manuel</span>`;
 }
 
-export function widgetBracket(t: TournoiPublic, options: OptionsWidget): string {
-  const tours = new Map<number, TournoiPublic["matchs"]>();
-  for (const m of t.matchs) tours.set(m.tour, [...(tours.get(m.tour) ?? []), m]);
-  const colonnes = [...tours.entries()]
+function carteMatch(m: MatchPublic): string {
+  return `<div class="carte">${
+    m.participants.length === 0
+      ? `<div class="ligne muted">À venir</div>`
+      : m.participants
+          .map(
+            (p) =>
+              `<div class="ligne${p.gagnant ? " gagnant" : ""}"><span>${echapperHtml(p.nom)}</span><span class="chiffre">${p.score}</span></div>`,
+          )
+          .join("")
+  }${m.verdict ? `<div>${badgeVerdict(m.verdict)}</div>` : ""}</div>`;
+}
+
+/** Colonnes par tour ; `entete` nomme chaque colonne (double élimination). */
+function colonnesHtml(matchs: MatchPublic[], entete?: (tour: number) => string): string {
+  const tours = new Map<number, MatchPublic[]>();
+  for (const m of matchs) tours.set(m.tour, [...(tours.get(m.tour) ?? []), m]);
+  return [...tours.entries()]
     .sort(([a], [b]) => a - b)
     .map(
-      ([, matchs]) =>
-        `<div class="tour">${matchs
-          .map(
-            (m) =>
-              `<div class="carte">${
-                m.participants.length === 0
-                  ? `<div class="ligne muted">À venir</div>`
-                  : m.participants
-                      .map(
-                        (p) =>
-                          `<div class="ligne${p.gagnant ? " gagnant" : ""}"><span>${echapperHtml(p.nom)}</span><span class="chiffre">${p.score}</span></div>`,
-                      )
-                      .join("")
-              }${m.verdict ? `<div>${badgeVerdict(m.verdict)}</div>` : ""}</div>`,
-          )
-          .join("")}</div>`,
+      ([tour, ms]) => {
+        const cartes = `<div class="tour">${ms
+          .sort((a, b) => a.position - b.position)
+          .map(carteMatch)
+          .join("")}</div>`;
+        // L'en-tête au-dessus de la colonne, hors de la répartition verticale
+        // des matchs.
+        return entete ? `<div class="colonne"><p class="entete">${echapperHtml(entete(tour))}</p>${cartes}</div>` : cartes;
+      },
     )
     .join("");
+}
+
+const TITRE_TABLEAU: Record<Tableau, string> = {
+  gagnants: "Tableau des gagnants",
+  perdants: "Tableau des perdants",
+  finale: "Grande finale",
+};
+
+export function widgetBracket(t: TournoiPublic, options: OptionsWidget): string {
+  // Double élimination (20/11/2026) : trois blocs titrés, colonnes nommées
+  // (« Gagnants · tour 1 », « Finale des perdants »…), comme sur la page.
+  const double = t.matchs.some((m) => estTableau(m.tableau));
+  let bracket: string;
+  if (double) {
+    const toursGagnants = Math.max(0, ...t.matchs.filter((m) => m.tableau === "gagnants").map((m) => m.tour));
+    bracket = (["gagnants", "perdants", "finale"] as const)
+      .map((tableau) => {
+        const matchs = t.matchs.filter((m) => m.tableau === tableau);
+        if (matchs.length === 0) return "";
+        // La grande finale n'a qu'une colonne : son titre suffit.
+        return `<section class="tableau"><p class="sous-titre">${TITRE_TABLEAU[tableau]}</p><div class="tours">${colonnesHtml(
+          matchs,
+          tableau === "finale" ? undefined : (tour) => libelleTourDouble(tableau, tour, toursGagnants),
+        )}</div></section>`;
+      })
+      .join("");
+  } else {
+    const colonnes = colonnesHtml(t.matchs);
+    bracket = colonnes ? `<div class="tours">${colonnes}</div>` : "";
+  }
   const corps = `<p class="titre">${echapperHtml(t.nom)}</p>${
-    colonnes ? `<div class="tours">${colonnes}</div>` : `<p class="muted">Le bracket n'a pas encore été généré.</p>`
+    bracket || `<p class="muted">Le bracket n'a pas encore été généré.</p>`
   }`;
   return pageWidget(t.nom, corps, t.url, options);
 }
