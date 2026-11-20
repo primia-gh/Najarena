@@ -86,6 +86,37 @@ describe("widgets", () => {
     expect(html).toContain("Perdants · tour 1");
     expect(html).toContain("Finale des perdants");
     expect(html.indexOf("Tableau des gagnants")).toBeLessThan(html.indexOf("Tableau des perdants"));
+    // Pas de faux « 0 / 0 » avant le verdict.
+    expect(html).toMatch(/Ana<\/span><span class="chiffre muted">–</);
+    // Titres balisés, zones qui défilent atteignables au clavier.
+    expect(html).toContain('<h2 class="sous-titre" id="tableau-perdants">');
+    expect(html).toContain('tabindex="0" role="region" aria-label="Tableau des gagnants"');
+    // Tous les verdicts présents sont lus chez Riot.
+    expect(html).toContain("résultats lus chez Riot");
+  });
+
+  it("pied de page : jamais « lus chez Riot » s'il y a une décision manuelle", () => {
+    const html = widgetBracket(
+      {
+        slug: "m",
+        nom: "M",
+        statut: "en_cours",
+        format: "1v1",
+        capacite: 4,
+        region: "EUW",
+        debuteLe: "2026-11-21T19:00:00Z",
+        url: "https://x",
+        matchs: [
+          { tour: 1, position: 1, tableau: null, participants: [{ nom: "A", slug: "a", score: 0, gagnant: true }], verdict: { niveau: "manuel", verifie: false } },
+          { tour: 1, position: 2, tableau: null, participants: [{ nom: "B", slug: "b", score: 1, gagnant: true }, { nom: "C", slug: "c", score: 0, gagnant: false }], verdict: { niveau: "historique", verifie: true } },
+        ],
+      },
+      { transparent: true },
+    );
+    expect(html).not.toContain("résultats lus chez Riot");
+    expect(html).toContain("décidé à la main");
+    // Fond transparent : ombre portée pour rester lisible sur une image claire.
+    expect(html).toContain("text-shadow");
   });
 
   it("pas de rating affiché avant l'entrée au classement", () => {

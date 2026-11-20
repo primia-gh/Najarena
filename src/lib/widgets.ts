@@ -19,7 +19,15 @@ export function optionsWidget(params: URLSearchParams): OptionsWidget {
   return { transparent: params.get("fond") === "transparent" };
 }
 
-export function pageWidget(titre: string, corps: string, lien: string, options: OptionsWidget): string {
+export const PIED_RIOT = "Données Najarena — résultats lus chez Riot";
+
+export function pageWidget(
+  titre: string,
+  corps: string,
+  lien: string,
+  options: OptionsWidget,
+  pied: string = PIED_RIOT,
+): string {
   return `<!doctype html>
 <html lang="fr">
 <head>
@@ -34,11 +42,13 @@ export function pageWidget(titre: string, corps: string, lien: string, options: 
 body{background:${options.transparent ? "transparent" : "#080908"};color:#f5f5f4;font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding:12px}
 a{color:inherit;text-decoration:none}
 .titre{font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:15px;margin-bottom:8px}
+h1,h2,h3{font:inherit}
 .muted{color:#9ca39c}
 .accent{color:#b6ff3b}
 .carte{background:#131513;border:1px solid rgba(245,245,244,.12);border-radius:6px;padding:10px 12px}
 .tours{display:flex;gap:12px;overflow-x:auto}
-.tour{display:flex;flex-direction:column;justify-content:space-around;gap:8px;min-width:170px}
+.tour{display:flex;flex-direction:column;justify-content:space-around;gap:8px;min-width:150px}
+.tours:focus-visible{outline:2px solid #b6ff3b;outline-offset:2px}
 .ligne{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
 .gagnant{font-weight:700}
 .badge{font-size:11px;text-transform:uppercase;letter-spacing:.06em}
@@ -46,17 +56,16 @@ a{color:inherit;text-decoration:none}
 table{width:100%;border-collapse:collapse}
 td{padding:4px 6px;border-bottom:1px solid rgba(245,245,244,.08)}
 .pied{margin-top:8px;font-size:11px}
-.tableau+.tableau{margin-top:12px}
+.tableau+.tableau{margin-top:14px;padding-top:10px;border-top:1px solid rgba(245,245,244,.12)}
 .colonne{display:flex;flex-direction:column;gap:6px}
 .colonne .tour{flex:1}
-.sous-titre,.entete{font-size:11px;text-transform:uppercase;letter-spacing:.06em}
-.sous-titre{font-weight:700;margin-bottom:6px}
-.entete{color:#9ca39c}
-</style>
+.sous-titre{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.entete{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9ca39c}
+${options.transparent ? ".titre,.sous-titre,.entete,.pied{text-shadow:0 1px 3px rgba(0,0,0,.9)}\n.entete,.pied{color:#e7e9e7}\n" : ""}</style>
 </head>
 <body>
 ${corps}
-<p class="pied muted"><a href="${echapperHtml(lien)}" target="_blank" rel="noopener">Données Najarena — résultats lus chez Riot</a></p>
+<p class="pied muted"><a href="${echapperHtml(lien)}" target="_blank" rel="noopener">${echapperHtml(pied)}</a></p>
 </body>
 </html>`;
 }
@@ -73,7 +82,8 @@ function carteMatch(m: MatchPublic): string {
       : m.participants
           .map(
             (p) =>
-              `<div class="ligne${p.gagnant ? " gagnant" : ""}"><span>${echapperHtml(p.nom)}</span><span class="chiffre">${p.score}</span></div>`,
+              // Pas de score avant le verdict : « 0 / 0 » passerait pour un résultat.
+              `<div class="ligne${p.gagnant ? " gagnant" : ""}"><span>${echapperHtml(p.nom)}</span><span class="chiffre${m.verdict ? "" : " muted"}">${m.verdict ? p.score : "–"}</span></div>`,
           )
           .join("")
   }${m.verdict ? `<div>${badgeVerdict(m.verdict)}</div>` : ""}</div>`;
@@ -93,7 +103,7 @@ function colonnesHtml(matchs: MatchPublic[], entete?: (tour: number) => string):
           .join("")}</div>`;
         // L'en-tête au-dessus de la colonne, hors de la répartition verticale
         // des matchs.
-        return entete ? `<div class="colonne"><p class="entete">${echapperHtml(entete(tour))}</p>${cartes}</div>` : cartes;
+        return entete ? `<div class="colonne"><h3 class="entete">${echapperHtml(entete(tour))}</h3>${cartes}</div>` : cartes;
       },
     )
     .join("");
@@ -104,6 +114,11 @@ const TITRE_TABLEAU: Record<Tableau, string> = {
   perdants: "Tableau des perdants",
   finale: "Grande finale",
 };
+
+/** Zone qui défile : atteignable au clavier, nommée pour les lecteurs d'écran. */
+function zoneTours(colonnes: string, nom: string): string {
+  return `<div class="tours" tabindex="0" role="region" aria-label="${echapperHtml(nom)}">${colonnes}</div>`;
+}
 
 export function widgetBracket(t: TournoiPublic, options: OptionsWidget): string {
   // Double élimination (20/11/2026) : trois blocs titrés, colonnes nommées
@@ -117,20 +132,33 @@ export function widgetBracket(t: TournoiPublic, options: OptionsWidget): string 
         const matchs = t.matchs.filter((m) => m.tableau === tableau);
         if (matchs.length === 0) return "";
         // La grande finale n'a qu'une colonne : son titre suffit.
-        return `<section class="tableau"><p class="sous-titre">${TITRE_TABLEAU[tableau]}</p><div class="tours">${colonnesHtml(
+        const colonnes = colonnesHtml(
           matchs,
           tableau === "finale" ? undefined : (tour) => libelleTourDouble(tableau, tour, toursGagnants),
-        )}</div></section>`;
+        );
+        return `<section class="tableau" aria-labelledby="tableau-${tableau}"><h2 class="sous-titre" id="tableau-${tableau}">${TITRE_TABLEAU[tableau]}</h2>${zoneTours(
+          colonnes,
+          TITRE_TABLEAU[tableau],
+        )}</section>`;
       })
       .join("");
   } else {
     const colonnes = colonnesHtml(t.matchs);
-    bracket = colonnes ? `<div class="tours">${colonnes}</div>` : "";
+    bracket = colonnes ? zoneTours(colonnes, `Bracket du tournoi ${t.nom}`) : "";
   }
-  const corps = `<p class="titre">${echapperHtml(t.nom)}</p>${
+  const corps = `<h1 class="titre">${echapperHtml(t.nom)}</h1>${
     bracket || `<p class="muted">Le bracket n'a pas encore été généré.</p>`
   }`;
-  return pageWidget(t.nom, corps, t.url, options);
+  // « Lus chez Riot » seulement si tous les verdicts le sont : exemptions et
+  // décisions de l'organisateur sont des verdicts manuels.
+  const toutVerifie = t.matchs.every((m) => !m.verdict || m.verdict.verifie);
+  return pageWidget(
+    t.nom,
+    corps,
+    t.url,
+    options,
+    toutVerifie ? PIED_RIOT : "Données Najarena — chaque match indique s'il a été lu chez Riot ou décidé à la main",
+  );
 }
 
 export function widgetTop(lignes: LigneTop[], lien: string, options: OptionsWidget): string {
