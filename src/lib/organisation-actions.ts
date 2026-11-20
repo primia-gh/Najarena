@@ -271,17 +271,22 @@ export async function genererBracket(formData: FormData) {
     );
   }
 
+  // Une exemption refusée par la base n'arrête pas le lancement, mais
+  // l'organisateur en est averti (contrôle de sécurité du 20/11/2026 :
+  // avant, l'erreur passait inaperçue et le match restait bloqué).
+  let exemptionsRefusees = 0;
   const { ok } = await construireBracket(
     supabase,
     tournamentId,
     tournoi.capacite,
     joueurs,
     async (matchId, gagnantId) => {
-      await supabase.rpc("enregistrer_verdict_manuel", {
+      const { error } = await supabase.rpc("enregistrer_verdict_manuel", {
         p_match_id: matchId,
         p_gagnant_id: gagnantId,
         p_motif: "Bye — moins d'inscrits confirmés que de places dans le bracket.",
       });
+      if (error) exemptionsRefusees += 1;
     },
   );
 
@@ -300,6 +305,13 @@ export async function genererBracket(formData: FormData) {
   // l'étaient.
   await Promise.all((await matchsOuverts(tournamentId)).map((m) => prevenirMatchOuvert(m.matchId)));
 
+  if (exemptionsRefusees > 0) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+        "Le bracket est lancé, mais une exemption n'a pas pu être enregistrée : un match reste en attente avec un seul joueur. Écris-nous (adresse dans les mentions légales) pour le débloquer.",
+      )}`,
+    );
+  }
   redirect(`/moi/organisation/${tournamentId}`);
 }
 

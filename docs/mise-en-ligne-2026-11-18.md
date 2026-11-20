@@ -6,7 +6,7 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1400 vérifications de
+elle se rejoue une seconde fois sans erreur, et les 1403 vérifications de
 `tests/sql/` passent ensuite (contrôle refait le 20/11/2026, après l'ajout
 des tournois par niveau, du face-à-face, du recrutement, du format suisse,
 de la double élimination, des alertes « tournoi pour toi » et de leurs

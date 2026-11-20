@@ -112,18 +112,44 @@ select verifie('Second passage : rien de plus (plafond atteint, déjà prévenus
   (select count(*) = 0 from public.reserver_alertes_tournoi(200)));
 reset role;
 
--- 25 heures plus tard, A peut recevoir une nouvelle alerte, jamais pour un
--- tournoi déjà annoncé.
+-- 25 heures plus tard, A et C peuvent recevoir de nouvelles alertes, jamais
+-- pour un tournoi déjà annoncé. A est désormais classé (RD 100) : ni le
+-- tournoi plafonné à Argent (B5, A à 1500), ni la coupe des non-classés
+-- (B6) ; C, non classé, reçoit B6, mais pas le 5v5 B7 où il s'est proposé
+-- comme remplaçant.
 update alertes_envoyees set envoye_le = now() - interval '25 hours'
-where profile_id = 'ab0b0000-0000-0000-0000-000000000001';
-insert into tournaments (id, game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement) values
-  ('ab0b0000-0000-0000-0000-0000000000b4', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-b4', 'Coupe 99p B4', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', true);
+where profile_id in ('ab0b0000-0000-0000-0000-000000000001', 'ab0b0000-0000-0000-0000-000000000003');
+insert into ratings (profile_id, game_id, season_id, rating, rd, volatilite, matchs_joues) values
+  ('ab0b0000-0000-0000-0000-000000000001', 1, :'saison', 1500, 100, 0.06, 12);
+insert into tournaments (id, game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, rating_max, reserve_non_classes, compte_pour_classement) values
+  ('ab0b0000-0000-0000-0000-0000000000b4', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-b4', 'Coupe 99p B4', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, false, true),
+  ('ab0b0000-0000-0000-0000-0000000000b5', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-b5', 'Coupe 99p B5', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', 1450, false, true),
+  ('ab0b0000-0000-0000-0000-0000000000b6', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-b6', 'Coupe 99p B6', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, true, true),
+  ('ab0b0000-0000-0000-0000-0000000000b7', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-b7', 'Coupe 99p B7', '5v5', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, false, false);
+insert into remplacants_disponibles (tournament_id, profile_id) values
+  ('ab0b0000-0000-0000-0000-0000000000b7', 'ab0b0000-0000-0000-0000-000000000003');
 set role service_role;
 create temp table envoi2 as select * from public.reserver_alertes_tournoi(200);
 reset role;
 select verifie('Le lendemain : A est prévenu du nouveau tournoi seulement',
   (select array_agg(tournament_id) = array['ab0b0000-0000-0000-0000-0000000000b4'::uuid]
    from envoi2 where profile_id = 'ab0b0000-0000-0000-0000-000000000001'));
+select verifie('Le lendemain : C est plafonné à 3 alertes',
+  (select count(*) = 3 from envoi2 where profile_id = 'ab0b0000-0000-0000-0000-000000000003'));
+-- Encore 25 heures plus tard : il ne reste à C que la coupe des non-classés
+-- (B6) ; jamais le 5v5 où il se propose comme remplaçant (B7). A, classé,
+-- n'a plus rien.
+update alertes_envoyees set envoye_le = now() - interval '25 hours'
+where profile_id in ('ab0b0000-0000-0000-0000-000000000001', 'ab0b0000-0000-0000-0000-000000000003')
+  and envoye_le > now() - interval '2 hours';
+set role service_role;
+create temp table envoi3 as select * from public.reserver_alertes_tournoi(200);
+reset role;
+select verifie('C reçoit la coupe des non-classés, jamais le 5v5 où il se propose comme remplaçant',
+  (select array_agg(tournament_id) = array['ab0b0000-0000-0000-0000-0000000000b6'::uuid]
+   from envoi3 where profile_id = 'ab0b0000-0000-0000-0000-000000000003'));
+select verifie('A, classé, ne reçoit ni le tournoi plafonné à Argent ni la coupe des non-classés',
+  not exists (select 1 from envoi3 where profile_id = 'ab0b0000-0000-0000-0000-000000000001'));
 
 set role authenticated;
 select en_tant_que('ab0b0000-0000-0000-0000-000000000001');

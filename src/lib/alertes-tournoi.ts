@@ -8,7 +8,7 @@
 // docs/schema.sql). Ici : libellés, lecture du formulaire, texte du message.
 
 import { CRENEAUX_DUO, LABEL_CRENEAU, estCreneau, type CreneauDuo } from "@/lib/duo";
-import { formaterDate } from "@/lib/tournois";
+import { typographie } from "@/lib/typographie";
 
 export const ALERTES_PAR_JOUR = 3;
 export const PREAVIS_MIN_HEURES = 1;
@@ -48,11 +48,34 @@ export function messageRefusAlertes(erreur: string, defaut: string): string {
   return code ? MESSAGES[code] : defaut;
 }
 
-/** Résumé du réglage : « Semaine · soir, Week-end · soir — 1v1 ». */
-export function resumeAlertes(creneaux: readonly string[], formats: readonly string[]): string {
+/** Résumé du réglage, en deux lignes : créneaux, formats. */
+export function resumeAlertes(
+  creneaux: readonly string[],
+  formats: readonly string[],
+): { creneaux: string; formats: string } {
   const c = CRENEAUX_DUO.filter((x) => creneaux.includes(x)).map((x) => LABEL_CRENEAU[x]);
   const f = FORMATS_ALERTE.filter((x) => formats.includes(x));
-  return `${c.join(", ")} — ${f.join(" et ")}`;
+  return { creneaux: c.join(", "), formats: f.join(" et ") };
+}
+
+/** « samedi 21 novembre à 20 h », « … à 20 h 30 » — heure de Paris. */
+export function dateLisibleParis(iso: string): string {
+  const d = new Date(iso);
+  const jour = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(d);
+  const parties = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    hour: "numeric",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const heure = Number(parties.find((x) => x.type === "hour")?.value ?? "0");
+  const minute = parties.find((x) => x.type === "minute")?.value ?? "00";
+  return `${jour} à ${heure}\u00a0h${minute === "00" ? "" : `\u00a0${minute}`}`;
 }
 
 /** Titre et texte du message envoyé au joueur. */
@@ -62,6 +85,12 @@ export function messageAlerte(t: { nom: string; debute_le: string; format: strin
 } {
   return {
     titre: `Un tournoi pour toi — ${t.nom}`,
-    texte: `Tournoi ${t.format} sur ${t.region}, le ${formaterDate(t.debute_le)}, ouvert à toi, avec encore de la place. Tu reçois ce message parce que tu as demandé les alertes « tournoi pour toi » (à couper depuis ton compte).`,
+    texte: typographie(
+      `Tournoi ${t.format} sur ${t.region}, ${dateLisibleParis(t.debute_le)}, ${
+        t.format === "5v5"
+          ? "avec encore de la place : inscris ton équipe ou entre en agent libre."
+          : "ouvert à toi, avec encore de la place."
+      } Tu reçois ce message parce que tu as demandé les alertes « tournoi pour toi » (à couper dans Mon compte, rubrique « Tournois pour toi »).`,
+    ),
   };
 }

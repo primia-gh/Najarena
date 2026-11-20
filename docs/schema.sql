@@ -14197,7 +14197,8 @@ begin
     raise exception 'MATCH_INTROUVABLE';
   end if;
 
-  if v_organisateur_id <> auth.uid() then
+  -- Sans utilisateur, « <> » ne vaut ni vrai ni faux : refus explicite.
+  if auth.uid() is null or v_organisateur_id is distinct from auth.uid() then
     raise exception 'NON_AUTORISE';
   end if;
 
@@ -14385,6 +14386,7 @@ as $$
                       where r.tournament_id = t.id and r.profile_id = a.profile_id and r.statut <> 'retire')
       and not exists (select 1 from public.alignements al where al.tournament_id = t.id and al.profile_id = a.profile_id)
       and not exists (select 1 from public.agents_libres ag where ag.tournament_id = t.id and ag.profile_id = a.profile_id)
+      and not exists (select 1 from public.remplacants_disponibles rd where rd.tournament_id = t.id and rd.profile_id = a.profile_id)
       and t.organisateur_id <> a.profile_id
       and not public.blocage_entre(a.profile_id, t.organisateur_id)
       and (t.rating_min is null or public.rating_niveau(a.profile_id) >= t.rating_min)

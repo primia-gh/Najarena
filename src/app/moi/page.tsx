@@ -43,11 +43,13 @@ function debutDemandesDuo(): string {
 }
 
 interface MoiPageProps {
-  searchParams: Promise<{ message?: string; erreur?: string }>;
+  searchParams: Promise<{ message?: string; erreur?: string; bloc?: string }>;
 }
 
 export default async function MoiPage({ searchParams }: MoiPageProps) {
-  const { message, erreur } = await searchParams;
+  const { message, erreur, bloc } = await searchParams;
+  // Retour d'une action du bloc « Tournois pour toi » : affiché dans le bloc.
+  const retourAlertes = bloc === "alertes";
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -74,6 +76,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     mesDefis,
     { count: demandesDuo },
     { data: alertes },
+    { count: abonnementsPush },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -132,6 +135,9 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       .gt("cree_le", debutDemandesDuo()),
     // Alertes « tournoi pour toi » (20/11/2026).
     supabase.from("alertes_tournoi").select("creneaux, formats").eq("profile_id", utilisateur.id).maybeSingle(),
+    // Canaux des alertes : notifications du navigateur (abonnements du
+    // joueur, lisibles par lui seul).
+    supabase.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("profile_id", utilisateur.id),
   ]);
   const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
@@ -191,7 +197,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille">
-        {(erreur || message) && (
+        {!retourAlertes && (erreur || message) && (
           <div className="flex max-w-2xl flex-col gap-3">
             {erreur && <Alerte type="erreur">{erreur}</Alerte>}
             {message && <Alerte type="succes">{message}</Alerte>}
@@ -557,6 +563,14 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               reglage={alertes}
               compteVerifie={Boolean(comptesRiot?.verifie_le)}
               region={comptesRiot?.verifie_le ? comptesRiot.region : null}
+              canaux={{
+                push: (abonnementsPush ?? 0) > 0,
+                // Compte créé par la connexion Discord : le bot peut lui écrire.
+                discord:
+                  (utilisateur.identities ?? []).some((i) => i.provider === "discord") ||
+                  (utilisateur.app_metadata?.providers as string[] | undefined)?.includes("discord") === true,
+              }}
+              retour={retourAlertes ? { message, erreur } : null}
             />
           </Apparition>
         </div>

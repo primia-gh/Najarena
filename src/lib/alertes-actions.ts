@@ -11,7 +11,9 @@ import { lireReglageAlertes, messageRefusAlertes } from "@/lib/alertes-tournoi";
 const PAGE = "/moi";
 
 function retour(type: "message" | "erreur", texte: string): never {
-  redirect(`${PAGE}?${type}=${encodeURIComponent(texte)}#moi-alertes`);
+  // bloc=alertes : le message s'affiche dans le bloc lui-même, là où
+  // l'ancre ramène le joueur (sinon il restait hors de l'écran, en haut).
+  redirect(`${PAGE}?bloc=alertes&${type}=${encodeURIComponent(texte)}#moi-alertes`);
 }
 
 async function session() {
@@ -26,7 +28,7 @@ export async function reglerAlertesTournoi(formData: FormData) {
   const { creneaux, formats } = lireReglageAlertes(formData);
   const { error } = await supabase.rpc("regler_alertes_tournoi", { p_creneaux: creneaux, p_formats: formats });
   if (error) retour("erreur", messageRefusAlertes(error.message, "Impossible d'enregistrer tes alertes pour l'instant."));
-  retour("message", "Alertes enregistrées : un message t'arrivera quand un tournoi s'ouvre pour toi.");
+  retour("message", "Alertes enregistrées.");
 }
 
 export async function couperAlertesTournoi() {
