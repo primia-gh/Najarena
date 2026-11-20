@@ -14346,70 +14346,114 @@ revoke execute on function public.couper_alertes_tournoi() from public, anon;
 grant execute on function public.couper_alertes_tournoi() to authenticated;
 
 -- Tâche des tournois automatiques : réserve les alertes à envoyer (au plus
--- p_limite), chacune une seule fois même si deux passages se croisent, et
--- les renvoie avec ce qu'il faut pour le message.
+-- p_limite) et les renvoie avec ce qu'il faut pour le message. Contrôle de
+-- sécurité du 20/11/2026 :
+-- - un passage à la fois (verrou) : le second attend le premier et voit ses
+--   envois, donc le plafond de 3 par 24 h tient même si deux passages se
+--   croisent ; un même tournoi n'est de toute façon jamais envoyé deux fois
+--   (clé primaire, « on conflict do nothing ») ;
+-- - coût borné : 500 joueurs au plus par passage, les moins récemment
+--   examinés d'abord (alertes_tournoi.examine_le), joueurs au plafond
+--   écartés d'emblée, créneau calculé une fois par tournoi ;
+-- - un organisateur (hors tournois automatiques) n'envoie qu'une alerte par
+--   joueur et par 24 h, et jamais s'il est suspendu.
+alter table public.alertes_tournoi add column if not exists examine_le timestamptz;
+create index if not exists alertes_tournoi_examine_idx on public.alertes_tournoi (examine_le nulls first, profile_id);
+
+drop function if exists public.reserver_alertes_tournoi(integer);
 create or replace function public.reserver_alertes_tournoi(p_limite integer default 200)
 returns table (profile_id uuid, tournament_id uuid, nom text, slug text, debute_le timestamptz, format text, region text)
-language sql
+language plpgsql
 security definer set search_path = public
 as $$
+#variable_conflict use_column
+declare
+  v_limite integer := greatest(0, least(coalesce(p_limite, 200), 500));
+begin
+  perform pg_advisory_xact_lock(hashtextextended('reserver_alertes_tournoi', 0));
+
   -- Rien n'est gardé plus de 30 jours (un tournoi est annoncé 7 jours avant
-  -- au plus) : une instruction de modification dans un WITH s'exécute même
-  -- si la requête ne la lit pas.
-  with purge as (
-    delete from public.alertes_envoyees where envoye_le < now() - interval '30 days'
-  ),
-  recentes as (
-    select e.profile_id, count(*)::integer as n
-    from public.alertes_envoyees e
-    where e.envoye_le > now() - interval '24 hours'
-    group by e.profile_id
-  ),
-  candidats as (
-    select a.profile_id, t.id as tournament_id, t.nom, t.slug, t.debute_le, t.format, t.region,
-           row_number() over (partition by a.profile_id order by t.debute_le, t.id) as rang,
-           coalesce(rc.n, 0) as deja
+  -- au plus).
+  delete from public.alertes_envoyees e where e.envoye_le < now() - interval '30 days';
+
+  return query
+  with joueurs as materialized (
+    select a.profile_id, a.creneaux, a.formats, g.region, x.deja
     from public.alertes_tournoi a
     join public.profiles p on p.id = a.profile_id and p.supprime_le is null
     join public.game_accounts g on g.profile_id = a.profile_id and g.game_id = 1
                                 and g.est_principal and g.verifie_le is not null
-    join public.tournaments t on t.game_id = 1 and t.region = g.region
-                              and t.statut = 'ouvert' and t.nature = 'tournoi'
-                              and t.format = any (a.formats)
-                              and t.debute_le between now() + interval '1 hour' and now() + interval '7 days'
-                              and public.creneau_de(t.debute_le) = any (a.creneaux)
-    left join recentes rc on rc.profile_id = a.profile_id
-    where coalesce(rc.n, 0) < 3
+    cross join lateral (
+      select count(*)::integer as deja from public.alertes_envoyees e
+      where e.profile_id = a.profile_id and e.envoye_le > now() - interval '24 hours'
+    ) x
+    where x.deja < 3
       and not exists (select 1 from public.suspensions s where s.profile_id = a.profile_id and s.levee_le is null)
-      and not exists (select 1 from public.alertes_envoyees e where e.profile_id = a.profile_id and e.tournament_id = t.id)
+    order by a.examine_le nulls first, a.profile_id
+    limit 500
+  ),
+  examines as (
+    update public.alertes_tournoi a set examine_le = now()
+    from joueurs j where a.profile_id = j.profile_id
+  ),
+  tournois as materialized (
+    select t.id, t.nom, t.slug, t.debute_le, t.format, t.region, t.organisateur_id,
+           t.creneau_auto is not null as automatique, t.rating_min, t.rating_max,
+           t.reserve_membres, t.reserve_non_classes, public.creneau_de(t.debute_le) as creneau
+    from public.tournaments t
+    where t.game_id = 1 and t.statut = 'ouvert' and t.nature = 'tournoi'
+      and t.debute_le between now() + interval '1 hour' and now() + interval '7 days'
+      and not exists (select 1 from public.suspensions s where s.profile_id = t.organisateur_id and s.levee_le is null)
+      and (select count(*) from public.registrations r
+           where r.tournament_id = t.id and r.statut <> 'retire') < t.capacite
+  ),
+  candidats as (
+    select j.profile_id, j.deja, t.*,
+           row_number() over (
+             partition by j.profile_id, case when t.automatique then null else t.organisateur_id end
+             order by t.debute_le, t.id) as rang_orga
+    from joueurs j
+    join tournois t on t.region = j.region and t.format = any (j.formats) and t.creneau = any (j.creneaux)
+    where t.organisateur_id <> j.profile_id
+      and not exists (select 1 from public.blocages b
+                      where (b.bloqueur_id = j.profile_id and b.bloque_id = t.organisateur_id)
+                         or (b.bloqueur_id = t.organisateur_id and b.bloque_id = j.profile_id))
+      and not exists (select 1 from public.alertes_envoyees e where e.profile_id = j.profile_id and e.tournament_id = t.id)
       and not exists (select 1 from public.registrations r
-                      where r.tournament_id = t.id and r.profile_id = a.profile_id and r.statut <> 'retire')
-      and not exists (select 1 from public.alignements al where al.tournament_id = t.id and al.profile_id = a.profile_id)
-      and not exists (select 1 from public.agents_libres ag where ag.tournament_id = t.id and ag.profile_id = a.profile_id)
-      and not exists (select 1 from public.remplacants_disponibles rd where rd.tournament_id = t.id and rd.profile_id = a.profile_id)
-      and t.organisateur_id <> a.profile_id
-      and not public.blocage_entre(a.profile_id, t.organisateur_id)
-      and (t.rating_min is null or public.rating_niveau(a.profile_id) >= t.rating_min)
-      and (t.rating_max is null or public.rating_niveau_meilleur(a.profile_id) < t.rating_max)
-      and (not t.reserve_membres or public.eligible_tournoi_reserve(t.id, a.profile_id))
-      and (not t.reserve_non_classes or public.est_non_classe(a.profile_id))
-      and (select count(*) from public.registrations r2
-           where r2.tournament_id = t.id and r2.statut <> 'retire') < t.capacite
+                      where r.tournament_id = t.id and r.profile_id = j.profile_id and r.statut <> 'retire')
+      and not exists (select 1 from public.alignements al where al.tournament_id = t.id and al.profile_id = j.profile_id)
+      and not exists (select 1 from public.agents_libres ag where ag.tournament_id = t.id and ag.profile_id = j.profile_id)
+      and not exists (select 1 from public.remplacants_disponibles rd where rd.tournament_id = t.id and rd.profile_id = j.profile_id)
+      and (t.automatique or not exists (
+             select 1 from public.alertes_envoyees e
+             join public.tournaments t2 on t2.id = e.tournament_id
+             where e.profile_id = j.profile_id and e.envoye_le > now() - interval '24 hours'
+               and t2.organisateur_id = t.organisateur_id and t2.creneau_auto is null))
+      and (t.rating_min is null or public.rating_niveau(j.profile_id) >= t.rating_min)
+      and (t.rating_max is null or public.rating_niveau_meilleur(j.profile_id) < t.rating_max)
+      and (not t.reserve_membres or public.eligible_tournoi_reserve(t.id, j.profile_id))
+      and (not t.reserve_non_classes or public.est_non_classe(j.profile_id))
+  ),
+  classes as (
+    select c.*, row_number() over (partition by c.profile_id order by c.debute_le, c.id) as rang
+    from candidats c
+    where c.automatique or c.rang_orga = 1
   ),
   choisis as (
-    select * from candidats where rang <= 3 - deja
-    order by debute_le
-    limit greatest(0, least(coalesce(p_limite, 200), 500))
+    select * from classes c where c.rang <= 3 - c.deja
+    order by c.debute_le, c.id
+    limit v_limite
   ),
   inseres as (
     insert into public.alertes_envoyees (profile_id, tournament_id)
-    select c.profile_id, c.tournament_id from choisis c
+    select c.profile_id, c.id from choisis c
     on conflict do nothing
     returning alertes_envoyees.profile_id, alertes_envoyees.tournament_id
   )
-  select c.profile_id, c.tournament_id, c.nom, c.slug, c.debute_le, c.format, c.region
+  select c.profile_id, c.id, c.nom::text, c.slug::text, c.debute_le, c.format::text, c.region::text
   from choisis c
-  join inseres i on i.profile_id = c.profile_id and i.tournament_id = c.tournament_id;
+  join inseres i on i.profile_id = c.profile_id and i.tournament_id = c.id;
+end;
 $$;
 revoke execute on function public.reserver_alertes_tournoi(integer) from public, anon, authenticated;
 grant execute on function public.reserver_alertes_tournoi(integer) to service_role;

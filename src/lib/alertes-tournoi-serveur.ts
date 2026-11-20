@@ -9,8 +9,13 @@ import { creerClientAdmin } from "@/lib/supabase/admin";
 import { envoyerRappel, URL_SITE } from "@/lib/notifications";
 import { messageAlerte } from "@/lib/alertes-tournoi";
 
-/** Alertes réservées par passage, au plus (la base plafonne à 500). */
-const ALERTES_PAR_PASSAGE = 200;
+/**
+ * Alertes réservées par passage, au plus (la base plafonne à 500). Une
+ * alerte est notée envoyée avant l'envoi (au plus une fois, jamais en
+ * double) : un petit lot laisse à la tâche le temps de toutes les envoyer
+ * avant sa limite de durée ; le reste part au passage suivant.
+ */
+const ALERTES_PAR_PASSAGE = 100;
 
 /** Nombre d'alertes envoyées ce passage, ou null si la base n'est pas joignable. */
 export async function envoyerAlertesTournoi(): Promise<number | null> {

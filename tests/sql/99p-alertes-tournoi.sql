@@ -11,6 +11,8 @@ select verifie('Samedi d''été 18 h 30 (UTC+2) : week-end, soir', public.crenea
 
 -- 0 organise ; 1 (A) et 3 (C) ont un compte Riot vérifié sur EUW, 2 (B)
 -- n'en a pas, 4 (D) est sur EUNE, 5 (E) organise un tournoi et a bloqué A.
+-- B et D organisent aussi un tournoi chacun (A9, B1) : un organisateur
+-- n'envoie qu'une alerte par joueur et par 24 h.
 insert into auth.users (id, email, raw_user_meta_data)
 select ('ab0b0000-0000-0000-0000-00000000000' || n)::uuid, 'p99p' || n || '@test',
        json_build_object('pseudo', 'Alerte99p' || n, 'slug', 'alerte99p' || n)::jsonb
@@ -64,8 +66,8 @@ insert into tournaments (id, game_id, season_id, organisateur_id, slug, nom, for
   ('ab0b0000-0000-0000-0000-0000000000a6', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-a6', 'Coupe 99p A6', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', 1600, true),
   ('ab0b0000-0000-0000-0000-0000000000a7', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000001', 'alerte-99p-a7', 'Coupe 99p A7', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, true),
   ('ab0b0000-0000-0000-0000-0000000000a8', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000005', 'alerte-99p-a8', 'Coupe 99p A8', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, true),
-  ('ab0b0000-0000-0000-0000-0000000000a9', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-a9', 'Coupe 99p A9', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, true),
-  ('ab0b0000-0000-0000-0000-0000000000b1', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-b1', 'Coupe 99p B1', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, true),
+  ('ab0b0000-0000-0000-0000-0000000000a9', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000002', 'alerte-99p-a9', 'Coupe 99p A9', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, true),
+  ('ab0b0000-0000-0000-0000-0000000000b1', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000004', 'alerte-99p-b1', 'Coupe 99p B1', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, true),
   ('ab0b0000-0000-0000-0000-0000000000b2', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-b2', 'Coupe 99p B2', '1v1', 4, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', null, true),
   ('ab0b0000-0000-0000-0000-0000000000b3', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'alerte-99p-b3', 'Coupe 99p B3', '1v1', 8, 'EUW', now() + interval '8 days', now() + interval '8 days', 'ouvert', null, true);
 -- C est déjà inscrit à A1 ; B2 (4 places) est complet.
@@ -171,3 +173,85 @@ select count(*) from public.reserver_alertes_tournoi(200);
 reset role;
 select verifie('Les alertes de plus de 30 jours sont effacées',
   not exists (select 1 from alertes_envoyees where envoye_le < now() - interval '30 days'));
+
+-- Contrôle de sécurité du 20/11/2026 : chaque cas avec son joueur, les
+-- autres tournois tenus pour déjà annoncés (il y a deux jours, hors
+-- plafond). d1 : cas ordinaire ; d2 : suspendu ; d3 : a bloqué
+-- l'organisateur ; d4 : hors communauté ; d5 : membre ; d6 : agent libre.
+-- d9 : organisateur suspendu.
+insert into auth.users (id, email, raw_user_meta_data)
+select ('ab0b0000-0000-0000-0000-0000000001d' || n)::uuid, 'p99pd' || n || '@test',
+       json_build_object('pseudo', 'Cas99p' || n, 'slug', 'cas99p' || n)::jsonb
+from generate_series(1, 9) n;
+insert into game_accounts (profile_id, game_id, puuid, riot_game_name, riot_tag_line, region, est_principal, verifie_le, methode_verification)
+select ('ab0b0000-0000-0000-0000-0000000001d' || n)::uuid, 1, 'P99PD-' || n, 'R99pd' || n, 'EUW', 'EUW', true, now(), 'icone_profil'
+from generate_series(1, 6) n;
+insert into comptes_offres (profile_id, offre) values ('ab0b0000-0000-0000-0000-000000000000', 'organisateur');
+
+set role authenticated;
+select en_tant_que('ab0b0000-0000-0000-0000-000000000000');
+select essai('L''organisateur crée « Club 99p »', $q$select public.creer_communaute('Club 99p', 'club-99p')$q$, 'passe');
+reset role;
+select id as club from communautes where slug = 'club-99p' \gset
+insert into membres_communaute (communaute_id, profile_id) values (:'club', 'ab0b0000-0000-0000-0000-0000000001d5');
+insert into blocages (bloqueur_id, bloque_id) values ('ab0b0000-0000-0000-0000-0000000001d3', 'ab0b0000-0000-0000-0000-000000000000');
+
+-- Tournois des cas : C1 et C2 (même organisateur ordinaire), C3 (tournoi
+-- automatique du même organisateur), C4 (organisateur suspendu), C5 (réservé
+-- aux membres du club), C6 (5v5).
+insert into tournaments (id, game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement, communaute_id, reserve_membres) values
+  ('ab0b0000-0000-0000-0000-0000000000c1', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'cas-99p-c1', 'Cas 99p C1', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', true, null, false),
+  ('ab0b0000-0000-0000-0000-0000000000c2', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'cas-99p-c2', 'Cas 99p C2', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', true, null, false),
+  ('ab0b0000-0000-0000-0000-0000000000c4', 1, :'saison', 'ab0b0000-0000-0000-0000-0000000001d9', 'cas-99p-c4', 'Cas 99p C4', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', true, null, false),
+  ('ab0b0000-0000-0000-0000-0000000000c5', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'cas-99p-c5', 'Cas 99p C5', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', true, :'club', true),
+  ('ab0b0000-0000-0000-0000-0000000000c6', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'cas-99p-c6', 'Cas 99p C6', '5v5', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', false, null, false);
+insert into tournaments (id, game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement, creneau_auto) values
+  ('ab0b0000-0000-0000-0000-0000000000c3', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'cas-99p-c3', 'Cas 99p C3', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', true, 'essai-99p');
+insert into suspensions (profile_id, motif) values ('ab0b0000-0000-0000-0000-0000000001d9', 'Test organisateur suspendu');
+insert into agents_libres (tournament_id, profile_id) values ('ab0b0000-0000-0000-0000-0000000000c6', 'ab0b0000-0000-0000-0000-0000000001d6');
+
+set role authenticated;
+select en_tant_que('ab0b0000-0000-0000-0000-0000000001d1');
+select essai('d1 règle ses alertes', format($q$select public.regler_alertes_tournoi(array[%L], array['1v1'])$q$, :'creneau'), 'passe');
+select en_tant_que('ab0b0000-0000-0000-0000-0000000001d2');
+select essai('d2 règle ses alertes', format($q$select public.regler_alertes_tournoi(array[%L], array['1v1'])$q$, :'creneau'), 'passe');
+select en_tant_que('ab0b0000-0000-0000-0000-0000000001d3');
+select essai('d3 règle ses alertes', format($q$select public.regler_alertes_tournoi(array[%L], array['1v1'])$q$, :'creneau'), 'passe');
+select en_tant_que('ab0b0000-0000-0000-0000-0000000001d4');
+select essai('d4 règle ses alertes', format($q$select public.regler_alertes_tournoi(array[%L], array['1v1'])$q$, :'creneau'), 'passe');
+select en_tant_que('ab0b0000-0000-0000-0000-0000000001d5');
+select essai('d5 règle ses alertes', format($q$select public.regler_alertes_tournoi(array[%L], array['1v1'])$q$, :'creneau'), 'passe');
+select en_tant_que('ab0b0000-0000-0000-0000-0000000001d6');
+select essai('d6 règle ses alertes', format($q$select public.regler_alertes_tournoi(array[%L], array['5v5'])$q$, :'creneau'), 'passe');
+reset role;
+insert into suspensions (profile_id, motif) values ('ab0b0000-0000-0000-0000-0000000001d2', 'Test joueur suspendu');
+
+insert into alertes_envoyees (profile_id, tournament_id, envoye_le)
+select p.id, t.id, now() - interval '2 days'
+from tournaments t
+cross join (values ('ab0b0000-0000-0000-0000-0000000001d1'::uuid, array['cas-99p-c1', 'cas-99p-c2', 'cas-99p-c3', 'cas-99p-c4']),
+                   ('ab0b0000-0000-0000-0000-0000000001d2'::uuid, array['cas-99p-c1', 'cas-99p-c2', 'cas-99p-c3', 'cas-99p-c4']),
+                   ('ab0b0000-0000-0000-0000-0000000001d3'::uuid, array['cas-99p-c1', 'cas-99p-c2', 'cas-99p-c3', 'cas-99p-c4']),
+                   ('ab0b0000-0000-0000-0000-0000000001d4'::uuid, array['cas-99p-c5']),
+                   ('ab0b0000-0000-0000-0000-0000000001d5'::uuid, array['cas-99p-c5']),
+                   ('ab0b0000-0000-0000-0000-0000000001d6'::uuid, array['cas-99p-c6'])) as p(id, siens)
+where not (t.slug = any (p.siens));
+
+set role service_role;
+create temp table envoi_cas as select * from public.reserver_alertes_tournoi(200);
+reset role;
+select verifie('Un organisateur ordinaire : une alerte par joueur et par 24 h ; ses tournois automatiques ne comptent pas ; jamais un organisateur suspendu',
+  (select array_agg(tournament_id order by tournament_id) = array['ab0b0000-0000-0000-0000-0000000000c1'::uuid, 'ab0b0000-0000-0000-0000-0000000000c3'::uuid]
+   from envoi_cas where profile_id = 'ab0b0000-0000-0000-0000-0000000001d1'));
+select verifie('Un joueur suspendu ne reçoit rien',
+  not exists (select 1 from envoi_cas where profile_id = 'ab0b0000-0000-0000-0000-0000000001d2'));
+select verifie('Un joueur qui a bloqué l''organisateur ne reçoit pas ses tournois',
+  not exists (select 1 from envoi_cas where profile_id = 'ab0b0000-0000-0000-0000-0000000001d3'));
+select verifie('Tournoi réservé aux membres : le membre est prévenu, pas l''autre',
+  exists (select 1 from envoi_cas where profile_id = 'ab0b0000-0000-0000-0000-0000000001d5' and tournament_id = 'ab0b0000-0000-0000-0000-0000000000c5')
+  and not exists (select 1 from envoi_cas where profile_id = 'ab0b0000-0000-0000-0000-0000000001d4'));
+select verifie('Un agent libre déjà inscrit au 5v5 n''en est pas prévenu',
+  not exists (select 1 from envoi_cas where profile_id = 'ab0b0000-0000-0000-0000-0000000001d6'));
+select verifie('Chaque joueur examiné est daté (rotation des passages)',
+  (select bool_and(examine_le is not null) from alertes_tournoi
+   where profile_id in ('ab0b0000-0000-0000-0000-0000000001d1', 'ab0b0000-0000-0000-0000-0000000001d3')));

@@ -6,7 +6,7 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1403 vérifications de
+elle se rejoue une seconde fois sans erreur, et les 1416 vérifications de
 `tests/sql/` passent ensuite (contrôle refait le 20/11/2026, après l'ajout
 des tournois par niveau, du face-à-face, du recrutement, du format suisse,
 de la double élimination, des alertes « tournoi pour toi » et de leurs
@@ -88,7 +88,8 @@ Onze sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, six du
    (réglage du joueur, lu par lui seul) et `alertes_envoyees` (lue par
    personne, effacée après 30 jours) ; `creneau_de`,
    `regler_alertes_tournoi`, `couper_alertes_tournoi`,
-   `reserver_alertes_tournoi` (rôle service seulement), déclencheur
+   `reserver_alertes_tournoi` (rôle service seulement, un passage à la
+   fois, 500 joueurs au plus par passage), déclencheur
    `alertes_compte_supprime`.
 
 ## 1. Vérifications avant migration (lecture seule)
