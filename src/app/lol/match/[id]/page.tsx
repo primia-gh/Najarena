@@ -119,7 +119,13 @@ export default async function PreuveMatchPage({ params }: PageProps) {
       ? "duel en une partie"
       : preuve.suisse
         ? `ronde ${preuve.tour} (format suisse)`
-        : libelleTour(preuve.tour, preuve.dernierTour).toLowerCase();
+        : preuve.tableau === "finale"
+          ? "grande finale (double élimination)"
+          : preuve.tableau === "perdants"
+            ? "tableau des perdants (double élimination)"
+            : preuve.tableau === "gagnants"
+              ? `tour ${preuve.tour} du tableau des gagnants (double élimination)`
+              : libelleTour(preuve.tour, preuve.dernierTour).toLowerCase();
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">

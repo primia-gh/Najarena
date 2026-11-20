@@ -13719,3 +13719,448 @@ begin
 end;
 $$;
 revoke execute on function public.controler_membre_equipe() from public, anon, authenticated;
+
+-- ---------- Format double élimination (2026-11-20) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (création de tournoi, cockpit, page du tournoi).
+-- Un tournoi 1v1 d'organisateur peut se jouer en double élimination : un
+-- joueur battu descend dans le tableau des perdants et n'est éliminé qu'à
+-- sa deuxième défaite — plus de matchs par joueur, donc un classement plus
+-- précis (CLAUDE.md §10). Taille N = puissance de deux ≥ inscrits
+-- confirmés (4 au moins), têtes de série par rating à l'inscription (ordre
+-- standard, comme l'élimination directe). Tableau des gagnants : k = log2 N
+-- tours ; tableau des perdants : 2(k-1) tours ; grande finale en un seul
+-- match entre le vainqueur de chaque tableau (pas de seconde finale). Tous
+-- les matchs sont créés par la base au lancement (demarrer_double_elim) ;
+-- le perdant d'un match du tableau des gagnants descend dans celui des
+-- perdants (matches.match_perdant_suivant_id) ; une place restée vide
+-- (moins d'inscrits que de places) donne une exemption (verdict manuel,
+-- jamais classé), un match sans aucun joueur est clos vide. Seule la
+-- grande finale n'a pas de match suivant : « match sans suivant = finale »
+-- reste vrai pour la clôture et l'annonce du vainqueur.
+alter table public.matches add column if not exists tableau text;
+alter table public.matches add column if not exists match_perdant_suivant_id uuid references public.matches(id);
+alter table public.matches drop constraint if exists matches_tableau_check;
+alter table public.matches add constraint matches_tableau_check
+  check (tableau is null or tableau in ('gagnants', 'perdants', 'finale'));
+create index if not exists matches_suivant_idx on public.matches (match_suivant_id);
+create index if not exists matches_perdant_suivant_idx on public.matches (match_perdant_suivant_id);
+alter table public.tournaments drop constraint if exists tournaments_type_bracket_check;
+alter table public.tournaments add constraint tournaments_type_bracket_check
+  check (type_bracket in ('elim_simple', 'suisse', 'double_elim'));
+
+-- Double élimination : 1v1, tournoi d'organisateur, 4 places au moins.
+create or replace function public.controler_format_double_elim()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.type_bracket = 'double_elim' then
+    if new.format <> '1v1' or new.nature <> 'tournoi' or new.creneau_auto is not null then
+      raise exception 'DOUBLE_1V1_SEULEMENT';
+    end if;
+    if new.capacite < 4 then
+      raise exception 'DOUBLE_4_PLACES_MINIMUM';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_format_double_elim() from public, anon, authenticated;
+drop trigger if exists controle_format_double_elim on public.tournaments;
+create trigger controle_format_double_elim
+  before insert or update of type_bracket, format, nature, creneau_auto, capacite on public.tournaments
+  for each row execute function public.controler_format_double_elim();
+
+-- Tableau et route du perdant : écrits par la base seule.
+create or replace function public.proteger_routes_double_elim()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user = 'authenticated'
+     and ((tg_op = 'INSERT' and (new.tableau is not null or new.match_perdant_suivant_id is not null))
+          or (tg_op = 'UPDATE' and (new.tableau, new.match_perdant_suivant_id)
+                                   is distinct from (old.tableau, old.match_perdant_suivant_id))) then
+    raise exception 'CHAMP_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.proteger_routes_double_elim() from public, anon, authenticated;
+drop trigger if exists matches_routes_double_elim on public.matches;
+create trigger matches_routes_double_elim
+  before insert or update on public.matches
+  for each row execute function public.proteger_routes_double_elim();
+
+-- Pas de match écrit à la main, pas de lancement sans la base (comme le
+-- format suisse).
+create or replace function public.refuser_match_suisse_client()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_type text;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+  select type_bracket into v_type from public.tournaments where id = new.tournament_id;
+  if v_type = 'suisse' then
+    raise exception 'BRACKET_SUISSE_RESERVE';
+  elsif v_type = 'double_elim' then
+    raise exception 'BRACKET_DOUBLE_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_match_suisse_client() from public, anon, authenticated;
+
+create or replace function public.controler_statut_double_elim()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.type_bracket = 'double_elim' and new.statut is distinct from old.statut
+     and new.statut = 'en_cours' and current_user = 'authenticated' then
+    raise exception 'LANCEMENT_DOUBLE_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_statut_double_elim() from public, anon, authenticated;
+drop trigger if exists tournaments_statut_double_elim on public.tournaments;
+create trigger tournaments_statut_double_elim
+  before update of statut on public.tournaments
+  for each row execute function public.controler_statut_double_elim();
+
+-- Pronostics (demi-finales et finale d'un arbre simple) et dotations (rangs
+-- lus dans le bracket) : ni en suisse, ni en double élimination.
+create or replace function public.refuser_pronostic_suisse()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from public.matches m join public.tournaments t on t.id = m.tournament_id
+    where m.id = new.match_id and t.type_bracket in ('suisse', 'double_elim')
+  ) then
+    raise exception 'PRONOSTIC_HORS_PHASE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_pronostic_suisse() from public, anon, authenticated;
+
+create or replace function public.refuser_dotation_suisse()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_type text;
+begin
+  select type_bracket into v_type from public.tournaments where id = new.tournament_id;
+  if v_type = 'suisse' then
+    raise exception 'DOTATION_SUISSE_INDISPONIBLE';
+  elsif v_type = 'double_elim' then
+    raise exception 'DOTATION_DOUBLE_INDISPONIBLE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_dotation_suisse() from public, anon, authenticated;
+
+-- Place un joueur dans un match (première place libre) ; le match s'ouvre
+-- quand ses deux joueurs sont connus. Idempotent.
+create or replace function public.placer_dans_match(p_match uuid, p_joueur uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_slot smallint;
+begin
+  perform 1 from public.matches where id = p_match for update;
+  if exists (select 1 from public.match_participants where match_id = p_match and profile_id = p_joueur) then
+    return;
+  end if;
+  if (select count(*) from public.match_participants where match_id = p_match) >= 2 then
+    raise exception 'MATCH_COMPLET';
+  end if;
+  select case
+    when exists (select 1 from public.match_participants where match_id = p_match and slot = 1) then 2 else 1
+  end into v_slot;
+  insert into public.match_participants (match_id, profile_id, slot)
+  values (p_match, p_joueur, v_slot)
+  on conflict (match_id, profile_id) do nothing;
+  if (select count(*) from public.match_participants where match_id = p_match) = 2 then
+    update public.matches set statut = 'en_cours', demarre_le = now() where id = p_match;
+  end if;
+end;
+$$;
+revoke all on function public.placer_dans_match(uuid, uuid) from public, anon, authenticated;
+
+-- Avancement après un verdict, sans la résolution des exemptions de la
+-- double élimination (utilisé par cette résolution elle-même).
+create or replace function public.avancer_vainqueur_simple(p_match_id uuid, p_gagnant_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi uuid;
+  v_type text;
+  v_suivant uuid;
+  v_perdant_suivant uuid;
+  v_perdant uuid;
+begin
+  update public.match_participants
+  set est_gagnant = (profile_id = p_gagnant_id)
+  where match_id = p_match_id;
+
+  update public.matches set statut = 'termine' where id = p_match_id;
+
+  select m.tournament_id, t.type_bracket, m.match_suivant_id, m.match_perdant_suivant_id
+  into v_tournoi, v_type, v_suivant, v_perdant_suivant
+  from public.matches m join public.tournaments t on t.id = m.tournament_id
+  where m.id = p_match_id;
+
+  if v_suivant is null then
+    -- Format suisse (19/11/2026) : pas de match suivant ; la ronde
+    -- suivante se crée quand la ronde en cours est entièrement jouée.
+    if v_type = 'suisse' then
+      perform public.ronde_suisse_suivante(v_tournoi);
+    end if;
+    return;
+  end if;
+
+  if not exists (select 1 from public.matches where id = v_suivant and tournament_id = v_tournoi) then
+    raise exception 'MATCH_SUIVANT_INVALIDE';
+  end if;
+  perform public.placer_dans_match(v_suivant, p_gagnant_id);
+
+  -- Double élimination : le perdant descend dans le tableau des perdants.
+  if v_perdant_suivant is not null then
+    select profile_id into v_perdant
+    from public.match_participants
+    where match_id = p_match_id and profile_id <> p_gagnant_id
+    limit 1;
+    if v_perdant is not null then
+      if not exists (select 1 from public.matches where id = v_perdant_suivant and tournament_id = v_tournoi) then
+        raise exception 'MATCH_SUIVANT_INVALIDE';
+      end if;
+      perform public.placer_dans_match(v_perdant_suivant, v_perdant);
+    end if;
+  end if;
+end;
+$$;
+revoke all on function public.avancer_vainqueur_simple(uuid, uuid) from public, anon, authenticated;
+
+-- Double élimination : un match dont tous les matchs d'origine sont joués
+-- et qui n'a reçu qu'un joueur est une exemption (verdict manuel, jamais
+-- classé) ; sans aucun joueur, il est clos vide. Répété jusqu'à ce que
+-- plus rien ne change (une exemption peut en libérer une autre).
+create or replace function public.resoudre_double_elim(p_tournament uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_m record;
+  v_change boolean := true;
+  v_n integer;
+  v_joueur uuid;
+  v_organisateur uuid;
+begin
+  select organisateur_id into v_organisateur from public.tournaments where id = p_tournament;
+  while v_change loop
+    v_change := false;
+    for v_m in
+      select m.id
+      from public.matches m
+      where m.tournament_id = p_tournament and m.tableau is not null
+        and m.statut not in ('termine', 'forfait')
+        and not exists (
+          select 1 from public.matches f
+          where f.tournament_id = p_tournament
+            and (f.match_suivant_id = m.id or f.match_perdant_suivant_id = m.id)
+            and f.statut not in ('termine', 'forfait')
+        )
+      order by m.tour, m.position
+    loop
+      select count(*) into v_n from public.match_participants where match_id = v_m.id;
+      if v_n = 1 then
+        select profile_id into v_joueur from public.match_participants where match_id = v_m.id;
+        insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+        values (v_m.id, 'manuel', v_joueur, v_organisateur,
+                'Exemption : pas d''adversaire à cette place (double élimination), hors classement.', true);
+        perform public.avancer_vainqueur_simple(v_m.id, v_joueur);
+        v_change := true;
+      elsif v_n = 0 then
+        update public.matches set statut = 'termine' where id = v_m.id;
+        v_change := true;
+      end if;
+    end loop;
+  end loop;
+end;
+$$;
+revoke all on function public.resoudre_double_elim(uuid) from public, anon, authenticated;
+
+create or replace function public.avancer_vainqueur(p_match_id uuid, p_gagnant_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi uuid;
+begin
+  perform public.avancer_vainqueur_simple(p_match_id, p_gagnant_id);
+  select m.tournament_id into v_tournoi
+  from public.matches m join public.tournaments t on t.id = m.tournament_id
+  where m.id = p_match_id and t.type_bracket = 'double_elim';
+  if v_tournoi is not null then
+    perform public.resoudre_double_elim(v_tournoi);
+  end if;
+end;
+$$;
+revoke execute on function public.avancer_vainqueur from public, anon, authenticated;
+
+-- Lancement par l'organisateur (bouton du cockpit).
+create or replace function public.demarrer_double_elim(p_tournament uuid)
+returns smallint -- nombre de tours du tableau des gagnants
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_t record;
+  v_joueurs uuid[];
+  v_n integer;
+  v_k integer;
+  v_taille integer;
+  v_l integer;
+  v_ordre integer[] := array[1];
+  v_nouvel integer[];
+  v_s integer;
+  v_ids jsonb := '{}'::jsonb;
+  v_id uuid;
+  v_finale uuid;
+  v_suivant uuid;
+  v_nb integer;
+  r integer;
+  p integer;
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, organisateur_id, type_bracket, statut into v_t
+  from public.tournaments where id = p_tournament for update;
+  if not found or v_t.organisateur_id <> auth.uid() then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_t.type_bracket <> 'double_elim' then
+    raise exception 'PAS_UNE_DOUBLE_ELIMINATION';
+  end if;
+  if v_t.statut not in ('ouvert', 'checkin')
+     or exists (select 1 from public.matches where tournament_id = p_tournament) then
+    raise exception 'TOURNOI_DEJA_LANCE';
+  end if;
+  select array_agg(r2.profile_id order by r2.rating_a_inscription desc nulls last, md5(r2.profile_id::text || p_tournament::text))
+  into v_joueurs
+  from public.registrations r2
+  where r2.tournament_id = p_tournament and r2.statut = 'confirme';
+  v_n := coalesce(array_length(v_joueurs, 1), 0);
+  if v_n < 4 then
+    raise exception 'PAS_ASSEZ_DE_JOUEURS';
+  end if;
+  v_k := ceil(log(2, v_n::numeric))::integer;
+  v_taille := (2 ^ v_k)::integer;
+  v_l := 2 * (v_k - 1);
+
+  -- Ordre standard des têtes de série (le même que lib/bracket.ts) : les
+  -- deux meilleurs ne se croisent qu'en finale, les exemptions vont aux
+  -- mieux classés.
+  while array_length(v_ordre, 1) < v_taille loop
+    v_nouvel := '{}';
+    foreach v_s in array v_ordre loop
+      v_nouvel := v_nouvel || v_s || (2 * array_length(v_ordre, 1) + 1 - v_s);
+    end loop;
+    v_ordre := v_nouvel;
+  end loop;
+
+  -- Grande finale, puis les tableaux du dernier tour au premier (un match
+  -- suivant doit exister avant ses matchs d'origine). Numéros de tour :
+  -- gagnants 1..k, perdants k+1..k+2(k-1), grande finale 3k-1.
+  insert into public.matches (tournament_id, tour, position, tableau)
+  values (p_tournament, 3 * v_k - 1, 1, 'finale')
+  returning id into v_finale;
+
+  for r in reverse v_k..1 loop
+    v_nb := v_taille / (2 ^ r)::integer;
+    for p in 1..v_nb loop
+      v_suivant := case when r = v_k then v_finale
+                        else (v_ids ->> ('g' || (r + 1) || '-' || ((p + 1) / 2)))::uuid end;
+      insert into public.matches (tournament_id, tour, position, tableau, match_suivant_id)
+      values (p_tournament, r, p, 'gagnants', v_suivant)
+      returning id into v_id;
+      v_ids := v_ids || jsonb_build_object('g' || r || '-' || p, v_id);
+    end loop;
+  end loop;
+
+  -- Tableau des perdants : le tour r compte N / 2^(⌈r/2⌉+1) matchs ; un
+  -- tour impair envoie ses vainqueurs au même rang du tour suivant (où
+  -- arrivent les perdants du tableau des gagnants), un tour pair les
+  -- regroupe deux à deux.
+  for r in reverse v_l..1 loop
+    v_nb := v_taille / (2 ^ ((r + 1) / 2 + 1))::integer;
+    for p in 1..v_nb loop
+      v_suivant := case
+        when r = v_l then v_finale
+        when r % 2 = 1 then (v_ids ->> ('p' || (r + 1) || '-' || p))::uuid
+        else (v_ids ->> ('p' || (r + 1) || '-' || ((p + 1) / 2)))::uuid
+      end;
+      insert into public.matches (tournament_id, tour, position, tableau, match_suivant_id)
+      values (p_tournament, v_k + r, p, 'perdants', v_suivant)
+      returning id into v_id;
+      v_ids := v_ids || jsonb_build_object('p' || r || '-' || p, v_id);
+    end loop;
+  end loop;
+
+  -- Où descend le perdant de chaque match du tableau des gagnants : tour 1
+  -- vers le tour 1 des perdants (deux par deux) ; tour r vers le tour
+  -- 2(r-1) des perdants, dans l'ordre inverse (moins de revanches
+  -- immédiates).
+  for r in 1..v_k loop
+    v_nb := v_taille / (2 ^ r)::integer;
+    for p in 1..v_nb loop
+      v_suivant := case when r = 1 then (v_ids ->> ('p1-' || ((p + 1) / 2)))::uuid
+                        else (v_ids ->> ('p' || (2 * (r - 1)) || '-' || (v_nb + 1 - p)))::uuid end;
+      update public.matches set match_perdant_suivant_id = v_suivant
+      where id = (v_ids ->> ('g' || r || '-' || p))::uuid;
+    end loop;
+  end loop;
+
+  -- Joueurs du premier tour, dans l'ordre des têtes de série.
+  for v_s in 1..v_taille loop
+    if v_ordre[v_s] <= v_n then
+      insert into public.match_participants (match_id, profile_id, slot)
+      values ((v_ids ->> ('g1-' || ((v_s + 1) / 2)))::uuid, v_joueurs[v_ordre[v_s]],
+              case when v_s % 2 = 1 then 1 else 2 end);
+    end if;
+  end loop;
+  update public.matches m set statut = 'en_cours', demarre_le = now()
+  where m.tournament_id = p_tournament and m.tableau = 'gagnants' and m.tour = 1
+    and (select count(*) from public.match_participants x where x.match_id = m.id) = 2;
+
+  update public.tournaments set statut = 'en_cours' where id = p_tournament;
+  perform public.resoudre_double_elim(p_tournament);
+  return v_k::smallint;
+end;
+$$;
+revoke execute on function public.demarrer_double_elim(uuid) from public, anon;
+grant execute on function public.demarrer_double_elim(uuid) to authenticated;

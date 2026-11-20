@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { typographie } from "@/lib/typographie";
 import { nombreRondes } from "@/lib/suisse";
+import { estMatchVide, estTableau, libelleTourDouble, type Tableau as TableauDouble } from "@/lib/double-elim";
 import { redirect, notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
@@ -79,7 +80,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     supabase
       .from("matches")
       .select(
-        "id, tour, position, statut, match_participants(profile_id, slot, est_gagnant, profile:profiles(pseudo, slug))",
+        "id, tour, position, tableau, statut, match_participants(profile_id, slot, est_gagnant, profile:profiles(pseudo, slug))",
       )
       .eq("tournament_id", id)
       .order("tour", { ascending: true })
@@ -138,8 +139,11 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     (dossiersData ?? []).map((d) => [d.dispute_id, { faits: d.faits, synthese: lireSynthese(d.synthese) }]),
   );
 
+  const estDouble = tournoi.type_bracket === "double_elim";
+  const toursGagnants = estDouble ? Math.max(0, ...matchs.filter((m) => m.tableau === "gagnants").map((m) => m.tour)) : 0;
   const rounds = new Map<number, typeof matchs>();
-  for (const m of matchs) {
+  // Double élimination : un match clos sans aucun joueur n'est pas affiché.
+  for (const m of estDouble ? matchs.filter((x) => !estMatchVide(x)) : matchs) {
     const liste = rounds.get(m.tour) ?? [];
     liste.push(m);
     rounds.set(m.tour, liste);
@@ -230,6 +234,18 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
             {nbConfirmes === 1 ? "" : "s"}. Têtes de série selon le rating à l&apos;inscription (le tirage au sort ne
             départage que les égalités).
           </p>
+          {estDouble && nbConfirmes >= 4 && (
+            <p className="max-w-2xl text-sm text-muted">
+              {typographie(
+                `Double élimination : ${nbConfirmes} joueurs dans un tableau de ${2 ** Math.ceil(Math.log2(nbConfirmes))}. Un joueur battu passe dans le tableau des perdants et n'est éliminé qu'à sa deuxième défaite ; les places vides donnent des exemptions aux mieux classés.`,
+              )}
+            </p>
+          )}
+          {estDouble && nbConfirmes < 4 && (
+            <p className="max-w-2xl text-sm text-muted">
+              {typographie("Double élimination : il faut au moins 4 joueurs confirmés pour lancer le tournoi.")}
+            </p>
+          )}
           {tournoi.type_bracket === "suisse" && nbConfirmes >= 2 && (
             <p className="max-w-2xl text-sm text-muted">
               {typographie(
@@ -246,8 +262,15 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
           )}
           <form action={genererBracket}>
             <input type="hidden" name="tournament_id" value={tournoi.id} />
-            <BoutonEnvoi disabled={nbConfirmes + equipesAgents < 2} libelleEnCours="Génération…">
-              {tournoi.type_bracket === "suisse" ? "Lancer la première ronde" : "Générer le bracket"}
+            <BoutonEnvoi
+              disabled={estDouble ? nbConfirmes < 4 : nbConfirmes + equipesAgents < 2}
+              libelleEnCours="Génération…"
+            >
+              {tournoi.type_bracket === "suisse"
+                ? "Lancer la première ronde"
+                : estDouble
+                  ? "Générer les deux tableaux"
+                  : "Générer le bracket"}
             </BoutonEnvoi>
             {tournoi.type_bracket === "suisse" && (
               <p className="mt-2 max-w-2xl text-xs text-muted">
@@ -263,7 +286,9 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
               <h3 className="font-texte text-mini font-medium text-faint uppercase">
                 {tournoi.type_bracket === "suisse"
                   ? `Ronde ${tour}${tournoi.rondes ? ` / ${tournoi.rondes}` : ""}`
-                  : libelleTour(tour, dernierTour)}
+                  : estDouble && estTableau(rounds.get(tour)?.[0]?.tableau)
+                    ? libelleTourDouble(rounds.get(tour)![0].tableau as TableauDouble, tour, toursGagnants)
+                    : libelleTour(tour, dernierTour)}
               </h3>
               <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {rounds.get(tour)!.map((m) => {

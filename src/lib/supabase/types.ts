@@ -2008,9 +2008,11 @@ export type Database = {
           defaite_reconnue_par: string | null
           demarre_le: string | null
           id: string
+          match_perdant_suivant_id: string | null
           match_suivant_id: string | null
           position: number
           statut: Database["public"]["Enums"]["match_status"]
+          tableau: string | null
           tour: number
           tournament_id: string
         }
@@ -2020,9 +2022,11 @@ export type Database = {
           defaite_reconnue_par?: string | null
           demarre_le?: string | null
           id?: string
+          match_perdant_suivant_id?: string | null
           match_suivant_id?: string | null
           position: number
           statut?: Database["public"]["Enums"]["match_status"]
+          tableau?: string | null
           tour: number
           tournament_id: string
         }
@@ -2032,9 +2036,11 @@ export type Database = {
           defaite_reconnue_par?: string | null
           demarre_le?: string | null
           id?: string
+          match_perdant_suivant_id?: string | null
           match_suivant_id?: string | null
           position?: number
           statut?: Database["public"]["Enums"]["match_status"]
+          tableau?: string | null
           tour?: number
           tournament_id?: string
         }
@@ -3547,6 +3553,7 @@ export type Database = {
         }[]
       }
       abandonner_suisse: { Args: { p_tournament: string }; Returns: string | null }
+      demarrer_double_elim: { Args: { p_tournament: string }; Returns: number }
       annonce_recrutement_visible: { Args: { p_team: string }; Returns: boolean }
       publier_recrutement: {
         Args: { p_team: string; p_postes: string[]; p_niveau_min?: number | null; p_message?: string | null }

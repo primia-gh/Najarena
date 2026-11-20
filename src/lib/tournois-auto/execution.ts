@@ -269,7 +269,8 @@ async function reprendreCloturesEnAttente(admin: ClientAdmin): Promise<string[]>
     .in("statut", ["termine", "forfait"])
     .eq("tournament.statut", "en_cours")
     // Format suisse : aucun match n'a de suivant, ce n'est pas une finale.
-    .eq("tournament.type_bracket", "elim_simple");
+    // Double élimination : seule la grande finale n'a pas de suivant.
+    .in("tournament.type_bracket", ["elim_simple", "double_elim"]);
 
   const resultats: string[] = [];
   for (const finale of finales ?? []) {

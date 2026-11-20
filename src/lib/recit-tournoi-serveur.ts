@@ -40,6 +40,21 @@ export async function annoncerVainqueur(tournamentId: string, gagnantId: string)
     if (phrases) await notifierDiscord(`🏆 ${phrases.map(echapperDiscord).join("\n")}\n${lienTournoi}`);
     return;
   }
+  // Double élimination (20/11/2026) : le vainqueur de la grande finale.
+  if (tournoi.type_bracket === "double_elim") {
+    // La grande finale porte le plus grand numéro de tour.
+    const finale = [...(matchs ?? [])].sort((a, b) => b.tour - a.tour)[0];
+    const joueurs = new Set((matchs ?? []).flatMap((m) => m.match_participants.map((p) => p.profile_id))).size;
+    const gagnant = finale?.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ?? "Un joueur";
+    const finaliste = finale?.match_participants.find((p) => p.profile_id !== gagnantId)?.profile?.pseudo;
+    await notifierDiscord(
+      `🏆 ${echapperDiscord(
+        `${gagnant} remporte ${tournoi.nom} en double élimination (${joueurs} joueurs)${finaliste ? `, en grande finale contre ${finaliste}` : ""}.`,
+      )}
+${lienTournoi}`,
+    );
+    return;
+  }
   // 5v5 (audit N21) : chaque capitaine du bracket représente son équipe.
   const equipes = tournoi.format === "5v5" ? await chargerEquipesDesTournois(admin, [tournamentId]) : new Map();
   const nom = (id: string, pseudo: string | undefined) =>

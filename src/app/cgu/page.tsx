@@ -167,6 +167,15 @@ export default function CguPage() {
             entre-temps ne confirme plus sa place.
           </p>
           <p className="mt-2 text-muted">
+            Un tournoi 1v1 peut aussi se jouer en double élimination&nbsp;: un
+            joueur battu passe dans le tableau des perdants et n&apos;est
+            éliminé qu&apos;à sa deuxième défaite. La grande finale oppose, en
+            un seul match, le vainqueur de chaque tableau. Avec moins de
+            joueurs confirmés que de places, les mieux classés sont exemptés
+            de certains matchs&nbsp;: une exemption compte comme une victoire
+            dans le tableau, jamais au classement Najarena.
+          </p>
+          <p className="mt-2 text-muted">
             Un tournoi 1v1 peut se jouer au format suisse plutôt qu&apos;en
             élimination directe&nbsp;: chaque joueur confirmé dispute toutes
             les rondes, contre un adversaire au même bilan. Avec un nombre

@@ -6,7 +6,7 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1342 vérifications de
+elle se rejoue une seconde fois sans erreur, et les 1365 vérifications de
 `tests/sql/` passent ensuite (contrôle refait le 19/11/2026, après l'ajout
 des tournois par niveau, du face-à-face, du recrutement, du format suisse
 et de leur contrôle de sécurité).
@@ -20,8 +20,8 @@ les pages d'équipe et de tournoi, et les conversations.
 
 ## Ce que contient la migration
 
-Dix sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, six du
-19/11/2026) :
+Onze sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, six du
+19/11/2026, une du 20/11/2026) :
 
 1. **Défis et arène : pas de duel pendant un match ouvert ; noms d'équipe
    uniques.** `match_ouvert_entre`, `creer_duel` et `apparier_joueur_arene`
@@ -72,6 +72,13 @@ Dix sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, six du
    (Les sections 5, 8 et 9 ont aussi été corrigées sur place : le niveau
    repose la date de publication, classement suisse tiré des matchs,
    capitaine suspendu.)
+11. **Format double élimination** (20/11/2026). Colonnes `matches.tableau`
+   et `matches.match_perdant_suivant_id` ; contrainte `type_bracket`
+   élargie à `double_elim` ; `demarrer_double_elim`, `placer_dans_match`,
+   `avancer_vainqueur_simple`, `resoudre_double_elim` ; **`avancer_vainqueur`
+   redéfinie** (le perdant descend dans le tableau des perdants ; rien de
+   changé pour l'élimination directe ni le suisse) ; matchs et lancement
+   réservés à la base, pronostics et dotations refusés.
 
 ## 1. Vérifications avant migration (lecture seule)
 
@@ -97,8 +104,8 @@ where char_length(btrim(nom)) not between 3 and 40
 select regexp_replace(translate(lower('LÈS LOUPS'), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ', 'aaaaaaceeeeiiiinooooouuuuyyoa'), '[^a-z0-9]', '', 'g');
 
 -- d) Format des tournois : la nouvelle contrainte n'accepte que
---    « elim_simple » et « suisse ». Doit renvoyer une seule ligne,
---    « elim_simple ».
+--    « elim_simple », « suisse » et « double_elim ». Doit renvoyer une
+--    seule ligne, « elim_simple ».
 select type_bracket, count(*) from public.tournaments group by 1;
 
 -- e) Bornes de niveau déjà posées (aucune page ne les proposait) : doit
@@ -132,7 +139,8 @@ from unnest(array[
   'postuler_equipe', 'repondre_candidature', 'annuler_candidature', 'joueurs_pour_recrutement',
   'classement_suisse', 'ronde_suisse_suivante', 'demarrer_suisse', 'suisse_terminee', 'abandonner_suisse',
   'annonce_recrutement_visible',
-  'figer_inscriptions_lancees', 'controler_statut_suisse', 'refuser_match_suisse_client'
+  'figer_inscriptions_lancees', 'controler_statut_suisse', 'refuser_match_suisse_client',
+  'demarrer_double_elim', 'placer_dans_match', 'avancer_vainqueur_simple', 'resoudre_double_elim'
 ]) as f;  -- toutes « true »
 
 select tgname from pg_trigger

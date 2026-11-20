@@ -199,16 +199,24 @@ export default async function OrganiserNouveauPage({
                 </select>
               </Champ>
 
-              {/* Format du bracket (19/11/2026) : élimination directe ou suisse, 1v1. */}
+              {/* Format du bracket : élimination directe, double élimination (20/11/2026) ou suisse (19/11/2026), 1v1. */}
               <fieldset className="flex flex-col gap-2">
                 <legend className="mb-1.5 font-texte text-mini font-medium text-muted uppercase">Déroulement (1v1)</legend>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2">
                   <Choix
                     name="type_bracket"
                     value="elim_simple"
                     defaultChecked
                     titre="Élimination directe"
                     detail={typographie("Le perdant d'un match est éliminé, jusqu'à la finale.")}
+                  />
+                  <Choix
+                    name="type_bracket"
+                    value="double_elim"
+                    titre="Double élimination"
+                    detail={typographie(
+                      "Un joueur battu passe dans le tableau des perdants : il n'est éliminé qu'à sa deuxième défaite. Grande finale en un match entre les deux tableaux. 4 joueurs confirmés au moins.",
+                    )}
                   />
                   <Choix
                     name="type_bracket"

@@ -38,10 +38,18 @@ export async function creerTournoi(formData: FormData) {
   const format = formData.get("format") === "5v5" ? "5v5" : "1v1";
   // Condition de victoire (audit N5) : Nexus par défaut, 1v1 classique au choix.
   const condition = format === "1v1" && formData.get("condition_victoire") === "classique" ? "classique" : "nexus";
-  // Format suisse (19/11/2026) : 1v1 seulement, chacun joue toutes les rondes.
-  const suisse = formData.get("type_bracket") === "suisse";
-  if (suisse && format !== "1v1") {
-    redirect(`/organiser/nouveau?erreur=${encodeURIComponent("Le format suisse ne se joue qu'en 1v1.")}`);
+  // Format suisse (19/11/2026) et double élimination (20/11/2026) : 1v1
+  // seulement (la base l'exige aussi).
+  const typeSaisi = formData.get("type_bracket");
+  const typeBracket = typeSaisi === "suisse" || typeSaisi === "double_elim" ? typeSaisi : "elim_simple";
+  if (typeBracket !== "elim_simple" && format !== "1v1") {
+    redirect(
+      `/organiser/nouveau?erreur=${encodeURIComponent(
+        typeBracket === "suisse"
+          ? "Le format suisse ne se joue qu'en 1v1."
+          : "La double élimination ne se joue qu'en 1v1.",
+      )}`,
+    );
   }
   // Communauté (audit N30) : la base vérifie que l'organisateur en est le
   // fondateur ou un administrateur.
@@ -148,7 +156,7 @@ export async function creerTournoi(formData: FormData) {
     reserve_membres: reserveMembres,
     rating_min: niveau.min,
     rating_max: niveau.max,
-    type_bracket: suisse ? "suisse" : "elim_simple",
+    type_bracket: typeBracket,
   });
 
   if (error) {

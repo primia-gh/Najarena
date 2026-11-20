@@ -51,7 +51,12 @@ async function chargerAffiche(slug: string): Promise<AfficheTournoi | null> {
   let bracket: MatchImage[] = [];
   // Pas de mini-bracket pour le format suisse : ses rondes ne forment pas
   // un arbre (construireBracketImage suppose l'élimination directe).
-  if ((tournoi.statut === "en_cours" || tournoi.statut === "termine") && tournoi.type_bracket !== "suisse") {
+  // Double élimination : deux tableaux et une grande finale, pas un arbre.
+  if (
+    (tournoi.statut === "en_cours" || tournoi.statut === "termine") &&
+    tournoi.type_bracket !== "suisse" &&
+    tournoi.type_bracket !== "double_elim"
+  ) {
     const [{ data: matchs }, { data: equipes }] = await Promise.all([
       supabase
         .from("matches")

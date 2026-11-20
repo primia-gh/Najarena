@@ -19,6 +19,7 @@ describe("widgets", () => {
           {
             tour: 1,
             position: 1,
+            tableau: null,
             participants: [
               { nom: "A&B", slug: "ab", score: 1, gagnant: true },
               { nom: "C", slug: "c", score: 0, gagnant: false },
@@ -46,7 +47,7 @@ describe("widgets", () => {
         region: "EUW",
         debuteLe: "2026-10-03T20:00:00Z",
         url: "https://x",
-        matchs: [{ tour: 1, position: 1, participants: [], verdict: { niveau: "manuel", verifie: false } }],
+        matchs: [{ tour: 1, position: 1, tableau: null, participants: [], verdict: { niveau: "manuel", verifie: false } }],
       },
       opaque,
     );

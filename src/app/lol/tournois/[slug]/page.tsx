@@ -40,7 +40,7 @@ import Panneau from "@/components/design/Panneau";
 import Tableau from "@/components/design/Tableau";
 import LibelleSection from "@/components/design/LibelleSection";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
-import { CaseMatch, ColonnesBracket, type EtatMatch } from "@/components/tournoi/Bracket";
+import { CaseMatch, ColonnesBracket, type EtatMatch, type TourBracket } from "@/components/tournoi/Bracket";
 import { chancesDeTitre, formaterChance, type MatchTitre } from "@/lib/chances-titre";
 import { ficheAdversaire } from "@/lib/fiche-adversaire";
 import {
@@ -80,6 +80,13 @@ import { classeChamp } from "@/lib/design";
 import { libelleNiveau, ratingDansNiveau, situationNiveau } from "@/lib/niveau-tournoi";
 import { typographie } from "@/lib/typographie";
 import { recitSuisse } from "@/lib/suisse";
+import { estMatchVide, estTableau, libelleTourDouble, recitDouble, type Tableau as TableauDouble } from "@/lib/double-elim";
+
+const TITRE_TABLEAU: Record<TableauDouble, string> = {
+  gagnants: "Tableau des gagnants",
+  perdants: "Tableau des perdants",
+  finale: "Grande finale",
+};
 import ClassementSuisse from "@/components/tournoi/ClassementSuisse";
 
 // Refonte « Venin » du 24/09/2026 (design-system/najarena/pages/tournoi.md,
@@ -153,7 +160,7 @@ const chargerTournoi = cache(async (slug: string) => {
     supabase
       .from("matches")
       .select(
-        "id, tour, position, statut, demarre_le, defaite_reconnue_par, match_participants(profile_id, slot, score, est_gagnant, pret_le, profile:profiles(pseudo, slug))",
+        "id, tour, position, tableau, statut, demarre_le, defaite_reconnue_par, match_participants(profile_id, slot, score, est_gagnant, pret_le, profile:profiles(pseudo, slug))",
       )
       .eq("tournament_id", tournoi.id)
       .order("tour", { ascending: true })
@@ -530,12 +537,24 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   // matchs vérifiés) — src/lib/recit-tournoi.ts.
   // Format suisse (19/11/2026) : classement par victoires, pas de finale.
   const estSuisse = tournoi.type_bracket === "suisse";
+  // Double élimination (20/11/2026) : deux tableaux et une grande finale.
+  const estDouble = tournoi.type_bracket === "double_elim";
   const classementSuisse = estSuisse
     ? ((await (await createClient()).rpc("classement_suisse", { p_tournament: tournoi.id })).data ?? [])
     : [];
+  const grandeFinale = estDouble ? matchs.find((m) => m.tableau === "finale") : undefined;
   const recit =
     statut === "termine" && estSuisse
       ? recitSuisse(tournoi.nom, tournoi.rondes, classementSuisse)
+      : statut === "termine" && estDouble
+        ? grandeFinale
+          ? recitDouble(
+              tournoi.nom,
+              grandeFinale.match_participants.find((p) => p.est_gagnant)?.profile?.pseudo ?? "Un joueur",
+              grandeFinale.match_participants.find((p) => p.est_gagnant === false)?.profile?.pseudo ?? null,
+              new Set(matchs.flatMap((m) => m.match_participants.map((p) => p.profile_id))).size,
+            )
+          : null
       : statut === "termine"
       ? recitTournoi({
           nom: tournoi.nom,
@@ -571,7 +590,8 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const estComplet = inscriptionsActives.length >= tournoi.capacite;
 
   const rounds = new Map<number, typeof matchs>();
-  for (const m of matchs) {
+  // Double élimination : un match clos sans aucun joueur n'est pas affiché.
+  for (const m of estDouble ? matchs.filter((x) => !estMatchVide(x)) : matchs) {
     const liste = rounds.get(m.tour) ?? [];
     liste.push(m);
     rounds.set(m.tour, liste);
@@ -582,7 +602,12 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   // ratings au début du tournoi, avant le tournoi et au fil des résultats.
   // Tournois 1v1 seulement (en 5v5, le capitaine représente l'équipe).
   const titre =
-    !estEquipes && !estSuisse && tournoi.nature === "tournoi" && matchs.length > 0 && (statut === "en_cours" || statut === "termine")
+    !estEquipes &&
+    !estSuisse &&
+    !estDouble &&
+    tournoi.nature === "tournoi" &&
+    matchs.length > 0 &&
+    (statut === "en_cours" || statut === "termine")
       ? (() => {
           const matchsTitre: MatchTitre[] = matchs.map((m) => ({
             tour: m.tour,
@@ -617,7 +642,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   // (jamais d'un défi ni d'un scrim), dès que les deux adversaires sont
   // connus. Les joueurs du tournoi et l'organisateur ne pronostiquent pas.
   const matchsPronostic =
-    tournoi.nature === "tournoi" && !estSuisse
+    tournoi.nature === "tournoi" && !estSuisse && !estDouble
       ? matchs.filter((m) => pointsPronostic(m.tour, tournoi.capacite) > 0 && m.match_participants.length === 2)
       : [];
   const pronostics =
@@ -667,8 +692,14 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
 
   // Nom des colonnes : tous les tours sont créés dès la génération du
   // bracket (lib/organisation-actions.ts), le dernier est donc la finale.
+  // Double élimination : nombre de tours du tableau des gagnants.
+  const toursGagnants = estDouble ? Math.max(0, ...matchs.filter((m) => m.tableau === "gagnants").map((m) => m.tour)) : 0;
   const libelleTour = (index: number) => {
     if (estSuisse) return `Ronde ${toursOrdonnes[index]}${tournoi.rondes ? ` / ${tournoi.rondes}` : ""}`;
+    if (estDouble) {
+      const tableau = rounds.get(toursOrdonnes[index])?.[0]?.tableau;
+      if (estTableau(tableau)) return libelleTourDouble(tableau, toursOrdonnes[index], toursGagnants);
+    }
     const reste = toursOrdonnes.length - index;
     if (reste === 1) return estDefi ? "Duel" : estScrim ? "Scrim" : "Finale";
     if (reste === 2) return "Demi-finales";
@@ -1098,6 +1129,152 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     )
   ) : null;
 
+  // Une colonne du bracket : ses matchs dessinés (élimination directe,
+  // format suisse, ou un tableau de la double élimination).
+  const tourBracket = (tour: number, indexTour: number): TourBracket => ({
+                numero: tour,
+                libelle: libelleTour(indexTour),
+                matchs: rounds.get(tour)!.map((m) => {
+                  const verdict = verdictParMatch.get(m.id);
+                  const litige = litigeParMatch.get(m.id);
+                  // En 5v5, tout joueur aligné voit le match de son équipe
+                  // comme le sien ; seul le capitaine signale un litige.
+                  const estParticipantDuMatch = monRepresentant
+                    ? m.match_participants.some((p) => p.profile_id === monRepresentant)
+                    : false;
+                  const jeJoueCeMatch = utilisateur
+                    ? m.match_participants.some((p) => p.profile_id === utilisateur.id)
+                    : false;
+                  const peutSignalerLitige = jeJoueCeMatch && verdict && !litige;
+                  const enJeu =
+                    !verdict && (m.statut === "en_cours" || m.statut === "litige") && m.match_participants.length === 2;
+                  const perdantDansMatch = m.defaite_reconnue_par
+                    ? m.match_participants.find((p) => p.profile_id === m.defaite_reconnue_par)
+                    : undefined;
+                  const perdantDeclare = m.defaite_reconnue_par
+                    ? perdantDansMatch
+                      ? nomDe(perdantDansMatch.profile_id, perdantDansMatch.profile?.pseudo)
+                      : "un joueur"
+                    : null;
+                  const etat: EtatMatch =
+                    litige && !litige.resolution
+                      ? "litige"
+                      : !verdict && m.statut === "litige"
+                        ? "attente"
+                        : verdict
+                          ? "verdict"
+                          : m.statut === "en_cours"
+                            ? "direct"
+                            : "a_venir";
+                  const libelleMatch = m.match_participants
+                    .map((p) => nomDe(p.profile_id, p.profile?.pseudo))
+                    .join(" vs ");
+                  // Chances estimées (match à jouer) et exploit (victoire
+                  // vérifiée d'un joueur donné perdant) — audit N10.
+                  const duo = [...m.match_participants].sort((a, b) => a.slot - b.slot);
+                  const chances =
+                    duo.length === 2 && !estEquipes
+                      ? pourcentages(etatDepart(duo[0].profile_id), etatDepart(duo[1].profile_id))
+                      : null;
+                  const perdantVerifie =
+                    verdict && verdict.niveau !== "manuel" && verdict.gagnant_id
+                      ? duo.find((p) => p.profile_id !== verdict.gagnant_id)
+                      : undefined;
+                  const exploit =
+                    verdict?.gagnant_id && perdantVerifie && !estEquipes
+                      ? chancesSiExploit(etatDepart(verdict.gagnant_id), etatDepart(perdantVerifie.profile_id))
+                      : null;
+                  return {
+                    id: m.id,
+                    joue: Boolean(verdict),
+                    atteint: m.match_participants.length > 0,
+                    contenu: (
+                      <CaseMatch
+                        participants={duo.map((p, i) => ({
+                          cle: p.profile_id,
+                          pseudo: estEquipes ? nomDe(p.profile_id, p.profile?.pseudo) : (p.profile?.pseudo ?? null),
+                          slug: estEquipes ? null : (p.profile?.slug ?? null),
+                          lien: estEquipes
+                            ? equipeDe(p.profile_id)?.slug
+                              ? `/equipe/${equipeDe(p.profile_id)?.slug}`
+                              : null
+                            : undefined,
+                          score: p.score,
+                          estGagnant: p.est_gagnant,
+                          chances: chances ? chances[i] : null,
+                        }))}
+                        etat={etat}
+                        libelleSeul={
+                          estSuisse ? "Exempté cette ronde" : estDouble ? "Sans adversaire (exemption)" : undefined
+                        }
+                        niveau={verdict?.niveau}
+                        motif={verdict?.motif}
+                        monMatch={estParticipantDuMatch}
+                        exploit={exploit}
+                        lienPreuve={`/lol/match/${m.id}`}
+                      >
+                        {!verdict && m.statut === "litige" && !perdantDeclare && (
+                          <p className="text-xs text-danger">
+                            Partie pas encore retrouvée chez Riot — la recherche continue, l&apos;organisateur peut
+                            trancher.
+                          </p>
+                        )}
+                        {enJeu && perdantDeclare && (
+                          <p className="text-xs text-muted">
+                            Défaite reconnue par {perdantDeclare} — en attente de l&apos;historique Riot (20 min au
+                            plus).
+                          </p>
+                        )}
+                        {enJeu && !perdantDeclare && estParticipantDuMatch && (
+                          <a
+                            href="#ton-match"
+                            className="inline-flex min-h-11 items-center text-mini font-semibold text-accent uppercase underline underline-offset-3"
+                          >
+                            {estEquipes ? "Votre match : équipes et règles" : "Ton match : adversaire et règles"}
+                          </a>
+                        )}
+                        {litige && (
+                          <p className={`text-xs ${litige.resolution ? "text-muted" : "text-danger"}`}>
+                            {litige.resolution ? "Litige résolu." : "Litige signalé — en attente de l'organisateur."}
+                          </p>
+                        )}
+                        {peutSignalerLitige && (
+                          <details>
+                            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-mini font-semibold text-danger uppercase [&::-webkit-details-marker]:hidden">
+                              Signaler un litige
+                            </summary>
+                            <form action={ouvrirLitige} className="flex flex-col gap-2">
+                              <input type="hidden" name="match_id" value={m.id} />
+                              <input type="hidden" name="slug" value={tournoi.slug} />
+                              <label className="flex flex-col gap-1.5">
+                                <span className="text-mini text-muted uppercase">
+                                  Motif<span className="sr-only"> du litige — {libelleMatch}</span>
+                                </span>
+                                <input
+                                  name="motif"
+                                  type="text"
+                                  required
+                                  placeholder="Ce qui ne va pas dans ce résultat"
+                                  className={CHAMP}
+                                />
+                              </label>
+                              <BoutonEnvoi
+                                variante="contour"
+                                libelleEnCours="Envoi…"
+                                aria-label={`Signaler un litige — ${libelleMatch}`}
+                                className="self-start"
+                              >
+                                Envoyer
+                              </BoutonEnvoi>
+                            </form>
+                          </details>
+                        )}
+                      </CaseMatch>
+                    ),
+                  };
+                }),
+              });
+
   return (
     <main className="bg-bg font-texte text-text">
       {statut !== "termine" && statut !== "annule" && (
@@ -1460,151 +1637,30 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                   : "Le bracket n'a pas encore été généré."}
               </p>
             </Panneau>
+          ) : estDouble ? (
+            <div className="flex flex-col gap-8">
+              {(["gagnants", "perdants", "finale"] as const).map((tableau) => {
+                const colonnes = toursOrdonnes
+                  .map((tour, index) => ({ tour, index }))
+                  .filter(({ tour }) => rounds.get(tour)?.[0]?.tableau === tableau);
+                if (colonnes.length === 0) return null;
+                return (
+                  <div key={tableau} className="flex flex-col gap-3">
+                    <h3 className="font-texte text-mini font-medium text-text-2 uppercase">{TITRE_TABLEAU[tableau]}</h3>
+                    <ColonnesBracket
+                      sansConnecteurs={tableau !== "gagnants"}
+                      legende={`${TITRE_TABLEAU[tableau]} du tournoi ${tournoi.nom}`}
+                      tours={colonnes.map(({ tour, index }) => tourBracket(tour, index))}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <ColonnesBracket
               sansConnecteurs={estSuisse}
               legende={estSuisse ? `Rondes du tournoi ${tournoi.nom}` : `Bracket du tournoi ${tournoi.nom}`}
-              tours={toursOrdonnes.map((tour, indexTour) => ({
-                numero: tour,
-                libelle: libelleTour(indexTour),
-                matchs: rounds.get(tour)!.map((m) => {
-                  const verdict = verdictParMatch.get(m.id);
-                  const litige = litigeParMatch.get(m.id);
-                  // En 5v5, tout joueur aligné voit le match de son équipe
-                  // comme le sien ; seul le capitaine signale un litige.
-                  const estParticipantDuMatch = monRepresentant
-                    ? m.match_participants.some((p) => p.profile_id === monRepresentant)
-                    : false;
-                  const jeJoueCeMatch = utilisateur
-                    ? m.match_participants.some((p) => p.profile_id === utilisateur.id)
-                    : false;
-                  const peutSignalerLitige = jeJoueCeMatch && verdict && !litige;
-                  const enJeu =
-                    !verdict && (m.statut === "en_cours" || m.statut === "litige") && m.match_participants.length === 2;
-                  const perdantDansMatch = m.defaite_reconnue_par
-                    ? m.match_participants.find((p) => p.profile_id === m.defaite_reconnue_par)
-                    : undefined;
-                  const perdantDeclare = m.defaite_reconnue_par
-                    ? perdantDansMatch
-                      ? nomDe(perdantDansMatch.profile_id, perdantDansMatch.profile?.pseudo)
-                      : "un joueur"
-                    : null;
-                  const etat: EtatMatch =
-                    litige && !litige.resolution
-                      ? "litige"
-                      : !verdict && m.statut === "litige"
-                        ? "attente"
-                        : verdict
-                          ? "verdict"
-                          : m.statut === "en_cours"
-                            ? "direct"
-                            : "a_venir";
-                  const libelleMatch = m.match_participants
-                    .map((p) => nomDe(p.profile_id, p.profile?.pseudo))
-                    .join(" vs ");
-                  // Chances estimées (match à jouer) et exploit (victoire
-                  // vérifiée d'un joueur donné perdant) — audit N10.
-                  const duo = [...m.match_participants].sort((a, b) => a.slot - b.slot);
-                  const chances =
-                    duo.length === 2 && !estEquipes
-                      ? pourcentages(etatDepart(duo[0].profile_id), etatDepart(duo[1].profile_id))
-                      : null;
-                  const perdantVerifie =
-                    verdict && verdict.niveau !== "manuel" && verdict.gagnant_id
-                      ? duo.find((p) => p.profile_id !== verdict.gagnant_id)
-                      : undefined;
-                  const exploit =
-                    verdict?.gagnant_id && perdantVerifie && !estEquipes
-                      ? chancesSiExploit(etatDepart(verdict.gagnant_id), etatDepart(perdantVerifie.profile_id))
-                      : null;
-                  return {
-                    id: m.id,
-                    joue: Boolean(verdict),
-                    atteint: m.match_participants.length > 0,
-                    contenu: (
-                      <CaseMatch
-                        participants={duo.map((p, i) => ({
-                          cle: p.profile_id,
-                          pseudo: estEquipes ? nomDe(p.profile_id, p.profile?.pseudo) : (p.profile?.pseudo ?? null),
-                          slug: estEquipes ? null : (p.profile?.slug ?? null),
-                          lien: estEquipes
-                            ? equipeDe(p.profile_id)?.slug
-                              ? `/equipe/${equipeDe(p.profile_id)?.slug}`
-                              : null
-                            : undefined,
-                          score: p.score,
-                          estGagnant: p.est_gagnant,
-                          chances: chances ? chances[i] : null,
-                        }))}
-                        etat={etat}
-                        libelleSeul={estSuisse ? "Exempté cette ronde" : undefined}
-                        niveau={verdict?.niveau}
-                        motif={verdict?.motif}
-                        monMatch={estParticipantDuMatch}
-                        exploit={exploit}
-                        lienPreuve={`/lol/match/${m.id}`}
-                      >
-                        {!verdict && m.statut === "litige" && !perdantDeclare && (
-                          <p className="text-xs text-danger">
-                            Partie pas encore retrouvée chez Riot — la recherche continue, l&apos;organisateur peut
-                            trancher.
-                          </p>
-                        )}
-                        {enJeu && perdantDeclare && (
-                          <p className="text-xs text-muted">
-                            Défaite reconnue par {perdantDeclare} — en attente de l&apos;historique Riot (20 min au
-                            plus).
-                          </p>
-                        )}
-                        {enJeu && !perdantDeclare && estParticipantDuMatch && (
-                          <a
-                            href="#ton-match"
-                            className="inline-flex min-h-11 items-center text-mini font-semibold text-accent uppercase underline underline-offset-3"
-                          >
-                            {estEquipes ? "Votre match : équipes et règles" : "Ton match : adversaire et règles"}
-                          </a>
-                        )}
-                        {litige && (
-                          <p className={`text-xs ${litige.resolution ? "text-muted" : "text-danger"}`}>
-                            {litige.resolution ? "Litige résolu." : "Litige signalé — en attente de l'organisateur."}
-                          </p>
-                        )}
-                        {peutSignalerLitige && (
-                          <details>
-                            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-mini font-semibold text-danger uppercase [&::-webkit-details-marker]:hidden">
-                              Signaler un litige
-                            </summary>
-                            <form action={ouvrirLitige} className="flex flex-col gap-2">
-                              <input type="hidden" name="match_id" value={m.id} />
-                              <input type="hidden" name="slug" value={tournoi.slug} />
-                              <label className="flex flex-col gap-1.5">
-                                <span className="text-mini text-muted uppercase">
-                                  Motif<span className="sr-only"> du litige — {libelleMatch}</span>
-                                </span>
-                                <input
-                                  name="motif"
-                                  type="text"
-                                  required
-                                  placeholder="Ce qui ne va pas dans ce résultat"
-                                  className={CHAMP}
-                                />
-                              </label>
-                              <BoutonEnvoi
-                                variante="contour"
-                                libelleEnCours="Envoi…"
-                                aria-label={`Signaler un litige — ${libelleMatch}`}
-                                className="self-start"
-                              >
-                                Envoyer
-                              </BoutonEnvoi>
-                            </form>
-                          </details>
-                        )}
-                      </CaseMatch>
-                    ),
-                  };
-                }),
-              }))}
+              tours={toursOrdonnes.map(tourBracket)}
             />
           )}
 

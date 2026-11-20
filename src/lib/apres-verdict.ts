@@ -20,7 +20,7 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
   const { data: m } = await admin
     .from("matches")
     .select(
-      "tournament_id, tour, match_suivant_id, tournament:tournaments(nom, slug, format, nature, type_bracket), match_participants(profile_id, profile:profiles(pseudo))",
+      "tournament_id, tour, match_suivant_id, match_perdant_suivant_id, tournament:tournaments(nom, slug, format, nature, type_bracket), match_participants(profile_id, profile:profiles(pseudo))",
     )
     .eq("id", matchId)
     .maybeSingle();
@@ -76,11 +76,15 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
     return;
   }
 
-  if (m.match_suivant_id) {
+  if (tournoi.type_bracket === "double_elim") {
+    // Double élimination : le match du vainqueur et celui du perdant.
+    await prevenirSuitesDouble([m.match_suivant_id, m.match_perdant_suivant_id]);
+  } else if (m.match_suivant_id) {
     await prevenirMatchOuvert(m.match_suivant_id);
   }
 
-  // Aucun match suivant : c'était la finale.
+  // Aucun match suivant : c'était la finale (en double élimination, la
+  // grande finale).
   if (m.match_suivant_id === null) {
     await cloturerTournoi(m.tournament_id);
     await annoncerVainqueur(m.tournament_id, gagnantId);
@@ -113,6 +117,35 @@ export async function suiteSuisse(tournamentId: string, tour: number): Promise<v
     .eq("statut", "en_cours")
     .gt("demarre_le", recemment);
   await Promise.all((ouverts ?? []).map((o) => prevenirMatchOuvert(o.id)));
+}
+
+/**
+ * Double élimination (20/11/2026) : après un verdict, prévient les joueurs
+ * des matchs qui viennent de s'ouvrir — celui du vainqueur, celui du
+ * perdant, et au-delà d'une exemption (un joueur seul avancé d'office peut
+ * ouvrir le match suivant). Chaque match n'est visité qu'une fois.
+ */
+export async function prevenirSuitesDouble(departs: (string | null)[]): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  const vus = new Set<string>();
+  const aVisiter = departs.filter((id): id is string => Boolean(id));
+  while (aVisiter.length > 0 && vus.size < 20) {
+    const id = aVisiter.shift()!;
+    if (vus.has(id)) continue;
+    vus.add(id);
+    const { data: suivant } = await admin
+      .from("matches")
+      .select("statut, match_suivant_id, match_participants(profile_id)")
+      .eq("id", id)
+      .maybeSingle();
+    if (!suivant) continue;
+    if (suivant.statut === "en_cours") {
+      await prevenirMatchOuvert(id);
+    } else if (suivant.statut === "termine" && suivant.match_participants.length === 1 && suivant.match_suivant_id) {
+      aVisiter.push(suivant.match_suivant_id);
+    }
+  }
 }
 
 /** Dernière ronde créée d'un tournoi (0 sans match). */
