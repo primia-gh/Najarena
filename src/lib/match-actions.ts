@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { apresAbandonSansMatch, apresVerdict } from "@/lib/apres-verdict";
+import { apresAbandonSansMatch, apresVerdict, derniereRonde } from "@/lib/apres-verdict";
 import { DELAI_FORFAIT_MINUTES } from "@/lib/forfait";
 import { apresDeclarationPret } from "@/lib/suites-joueur";
 
@@ -133,6 +133,7 @@ export async function abandonnerTournoiSuisse(formData: FormData) {
     redirect("/connexion");
   }
 
+  const rondeAvant = await derniereRonde(tournamentId);
   const { data: matchTranche, error } = await supabase.rpc("abandonner_suisse", { p_tournament: tournamentId });
   if (error) {
     const code = Object.keys(MESSAGES_REFUS_ABANDON).find((c) => error.message.includes(c));
@@ -156,7 +157,7 @@ export async function abandonnerTournoiSuisse(formData: FormData) {
       );
     }
   } else {
-    await apresAbandonSansMatch(tournamentId);
+    await apresAbandonSansMatch(tournamentId, rondeAvant);
   }
 
   redirect(

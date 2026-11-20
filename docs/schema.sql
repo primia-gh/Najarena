@@ -13132,9 +13132,11 @@ as $$
     from bilans b
   )
   select a.profile_id, p.pseudo, p.slug, a.victoires, a.defaites, a.buchholz,
-         -- Dernier départage : un tirage stable, jamais le pseudo (qu'un
-         -- joueur peut changer pour passer devant).
-         (row_number() over (order by a.victoires desc, a.buchholz desc, a.rating_a_inscription desc nulls last,
+         -- Un joueur qui a abandonné est classé après ceux qui sont allés au
+         -- bout (jamais annoncé vainqueur). Dernier départage : un tirage
+         -- stable, jamais le pseudo (qu'un joueur peut changer pour passer
+         -- devant).
+         (row_number() over (order by a.abandon, a.victoires desc, a.buchholz desc, a.rating_a_inscription desc nulls last,
                                       md5(a.profile_id::text || p_tournament::text)))::integer,
          a.abandon
   from avec_buchholz a

@@ -115,14 +115,10 @@ export async function suiteSuisse(tournamentId: string, tour: number): Promise<v
   await Promise.all((ouverts ?? []).map((o) => prevenirMatchOuvert(o.id)));
 }
 
-/**
- * Abandon d'un tournoi suisse sans match à trancher (le joueur attendait la
- * ronde suivante) : la base a peut-être créé la ronde suivante, ou arrêté
- * le tournoi faute de joueurs ; même suite qu'après un verdict.
- */
-export async function apresAbandonSansMatch(tournamentId: string): Promise<void> {
+/** Dernière ronde créée d'un tournoi (0 sans match). */
+export async function derniereRonde(tournamentId: string): Promise<number> {
   const admin = creerClientAdmin();
-  if (!admin) return;
+  if (!admin) return 0;
   const { data: dernier } = await admin
     .from("matches")
     .select("tour")
@@ -130,9 +126,33 @@ export async function apresAbandonSansMatch(tournamentId: string): Promise<void>
     .order("tour", { ascending: false })
     .limit(1)
     .maybeSingle();
-  // suiteSuisse prévient les joueurs des matchs de la ronde « tour + 1 »
-  // ouverts à l'instant : la ronde qui vient d'être créée est la dernière.
-  await suiteSuisse(tournamentId, (dernier?.tour ?? 1) - 1);
+  return dernier?.tour ?? 0;
+}
+
+/**
+ * Abandon d'un tournoi suisse sans match à trancher (le joueur attendait la
+ * ronde suivante) : la base a peut-être arrêté le tournoi faute de joueurs
+ * (clôture et annonce), ou créé la ronde suivante — ses joueurs sont alors
+ * prévenus, seulement si c'est cet abandon qui l'a créée (`rondeAvant` :
+ * dernière ronde avant l'abandon), jamais une seconde fois.
+ */
+export async function apresAbandonSansMatch(tournamentId: string, rondeAvant: number): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  const { data: fini } = await admin.rpc("suisse_terminee", { p_tournament: tournamentId });
+  if (fini) {
+    if (await cloturerTournoi(tournamentId)) await annoncerPremierSuisse(tournamentId);
+    return;
+  }
+  const ronde = await derniereRonde(tournamentId);
+  if (ronde <= rondeAvant) return;
+  const { data: ouverts } = await admin
+    .from("matches")
+    .select("id")
+    .eq("tournament_id", tournamentId)
+    .eq("tour", ronde)
+    .eq("statut", "en_cours");
+  await Promise.all((ouverts ?? []).map((o) => prevenirMatchOuvert(o.id)));
 }
 
 /** Annonce le premier du classement d'un tournoi suisse qui vient d'être clos. */

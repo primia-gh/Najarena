@@ -56,7 +56,7 @@ export default function ClassementSuisse({
                 <Link href={`/joueur/${l.slug}`} className="font-semibold hover:text-accent">
                   {l.pseudo}
                 </Link>
-                {l.abandon && <span className="ml-2 text-xs text-muted uppercase">Abandon</span>}
+                {l.abandon && <span className="ml-2 text-xs text-muted">a abandonné</span>}
               </td>
               <td className="text-right tabular-nums">{l.victoires}</td>
               <td className="text-right tabular-nums">{l.defaites}</td>
@@ -68,7 +68,7 @@ export default function ClassementSuisse({
       {lignes.some((l) => l.abandon) && (
         <p className="max-w-3xl text-sm text-muted">
           {typographie(
-            "Abandon : le joueur a quitté le tournoi en cours de route. Son match en cours a été donné à son adversaire (décision manuelle, jamais comptée au classement Najarena) ; il n'est plus apparié, et ses résultats restent au classement du tournoi.",
+            "Un joueur qui a abandonné a quitté le tournoi en cours de route : son match en cours, s'il en avait un, a été donné à son adversaire (décision manuelle, jamais comptée au classement Najarena), et il n'est plus apparié. Il reste au classement du tournoi avec ses résultats, après les joueurs allés au bout.",
           )}
         </p>
       )}

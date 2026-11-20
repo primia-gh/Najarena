@@ -242,7 +242,9 @@ select verifie('Plus qu''un joueur en lice : le tournoi s''arrête après la ron
   public.suisse_terminee('9e0e0000-0000-0000-0000-0000000000a3')
   and (select rondes = 2 from tournaments where id = '9e0e0000-0000-0000-0000-0000000000a3')
   and not exists (select 1 from matches where tournament_id = '9e0e0000-0000-0000-0000-0000000000a3' and tour = 3));
-select verifie('J1 premier', (select profile_id = '9e0e0000-0000-0000-0000-000000000001' from public.classement_suisse('9e0e0000-0000-0000-0000-0000000000a3') where rang = 1));
+select verifie('J1, allé au bout, premier ; les quatre qui ont abandonné classés après lui (rangs 2 à 5), quelles que soient leurs victoires',
+  (select profile_id = '9e0e0000-0000-0000-0000-000000000001' and not abandon from public.classement_suisse('9e0e0000-0000-0000-0000-0000000000a3') where rang = 1)
+  and (select bool_and(abandon) from public.classement_suisse('9e0e0000-0000-0000-0000-0000000000a3') where rang > 1));
 set role authenticated;
 select en_tant_que('9e0e0000-0000-0000-0000-000000000001');
 select refus('Pas d''abandon dans un tournoi en élimination directe',

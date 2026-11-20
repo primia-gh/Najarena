@@ -50,7 +50,7 @@ describe("limite haute : meilleur rating de la saison", () => {
 
   it("le dit au joueur, avec son meilleur rating", () => {
     expect(situationNiveau(1350, null, 1450, 1500)).toContain(
-      "Ton rating actuel convient, mais pour la limite haute, c'est ton meilleur rating de cette saison ou de la précédente qui compte : 1\u202f500 (Or), au-dessus.",
+      "Ton rating actuel convient, mais pour la limite haute, c'est ton meilleur rating de la saison en cours ou de la précédente qui compte : 1\u202f500 (Or), au-dessus.",
     );
   });
 });
@@ -85,7 +85,7 @@ describe("lireNiveau", () => {
 
 describe("messageNiveau", () => {
   it("traduit les codes de la base", () => {
-    expect(messageNiveau("NIVEAU_HORS_TOURNOI")).toMatch(/pas celui de ce tournoi.*meilleur rating de cette saison ou de la précédente/);
+    expect(messageNiveau("NIVEAU_HORS_TOURNOI")).toMatch(/pas celui de ce tournoi.*meilleur rating de la saison en cours ou de la précédente/);
     expect(messageNiveau("autre chose")).toBeNull();
   });
 });

@@ -1252,16 +1252,16 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                   (inscriptionActuelle.abandonne_le ? (
                     <p className="text-[13px] leading-normal text-muted">
                       {typographie(
-                        "Tu as abandonné ce tournoi : tu n'es plus apparié. Tes résultats restent au classement du tournoi.",
+                        "Tu as abandonné ce tournoi : tu n'es plus apparié. Tu restes au classement du tournoi, après les joueurs allés au bout.",
                       )}
                     </p>
                   ) : (
-                    <form action={abandonnerTournoiSuisse}>
+                    <form action={abandonnerTournoiSuisse} className="mt-2">
                       <input type="hidden" name="tournament_id" value={tournoi.id} />
                       <input type="hidden" name="slug" value={tournoi.slug} />
                       <BoutonConfirmation
                         type="submit"
-                        confirmation="Abandonner ce tournoi ? Ton match en cours sera donné à ton adversaire et tu ne seras plus apparié. C'est définitif."
+                        confirmation="Abandonner ce tournoi ? C'est définitif. Ton match en cours, s'il y en a un, sera donné à ton adversaire et peut compter comme un forfait dans le bloc « Fiabilité » de ton CV. Tu ne seras plus apparié ; tu restes au classement du tournoi, après les joueurs allés au bout, sans effet sur ton rating Najarena."
                         className="inline-flex min-h-11 items-center text-[13px] text-muted underline underline-offset-3 hover:text-text"
                       >
                         Abandonner le tournoi

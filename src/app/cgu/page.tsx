@@ -175,12 +175,14 @@ export default function CguPage() {
             l&apos;exemption compte comme une victoire au classement du
             tournoi, jamais au classement Najarena. Le classement final suit
             les victoires, puis la somme des victoires des adversaires
-            affrontés. Un joueur peut abandonner en cours de tournoi&nbsp;: son
-            match en cours est donné à son adversaire (décision manuelle,
-            jamais comptée au classement Najarena), il n&apos;est plus apparié
-            et ses résultats restent au classement du tournoi. S&apos;il ne
-            reste qu&apos;un joueur en lice, le tournoi s&apos;arrête à la ronde
-            jouée.
+            affrontés. Un joueur peut abandonner en cours de tournoi, de façon
+            définitive&nbsp;: son match en cours, s&apos;il y en a un, est donné
+            à son adversaire (décision manuelle, jamais comptée au classement
+            Najarena, et qui peut compter comme un forfait dans le bloc
+            «&nbsp;Fiabilité&nbsp;» de son CV)&nbsp;; il n&apos;est plus apparié et
+            reste au classement du tournoi avec ses résultats, après les
+            joueurs allés au bout. S&apos;il ne reste qu&apos;un joueur en lice, le
+            tournoi s&apos;arrête à la ronde jouée.
           </p>
           <p className="mt-2 text-muted">
             Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq
