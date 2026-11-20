@@ -14378,7 +14378,7 @@ begin
 
   return query
   with joueurs as materialized (
-    select a.profile_id, a.creneaux, a.formats, g.region, x.deja
+    select a.profile_id, a.creneaux, a.formats, g.region, x.deja, a.examine_le as file_le
     from public.alertes_tournoi a
     join public.profiles p on p.id = a.profile_id and p.supprime_le is null
     join public.game_accounts g on g.profile_id = a.profile_id and g.game_id = 1
@@ -14404,7 +14404,7 @@ begin
            where r.tournament_id = t.id and r.statut <> 'retire') < t.capacite
   ),
   candidats as (
-    select j.profile_id, j.deja, t.*,
+    select j.profile_id, j.deja, j.file_le, t.*,
            row_number() over (
              partition by j.profile_id, case when t.automatique then null else t.organisateur_id end
              order by t.debute_le, t.id) as rang_orga
@@ -14435,9 +14435,12 @@ begin
     from candidats c
     where c.automatique or c.rang_orga = 1
   ),
+  -- Servis dans l'ordre de la file (les moins récemment examinés d'abord),
+  -- pas par date de tournoi : sinon un joueur en tête de file dont les
+  -- tournois sont lointains attendait toute une rotation.
   choisis as (
     select * from classes c where c.rang <= 3 - c.deja
-    order by c.debute_le, c.id
+    order by c.file_le nulls first, c.profile_id, c.rang
     limit v_limite
   ),
   inseres as (

@@ -276,3 +276,19 @@ select verifie('d1 et d5, dont une alerte (C7) a été coupée, restent en tête
   (select count(*) = 2 from alertes_tournoi
    where profile_id in ('ab0b0000-0000-0000-0000-0000000001d1', 'ab0b0000-0000-0000-0000-0000000001d5') and examine_le is null)
   and (select examine_le is not null from alertes_tournoi where profile_id = 'ab0b0000-0000-0000-0000-0000000001d3'));
+
+-- Ordre de la file : d1, en tête (jamais servi en entier), passe avant d4,
+-- examiné plus tôt, même si le tournoi de d4 (C0) vient avant le sien (C7).
+insert into tournaments (id, game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement) values
+  ('ab0b0000-0000-0000-0000-0000000000c0', 1, :'saison', 'ab0b0000-0000-0000-0000-0000000001d8', 'cas-99p-c0', 'Cas 99p C0', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', true);
+insert into alertes_envoyees (profile_id, tournament_id, envoye_le)
+select p.id, 'ab0b0000-0000-0000-0000-0000000000c0', now() - interval '2 days'
+from (values ('ab0b0000-0000-0000-0000-0000000001d1'::uuid), ('ab0b0000-0000-0000-0000-0000000001d3'::uuid),
+             ('ab0b0000-0000-0000-0000-0000000001d5'::uuid)) as p(id);
+set role service_role;
+create temp table envoi_file as select * from public.reserver_alertes_tournoi(1);
+reset role;
+select verifie('Lot d''une alerte : d1, en tête de file, est servi avant d4 dont le tournoi est plus proche',
+  (select array_agg(profile_id::text || '/' || tournament_id::text) = array['ab0b0000-0000-0000-0000-0000000001d1/ab0b0000-0000-0000-0000-0000000000c7']
+   from envoi_file));
+
