@@ -13374,13 +13374,19 @@ $$;
 revoke execute on function public.demarrer_suisse(uuid) from public, anon;
 grant execute on function public.demarrer_suisse(uuid) to authenticated;
 
--- Abandon officiel d'un joueur en cours de tournoi suisse : son match en
--- cours est donné à son adversaire (décision manuelle motivée, forfait :
--- jamais compté au classement Najarena), il n'est plus apparié ensuite, et
--- ses résultats restent au classement du tournoi. Sans match en cours, la
--- ronde suivante se crée sans lui si la ronde est complète.
+-- Abandon officiel d'un joueur en cours de tournoi suisse : il n'est plus
+-- apparié ensuite et reste au classement du tournoi avec ses résultats.
+-- Son match en cours n'est jamais tranché sur le coup (contrôle de sécurité
+-- du 20/11/2026 : un abandon juste après une partie perdue aurait effacé une
+-- défaite lue chez Riot) : il vaut « défaite reconnue », comme le bouton
+-- « J'ai perdu ce match ». La recherche Riot garde 20 minutes pour retrouver
+-- la partie, dont le résultat compte alors pour les deux joueurs ; sinon,
+-- la tâche de recherche donne le match à l'adversaire
+-- (enregistrer_defaite_reconnue). Match déjà en litige : tranché tout de
+-- suite, comme pour reconnaitre_defaite. Sans match en cours, la ronde
+-- suivante se crée sans lui si la ronde est complète.
 create or replace function public.abandonner_suisse(p_tournament uuid)
-returns uuid -- match tranché par l'abandon, ou nul
+returns uuid -- match tranché sur-le-champ (litige), ou nul
 language plpgsql
 security definer set search_path = public
 as $$
@@ -13388,8 +13394,7 @@ declare
   v_moi uuid := auth.uid();
   v_t record;
   v_match uuid;
-  v_adversaire uuid;
-  v_pseudo text;
+  v_statut public.match_status;
 begin
   if v_moi is null then
     raise exception 'NON_CONNECTE';
@@ -13413,7 +13418,7 @@ begin
     raise exception 'DEJA_ABANDONNE';
   end if;
 
-  select m.id into v_match
+  select m.id, m.statut into v_match, v_statut
   from public.matches m
   join public.match_participants mp on mp.match_id = m.id and mp.profile_id = v_moi
   where m.tournament_id = p_tournament and m.statut in ('en_cours', 'litige')
@@ -13425,14 +13430,15 @@ begin
     return null;
   end if;
 
-  select profile_id into v_adversaire from public.match_participants where match_id = v_match and profile_id <> v_moi;
-  select pseudo into v_pseudo from public.profiles where id = v_moi;
-  insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
-  values (v_match, 'manuel', v_adversaire, null,
-          'Abandon : ' || coalesce(v_pseudo, 'le joueur') || ' a quitté le tournoi.', true);
-  perform public.avancer_vainqueur(v_match, v_adversaire);
-  update public.matches set statut = 'forfait' where id = v_match;
-  return v_match;
+  if (select count(*) from public.match_participants where match_id = v_match) = 2 then
+    update public.matches set defaite_reconnue_par = v_moi, defaite_reconnue_le = now()
+    where id = v_match and defaite_reconnue_par is null;
+    if found and v_statut = 'litige' then
+      perform public.enregistrer_defaite_reconnue(v_match);
+      return v_match;
+    end if;
+  end if;
+  return null;
 end;
 $$;
 revoke execute on function public.abandonner_suisse(uuid) from public, anon;

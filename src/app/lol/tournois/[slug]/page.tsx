@@ -1261,7 +1261,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                       <input type="hidden" name="slug" value={tournoi.slug} />
                       <BoutonConfirmation
                         type="submit"
-                        confirmation="Abandonner ce tournoi ? C'est définitif. Ton match en cours, s'il y en a un, sera donné à ton adversaire et peut compter comme un forfait dans le bloc « Fiabilité » de ton CV. Tu ne seras plus apparié ; tu restes au classement du tournoi, après les joueurs allés au bout, sans effet sur ton rating Najarena."
+                        confirmation="Abandonner ce tournoi ? C'est définitif. Ton match en cours, s'il y en a un, vaut défaite reconnue : si la partie est retrouvée chez Riot, son résultat compte ; sinon, il est donné à ton adversaire. Tu ne seras plus apparié ; tu restes au classement du tournoi, après les joueurs allés au bout."
                         className="inline-flex min-h-11 items-center text-[13px] text-muted underline underline-offset-3 hover:text-text"
                       >
                         Abandonner le tournoi

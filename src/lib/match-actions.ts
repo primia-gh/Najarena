@@ -118,16 +118,18 @@ const MESSAGES_REFUS_ABANDON: Record<string, string> = {
   DEJA_ABANDONNE: "Tu as déjà abandonné ce tournoi.",
 };
 
-// Abandon officiel d'un tournoi suisse (19/11/2026) : la base donne le
-// match en cours à l'adversaire (décision manuelle motivée, hors
-// classement) et ne m'apparie plus. Ensuite, comme après tout verdict :
-// adversaire prévenu, ronde suivante annoncée ou tournoi clos.
+// Abandon officiel d'un tournoi suisse (19/11/2026, revu le 20/11) : la
+// base ne m'apparie plus ; mon match en cours vaut « défaite reconnue »
+// (la partie lue chez Riot reste prioritaire 20 minutes, sinon la tâche de
+// recherche le donne à l'adversaire), sauf s'il était déjà en litige :
+// tranché tout de suite. Ensuite, comme après tout verdict.
 export async function abandonnerTournoiSuisse(formData: FormData) {
   const tournamentId = String(formData.get("tournament_id") ?? "");
-  const slug = String(formData.get("slug") ?? "");
-  const page = `/lol/tournois/${slug}`;
 
   const supabase = await createClient();
+  // Adresse de retour lue en base, jamais dans le formulaire.
+  const { data: tournoi } = await supabase.from("tournaments").select("slug").eq("id", tournamentId).maybeSingle();
+  const page = tournoi ? `/lol/tournois/${tournoi.slug}` : "/lol/tournois";
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
     redirect("/connexion");
@@ -153,7 +155,7 @@ export async function abandonnerTournoiSuisse(formData: FormData) {
       await apresVerdict(
         matchTranche,
         adversaire.profile_id,
-        "Ton adversaire a abandonné le tournoi : le match t'est donné (décision manuelle, hors classement Najarena).",
+        "Ton adversaire a abandonné le tournoi pendant votre match en litige : le match t'est donné (décision manuelle, hors classement Najarena).",
       );
     }
   } else {
@@ -161,6 +163,8 @@ export async function abandonnerTournoiSuisse(formData: FormData) {
   }
 
   redirect(
-    `${page}?message=${encodeURIComponent("Abandon enregistré : tu n'es plus apparié. Tes résultats restent au classement du tournoi.")}`,
+    `${page}?message=${encodeURIComponent(
+      "Abandon enregistré : tu n'es plus apparié. Si tu avais un match en cours, ta défaite est reconnue : si la partie est retrouvée chez Riot d'ici 20 minutes, son résultat compte ; sinon, le match est donné à ton adversaire.",
+    )}`,
   );
 }

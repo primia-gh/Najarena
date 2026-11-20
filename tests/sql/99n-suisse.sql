@@ -190,14 +190,21 @@ select refus('Après la ronde 1 seulement : pas de passage à « terminé », m�
   $q$update tournaments set statut = 'termine' where id = '9e0e0000-0000-0000-0000-0000000000a2'$q$,
   'SUISSE_NON_TERMINEE');
 
--- ---------- Abandon officiel (finitions du 19/11/2026) ----------
+-- ---------- Abandon officiel (finitions du 19/11/2026, revu le 20/11) ----------
 -- Cinq joueurs, trois rondes : ronde 1 = J1-J3, J2-J4, J5 exempté.
+-- L'abandon ne tranche jamais un match sur le coup : il vaut « défaite
+-- reconnue » ; la partie lue chez Riot reste prioritaire.
 insert into tournaments (id, game_id, organisateur_id, slug, nom, format, type_bracket, capacite, region, debute_le, checkin_ouvre_le, statut)
 values ('9e0e0000-0000-0000-0000-0000000000a3', 1, '9e0e0000-0000-0000-0000-000000000000', 'coupe-suisse-99n-c', 'Coupe suisse ter', '1v1', 'suisse', 8, 'EUW',
         now() + interval '1 hour', now() - interval '1 hour', 'ouvert');
 insert into registrations (tournament_id, profile_id, statut, rating_a_inscription)
 select '9e0e0000-0000-0000-0000-0000000000a3', ('9e0e0000-0000-0000-0000-00000000000' || n)::uuid, 'confirme', 1800 - n * 100
 from generate_series(1, 5) n;
+create or replace function pg_temp.match_de(p_tour smallint, p_joueur char) returns uuid language sql as $$
+  select m.id from matches m join match_participants mp on mp.match_id = m.id
+  where m.tournament_id = '9e0e0000-0000-0000-0000-0000000000a3' and m.tour = p_tour
+    and mp.profile_id = ('9e0e0000-0000-0000-0000-00000000000' || p_joueur)::uuid
+$$;
 set role authenticated;
 select en_tant_que('9e0e0000-0000-0000-0000-000000000000');
 select verifie('Coupe à cinq lancée : 3 rondes', (select public.demarrer_suisse('9e0e0000-0000-0000-0000-0000000000a3') = 3));
@@ -205,22 +212,27 @@ select refus('L''organisateur, qui ne joue pas, n''abandonne pas',
   $q$select public.abandonner_suisse('9e0e0000-0000-0000-0000-0000000000a3')$q$,
   'NON_PARTICIPANT');
 select en_tant_que('9e0e0000-0000-0000-0000-000000000002');
-select verifie('J2 abandonne en ronde 1 : son match est tranché',
-  public.abandonner_suisse('9e0e0000-0000-0000-0000-0000000000a3') is not null);
+select verifie('J2 abandonne en pleine ronde 1 : rien n''est tranché sur le coup',
+  public.abandonner_suisse('9e0e0000-0000-0000-0000-0000000000a3') is null);
 select refus('J2 n''abandonne pas deux fois',
   $q$select public.abandonner_suisse('9e0e0000-0000-0000-0000-0000000000a3')$q$,
   'DEJA_ABANDONNE');
-reset role;
-select verifie('Match J2-J4 : J4 gagne par forfait, décision manuelle motivée « Abandon »',
-  (select m.statut = 'forfait' and v.niveau = 'manuel' and v.gagnant_id = '9e0e0000-0000-0000-0000-000000000004'
-          and v.motif like 'Abandon : Suisse99n2%'
-   from matches m join match_verdicts v on v.match_id = m.id
-   join match_participants mp on mp.match_id = m.id and mp.profile_id = '9e0e0000-0000-0000-0000-000000000002'
-   where m.tournament_id = '9e0e0000-0000-0000-0000-0000000000a3' and m.tour = 1));
-set role authenticated;
 select en_tant_que('9e0e0000-0000-0000-0000-000000000003');
-select verifie('J3 abandonne aussi : J1 gagne', public.abandonner_suisse('9e0e0000-0000-0000-0000-0000000000a3') is not null);
+select verifie('J3 abandonne aussi', public.abandonner_suisse('9e0e0000-0000-0000-0000-0000000000a3') is null);
 reset role;
+select verifie('Les deux matchs restent ouverts, défaite reconnue par celui qui abandonne',
+  (select bool_and(m.statut = 'en_cours' and m.defaite_reconnue_par in ('9e0e0000-0000-0000-0000-000000000002', '9e0e0000-0000-0000-0000-000000000003'))
+   from matches m where m.tournament_id = '9e0e0000-0000-0000-0000-0000000000a3' and m.tour = 1
+     and (select count(*) from match_participants x where x.match_id = m.id) = 2));
+select verifie('La partie J1-J3 retrouvée chez Riot après l''abandon est acceptée',
+  public.enregistrer_verdict_historique(pg_temp.match_de(1::smallint, '3'), '9e0e0000-0000-0000-0000-000000000001', 'EUW_99N_ABANDON_1'));
+select verifie('… et compte : verdict « historique » pour J1',
+  (select niveau = 'historique' and gagnant_id = '9e0e0000-0000-0000-0000-000000000001' from match_verdicts where match_id = pg_temp.match_de(1::smallint, '3')));
+select verifie('Partie J2-J4 jamais retrouvée : la tâche donne le match à J4',
+  public.enregistrer_defaite_reconnue(pg_temp.match_de(1::smallint, '2')));
+select verifie('… par une décision manuelle « défaite reconnue », jamais classée',
+  (select niveau = 'manuel' and gagnant_id = '9e0e0000-0000-0000-0000-000000000004' and motif like 'Défaite reconnue par Suisse99n2%'
+   from match_verdicts where match_id = pg_temp.match_de(1::smallint, '2')));
 select verifie('Ronde 1 complète : la ronde 2 se crée sans J2 ni J3 — J1 contre J5, J4 exempté (J5 l''a déjà été)',
   (select array_agg(p order by p) = array['1-5', '4'] from (
      select string_agg(right(mp.profile_id::text, 1), '-' order by mp.profile_id) as p
@@ -229,19 +241,19 @@ select verifie('Ronde 1 complète : la ronde 2 se crée sans J2 ni J3 — J1 con
      group by m.id) x));
 set role authenticated;
 select en_tant_que('9e0e0000-0000-0000-0000-000000000004');
-select verifie('J4, exempté de la ronde 2, abandonne : aucun match à trancher',
+select verifie('J4, exempté de la ronde 2, abandonne : aucun match concerné',
   public.abandonner_suisse('9e0e0000-0000-0000-0000-0000000000a3') is null);
-reset role;
-select verifie('Le classement garde les abandons, marqués comme tels',
-  (select count(*) = 5 and count(*) filter (where abandon) = 3 from public.classement_suisse('9e0e0000-0000-0000-0000-0000000000a3')));
-set role authenticated;
 select en_tant_que('9e0e0000-0000-0000-0000-000000000005');
-select verifie('J5 abandonne en ronde 2 : J1 gagne', public.abandonner_suisse('9e0e0000-0000-0000-0000-0000000000a3') is not null);
+select verifie('J5 abandonne en ronde 2', public.abandonner_suisse('9e0e0000-0000-0000-0000-0000000000a3') is null);
 reset role;
-select verifie('Plus qu''un joueur en lice : le tournoi s''arrête après la ronde 2 (terminé, pas de ronde 3)',
+select verifie('… la tâche donne le match J1-J5 à J1',
+  public.enregistrer_defaite_reconnue(pg_temp.match_de(2::smallint, '5')));
+select verifie('Plus qu''un joueur en lice : le tournoi s''arrête après la ronde 2',
   public.suisse_terminee('9e0e0000-0000-0000-0000-0000000000a3')
   and (select rondes = 2 from tournaments where id = '9e0e0000-0000-0000-0000-0000000000a3')
   and not exists (select 1 from matches where tournament_id = '9e0e0000-0000-0000-0000-0000000000a3' and tour = 3));
+select verifie('Le classement garde les quatre abandons, marqués comme tels',
+  (select count(*) = 5 and count(*) filter (where abandon) = 4 from public.classement_suisse('9e0e0000-0000-0000-0000-0000000000a3')));
 select verifie('J1, allé au bout, premier ; les quatre qui ont abandonné classés après lui (rangs 2 à 5), quelles que soient leurs victoires',
   (select profile_id = '9e0e0000-0000-0000-0000-000000000001' and not abandon from public.classement_suisse('9e0e0000-0000-0000-0000-0000000000a3') where rang = 1)
   and (select bool_and(abandon) from public.classement_suisse('9e0e0000-0000-0000-0000-0000000000a3') where rang > 1));
