@@ -68,7 +68,7 @@ export default function ClassementSuisse({
       {lignes.some((l) => l.abandon) && (
         <p className="max-w-3xl text-sm text-muted">
           {typographie(
-            "Un joueur qui a abandonné a quitté le tournoi en cours de route : son match en cours, s'il en avait un, a valu défaite reconnue (résultat lu chez Riot si la partie a été retrouvée, sinon match donné à son adversaire, sans effet sur le classement Najarena), et il n'est plus apparié. Il reste au classement du tournoi avec ses résultats, après les joueurs allés au bout.",
+            "Un joueur qui a abandonné a quitté le tournoi en cours de route. Son match en cours, s'il en avait un, est compté perdu, sauf partie retrouvée chez Riot. Il n'est plus apparié et reste au classement du tournoi, après les joueurs allés au bout.",
           )}
         </p>
       )}

@@ -164,7 +164,7 @@ export async function abandonnerTournoiSuisse(formData: FormData) {
 
   redirect(
     `${page}?message=${encodeURIComponent(
-      "Abandon enregistré : tu n'es plus apparié. Si tu avais un match en cours, ta défaite est reconnue : si la partie est retrouvée chez Riot d'ici 20 minutes, son résultat compte ; sinon, le match est donné à ton adversaire.",
+      "Abandon enregistré : tu n'es plus apparié. Si tu avais un match en cours, il est considéré comme perdu, sauf si la partie est retrouvée chez Riot dans les 20 minutes : son vrai résultat compte alors.",
     )}`,
   );
 }

@@ -176,11 +176,11 @@ export default function CguPage() {
             tournoi, jamais au classement Najarena. Le classement final suit
             les victoires, puis la somme des victoires des adversaires
             affrontés. Un joueur peut abandonner en cours de tournoi, de façon
-            définitive&nbsp;: son match en cours, s&apos;il y en a un, vaut défaite
-            reconnue (si la partie est retrouvée chez Riot, son résultat
-            compte&nbsp;; sinon, le match est donné à son adversaire par une
-            décision manuelle, jamais comptée au classement Najarena)&nbsp;; il
-            n&apos;est plus apparié et
+            définitive&nbsp;: son match en cours, s&apos;il y en a un, est considéré
+            comme perdu, sauf si la partie est retrouvée chez Riot dans les 20
+            minutes (son vrai résultat compte alors)&nbsp;; sinon, il est donné à
+            son adversaire par une décision manuelle, jamais comptée au
+            classement Najarena. Il n&apos;est plus apparié et
             reste au classement du tournoi avec ses résultats, après les
             joueurs allés au bout. S&apos;il ne reste qu&apos;un joueur en lice, le
             tournoi s&apos;arrête à la ronde jouée.
