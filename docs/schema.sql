@@ -14392,10 +14392,6 @@ begin
     order by a.examine_le nulls first, a.profile_id
     limit 500
   ),
-  examines as (
-    update public.alertes_tournoi a set examine_le = now()
-    from joueurs j where a.profile_id = j.profile_id
-  ),
   tournois as materialized (
     select t.id, t.nom, t.slug, t.debute_le, t.format, t.region, t.organisateur_id,
            t.creneau_auto is not null as automatique, t.rating_min, t.rating_max,
@@ -14449,6 +14445,18 @@ begin
     select c.profile_id, c.id from choisis c
     on conflict do nothing
     returning alertes_envoyees.profile_id, alertes_envoyees.tournament_id
+  ),
+  -- Examinés : servis en entier, ou sans tournoi pour eux. Un joueur dont
+  -- une alerte a été coupée par la limite du lot garde sa place en tête de
+  -- file pour le passage suivant.
+  examines as (
+    update public.alertes_tournoi a set examine_le = now()
+    from joueurs j
+    where a.profile_id = j.profile_id
+      and not exists (
+        select 1 from classes c
+        where c.profile_id = j.profile_id and c.rang <= 3 - c.deja
+          and not exists (select 1 from choisis ch where ch.profile_id = c.profile_id and ch.id = c.id))
   )
   select c.profile_id, c.id, c.nom::text, c.slug::text, c.debute_le, c.format::text, c.region::text
   from choisis c

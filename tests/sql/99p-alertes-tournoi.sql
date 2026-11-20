@@ -255,3 +255,24 @@ select verifie('Un agent libre déjà inscrit au 5v5 n''en est pas prévenu',
 select verifie('Chaque joueur examiné est daté (rotation des passages)',
   (select bool_and(examine_le is not null) from alertes_tournoi
    where profile_id in ('ab0b0000-0000-0000-0000-0000000001d1', 'ab0b0000-0000-0000-0000-0000000001d3')));
+
+-- Lot plein : un joueur dont une alerte est coupée par la limite garde sa
+-- place en tête de file ; un joueur sans tournoi pour lui passe derrière.
+update alertes_envoyees set envoye_le = now() - interval '25 hours'
+where profile_id in ('ab0b0000-0000-0000-0000-0000000001d1', 'ab0b0000-0000-0000-0000-0000000001d5');
+update alertes_tournoi set examine_le = null
+where profile_id in ('ab0b0000-0000-0000-0000-0000000001d1', 'ab0b0000-0000-0000-0000-0000000001d3',
+                     'ab0b0000-0000-0000-0000-0000000001d5');
+insert into tournaments (id, game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement, creneau_auto) values
+  ('ab0b0000-0000-0000-0000-0000000000c7', 1, :'saison', 'ab0b0000-0000-0000-0000-000000000000', 'cas-99p-c7', 'Cas 99p C7', '1v1', 8, 'EUW', now() + interval '2 days', now() + interval '2 days', 'ouvert', true, 'essai-99p-b');
+set role service_role;
+create temp table envoi_lot as select * from public.reserver_alertes_tournoi(1);
+reset role;
+select verifie('Lot d''une alerte : une seule réservée (C2 pour d1)',
+  (select array_agg(tournament_id) = array['ab0b0000-0000-0000-0000-0000000000c2'::uuid] from envoi_lot
+   where profile_id = 'ab0b0000-0000-0000-0000-0000000001d1')
+  and (select count(*) = 1 from envoi_lot));
+select verifie('d1 et d5, dont une alerte (C7) a été coupée, restent en tête de file ; d3, sans tournoi pour lui, passe derrière',
+  (select count(*) = 2 from alertes_tournoi
+   where profile_id in ('ab0b0000-0000-0000-0000-0000000001d1', 'ab0b0000-0000-0000-0000-0000000001d5') and examine_le is null)
+  and (select examine_le is not null from alertes_tournoi where profile_id = 'ab0b0000-0000-0000-0000-0000000001d3'));
