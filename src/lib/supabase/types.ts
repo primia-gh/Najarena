@@ -37,6 +37,35 @@ export type Database = {
           },
         ]
       }
+      alertes_tournoi: {
+        Row: {
+          creneaux: string[]
+          formats: string[]
+          maj_le: string
+          profile_id: string
+        }
+        Insert: {
+          creneaux: string[]
+          formats?: string[]
+          maj_le?: string
+          profile_id: string
+        }
+        Update: {
+          creneaux?: string[]
+          formats?: string[]
+          maj_le?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alertes_tournoi_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agents_libres: {
         Row: {
           inscrit_le: string
@@ -3588,6 +3617,20 @@ export type Database = {
           role_prefere: string | null
           rating: number | null
           message: string | null
+        }[]
+      }
+      regler_alertes_tournoi: { Args: { p_creneaux: string[]; p_formats: string[] }; Returns: undefined }
+      couper_alertes_tournoi: { Args: Record<PropertyKey, never>; Returns: boolean }
+      reserver_alertes_tournoi: {
+        Args: { p_limite?: number }
+        Returns: {
+          profile_id: string
+          tournament_id: string
+          nom: string
+          slug: string
+          debute_le: string
+          format: string
+          region: string
         }[]
       }
       mon_niveau_tournoi: {

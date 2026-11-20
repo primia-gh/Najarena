@@ -29,6 +29,7 @@ import { ouvrirPortailAbonnement } from "@/lib/stripe-actions";
 import { chargerMesDefis } from "@/lib/defis-serveur";
 import SectionDefis from "@/components/defis/SectionDefis";
 import { DUREE_DEMANDE_DUO_JOURS } from "@/lib/duo";
+import AlertesTournoi from "@/components/moi/AlertesTournoi";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
@@ -72,6 +73,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     { data: abonnement },
     mesDefis,
     { count: demandesDuo },
+    { data: alertes },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -128,6 +130,8 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
       .eq("destinataire_id", utilisateur.id)
       .eq("statut", "en_attente")
       .gt("cree_le", debutDemandesDuo()),
+    // Alertes « tournoi pour toi » (20/11/2026).
+    supabase.from("alertes_tournoi").select("creneaux, formats").eq("profile_id", utilisateur.id).maybeSingle(),
   ]);
   const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
@@ -548,6 +552,12 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               </LibelleSection>
               <PushOptIn />
             </section>
+
+            <AlertesTournoi
+              reglage={alertes}
+              compteVerifie={Boolean(comptesRiot?.verifie_le)}
+              region={comptesRiot?.verifie_le ? comptesRiot.region : null}
+            />
           </Apparition>
         </div>
       </div>

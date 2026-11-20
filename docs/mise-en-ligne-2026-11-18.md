@@ -6,10 +6,11 @@ correspond à `master` (fusion de la PR #4, sections 37 à 58 appliquées le
 
 **Essayé avant d'écrire ce guide** : une base vierge reçoit le schéma de
 `master`, puis la migration ci-dessous en un seul bloc ; la migration passe,
-elle se rejoue une seconde fois sans erreur, et les 1372 vérifications de
-`tests/sql/` passent ensuite (contrôle refait le 19/11/2026, après l'ajout
-des tournois par niveau, du face-à-face, du recrutement, du format suisse
-et de leur contrôle de sécurité).
+elle se rejoue une seconde fois sans erreur, et les 1400 vérifications de
+`tests/sql/` passent ensuite (contrôle refait le 20/11/2026, après l'ajout
+des tournois par niveau, du face-à-face, du recrutement, du format suisse,
+de la double élimination, des alertes « tournoi pour toi » et de leurs
+contrôles de sécurité).
 
 Branche : `claude/nice-faraday-nsoe9q`. Comme les fois précédentes, **la base
 d'abord, le code ensuite** : le code appelle des fonctions et lit des tables
@@ -83,6 +84,12 @@ Onze sections, à la fin de `docs/schema.sql` (quatre du 18/11/2026, six du
    sur un match déjà décidé, `ADVERSAIRE_ATTENDU` sur un match à un seul
    joueur tant qu'un adversaire peut encore y arriver (les exemptions du
    lancement passent toujours).
+12. **Alertes « tournoi pour toi »** (20/11/2026). Tables `alertes_tournoi`
+   (réglage du joueur, lu par lui seul) et `alertes_envoyees` (lue par
+   personne, effacée après 30 jours) ; `creneau_de`,
+   `regler_alertes_tournoi`, `couper_alertes_tournoi`,
+   `reserver_alertes_tournoi` (rôle service seulement), déclencheur
+   `alertes_compte_supprime`.
 
 ## 1. Vérifications avant migration (lecture seule)
 
@@ -144,7 +151,8 @@ from unnest(array[
   'classement_suisse', 'ronde_suisse_suivante', 'demarrer_suisse', 'suisse_terminee', 'abandonner_suisse',
   'annonce_recrutement_visible',
   'figer_inscriptions_lancees', 'controler_statut_suisse', 'refuser_match_suisse_client',
-  'demarrer_double_elim', 'placer_dans_match', 'avancer_vainqueur_simple', 'resoudre_double_elim'
+  'demarrer_double_elim', 'placer_dans_match', 'avancer_vainqueur_simple', 'resoudre_double_elim',
+  'creneau_de', 'regler_alertes_tournoi', 'couper_alertes_tournoi', 'reserver_alertes_tournoi'
 ]) as f;  -- toutes « true »
 
 select tgname from pg_trigger
@@ -155,7 +163,8 @@ select oid::regprocedure from pg_proc where proname = 'modifier_tournoi';  -- 1 
 select column_name from information_schema.columns
 where table_schema = 'public' and table_name = 'tournaments' and column_name = 'rondes';  -- 1 ligne
 select tablename from pg_tables
-where schemaname = 'public' and tablename in ('annonces_recrutement', 'candidatures_equipe');  -- 2 lignes
+where schemaname = 'public' and tablename in ('annonces_recrutement', 'candidatures_equipe',
+                                              'alertes_tournoi', 'alertes_envoyees');  -- 4 lignes
 
 select indexname from pg_indexes where indexname = 'teams_nom_unique';  -- 1 ligne
 select polname from pg_policy where polrelid = 'public.messages'::regclass;  -- dont « participants repondent »
@@ -215,6 +224,10 @@ Vercel déploie la production.
 - Un tournoi suisse d'essai (4 joueurs) : « Lancer la première ronde » dans
   le cockpit, la ronde 2 apparaît d'elle-même quand la ronde 1 est jouée,
   le classement s'affiche sur la page du tournoi.
+- `/moi` (compte Riot vérifié) : bloc « Tournois pour toi », activer les
+  alertes, voir « Activées » et le résumé, les couper. Le passage suivant de
+  la tâche des tournois automatiques renvoie un champ `alertes` (nombre
+  envoyé).
 - Erreurs d'exécution Vercel sur 24 h : aucune nouvelle.
 
 ## 6. Plus tard, à ne pas oublier

@@ -77,6 +77,8 @@ Le produit ne vend pas du spectacle, il vend une **preuve**. Toute décision de 
 
 *Mise à jour du 19/11/2026 : **équipes qui recrutent** — le capitaine publie depuis la page d'équipe une annonce (postes cherchés, niveau minimum = seuil de palier, message modéré, région de son compte Riot vérifié, 30 jours ; `publier_recrutement`, table `annonces_recrutement`), listée sur `/lol/recrutement` (`annonces_recrutement_publiques`). Un joueur vérifié de la même région, au niveau (rating de la saison, 1500 sans partie), postule pour un poste cherché (`postuler_equipe`, table `candidatures_equipe`) ; le capitaine accepte (le joueur entre dans l'effectif, l'équipe se ferme à cinq) ou décline (`repondre_candidature`). Une candidature en attente par équipe, 10 par 24 h, expirée après 14 jours, pas de nouvelle candidature à la même équipe 7 jours après l'envoi ni 30 jours après un refus. Le capitaine voit aussi les joueurs qui cherchent une équipe et correspondent (`joueurs_pour_recrutement`) et peut les inviter (par identifiant). L'annonce d'un capitaine suspendu, supprimé ou bloqué n'est visible nulle part (`annonce_recrutement_visible`, liste publique). Notifications push + Discord, jamais d'e-mail. `src/lib/recrutement.ts`, `components/equipe/RecrutementEquipe.tsx`.*
 
+*Mise à jour du 20/11/2026 : **alertes « tournoi pour toi »** — bloc de `/moi` : un joueur au compte Riot vérifié choisit ses créneaux (ceux du duo, heure de Paris) et ses formats (`regler_alertes_tournoi`, table `alertes_tournoi`, lue par lui seul ; `couper_alertes_tournoi`). À chaque passage de la tâche des tournois automatiques, `reserver_alertes_tournoi` (rôle service) choisit les tournois `ouvert` de son serveur, au créneau et au format choisis, de 1 h à 7 jours avant le début, ouverts à lui (niveau, réservés aux membres ou aux non-classés, ni le sien, ni bloqué, pas déjà inscrit) et avec de la place — 3 alertes au plus par 24 h, jamais deux fois le même tournoi (`alertes_envoyees`, effacée après 30 jours) — et `src/lib/alertes-tournoi-serveur.ts` les envoie (notification + Discord, jamais d'e-mail). `src/lib/alertes-tournoi.ts`, `components/moi/AlertesTournoi.tsx`.*
+
 **Concurrent direct :** olymps.gg. Même thèse, plus avancé. On ne les copie pas ligne à ligne ; notre différenciation porte sur le CV e-sport multi-jeux, le matching entre joueurs, et une identité visuelle opposée à la leur.
 
 **Le porteur du projet ne code pas.** Explique tes choix en langage simple. Quand tu introduis une notion technique nouvelle, définis-la en une phrase. Ne propose jamais de solution sans dire pourquoi tu l'as retenue.
@@ -240,7 +242,7 @@ Schéma de base de données : `docs/schema.sql`.
 /equipe/nouvelle           création d'équipe
 /communautes               espaces communauté (serveur Discord, association, école) ; /communaute/[slug], /communaute/nouvelle
 /organiser/nouveau         création de tournoi
-/moi                       tableau de bord joueur (bandeau « ton match », gérer mon abonnement)
+/moi                       tableau de bord joueur (bandeau « ton match », gérer mon abonnement, alertes « tournoi pour toi »)
 /moi/bilan                 bilan du joueur : forces, axes de travail ; plan, progression, champions, builds (Pro) ; onglet Classées (sur accord) et réglages
 /moi/profil                pseudo, pays, visites anonymes, suppression du compte
 /moi/organisation/[id]     cockpit de tournoi

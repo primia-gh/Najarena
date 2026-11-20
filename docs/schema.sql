@@ -14237,3 +14237,198 @@ end;
 $$;
 revoke execute on function public.enregistrer_verdict_manuel(uuid, uuid, text) from public, anon;
 grant execute on function public.enregistrer_verdict_manuel(uuid, uuid, text) to authenticated;
+
+-- ---------- Alertes « tournoi pour toi » (2026-11-20) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (réglage dans /moi, tâche des tournois automatiques).
+-- Un joueur au compte Riot vérifié peut demander à être prévenu (push et
+-- message privé Discord, jamais d'e-mail) quand un tournoi s'ouvre pour
+-- lui : sur le serveur de son compte Riot, dans un format choisi (1v1,
+-- 5v5), à un créneau choisi (semaine / week-end × journée, soir, nuit,
+-- heure de Paris, comme le duo), à son niveau (mêmes règles que
+-- l'inscription), avec encore de la place. Jamais deux fois pour le même
+-- tournoi, 3 alertes au plus par 24 h. Les tournois sont annoncés de 1 h à
+-- 7 jours avant leur début.
+create table if not exists public.alertes_tournoi (
+  profile_id uuid primary key references public.profiles(id) on delete cascade,
+  creneaux   text[] not null,
+  formats    text[] not null default array['1v1']::text[],
+  maj_le     timestamptz not null default now(),
+  constraint alertes_tournoi_creneaux_check check (
+    cardinality(creneaux) between 1 and 6
+    and creneaux <@ array['semaine_journee', 'semaine_soir', 'semaine_nuit',
+                          'weekend_journee', 'weekend_soir', 'weekend_nuit']::text[]),
+  constraint alertes_tournoi_formats_check check (
+    cardinality(formats) between 1 and 2 and formats <@ array['1v1', '5v5']::text[])
+);
+alter table public.alertes_tournoi enable row level security;
+drop policy if exists "joueur lit ses alertes" on public.alertes_tournoi;
+create policy "joueur lit ses alertes" on public.alertes_tournoi
+  for select to authenticated using (profile_id = auth.uid());
+revoke all on public.alertes_tournoi from anon;
+revoke insert, update, delete on public.alertes_tournoi from authenticated;
+
+-- Alertes déjà envoyées : jamais deux fois le même tournoi, plafond par
+-- 24 h. Écrites par la base seule, lues par personne, effacées après 30 jours.
+create table if not exists public.alertes_envoyees (
+  profile_id    uuid not null references public.profiles(id) on delete cascade,
+  tournament_id uuid not null references public.tournaments(id) on delete cascade,
+  envoye_le     timestamptz not null default now(),
+  primary key (profile_id, tournament_id)
+);
+alter table public.alertes_envoyees enable row level security;
+revoke all on public.alertes_envoyees from anon, authenticated;
+create index if not exists alertes_envoyees_recentes_idx on public.alertes_envoyees (profile_id, envoye_le desc);
+
+-- Créneau d'un instant, heure de Paris : week-end = samedi et dimanche ;
+-- journée avant 18 h, soir de 18 h à 23 h, nuit après 23 h (et avant 6 h).
+create or replace function public.creneau_de(p_instant timestamptz)
+returns text
+language sql
+stable
+set search_path = public
+as $$
+  select (case when extract(isodow from p_instant at time zone 'Europe/Paris') >= 6 then 'weekend' else 'semaine' end)
+         || '_' ||
+         (case when extract(hour from p_instant at time zone 'Europe/Paris') >= 23
+                 or extract(hour from p_instant at time zone 'Europe/Paris') < 6 then 'nuit'
+               when extract(hour from p_instant at time zone 'Europe/Paris') >= 18 then 'soir'
+               else 'journee' end);
+$$;
+
+create or replace function public.regler_alertes_tournoi(p_creneaux text[], p_formats text[])
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_creneaux text[];
+  v_formats text[];
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if public.region_compte_verifie(v_moi) is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_creneaux from unnest(coalesce(p_creneaux, '{}')) as x;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_formats from unnest(coalesce(p_formats, '{}')) as x;
+  if cardinality(v_creneaux) not between 1 and 6
+     or not v_creneaux <@ array['semaine_journee', 'semaine_soir', 'semaine_nuit',
+                                'weekend_journee', 'weekend_soir', 'weekend_nuit']::text[] then
+    raise exception 'CRENEAUX_INVALIDES';
+  end if;
+  if cardinality(v_formats) not between 1 and 2 or not v_formats <@ array['1v1', '5v5']::text[] then
+    raise exception 'FORMATS_INVALIDES';
+  end if;
+  insert into public.alertes_tournoi (profile_id, creneaux, formats, maj_le)
+  values (v_moi, v_creneaux, v_formats, now())
+  on conflict (profile_id) do update set creneaux = excluded.creneaux, formats = excluded.formats, maj_le = now();
+end;
+$$;
+revoke execute on function public.regler_alertes_tournoi(text[], text[]) from public, anon;
+grant execute on function public.regler_alertes_tournoi(text[], text[]) to authenticated;
+
+create or replace function public.couper_alertes_tournoi()
+returns boolean
+language sql
+security definer set search_path = public
+as $$
+  with supprime as (delete from public.alertes_tournoi where profile_id = auth.uid() returning 1)
+  select exists (select 1 from supprime);
+$$;
+revoke execute on function public.couper_alertes_tournoi() from public, anon;
+grant execute on function public.couper_alertes_tournoi() to authenticated;
+
+-- Tâche des tournois automatiques : réserve les alertes à envoyer (au plus
+-- p_limite), chacune une seule fois même si deux passages se croisent, et
+-- les renvoie avec ce qu'il faut pour le message.
+create or replace function public.reserver_alertes_tournoi(p_limite integer default 200)
+returns table (profile_id uuid, tournament_id uuid, nom text, slug text, debute_le timestamptz, format text, region text)
+language sql
+security definer set search_path = public
+as $$
+  -- Rien n'est gardé plus de 30 jours (un tournoi est annoncé 7 jours avant
+  -- au plus) : une instruction de modification dans un WITH s'exécute même
+  -- si la requête ne la lit pas.
+  with purge as (
+    delete from public.alertes_envoyees where envoye_le < now() - interval '30 days'
+  ),
+  recentes as (
+    select e.profile_id, count(*)::integer as n
+    from public.alertes_envoyees e
+    where e.envoye_le > now() - interval '24 hours'
+    group by e.profile_id
+  ),
+  candidats as (
+    select a.profile_id, t.id as tournament_id, t.nom, t.slug, t.debute_le, t.format, t.region,
+           row_number() over (partition by a.profile_id order by t.debute_le, t.id) as rang,
+           coalesce(rc.n, 0) as deja
+    from public.alertes_tournoi a
+    join public.profiles p on p.id = a.profile_id and p.supprime_le is null
+    join public.game_accounts g on g.profile_id = a.profile_id and g.game_id = 1
+                                and g.est_principal and g.verifie_le is not null
+    join public.tournaments t on t.game_id = 1 and t.region = g.region
+                              and t.statut = 'ouvert' and t.nature = 'tournoi'
+                              and t.format = any (a.formats)
+                              and t.debute_le between now() + interval '1 hour' and now() + interval '7 days'
+                              and public.creneau_de(t.debute_le) = any (a.creneaux)
+    left join recentes rc on rc.profile_id = a.profile_id
+    where coalesce(rc.n, 0) < 3
+      and not exists (select 1 from public.suspensions s where s.profile_id = a.profile_id and s.levee_le is null)
+      and not exists (select 1 from public.alertes_envoyees e where e.profile_id = a.profile_id and e.tournament_id = t.id)
+      and not exists (select 1 from public.registrations r
+                      where r.tournament_id = t.id and r.profile_id = a.profile_id and r.statut <> 'retire')
+      and not exists (select 1 from public.alignements al where al.tournament_id = t.id and al.profile_id = a.profile_id)
+      and not exists (select 1 from public.agents_libres ag where ag.tournament_id = t.id and ag.profile_id = a.profile_id)
+      and t.organisateur_id <> a.profile_id
+      and not public.blocage_entre(a.profile_id, t.organisateur_id)
+      and (t.rating_min is null or public.rating_niveau(a.profile_id) >= t.rating_min)
+      and (t.rating_max is null or public.rating_niveau_meilleur(a.profile_id) < t.rating_max)
+      and (not t.reserve_membres or public.eligible_tournoi_reserve(t.id, a.profile_id))
+      and (not t.reserve_non_classes or public.est_non_classe(a.profile_id))
+      and (select count(*) from public.registrations r2
+           where r2.tournament_id = t.id and r2.statut <> 'retire') < t.capacite
+  ),
+  choisis as (
+    select * from candidats where rang <= 3 - deja
+    order by debute_le
+    limit greatest(0, least(coalesce(p_limite, 200), 500))
+  ),
+  inseres as (
+    insert into public.alertes_envoyees (profile_id, tournament_id)
+    select c.profile_id, c.tournament_id from choisis c
+    on conflict do nothing
+    returning alertes_envoyees.profile_id, alertes_envoyees.tournament_id
+  )
+  select c.profile_id, c.tournament_id, c.nom, c.slug, c.debute_le, c.format, c.region
+  from choisis c
+  join inseres i on i.profile_id = c.profile_id and i.tournament_id = c.tournament_id;
+$$;
+revoke execute on function public.reserver_alertes_tournoi(integer) from public, anon, authenticated;
+grant execute on function public.reserver_alertes_tournoi(integer) to service_role;
+
+-- Compte supprimé : ses alertes disparaissent.
+create or replace function public.effacer_alertes_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.alertes_tournoi where profile_id = new.id;
+  delete from public.alertes_envoyees where profile_id = new.id;
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_alertes_compte_supprime() from public, anon, authenticated;
+drop trigger if exists alertes_compte_supprime on public.profiles;
+create trigger alertes_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_alertes_compte_supprime();
+revoke execute on function public.creneau_de(timestamptz) from public, anon, authenticated;

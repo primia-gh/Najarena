@@ -187,6 +187,11 @@ export default function ConfidentialitePage() {
               navigateur, pour t&apos;envoyer les rappels de tournoi.
             </li>
             <li>
+              <strong>Alertes «&nbsp;tournoi pour toi&nbsp;»</strong>&nbsp;: si tu les demandes, les créneaux et les formats
+              choisis, et la liste des tournois déjà signalés (pour ne jamais t&apos;écrire deux fois), effacée après
+              30&nbsp;jours. Visibles de toi seul&nbsp;; les couper efface ton réglage, supprimer ton compte efface aussi la liste.
+            </li>
+            <li>
               <strong>Offre payante</strong>&nbsp;: si tu en souscris une, ton identifiant client et l&apos;état de ton
               abonnement chez Stripe (jamais tes coordonnées bancaires).
             </li>
