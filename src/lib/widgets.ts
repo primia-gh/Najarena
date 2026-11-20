@@ -48,7 +48,7 @@ h1,h2,h3{font:inherit}
 .carte{background:#131513;border:1px solid rgba(245,245,244,.12);border-radius:6px;padding:10px 12px}
 .tours{display:flex;gap:12px;overflow-x:auto}
 .tour{display:flex;flex-direction:column;justify-content:space-around;gap:8px;min-width:150px}
-.tours:focus-visible{outline:2px solid #b6ff3b;outline-offset:2px}
+.tours:focus-visible{outline:2px solid #f5f5f4;outline-offset:2px}
 .ligne{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
 .gagnant{font-weight:700}
 .badge{font-size:11px;text-transform:uppercase;letter-spacing:.06em}
@@ -61,7 +61,7 @@ td{padding:4px 6px;border-bottom:1px solid rgba(245,245,244,.08)}
 .colonne .tour{flex:1}
 .sous-titre{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 .entete{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9ca39c}
-${options.transparent ? ".titre,.sous-titre,.entete,.pied{text-shadow:0 1px 3px rgba(0,0,0,.9)}\n.entete,.pied{color:#e7e9e7}\n" : ""}</style>
+${options.transparent ? ".titre,.sous-titre,.entete,.pied{text-shadow:0 0 2px rgba(0,0,0,.95),0 1px 4px rgba(0,0,0,.9)}\n.entete,.pied{color:#e7e9e7}\n" : ""}</style>
 </head>
 <body>
 ${corps}
@@ -151,13 +151,17 @@ export function widgetBracket(t: TournoiPublic, options: OptionsWidget): string 
   }`;
   // « Lus chez Riot » seulement si tous les verdicts le sont : exemptions et
   // décisions de l'organisateur sont des verdicts manuels.
-  const toutVerifie = t.matchs.every((m) => !m.verdict || m.verdict.verifie);
+  const verdicts = t.matchs.flatMap((m) => (m.verdict ? [m.verdict] : []));
   return pageWidget(
     t.nom,
     corps,
     t.url,
     options,
-    toutVerifie ? PIED_RIOT : "Données Najarena — chaque match indique s'il a été lu chez Riot ou décidé à la main",
+    verdicts.length === 0
+      ? "Données Najarena"
+      : verdicts.every((v) => v.verifie)
+        ? PIED_RIOT
+        : "Données Najarena — chaque match indique s'il a été lu chez Riot ou décidé à la main",
   );
 }
 
