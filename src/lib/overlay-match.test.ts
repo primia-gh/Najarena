@@ -17,6 +17,7 @@ function match(p: Partial<MatchOverlay> = {}): MatchOverlay {
     etape: "Demi-finale",
     bestOf: 3,
     statut: "en_cours",
+    tournoiAnnule: false,
     cotes: [
       { nom: "Vipere", niveau: "Platine · 1623", pret: true },
       { nom: "Aspic", niveau: null, pret: false },
@@ -60,7 +61,12 @@ describe("choisirMatchJoueur", () => {
   it("le match en cours passe avant un résultat qui vient de tomber", () => {
     const choix = choisirMatchJoueur(
       [
-        c({ id: "fini", statut: "termine", ouvertLe: il(40), verdictLe: il(2) }),
+        c({
+          id: "fini",
+          statut: "termine",
+          ouvertLe: il(40),
+          verdictLe: il(2),
+        }),
         c({ id: "en-cours", statut: "en_cours", ouvertLe: il(1) }),
       ],
       maintenant,
@@ -82,7 +88,12 @@ describe("choisirMatchJoueur", () => {
     expect(
       choisirMatchJoueur(
         [
-          c({ id: "exemption", statut: "termine", verdictLe: il(1), adversaireConnu: false }),
+          c({
+            id: "exemption",
+            statut: "termine",
+            verdictLe: il(1),
+            adversaireConnu: false,
+          }),
           c({ id: "annule", statut: "en_cours", tournoiEnCours: false }),
         ],
         maintenant,
@@ -108,7 +119,13 @@ describe("choisirMatchJoueur", () => {
 describe("widgetMatch", () => {
   it("échappe les noms venant des utilisateurs, sans score avant le verdict", () => {
     const html = widgetMatch(
-      match({ tournoi: "<script>alert(1)</script>", cotes: [{ nom: "A&B", niveau: null, pret: false }] }),
+      match({
+        tournoi: "<script>alert(1)</script>",
+        cotes: [
+          { nom: "A&B", niveau: null, pret: false },
+          { nom: "C", niveau: null, pret: false },
+        ],
+      }),
       opaque,
     );
     expect(html).not.toContain("<script>alert");
@@ -126,11 +143,25 @@ describe("widgetMatch", () => {
   });
 
   it("un verdict lu chez Riot : vainqueur, « ✓ Vérifié » et sa source", () => {
-    const html = widgetMatch(match({ statut: "termine", verdict: { niveau: "historique", motif: null, gagnant: 1 } }), opaque);
+    const html = widgetMatch(
+      match({
+        statut: "termine",
+        verdict: {
+          niveau: "historique",
+          motif: null,
+          gagnant: 1,
+          sansVainqueur: false,
+          decideur: "automatique",
+        },
+      }),
+      opaque,
+    );
     expect(html).toContain("✓ Vérifié");
     expect(html).toContain("partie lue dans l'historique Riot");
-    expect(html).toContain('<div class="cote perdant"><p class="nom">Vipere</p>');
-    expect(html).toMatch(/<div class="cote droite"><p class="nom">Aspic<\/p><p class="detail muted chiffre"><span class="vainqueur">Vainqueur<\/span>/);
+    expect(html).toContain('<div class="cote perdant"><div class="ligne-nom"><p class="nom">Vipere</p></div>');
+    expect(html).toContain(
+      '<div class="cote droite"><div class="ligne-nom"><p class="nom">Aspic</p><span class="pastille-v" aria-hidden="true">V</span></div><p class="detail muted chiffre"><span class="vainqueur">Vainqueur</span>',
+    );
     expect(html).toContain("Données Najarena — résultats lus chez Riot");
   });
 
@@ -138,25 +169,83 @@ describe("widgetMatch", () => {
     const html = widgetMatch(
       match({
         statut: "forfait",
-        verdict: { niveau: "manuel", motif: "Forfait : <b>Aspic</b> ne s'est pas déclaré prêt.", gagnant: 0 },
+        verdict: {
+          niveau: "manuel",
+          motif: "Forfait : <b>Aspic</b> ne s'est pas déclaré prêt.",
+          gagnant: 0,
+          sansVainqueur: false,
+          decideur: "automatique",
+        },
       }),
       opaque,
     );
     expect(html).not.toContain("Vérifié");
     expect(html).not.toContain("badge accent");
-    expect(html).toContain("Manuel");
+    expect(html).toContain('<span class="badge muted">');
+    expect(html).toContain("Manuel</span>");
     expect(html).toContain("Forfait : &lt;b&gt;Aspic&lt;/b&gt;");
     expect(html).not.toContain("résultats lus chez Riot");
+    // Forfait d'absence : une règle appliquée par Najarena, pas une décision de l'organisateur.
+    expect(html).toContain("appliqué automatiquement par Najarena");
+    expect(html).not.toContain("décision de l'organisateur");
+    // Le vert reste à la preuve : pastille « V » neutre.
+    expect(html).toContain('class="pastille-v neutre"');
+  });
+
+  it("vainqueur introuvable : personne n'est désigné, rien n'est affirmé", () => {
+    const html = widgetMatch(
+      match({
+        statut: "termine",
+        verdict: {
+          niveau: "manuel",
+          motif: null,
+          gagnant: null,
+          sansVainqueur: false,
+          decideur: "arbitre",
+        },
+      }),
+      opaque,
+    );
+    expect(html).not.toContain("Vainqueur");
+    expect(html).not.toContain("Aucun vainqueur");
+    expect(html).not.toContain("cote perdant");
+    expect(html).toContain("décision de l'arbitre");
+  });
+
+  it("tournoi annulé : pas de « À venir », pas d'annonce de résultat", () => {
+    const html = widgetMatch(match({ statut: "en_attente", tournoiAnnule: true }), opaque);
+    expect(html).toContain("Tournoi annulé");
+    expect(html).not.toContain("À venir");
+    expect(html).not.toContain("Résultat lu chez Riot");
   });
 
   it("aucun vainqueur, litige, place encore vide", () => {
-    expect(widgetMatch(match({ statut: "termine", verdict: { niveau: "manuel", motif: null, gagnant: null } }), opaque)).toContain(
-      "Aucun vainqueur.",
-    );
+    expect(
+      widgetMatch(
+        match({
+          statut: "termine",
+          verdict: {
+            niveau: "manuel",
+            motif: null,
+            gagnant: null,
+            sansVainqueur: true,
+            decideur: "organisateur",
+          },
+        }),
+        opaque,
+      ),
+    ).toContain("Aucun vainqueur.");
     expect(widgetMatch(match({ statut: "litige" }), opaque)).toContain("L'organisateur tranche le litige.");
-    const seul = widgetMatch(match({ statut: "en_attente", cotes: [{ nom: "Vipere", niveau: null, pret: false }] }), opaque);
+    const seul = widgetMatch(
+      match({
+        statut: "en_attente",
+        cotes: [{ nom: "Vipere", niveau: null, pret: false }],
+      }),
+      opaque,
+    );
     expect(seul).toContain("En attente de l'adversaire");
-    expect(seul).toContain('<p class="nom muted">À venir</p>');
+    expect(seul).toContain("À déterminer");
+    expect(seul).not.toContain("Résultat lu chez Riot");
   });
 
   it("Best-of affiché au-delà d'une partie", () => {
@@ -165,9 +254,11 @@ describe("widgetMatch", () => {
   });
 
   it("fond transparent pour OBS, joueur sans match", () => {
-    expect(widgetMatch(match(), { transparent: true })).toContain("background:transparent");
+    const transparent = widgetMatch(match(), { transparent: true });
+    expect(transparent).toContain("background:transparent");
+    expect(transparent).toContain(".overlay{background:rgba(19,21,19,.82)");
     const html = widgetSansMatch("Vipere", "https://najarena.example/joueur/vipere", opaque);
-    expect(html).toContain("Pas de match en cours.");
+    expect(html).toContain("pas de match en cours");
     expect(html).toContain("https://najarena.example/joueur/vipere");
   });
 });

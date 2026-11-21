@@ -44,7 +44,7 @@ const OVERLAYS = [
     titre: "Le match d'un joueur, toujours à jour",
     chemin: "/widget/joueur/ADRESSE-DU-PROFIL/match?fond=transparent",
     texte:
-      "Suit le match du moment d'un joueur, d'un tournoi à l'autre : tournois, défis, arène et matchs de son équipe en 5v5. Le résultat reste affiché 15 minutes, puis le match suivant prend sa place. Pour ton stream, mets ton profil ; pour commenter un match, celui de l'un des deux joueurs. L'adresse du profil est la fin du lien du CV.",
+      "Suit le match du moment d'un joueur, d'un tournoi à l'autre : tournois, défis, arène et matchs de son équipe en 5v5. Le résultat reste affiché 15 minutes, puis le match suivant prend sa place. Pour ton stream, mets l'adresse de ton profil ; pour commenter un match, celle de l'un des deux joueurs. L'adresse du profil est la fin du lien du CV.",
   },
   {
     titre: "Un match précis",
@@ -113,7 +113,7 @@ export default function DeveloppeursPage() {
               return (
                 <li key={w.chemin}>
                   <Panneau className="flex flex-col gap-3 p-5">
-                    <p className="font-semibold">{w.titre}</p>
+                    <h3 className="font-semibold">{w.titre}</h3>
                     <p className="text-sm text-muted">{w.texte}</p>
                     <pre className="overflow-x-auto rounded-bouton border border-line bg-bg p-3 text-xs text-text-2">
                       <code>{code}</code>
@@ -131,7 +131,7 @@ export default function DeveloppeursPage() {
           <p className="text-sm text-muted">
             Une bannière avec les deux joueurs (ou les deux équipes), l&apos;étape du tournoi et l&apos;état du match,
             puis le vainqueur et la source du verdict. Dans OBS, ajoute une source « Navigateur » avec l&apos;adresse
-            ci-dessous, largeur 1280, hauteur 160. Pas de score en direct : le résultat s&apos;affiche une fois lu chez
+            ci-dessous, largeur 1280, hauteur 180. Pas de score en direct : le résultat s&apos;affiche une fois lu chez
             Riot, en général quelques minutes après la partie, ou marqué « manuel » s&apos;il a été tranché par
             l&apos;organisateur.
           </p>
@@ -141,12 +141,13 @@ export default function DeveloppeursPage() {
               return (
                 <li key={o.chemin}>
                   <Panneau className="flex flex-col gap-3 p-5">
-                    <p className="font-semibold">{o.titre}</p>
+                    <h3 className="font-semibold">{o.titre}</h3>
                     <p className="text-sm text-muted">{o.texte}</p>
                     <pre className="overflow-x-auto rounded-bouton border border-line bg-bg p-3 text-xs text-text-2">
                       <code>{adresse}</code>
                     </pre>
                     <BoutonCopier texte={adresse} libelle="Copier l'adresse" className="self-start" />
+                    <p className="text-xs text-muted">Remplace ensuite le texte en majuscules par la bonne adresse.</p>
                   </Panneau>
                 </li>
               );

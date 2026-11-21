@@ -11,7 +11,7 @@ import { echapperHtml } from "@/lib/echappement";
 import { tronquer } from "@/lib/bracket-image";
 import { estTableau, libelleTourDouble } from "@/lib/double-elim";
 import type { NiveauVerdict } from "@/lib/tournois";
-import { pageWidget, PIED_RIOT, type OptionsWidget } from "@/lib/widgets";
+import { pageWidget, PIED_NEUTRE, PIED_RIOT, type OptionsWidget } from "@/lib/widgets";
 
 /** Après le verdict, le résultat passe avant le match suivant pendant ce temps. */
 export const RESULTAT_EN_AVANT_MINUTES = 15;
@@ -35,10 +35,24 @@ export interface MatchOverlay {
   etape: string;
   bestOf: number;
   statut: StatutMatchOverlay;
+  /** Tournoi annulé : un match sans verdict ne se jouera pas. */
+  tournoiAnnule: boolean;
   /** Dans l'ordre des places du match. */
   cotes: CoteOverlay[];
-  /** Verdict définitif. `gagnant` : indice du côté vainqueur, nul sans vainqueur. */
-  verdict: { niveau: NiveauVerdict; motif: string | null; gagnant: number | null } | null;
+  /**
+   * Verdict définitif. `gagnant` : indice du côté vainqueur (nul s'il n'est
+   * pas retrouvé) ; `sansVainqueur` : verdict qui ne désigne personne
+   * (double forfait). `decideur` d'un verdict manuel : l'organisateur,
+   * l'arbitre (défi, scrim) ou une règle appliquée automatiquement (forfait
+   * d'absence, exemption), comme sur la fiche de preuve.
+   */
+  verdict: {
+    niveau: NiveauVerdict;
+    motif: string | null;
+    gagnant: number | null;
+    sansVainqueur: boolean;
+    decideur: "organisateur" | "arbitre" | "automatique";
+  } | null;
   urlPreuve: string;
 }
 
@@ -109,18 +123,31 @@ export function choisirMatchJoueur(candidats: MatchCandidat[], maintenant: Date)
   return dernier[0]?.id ?? null;
 }
 
-function libelleEtat(m: MatchOverlay): string {
-  if (m.verdict) return "Terminé";
-  if (m.statut === "litige") return "En litige";
-  if (m.statut === "en_cours") return "En cours";
-  return m.cotes.length < 2 ? "En attente de l'adversaire" : "À venir";
+/** État du match, repérable d'un coup d'œil (jamais en vert : « en cours » = match ouvert, pas une preuve). */
+function etat(m: MatchOverlay): string {
+  if (m.verdict) return `<span class="etat muted">Terminé</span>`;
+  if (m.tournoiAnnule) return `<span class="etat muted">Tournoi annulé</span>`;
+  if (m.statut === "litige") return `<span class="etat danger">En litige</span>`;
+  if (m.statut === "en_cours")
+    return `<span class="etat"><span class="point" aria-hidden="true"></span>En cours</span>`;
+  return `<span class="etat muted">${m.cotes.length < 2 ? "En attente de l'adversaire" : "À venir"}</span>`;
 }
+
+const ORIGINE_MANUEL = {
+  organisateur: "décision de l'organisateur",
+  arbitre: "décision de l'arbitre",
+  automatique: "appliqué automatiquement par Najarena",
+} as const;
+
+// Icône du verdict manuel, la même que sur le site (crayon, jamais vert).
+const ICONE_MANUEL = `<svg class="icone" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
 function ligneVerdict(m: MatchOverlay): string {
   if (!m.verdict) {
     if (m.statut === "litige") return `<p class="overlay-bas muted">L'organisateur tranche le litige.</p>`;
-    // Un match terminé ou forfait sans verdict définitif n'est pas annoncé.
-    if (m.statut === "termine" || m.statut === "forfait") return "";
+    // Un match terminé ou forfait sans verdict définitif n'est pas annoncé ;
+    // sans adversaire, aucune partie ne peut encore se jouer.
+    if (m.statut === "termine" || m.statut === "forfait" || m.tournoiAnnule || m.cotes.length < 2) return "";
     return `<p class="overlay-bas muted">Résultat lu chez Riot après la partie.</p>`;
   }
   if (m.verdict.niveau !== "manuel") {
@@ -129,20 +156,25 @@ function ligneVerdict(m: MatchOverlay): string {
   }
   // Verdict manuel : jamais vert, jamais « vérifié », motif affiché.
   const motif = m.verdict.motif ? ` — ${echapperHtml(tronquer(m.verdict.motif, 110))}` : "";
-  return `<p class="overlay-bas"><span class="badge">Manuel</span> <span class="muted">· décision de l'organisateur${motif}</span></p>`;
+  const origine = ORIGINE_MANUEL[m.verdict.decideur];
+  return `<p class="overlay-bas"><span class="badge muted">${ICONE_MANUEL}Manuel</span> <span class="muted">· ${origine}${motif}</span></p>`;
 }
 
 function cote(c: CoteOverlay | undefined, index: number, m: MatchOverlay): string {
   const droite = index === 1 ? " droite" : "";
-  if (!c) return `<div class="cote${droite}"><p class="nom muted">À venir</p></div>`;
+  if (!c) return `<div class="cote${droite}"><p class="a-determiner muted">À déterminer</p></div>`;
   const gagnant = m.verdict?.gagnant === index;
   const perdant = m.verdict !== null && m.verdict.gagnant !== null && !gagnant;
+  // Victoire : la lettre V et le mot, jamais la couleur seule (MASTER). Le
+  // vert reste à la preuve : pastille grise pour un verdict manuel.
+  const verifie = m.verdict !== null && m.verdict.niveau !== "manuel";
+  const marque = gagnant ? `<span class="pastille-v${verifie ? "" : " neutre"}" aria-hidden="true">V</span>` : "";
   const details = [
+    gagnant ? `<span class="vainqueur">Vainqueur</span>` : null,
     c.niveau ? echapperHtml(c.niveau) : null,
     !m.verdict && m.statut === "en_cours" && c.pret ? "Prêt" : null,
-    gagnant ? `<span class="vainqueur">Vainqueur</span>` : null,
   ].filter((x) => x !== null);
-  return `<div class="cote${droite}${perdant ? " perdant" : ""}"><p class="nom">${echapperHtml(c.nom)}</p>${
+  return `<div class="cote${droite}${perdant ? " perdant" : ""}"><div class="ligne-nom"><p class="nom">${echapperHtml(c.nom)}</p>${marque}</div>${
     details.length > 0 ? `<p class="detail muted chiffre">${details.join(" · ")}</p>` : ""
   }</div>`;
 }
@@ -150,9 +182,9 @@ function cote(c: CoteOverlay | undefined, index: number, m: MatchOverlay): strin
 /** Bannière d'un match. */
 export function widgetMatch(m: MatchOverlay, options: OptionsWidget): string {
   const serie = m.bestOf > 1 ? ` · Bo${m.bestOf}` : "";
-  const aucunVainqueur = m.verdict !== null && m.verdict.gagnant === null;
+  const aucunVainqueur = m.verdict !== null && m.verdict.sansVainqueur;
   const corps = `<div class="overlay">
-<div class="overlay-haut"><h1 class="titre-tournoi">${echapperHtml(m.tournoi)}</h1><span class="muted">${echapperHtml(m.etape)}${serie}</span><span class="etat">${libelleEtat(m)}</span></div>
+<div class="overlay-haut"><h1 class="titre-tournoi">${echapperHtml(m.tournoi)}</h1><span class="muted">${echapperHtml(m.etape)}${serie}</span>${etat(m)}</div>
 <div class="affiche">${cote(m.cotes[0], 0, m)}<span class="contre">contre</span>${cote(m.cotes[1], 1, m)}</div>
 ${aucunVainqueur ? `<p class="overlay-bas">Aucun vainqueur.</p>` : ""}${ligneVerdict(m)}
 </div>`;
@@ -161,12 +193,12 @@ ${aucunVainqueur ? `<p class="overlay-bas">Aucun vainqueur.</p>` : ""}${ligneVer
     corps,
     m.urlPreuve,
     options,
-    m.verdict && m.verdict.niveau !== "manuel" ? PIED_RIOT : "Données Najarena",
+    m.verdict && m.verdict.niveau !== "manuel" ? PIED_RIOT : PIED_NEUTRE,
   );
 }
 
-/** Bannière d'un joueur sans match à montrer. */
+/** Joueur sans match à montrer : une ligne discrète, l'overlay reste dans OBS entre deux matchs. */
 export function widgetSansMatch(pseudo: string, urlProfil: string, options: OptionsWidget): string {
-  const corps = `<div class="overlay"><h1 class="nom">${echapperHtml(pseudo)}</h1><p class="muted">Pas de match en cours.</p></div>`;
-  return pageWidget(pseudo, corps, urlProfil, options, "Données Najarena");
+  const corps = `<div class="overlay overlay-vide"><h1 class="muted"><span class="titre-tournoi">${echapperHtml(pseudo)}</span> · pas de match en cours</h1></div>`;
+  return pageWidget(pseudo, corps, urlProfil, options, PIED_NEUTRE);
 }

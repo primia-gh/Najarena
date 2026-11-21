@@ -1,7 +1,7 @@
 import { creerClientPublic } from "@/lib/supabase/public";
 import { chargerOverlayJoueur, URL_PUBLIQUE } from "@/lib/donnees-publiques";
 import { widgetMatch, widgetSansMatch } from "@/lib/overlay-match";
-import { optionsWidget, pageWidget } from "@/lib/widgets";
+import { optionsWidget, pageWidget, PIED_NEUTRE } from "@/lib/widgets";
 import { lirePublic, redirectionWidget, reponseWidget } from "@/lib/reponses-publiques";
 
 // Overlay « mon match » d'un joueur (21/11/2026) : une seule adresse à
@@ -15,13 +15,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ pseu
   const lecture = await lirePublic(() => chargerOverlayJoueur(creerClientPublic(), pseudo));
   if (!lecture.ok) {
     return reponseWidget(
-      pageWidget("Najarena", `<p class="muted">Données indisponibles pour l'instant.</p>`, URL_PUBLIQUE, options),
+      pageWidget(
+        "Najarena",
+        `<p class="muted">Données indisponibles pour l'instant.</p>`,
+        URL_PUBLIQUE,
+        options,
+        PIED_NEUTRE,
+      ),
       503,
     );
   }
   if (!lecture.valeur) {
     return reponseWidget(
-      pageWidget("Joueur introuvable", `<p class="muted">Joueur introuvable.</p>`, URL_PUBLIQUE, options),
+      pageWidget("Joueur introuvable", `<p class="muted">Joueur introuvable.</p>`, URL_PUBLIQUE, options, PIED_NEUTRE),
       404,
     );
   }

@@ -228,7 +228,7 @@ export async function chargerMatchOverlay(supabase: Client, id: string): Promise
     await supabase
       .from("matches")
       .select(
-        "id, tournament_id, tour, tableau, statut, match_participants(profile_id, slot, pret_le, profile:profiles(pseudo)), match_verdicts(niveau, gagnant_id, motif, est_definitif), tournament:tournaments(id, nom, statut, format, nature, type_bracket, best_of)",
+        "id, tournament_id, tour, tableau, statut, match_participants(profile_id, slot, pret_le, profile:profiles(pseudo)), match_verdicts(niveau, gagnant_id, motif, decide_par, est_definitif), tournament:tournaments(id, nom, statut, format, nature, type_bracket, best_of)",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -267,6 +267,7 @@ export async function chargerMatchOverlay(supabase: Client, id: string): Promise
     ),
     bestOf: tournoi.best_of,
     statut: STATUTS_MATCH.includes(m.statut) ? m.statut : "en_attente",
+    tournoiAnnule: tournoi.statut === "annule",
     cotes: participants.map((p) => {
       const equipe = equipes?.get(cleEquipe(tournoi.id, p.profile_id));
       const rating = (ratings ?? []).find((r) => r.profile_id === p.profile_id);
@@ -281,7 +282,15 @@ export async function chargerMatchOverlay(supabase: Client, id: string): Promise
       ? {
           niveau: verdict.niveau,
           motif: verdict.niveau === "manuel" ? verdict.motif : null,
-          gagnant: verdict.gagnant_id ? ids.indexOf(verdict.gagnant_id) : null,
+          // Un vainqueur absent des places (ne devrait pas arriver) n'est désigné nulle part.
+          gagnant: verdict.gagnant_id && ids.includes(verdict.gagnant_id) ? ids.indexOf(verdict.gagnant_id) : null,
+          sansVainqueur: verdict.gagnant_id === null,
+          decideur:
+            verdict.decide_par === null
+              ? "automatique"
+              : tournoi.nature === "defi" || tournoi.nature === "scrim"
+                ? "arbitre"
+                : "organisateur",
         }
       : null,
     urlPreuve: `${URL_PUBLIQUE}/lol/match/${m.id}`,
@@ -361,5 +370,9 @@ export async function chargerOverlayJoueur(
     ];
   });
   const choisi = choisirMatchJoueur(candidats, maintenant);
-  return { pseudo: profil.pseudo, url, match: choisi ? await chargerMatchOverlay(supabase, choisi) : null };
+  return {
+    pseudo: profil.pseudo,
+    url,
+    match: choisi ? await chargerMatchOverlay(supabase, choisi) : null,
+  };
 }

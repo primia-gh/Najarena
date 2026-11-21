@@ -20,6 +20,8 @@ export function optionsWidget(params: URLSearchParams): OptionsWidget {
 }
 
 export const PIED_RIOT = "Données Najarena — résultats lus chez Riot";
+/** Pied sans affirmation sur la source : page d'erreur, rien d'affiché. */
+export const PIED_NEUTRE = "Données Najarena";
 
 export function pageWidget(
   titre: string,
@@ -55,26 +57,36 @@ h1,h2,h3{font:inherit}
 .chiffre{font-variant-numeric:tabular-nums}
 table{width:100%;border-collapse:collapse}
 td{padding:4px 6px;border-bottom:1px solid rgba(245,245,244,.08)}
-.pied{margin-top:8px;font-size:11px}
+.pied{margin-top:8px;font-size:12px}
 .tableau+.tableau{margin-top:14px;padding-top:10px;border-top:1px solid rgba(245,245,244,.12)}
 .colonne{display:flex;flex-direction:column;gap:6px}
 .colonne .tour{flex:1}
 .sous-titre{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 .entete{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9ca39c}
-.overlay{background:#131513;border:1px solid rgba(245,245,244,.12);border-radius:6px;padding:10px 16px;display:flex;flex-direction:column;gap:6px}
-.overlay-haut{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+.overlay{background:${options.transparent ? "rgba(19,21,19,.82)" : "#131513"};border:1px solid rgba(245,245,244,.12);border-radius:6px;padding:10px 16px;display:flex;flex-direction:column;gap:4px}
+.overlay-haut{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;font-size:15px;text-transform:uppercase;letter-spacing:.06em}
 .titre-tournoi{font-weight:800}
-.etat{margin-left:auto;font-weight:700}
+.etat{margin-left:auto;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+.point{width:8px;height:8px;border-radius:50%;background:#f5f5f4}
+.danger{color:#ff4d4f}
 .affiche{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:16px}
 .cote{display:flex;flex-direction:column;min-width:0}
 .cote.droite{text-align:right;align-items:flex-end}
-.nom{font-size:24px;line-height:1.15;font-weight:800;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
-.detail{font-size:12px}
+.ligne-nom{display:flex;align-items:center;gap:10px;min-width:0;max-width:100%}
+.droite .ligne-nom{flex-direction:row-reverse}
+.nom{font-size:26px;line-height:1.15;font-weight:800;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.a-determiner{font-size:17px;font-style:italic}
+.pastille-v{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:4px;background:rgba(182,255,59,.14);color:#b6ff3b;font-weight:800;font-size:16px}
+.pastille-v.neutre{background:rgba(245,245,244,.1);color:#f5f5f4}
+.detail{font-size:15px}
 .perdant .nom{color:#9ca39c}
 .vainqueur{color:#f5f5f4;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
-.contre{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#9ca39c}
-.overlay-bas{font-size:12px}
-${options.transparent ? ".titre,.sous-titre,.entete,.pied{text-shadow:0 0 2px rgba(0,0,0,.95),0 1px 4px rgba(0,0,0,.9)}\n.entete,.pied{color:#e7e9e7}\n" : ""}</style>
+.contre{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:#9ca39c}
+.overlay-bas{font-size:15px}
+.overlay-bas .badge{font-size:13px}
+.badge .icone{vertical-align:-1px;margin-right:4px}
+.overlay-vide{padding:6px 12px;font-size:14px}
+${options.transparent ? ".titre,.sous-titre,.entete,.pied,.overlay{text-shadow:0 0 2px rgba(0,0,0,.95),0 1px 4px rgba(0,0,0,.9)}\n.entete,.pied{color:#e7e9e7}\n.overlay .muted,.perdant .nom,.contre{color:#b9beb9}\n" : ""}</style>
 </head>
 <body>
 ${corps}
