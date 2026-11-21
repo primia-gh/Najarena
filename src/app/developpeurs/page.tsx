@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { URL_PUBLIQUE } from "@/lib/donnees-publiques";
 import { RAFRAICHISSEMENT_WIDGET_SECONDES } from "@/lib/widgets";
 import FondEcailles from "@/components/design/FondEcailles";
@@ -38,13 +39,18 @@ const WIDGETS = [
   },
 ];
 
+// Bloc de code qui défile : atteignable au clavier (tabIndex + role region).
+const CLASSE_CODE =
+  "overflow-x-auto rounded-bouton border border-line bg-bg p-3 text-xs text-text-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
 // Overlay de match (21/11/2026) : adresses à coller dans OBS, pas des iframes.
 const OVERLAYS = [
   {
     titre: "Le match d'un joueur, toujours à jour",
     chemin: "/widget/joueur/ADRESSE-DU-PROFIL/match?fond=transparent",
     texte:
-      "Suit le match du moment d'un joueur, d'un tournoi à l'autre : tournois, défis, arène et matchs de son équipe en 5v5. Le résultat reste affiché 15 minutes, puis le match suivant prend sa place. Pour ton stream, mets l'adresse de ton profil ; pour commenter un match, celle de l'un des deux joueurs. L'adresse du profil est la fin du lien du CV.",
+      "Suit le match du moment d'un joueur, d'un tournoi à l'autre : tournois, défis, arène et matchs de son équipe en 5v5. Le résultat reste affiché 15 minutes, puis le match suivant prend sa place. Pour commenter un match, mets l'adresse du profil de l'un des deux joueurs, la fin du lien de son CV.",
+    lienMoi: true,
   },
   {
     titre: "Un match précis",
@@ -115,7 +121,7 @@ export default function DeveloppeursPage() {
                   <Panneau className="flex flex-col gap-3 p-5">
                     <h3 className="font-semibold">{w.titre}</h3>
                     <p className="text-sm text-muted">{w.texte}</p>
-                    <pre className="overflow-x-auto rounded-bouton border border-line bg-bg p-3 text-xs text-text-2">
+                    <pre tabIndex={0} role="region" aria-label={`Code du widget ${w.titre}`} className={CLASSE_CODE}>
                       <code>{code}</code>
                     </pre>
                     <BoutonCopier texte={code} libelle="Copier le code" className="self-start" />
@@ -126,13 +132,15 @@ export default function DeveloppeursPage() {
           </ul>
         </section>
 
-        <section className="flex flex-col gap-4">
-          <LibelleSection as="h2">Overlay de match pour ton stream</LibelleSection>
+        <section aria-labelledby="overlay" className="flex scroll-mt-28 flex-col gap-4">
+          <LibelleSection as="h2" id="overlay">
+            Overlay de match pour ton stream
+          </LibelleSection>
           <p className="text-sm text-muted">
             Une bannière avec les deux joueurs (ou les deux équipes), l&apos;étape du tournoi et l&apos;état du match,
             puis le vainqueur et la source du verdict. Dans OBS, ajoute une source « Navigateur » avec l&apos;adresse
-            ci-dessous, largeur 1280, hauteur 180. Pas de score en direct : le résultat s&apos;affiche une fois lu chez
-            Riot, en général quelques minutes après la partie, ou marqué « manuel » s&apos;il a été tranché par
+            ci-dessous, en 1280 × 200 pixels. Pas de score en direct : le résultat s&apos;affiche une fois lu chez Riot,
+            en général quelques minutes après la partie, ou marqué « manuel » s&apos;il a été tranché par
             l&apos;organisateur.
           </p>
           <ul className="flex flex-col gap-4">
@@ -143,7 +151,15 @@ export default function DeveloppeursPage() {
                   <Panneau className="flex flex-col gap-3 p-5">
                     <h3 className="font-semibold">{o.titre}</h3>
                     <p className="text-sm text-muted">{o.texte}</p>
-                    <pre className="overflow-x-auto rounded-bouton border border-line bg-bg p-3 text-xs text-text-2">
+                    {"lienMoi" in o && (
+                      <Link
+                        href="/moi#moi-overlay"
+                        className="inline-flex min-h-11 items-center self-start text-sm text-text underline underline-offset-3 hover:text-accent"
+                      >
+                        Ton adresse toute prête, dans ton tableau de bord
+                      </Link>
+                    )}
+                    <pre tabIndex={0} role="region" aria-label={`Adresse : ${o.titre}`} className={CLASSE_CODE}>
                       <code>{adresse}</code>
                     </pre>
                     <BoutonCopier texte={adresse} libelle="Copier l'adresse" className="self-start" />

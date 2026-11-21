@@ -1,0 +1,7 @@
+big-shoulders-latin-v1.woff2 : police Big Shoulders (sous-ensemble latin,
+variable, axe opsz), © The Big Shoulders Project Authors, distribuée sous
+licence SIL Open Font License 1.1 (https://openfontlicense.org).
+Utilisée par les widgets et l'overlay de stream (src/lib/widgets.ts), qui
+n'ont pas accès aux polices chargées par Next. Le site lui-même la charge
+par next/font (src/app/layout.tsx). Changer de fichier = changer de nom
+(v2), car il est gardé un an en cache (next.config.ts).

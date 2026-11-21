@@ -17,6 +17,48 @@ export const JOURNAL: EntreeJournal[] = [
     tags: ["Fonctionnalité"],
   },
   {
+    date: "20 novembre",
+    titre: "Une alerte quand un tournoi s'ouvre pour toi",
+    texte:
+      "Dans ton tableau de bord, choisis tes créneaux et tes formats. Quand un tournoi s'ouvre sur ton serveur, à ton heure et à ton format, ouvert à toi (niveau, réservations) et avec encore de la place, tu reçois un message : notification du navigateur ou message privé Discord, jamais d'e-mail. Trois au plus par jour, de 1 h à 7 jours avant le début, jamais deux fois le même tournoi. Il faut un compte Riot vérifié, et les notifications du navigateur ou un compte créé avec Discord.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "20 novembre",
+    titre: "La double élimination",
+    texte:
+      "Un organisateur peut choisir la double élimination pour un tournoi 1v1 : ta première défaite t'envoie dans le tableau des perdants, la deuxième t'élimine. La grande finale se joue en un seul match. Les exemptions (places vides) ne comptent jamais au classement.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "19 novembre",
+    titre: "Le format suisse",
+    texte:
+      "Un tournoi 1v1 peut se jouer au format suisse : personne n'est éliminé, et chaque ronde t'oppose à un joueur au même bilan, sans revanche quand c'est possible. Le tableau final se fait aux victoires, puis à la force des adversaires affrontés. Tu peux abandonner : tes résultats restent au tableau du tournoi, derrière les joueurs allés au bout.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "19 novembre",
+    titre: "Des tournois à ton niveau",
+    texte:
+      "Un organisateur peut réserver un tournoi 1v1 à une fourchette de paliers, « Bronze à Argent » par exemple. Pour la limite haute, c'est ton meilleur rating de la saison en cours ou de la précédente qui compte : perdre exprès ne rouvre pas un tournoi de niveau inférieur. La base le vérifie à l'inscription, puis de nouveau au check-in.",
+    tags: ["Fonctionnalité", "Fiabilité"],
+  },
+  {
+    date: "19 novembre",
+    titre: "Face-à-face",
+    texte:
+      "Une page pour chaque paire de joueurs qui se sont affrontés en 1v1 : tous leurs matchs et le bilan des seuls résultats lus chez Riot. Les décisions manuelles et les forfaits sont listés, jamais comptés. Le bloc « Face-à-face » du CV y mène dès deux matchs lus chez Riot.",
+    tags: ["Fonctionnalité"],
+  },
+  {
+    date: "19 novembre",
+    titre: "Les équipes recrutent",
+    texte:
+      "Un capitaine publie une annonce depuis la page de son équipe : les postes cherchés et le niveau minimum. Les joueurs vérifiés de son serveur, au niveau, postulent pour un poste, et le capitaine accepte ou décline. Toutes les annonces sont sur la page « Équipes qui recrutent ».",
+    tags: ["Fonctionnalité"],
+  },
+  {
     date: "19 novembre",
     titre: "Les offres payantes s'appellent Plus et Pro",
     texte:

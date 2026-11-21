@@ -22,6 +22,6 @@ export const config = {
     // .png laissait « /equipe/x.png?message=… » échapper au filtre des
     // messages (contrôle de sécurité du 11/10/2026). robots.txt et
     // sitemap.xml : lus par les moteurs de recherche, sans session ni message.
-    "/((?!_next/static|_next/image|favicon.ico|widget/|api/public/|avatars/|brand/|icon\\.png|icon-192\\.png|icon-512\\.png|apple-icon\\.png|logo-najarena|sw\\.js|robots\\.txt$|sitemap\\.xml$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|widget/|api/public/|avatars/|brand/|fonts/|icon\\.png|icon-192\\.png|icon-512\\.png|apple-icon\\.png|logo-najarena|sw\\.js|robots\\.txt$|sitemap\\.xml$).*)",
   ],
 };

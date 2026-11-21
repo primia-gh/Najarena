@@ -37,6 +37,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path((?!widget/).*)", headers: ENTETES_SECURITE },
       { source: "/widget/:path*", headers: ENTETES_WIDGETS },
+      // Police des widgets (21/11/2026) : nom versionné, gardée un an.
+      { source: "/fonts/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
     ];
   },
   images: {

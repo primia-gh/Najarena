@@ -30,6 +30,7 @@ import { chargerMesDefis } from "@/lib/defis-serveur";
 import SectionDefis from "@/components/defis/SectionDefis";
 import { DUREE_DEMANDE_DUO_JOURS } from "@/lib/duo";
 import AlertesTournoi from "@/components/moi/AlertesTournoi";
+import OverlayStream from "@/components/moi/OverlayStream";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
@@ -572,6 +573,8 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               }}
               retour={retourAlertes ? { message, erreur } : null}
             />
+
+            {profil?.slug && <OverlayStream slug={profil.slug} compteVerifie={Boolean(comptesRiot?.verifie_le)} />}
           </Apparition>
         </div>
       </div>
