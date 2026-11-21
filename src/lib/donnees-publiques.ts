@@ -4,6 +4,13 @@ import { arrondir, calibrationPct, trouverPalier } from "@/lib/classement";
 import { estMatchVide } from "@/lib/double-elim";
 import { estVisiblePubliquement } from "@/lib/tournois";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
+import {
+  choisirMatchJoueur,
+  etapeMatch,
+  type MatchCandidat,
+  type MatchOverlay,
+  type StatutMatchOverlay,
+} from "@/lib/overlay-match";
 
 // Données publiques en lecture seule (03/10/2026, audit N31) : ce que
 // montrent l'API publique (/api/public/v1) et les widgets (/widget), lu avec
@@ -204,4 +211,155 @@ export async function chargerTournoiPublic(supabase: Client, slug: string): Prom
       };
     }),
   };
+}
+
+// Overlay de match pour les streams (21/11/2026) : un match précis, ou le
+// match du moment d'un joueur. Mêmes règles que le reste : tournoi visible
+// publiquement, rating seulement pour un joueur classé, verdict définitif
+// seulement.
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+const STATUTS_MATCH: readonly StatutMatchOverlay[] = ["en_attente", "en_cours", "termine", "litige", "forfait"];
+
+export async function chargerMatchOverlay(supabase: Client, id: string): Promise<MatchOverlay | null> {
+  if (!UUID.test(id)) return null;
+  const { data: m } = verifier(
+    await supabase
+      .from("matches")
+      .select(
+        "id, tournament_id, tour, tableau, statut, match_participants(profile_id, slot, pret_le, profile:profiles(pseudo)), match_verdicts(niveau, gagnant_id, motif, est_definitif), tournament:tournaments(id, nom, statut, format, nature, type_bracket, best_of)",
+      )
+      .eq("id", id)
+      .maybeSingle(),
+  );
+  const tournoi = m?.tournament;
+  if (!m || !tournoi || !estVisiblePubliquement(tournoi.statut)) return null;
+
+  const participants = [...m.match_participants].sort((a, b) => a.slot - b.slot);
+  const ids = participants.map((p) => p.profile_id);
+  const [{ data: tours }, equipes, { data: ratings }, paliers] = await Promise.all([
+    supabase.from("matches").select("tour, tableau").eq("tournament_id", tournoi.id),
+    tournoi.format === "5v5" ? chargerEquipesDesTournois(supabase, [tournoi.id]) : Promise.resolve(null),
+    tournoi.format === "1v1" && ids.length > 0
+      ? supabase
+          .from("ratings")
+          .select("profile_id, rating, est_classe, season:seasons!inner(est_courante)")
+          .in("profile_id", ids)
+          .eq("game_id", 1)
+          .eq("season.est_courante", true)
+      : Promise.resolve({ data: [] }),
+    tournoi.format === "1v1" ? chargerPaliers(supabase) : Promise.resolve([]),
+  ]);
+
+  const verdict = m.match_verdicts.find((v) => v.est_definitif);
+  const toursDe = (filtre: (t: { tableau: string | null }) => boolean) =>
+    Math.max(m.tour, ...(tours ?? []).filter(filtre).map((t) => t.tour));
+  return {
+    id: m.id,
+    tournoi: tournoi.nom,
+    etape: etapeMatch(
+      { nature: tournoi.nature, typeBracket: tournoi.type_bracket },
+      m.tour,
+      m.tableau,
+      toursDe((t) => t.tableau === null),
+      toursDe((t) => t.tableau === "gagnants"),
+    ),
+    bestOf: tournoi.best_of,
+    statut: STATUTS_MATCH.includes(m.statut) ? m.statut : "en_attente",
+    cotes: participants.map((p) => {
+      const equipe = equipes?.get(cleEquipe(tournoi.id, p.profile_id));
+      const rating = (ratings ?? []).find((r) => r.profile_id === p.profile_id);
+      const palier = rating?.est_classe ? trouverPalier(Number(rating.rating), paliers)?.nom : null;
+      return {
+        nom: equipe?.libelle ?? p.profile?.pseudo ?? "Joueur",
+        niveau: rating?.est_classe ? `${palier ? `${palier} · ` : ""}${arrondir(Number(rating.rating))}` : null,
+        pret: p.pret_le !== null,
+      };
+    }),
+    verdict: verdict
+      ? {
+          niveau: verdict.niveau,
+          motif: verdict.niveau === "manuel" ? verdict.motif : null,
+          gagnant: verdict.gagnant_id ? ids.indexOf(verdict.gagnant_id) : null,
+        }
+      : null,
+    urlPreuve: `${URL_PUBLIQUE}/lol/match/${m.id}`,
+  };
+}
+
+/** Fenêtre de recherche du match d'un joueur : tournois commencés depuis deux jours. */
+const FENETRE_OVERLAY_JOURS = 2;
+
+export interface OverlayJoueur {
+  pseudo: string;
+  url: string;
+  match: MatchOverlay | null;
+}
+
+export async function chargerOverlayJoueur(
+  supabase: Client,
+  slug: string,
+  maintenant: Date = new Date(),
+): Promise<OverlayJoueur | null> {
+  const { data: profil } = verifier(
+    await supabase.from("profiles").select("id, pseudo, slug, supprime_le").eq("slug", slug).maybeSingle(),
+  );
+  if (!profil || profil.supprime_le) return null;
+  const url = `${URL_PUBLIQUE}/joueur/${profil.slug}`;
+
+  // Tournois récents du joueur : inscrit lui-même (1v1, duel, capitaine),
+  // ou aligné dans une équipe (5v5) — l'équipe y joue sous son capitaine.
+  const depuis = new Date(maintenant.getTime() - FENETRE_OVERLAY_JOURS * 86_400_000).toISOString();
+  const [{ data: inscriptions }, { data: alignements }] = await Promise.all([
+    supabase
+      .from("registrations")
+      .select("tournament_id, tournament:tournaments!inner(debute_le)")
+      .eq("profile_id", profil.id)
+      .neq("statut", "retire")
+      .gte("tournament.debute_le", depuis)
+      .limit(50),
+    supabase
+      .from("alignements")
+      .select("tournament_id, registration:registrations(profile_id), tournament:tournaments!inner(debute_le)")
+      .eq("profile_id", profil.id)
+      .gte("tournament.debute_le", depuis)
+      .limit(50),
+  ]);
+  const representants = new Set<string>();
+  for (const r of inscriptions ?? []) representants.add(`${r.tournament_id}:${profil.id}`);
+  for (const a of alignements ?? []) {
+    if (a.registration) representants.add(`${a.tournament_id}:${a.registration.profile_id}`);
+  }
+  if (representants.size === 0) return { pseudo: profil.pseudo, url, match: null };
+
+  const tournois = [...new Set([...representants].map((r) => r.split(":")[0]))];
+  const personnes = [...new Set([...representants].map((r) => r.split(":")[1]))];
+  const { data: lignes } = verifier(
+    await supabase
+      .from("match_participants")
+      .select(
+        "profile_id, match:matches!inner(id, tournament_id, statut, demarre_le, match_participants(profile_id), match_verdicts(est_definitif, cree_le), tournament:tournaments(statut))",
+      )
+      .in("profile_id", personnes)
+      .in("match.tournament_id", tournois)
+      .limit(500),
+  );
+
+  const candidats: MatchCandidat[] = (lignes ?? []).flatMap((l) => {
+    const m = l.match;
+    if (!m || !representants.has(`${m.tournament_id}:${l.profile_id}`)) return [];
+    return [
+      {
+        id: m.id,
+        statut: STATUTS_MATCH.includes(m.statut) ? m.statut : "en_attente",
+        tournoiEnCours: m.tournament?.statut === "en_cours",
+        ouvertLe: m.demarre_le,
+        verdictLe: m.match_verdicts.find((v) => v.est_definitif)?.cree_le ?? null,
+        adversaireConnu: m.match_participants.length === 2,
+      },
+    ];
+  });
+  const choisi = choisirMatchJoueur(candidats, maintenant);
+  return { pseudo: profil.pseudo, url, match: choisi ? await chargerMatchOverlay(supabase, choisi) : null };
 }

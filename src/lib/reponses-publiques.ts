@@ -57,3 +57,17 @@ export function reponseWidget(html: string, statut = 200): Response {
     headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": statut === 503 ? "no-store" : CACHE },
   });
 }
+
+/**
+ * Adresse canonique d'un widget (21/11/2026) : seul `?fond=transparent` est
+ * gardé, chemin en minuscules — même raison que redirectionCanonique : une
+ * adresse garnie de paramètres au hasard contournait le cache d'une minute.
+ */
+export function redirectionWidget(requete: Request): Response | null {
+  const url = new URL(requete.url);
+  const chemin = url.pathname.toLowerCase();
+  const transparent = url.searchParams.get("fond") === "transparent";
+  const recherche = transparent ? "?fond=transparent" : "";
+  if (chemin === url.pathname && url.search === recherche) return null;
+  return new Response(null, { status: 308, headers: { Location: `${chemin}${recherche}`, "Cache-Control": CACHE } });
+}

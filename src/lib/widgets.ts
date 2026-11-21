@@ -61,6 +61,19 @@ td{padding:4px 6px;border-bottom:1px solid rgba(245,245,244,.08)}
 .colonne .tour{flex:1}
 .sous-titre{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 .entete{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9ca39c}
+.overlay{background:#131513;border:1px solid rgba(245,245,244,.12);border-radius:6px;padding:10px 16px;display:flex;flex-direction:column;gap:6px}
+.overlay-haut{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+.titre-tournoi{font-weight:800}
+.etat{margin-left:auto;font-weight:700}
+.affiche{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:16px}
+.cote{display:flex;flex-direction:column;min-width:0}
+.cote.droite{text-align:right;align-items:flex-end}
+.nom{font-size:24px;line-height:1.15;font-weight:800;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.detail{font-size:12px}
+.perdant .nom{color:#9ca39c}
+.vainqueur{color:#f5f5f4;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.contre{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#9ca39c}
+.overlay-bas{font-size:12px}
 ${options.transparent ? ".titre,.sous-titre,.entete,.pied{text-shadow:0 0 2px rgba(0,0,0,.95),0 1px 4px rgba(0,0,0,.9)}\n.entete,.pied{color:#e7e9e7}\n" : ""}</style>
 </head>
 <body>

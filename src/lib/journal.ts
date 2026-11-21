@@ -10,6 +10,13 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "21 novembre",
+    titre: "Ton match sur ton stream",
+    texte:
+      "Une bannière à ajouter dans OBS : les deux joueurs ou les deux équipes, l'étape du tournoi, l'état du match, puis le vainqueur et la source du verdict — « ✓ Vérifié » quand le résultat est lu chez Riot, « manuel » quand l'organisateur a tranché. Une seule adresse suit ton match d'un tournoi à l'autre. Pas de score en direct : un résultat n'existe qu'une fois lu chez Riot. Mode d'emploi dans « Widgets et API ».",
+    tags: ["Fonctionnalité"],
+  },
+  {
     date: "19 novembre",
     titre: "Les offres payantes s'appellent Plus et Pro",
     texte:

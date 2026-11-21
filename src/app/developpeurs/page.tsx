@@ -13,7 +13,7 @@ import BoutonCopier from "@/components/design/BoutonCopier";
 export const metadata: Metadata = {
   title: "Widgets et API — Najarena",
   description:
-    "Intègre un bracket, le top 10 ou la carte CV d'un joueur sur ton site ou ton stream, ou lis les données publiques de Najarena en JSON.",
+    "Intègre un bracket, le top 10, la carte CV d'un joueur ou l'overlay de ton match sur ton site ou ton stream, ou lis les données publiques de Najarena en JSON.",
   alternates: { canonical: "/developpeurs" },
 };
 
@@ -35,6 +35,22 @@ const WIDGETS = [
     chemin: "/widget/joueur/ADRESSE-DU-PROFIL",
     texte: "Rating et palier une fois le joueur classé, sinon son indice de confiance ; nombre de matchs vérifiés.",
     hauteur: 170,
+  },
+];
+
+// Overlay de match (21/11/2026) : adresses à coller dans OBS, pas des iframes.
+const OVERLAYS = [
+  {
+    titre: "Le match d'un joueur, toujours à jour",
+    chemin: "/widget/joueur/ADRESSE-DU-PROFIL/match?fond=transparent",
+    texte:
+      "Suit le match du moment d'un joueur, d'un tournoi à l'autre : tournois, défis, arène et matchs de son équipe en 5v5. Le résultat reste affiché 15 minutes, puis le match suivant prend sa place. Pour ton stream, mets ton profil ; pour commenter un match, celui de l'un des deux joueurs. L'adresse du profil est la fin du lien du CV.",
+  },
+  {
+    titre: "Un match précis",
+    chemin: "/widget/match/IDENTIFIANT-DU-MATCH?fond=transparent",
+    texte:
+      "Pour revenir sur un match joué : l'identifiant est la fin du lien de sa fiche de preuve, ouverte depuis le badge du verdict sur la page du tournoi.",
   },
 ];
 
@@ -103,6 +119,34 @@ export default function DeveloppeursPage() {
                       <code>{code}</code>
                     </pre>
                     <BoutonCopier texte={code} libelle="Copier le code" className="self-start" />
+                  </Panneau>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <LibelleSection as="h2">Overlay de match pour ton stream</LibelleSection>
+          <p className="text-sm text-muted">
+            Une bannière avec les deux joueurs (ou les deux équipes), l&apos;étape du tournoi et l&apos;état du match,
+            puis le vainqueur et la source du verdict. Dans OBS, ajoute une source « Navigateur » avec l&apos;adresse
+            ci-dessous, largeur 1280, hauteur 160. Pas de score en direct : le résultat s&apos;affiche une fois lu chez
+            Riot, en général quelques minutes après la partie, ou marqué « manuel » s&apos;il a été tranché par
+            l&apos;organisateur.
+          </p>
+          <ul className="flex flex-col gap-4">
+            {OVERLAYS.map((o) => {
+              const adresse = `${URL_PUBLIQUE}${o.chemin}`;
+              return (
+                <li key={o.chemin}>
+                  <Panneau className="flex flex-col gap-3 p-5">
+                    <p className="font-semibold">{o.titre}</p>
+                    <p className="text-sm text-muted">{o.texte}</p>
+                    <pre className="overflow-x-auto rounded-bouton border border-line bg-bg p-3 text-xs text-text-2">
+                      <code>{adresse}</code>
+                    </pre>
+                    <BoutonCopier texte={adresse} libelle="Copier l'adresse" className="self-start" />
                   </Panneau>
                 </li>
               );
