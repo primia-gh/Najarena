@@ -15,13 +15,6 @@ export function reponseApi(corps: unknown, statut = 200): Response {
 }
 
 /**
- * Adresse canonique d'une lecture coûteuse : sans paramètres et en
- * minuscules, pour que le cache d'une minute du CDN serve tout le monde.
- * « ?x=1 », « ?x=2 »… ou « /Vipere » contournaient le cache et relisaient
- * toute la base à chaque appel (contrôle de sécurité du 17/10/2026). Null
- * si l'adresse est déjà canonique.
- */
-/**
  * Chemin canonique : chaque segment décodé, en minuscules, recodé. Une
  * lettre déguisée en code (« /%76ipere », contrôle de sécurité du
  * 21/11/2026) faisait une adresse de plus pour le cache, servie par la même
@@ -38,12 +31,22 @@ function cheminCanonique(pathname: string): string | null {
   }
 }
 
-const ADRESSE_INVALIDE = () => new Response(null, { status: 400, headers: { "Cache-Control": "no-store" } });
+/** Adresse qui ne se décode pas : 400, jamais mise en cache. */
+const adresseInvalide = (entetes: Record<string, string> = {}) =>
+  new Response(null, { status: 400, headers: { ...entetes, "Cache-Control": "no-store" } });
 
+/**
+ * Adresse canonique d'une lecture coûteuse : sans paramètres et en
+ * minuscules, pour que le cache d'une minute du CDN serve tout le monde.
+ * « ?x=1 », « ?x=2 »… ou « /Vipere » contournaient le cache et relisaient
+ * toute la base à chaque appel (contrôle de sécurité du 17/10/2026). Null
+ * si l'adresse est déjà canonique.
+ */
 export function redirectionCanonique(requete: Request): Response | null {
   const url = new URL(requete.url);
   const chemin = cheminCanonique(url.pathname);
-  if (chemin === null) return ADRESSE_INVALIDE();
+  // Avec les en-têtes CORS : un site tiers lit une 400, pas une erreur réseau.
+  if (chemin === null) return adresseInvalide(ENTETES_API);
   if (!url.search && chemin === url.pathname) return null;
   return new Response(null, {
     status: 308,
@@ -86,7 +89,7 @@ export function reponseWidget(html: string, statut = 200): Response {
 export function redirectionWidget(requete: Request): Response | null {
   const url = new URL(requete.url);
   const chemin = cheminCanonique(url.pathname);
-  if (chemin === null) return ADRESSE_INVALIDE();
+  if (chemin === null) return adresseInvalide();
   const transparent = url.searchParams.get("fond") === "transparent";
   const recherche = transparent ? "?fond=transparent" : "";
   if (chemin === url.pathname && url.search === recherche) return null;

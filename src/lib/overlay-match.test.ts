@@ -225,6 +225,10 @@ describe("widgetMatch", () => {
     expect(html).toContain("Tournoi annulé");
     expect(html).not.toContain("À venir");
     expect(html).not.toContain("Résultat lu chez Riot");
+    // Duel annulé resté en litige : personne ne tranchera.
+    const litige = widgetMatch(match({ statut: "litige", tournoiAnnule: true }), opaque);
+    expect(litige).toContain("Tournoi annulé");
+    expect(litige).not.toContain("tranche le litige");
   });
 
   it("aucun vainqueur, litige, place encore vide", () => {

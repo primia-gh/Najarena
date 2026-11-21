@@ -25,9 +25,12 @@ describe("adresse codée", () => {
     );
     expect(reponse?.status).toBe(308);
     expect(reponse?.headers.get("Location")).toBe("/api/public/v1/joueurs/vipere/recalcul");
-    expect(
-      redirectionCanonique(new Request("https://najarena.example/api/public/v1/joueurs/%E0%A4%A/recalcul"))?.status,
-    ).toBe(400);
+    const invalide = redirectionCanonique(
+      new Request("https://najarena.example/api/public/v1/joueurs/%E0%A4%A/recalcul"),
+    );
+    expect(invalide?.status).toBe(400);
+    expect(invalide?.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(invalide?.headers.get("Cache-Control")).toBe("no-store");
     expect(redirectionWidget(new Request("https://najarena.example/widget/joueur/%E0%A4%A/match"))?.status).toBe(400);
   });
 });

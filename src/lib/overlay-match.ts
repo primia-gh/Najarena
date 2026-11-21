@@ -145,6 +145,8 @@ const ICONE_MANUEL = `<svg class="icone" width="13" height="13" viewBox="0 0 24 
 
 function ligneVerdict(m: MatchOverlay): string {
   if (!m.verdict) {
+    // Tournoi annulé (duel, scrim sans partie retrouvée) : personne ne tranchera.
+    if (m.tournoiAnnule) return "";
     if (m.statut === "litige") return `<p class="overlay-bas muted">L'organisateur tranche le litige.</p>`;
     // Un match terminé ou forfait sans verdict définitif n'est pas annoncé ;
     // sans adversaire, aucune partie ne peut encore se jouer.
