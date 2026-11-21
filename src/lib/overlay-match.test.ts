@@ -158,7 +158,9 @@ describe("widgetMatch", () => {
     );
     expect(html).toContain("✓ Vérifié");
     expect(html).toContain("partie lue dans l'historique Riot");
-    expect(html).toContain('<div class="cote perdant"><div class="ligne-nom"><p class="nom">Vipere</p></div>');
+    expect(html).toContain(
+      '<div class="cote perdant"><div class="ligne-nom"><p class="nom">Vipere</p><span class="pastille-v pastille-d" aria-hidden="true">D</span><span class="masque">Défaite</span></div>',
+    );
     expect(html).toContain(
       '<div class="cote droite"><div class="ligne-nom"><p class="nom">Aspic</p><span class="pastille-v" aria-hidden="true">V</span></div><p class="detail muted chiffre"><span class="vainqueur">Vainqueur</span>',
     );
@@ -188,8 +190,9 @@ describe("widgetMatch", () => {
     // Forfait d'absence : une règle appliquée par Najarena, pas une décision de l'organisateur.
     expect(html).toContain("appliqué automatiquement par Najarena");
     expect(html).not.toContain("décision de l'organisateur");
-    // Le vert reste à la preuve : pastille « V » neutre.
+    // Le vert et le rouge restent à la preuve : pastilles « V » et « D » neutres.
     expect(html).toContain('class="pastille-v neutre"');
+    expect(html).toContain('class="pastille-v pastille-d neutre"');
   });
 
   it("vainqueur introuvable : personne n'est désigné, rien n'est affirmé", () => {

@@ -79,7 +79,9 @@ td{padding:4px 6px;border-bottom:1px solid rgba(245,245,244,.08)}
 .nom{font-size:32px;line-height:1.1;font-weight:800;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .a-determiner{font-size:17px;font-style:italic}
 .pastille-v{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:4px;background:rgba(182,255,59,.14);color:#b6ff3b;font-weight:800;font-size:16px}
+.pastille-d{background:rgba(255,77,79,.12);color:#ff4d4f}
 .pastille-v.neutre{background:rgba(245,245,244,.1);color:#f5f5f4}
+.masque{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .detail{font-size:15px}
 .perdant .nom{color:#9ca39c}
 .vainqueur{color:#f5f5f4;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
