@@ -141,4 +141,10 @@ describe("widgets", () => {
     const options = optionsWidget(new URLSearchParams("fond=transparent"));
     expect(widgetTop([], "https://x", options)).toContain("background:transparent");
   });
+
+  it("top 10 vide : pas de « résultats lus chez Riot »", () => {
+    const vide = widgetTop([], "https://najarena.example/lol/classement", opaque);
+    expect(vide).toContain("Personne n'est encore classé cette saison.");
+    expect(vide).not.toContain("résultats lus chez Riot");
+  });
 });

@@ -205,7 +205,8 @@ export function widgetTop(lignes: LigneTop[], lien: string, options: OptionsWidg
           )
           .join("")}</table>`
   }`;
-  return pageWidget("Classement", corps, lien, options);
+  // Liste vide : rien d'affiché, donc rien d'affirmé sur la source.
+  return pageWidget("Classement", corps, lien, options, lignes.length === 0 ? PIED_NEUTRE : PIED_RIOT);
 }
 
 export function widgetJoueur(j: JoueurPublic, options: OptionsWidget): string {
