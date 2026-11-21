@@ -145,7 +145,7 @@ const PALIERS: Palier[] = [
     accroche: "Pour organiser et recruter.",
     inclus: [
       "Capacité de tournoi étendue (jusqu'à 128 joueurs)",
-      "Formats premium à l'hébergement",
+      "Séries en Bo3 et Bo5 à l'hébergement",
       "Recherche de joueurs : filtres vérifiés et langage naturel",
       "Espaces communauté (3 au plus)",
       "Écrire en premier à un joueur",
@@ -182,7 +182,7 @@ const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
   { fonctionnalite: "Alertes Discord avancées", depuis: "elite" },
   { fonctionnalite: "Accès aux formats premium", depuis: "elite" },
   { fonctionnalite: "Capacité de tournoi étendue (jusqu'à 128 joueurs)", depuis: "organisateur" },
-  { fonctionnalite: "Formats premium à l'hébergement", depuis: "organisateur" },
+  { fonctionnalite: "Séries en Bo3 et Bo5 à l'hébergement", depuis: "organisateur" },
   { fonctionnalite: "Recherche de joueurs : filtres vérifiés et langage naturel", depuis: "organisateur" },
   { fonctionnalite: "Espaces communauté (3 au plus)", depuis: "organisateur" },
   { fonctionnalite: "Écrire en premier à un joueur", depuis: "organisateur" },

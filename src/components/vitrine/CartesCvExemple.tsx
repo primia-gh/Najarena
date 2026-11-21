@@ -39,7 +39,7 @@ export function CarteCvFlottante({ className = "" }: { className?: string }) {
           <span className="flex items-center gap-2">
             CV e-sport <EtiquetteExemple />
           </span>
-          <BadgeVerifie />
+          <BadgeVerifie>Compte vérifié</BadgeVerifie>
         </div>
         <div className="flex items-center gap-4">
           <Image src="/avatars/avatar-p1.svg" alt="" width={56} height={56} unoptimized className="rounded-panneau" />
