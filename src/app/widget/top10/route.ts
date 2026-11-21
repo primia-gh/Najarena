@@ -1,6 +1,6 @@
 import { creerClientPublic } from "@/lib/supabase/public";
 import { chargerTop, URL_PUBLIQUE } from "@/lib/donnees-publiques";
-import { optionsWidget, pageWidget, widgetTop } from "@/lib/widgets";
+import { optionsWidget, pageWidget, widgetTop, PIED_NEUTRE } from "@/lib/widgets";
 import { lirePublic, reponseWidget } from "@/lib/reponses-publiques";
 
 // Widget « top 10 » du classement de la saison (audit N31).
@@ -9,7 +9,13 @@ export async function GET(request: Request) {
   const lecture = await lirePublic(() => chargerTop(creerClientPublic(), 10));
   if (!lecture.ok) {
     return reponseWidget(
-      pageWidget("Najarena", `<p class="muted">Données indisponibles pour l'instant.</p>`, URL_PUBLIQUE, options),
+      pageWidget(
+        "Najarena",
+        `<p class="muted">Données indisponibles pour l'instant.</p>`,
+        URL_PUBLIQUE,
+        options,
+        PIED_NEUTRE,
+      ),
       503,
     );
   }
