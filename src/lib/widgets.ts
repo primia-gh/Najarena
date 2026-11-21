@@ -88,7 +88,7 @@ td{padding:4px 6px;border-bottom:1px solid rgba(245,245,244,.08)}
 .overlay-bas .badge{font-size:13px}
 .badge .icone{vertical-align:-1px;margin-right:4px}
 .overlay-vide{padding:6px 12px;font-size:14px}
-${options.transparent ? ".titre,.sous-titre,.entete,.pied,.overlay{text-shadow:0 0 2px rgba(0,0,0,.95),0 1px 4px rgba(0,0,0,.9)}\n.entete,.pied{color:#e7e9e7}\n.overlay .muted,.perdant .nom,.contre{color:#b9beb9}\n" : ""}</style>
+${options.transparent ? ".titre,.sous-titre,.entete,.pied,.overlay{text-shadow:0 0 2px rgba(0,0,0,.95),0 1px 4px rgba(0,0,0,.9)}\n.entete,.pied{color:#e7e9e7}\n.pied a{display:inline-block;background:rgba(19,21,19,.82);border-radius:4px;padding:2px 6px}\n.overlay .muted,.perdant .nom,.contre{color:#b9beb9}\n" : ""}</style>
 </head>
 <body>
 ${corps}

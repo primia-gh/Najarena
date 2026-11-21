@@ -20,7 +20,7 @@ export const JOURNAL: EntreeJournal[] = [
     date: "20 novembre",
     titre: "Une alerte quand un tournoi s'ouvre pour toi",
     texte:
-      "Dans ton tableau de bord, choisis tes créneaux et tes formats. Quand un tournoi s'ouvre sur ton serveur, à ton heure et à ton format, ouvert à toi (niveau, réservations) et avec encore de la place, tu reçois un message : notification du navigateur ou message privé Discord, jamais d'e-mail. Trois au plus par jour, de 1 h à 7 jours avant le début, jamais deux fois le même tournoi.",
+      "Dans ton tableau de bord, choisis tes créneaux et tes formats. Quand un tournoi s'ouvre sur ton serveur, à ton heure et à ton format, ouvert à toi (niveau, réservations) et avec encore de la place, tu reçois un message : notification du navigateur ou message privé Discord, jamais d'e-mail. Trois au plus par jour, de 1 h à 7 jours avant le début, jamais deux fois le même tournoi. Il faut un compte Riot vérifié, et les notifications du navigateur ou un compte créé avec Discord.",
     tags: ["Fonctionnalité"],
   },
   {
@@ -34,7 +34,7 @@ export const JOURNAL: EntreeJournal[] = [
     date: "19 novembre",
     titre: "Le format suisse",
     texte:
-      "Un tournoi 1v1 peut se jouer au format suisse : chacun joue toutes les rondes, chaque ronde t'oppose à un joueur au même bilan, sans revanche quand c'est possible. Le classement se fait aux victoires, puis à la force des adversaires affrontés. Tu peux abandonner : tu restes classé avec tes résultats, derrière les joueurs allés au bout.",
+      "Un tournoi 1v1 peut se jouer au format suisse : personne n'est éliminé, et chaque ronde t'oppose à un joueur au même bilan, sans revanche quand c'est possible. Le tableau final se fait aux victoires, puis à la force des adversaires affrontés. Tu peux abandonner : tes résultats restent au tableau du tournoi, derrière les joueurs allés au bout.",
     tags: ["Fonctionnalité"],
   },
   {
@@ -48,7 +48,7 @@ export const JOURNAL: EntreeJournal[] = [
     date: "19 novembre",
     titre: "Face-à-face",
     texte:
-      "Une page pour chaque paire de joueurs : tous leurs matchs 1v1 et le bilan des seuls résultats lus chez Riot. Les décisions manuelles et les forfaits sont listés, jamais comptés. Elle s'ouvre depuis le bloc « Face-à-face » du CV.",
+      "Une page pour chaque paire de joueurs qui se sont affrontés en 1v1 : tous leurs matchs et le bilan des seuls résultats lus chez Riot. Les décisions manuelles et les forfaits sont listés, jamais comptés. Le bloc « Face-à-face » du CV y mène dès deux matchs lus chez Riot.",
     tags: ["Fonctionnalité"],
   },
   {

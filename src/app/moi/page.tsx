@@ -574,7 +574,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               retour={retourAlertes ? { message, erreur } : null}
             />
 
-            {profil?.slug && <OverlayStream slug={profil.slug} />}
+            {profil?.slug && <OverlayStream slug={profil.slug} compteVerifie={Boolean(comptesRiot?.verifie_le)} />}
           </Apparition>
         </div>
       </div>
