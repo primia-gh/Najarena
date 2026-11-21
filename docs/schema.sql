@@ -14539,6 +14539,13 @@ begin
     end if;
     -- Jamais vérifié : la liaison en attente ne réserve rien (E1). Seul le
     -- vrai propriétaire pourra la vérifier, en changeant son icône en jeu.
+    -- Une demande encore valable n'est jamais remplacée par la même icône :
+    -- sinon le remplaçant vérifierait le compte avec l'icône que le vrai
+    -- propriétaire est en train de mettre (le serveur en tire une autre).
+    if v_existant.defi_icone_id = p_defi_icone_id
+       and v_existant.defi_cree_le > now() - interval '1 hour' then
+      raise exception 'DEFI_IDENTIQUE';
+    end if;
     delete from public.game_accounts where game_id = p_game_id and puuid = p_puuid;
     v_existant := null;
   end if;

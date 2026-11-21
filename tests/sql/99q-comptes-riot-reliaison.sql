@@ -117,3 +117,20 @@ select refus('Résolution de litige de plus de 500 caractères : refusée',
 select essai('Résolution ordinaire : acceptée',
   $q$update disputes set resolution = 'Partie retrouvée : victoire confirmée.' where id = 'ac0c0000-0000-0000-0000-0000000000c1'$q$,
   'passe');
+
+-- Remplacer une demande en cours d'un autre profil : jamais avec la même icône.
+set role service_role;
+select essai('Squat lance une demande sur P99Q-Y (icône 3)',
+  $q$select public.lier_compte_riot('ac0c0000-0000-0000-0000-000000000002'::uuid, 1::smallint, 'P99Q-Y', 'Y', 'EUW', 'EUW', 3::smallint, false)$q$, 'passe');
+select refus('Un autre profil ne la remplace pas avec la même icône',
+  $q$select public.lier_compte_riot('ac0c0000-0000-0000-0000-000000000000'::uuid, 1::smallint, 'P99Q-Y', 'Y', 'EUW', 'EUW', 3::smallint, true)$q$, 'DEFI_IDENTIQUE');
+select essai('Avec une autre icône, la demande est remplacée',
+  $q$select public.lier_compte_riot('ac0c0000-0000-0000-0000-000000000000'::uuid, 1::smallint, 'P99Q-Y', 'Y', 'EUW', 'EUW', 8::smallint, true)$q$, 'passe');
+reset role;
+select verifie('P99Q-Y est maintenant en attente chez le nouveau demandeur, icône 8',
+  (select profile_id = 'ac0c0000-0000-0000-0000-000000000000' and defi_icone_id = 8 from game_accounts where puuid = 'P99Q-Y'));
+update game_accounts set defi_cree_le = now() - interval '2 hours' where puuid = 'P99Q-Y';
+set role service_role;
+select essai('Une demande expirée se remplace même avec la même icône',
+  $q$select public.lier_compte_riot('ac0c0000-0000-0000-0000-000000000002'::uuid, 1::smallint, 'P99Q-Y', 'Y', 'EUW', 'EUW', 8::smallint, false)$q$, 'passe');
+reset role;

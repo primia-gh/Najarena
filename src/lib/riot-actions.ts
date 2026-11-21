@@ -34,12 +34,19 @@ async function reserverEssaiRiot(supabase: Awaited<ReturnType<typeof createClien
   return !error && data === true;
 }
 
-function tirerIconeCible(iconeActuelle: number): number {
-  let cible = ICONE_MIN + Math.floor(Math.random() * (ICONE_MAX - ICONE_MIN + 1));
-  if (cible === iconeActuelle) {
-    cible = cible === ICONE_MAX ? ICONE_MIN : cible + 1;
+/**
+ * Icône à adopter en jeu : jamais celle que le compte porte déjà, ni celle
+ * d'une demande en cours d'un autre profil sur le même Riot ID (contrôle de
+ * sécurité du 21/11/2026 : sinon, en remplaçant cette demande, on pouvait
+ * tomber une fois sur 27 sur l'icône que le vrai propriétaire est en train
+ * de mettre, et vérifier son compte à sa place).
+ */
+function tirerIconeCible(iconeActuelle: number, iconeExclue: number | null): number {
+  const possibles: number[] = [];
+  for (let i = ICONE_MIN; i <= ICONE_MAX; i++) {
+    if (i !== iconeActuelle && i !== iconeExclue) possibles.push(i);
   }
-  return cible;
+  return possibles[Math.floor(Math.random() * possibles.length)];
 }
 
 export async function lierRiotId(formData: FormData) {
@@ -75,15 +82,6 @@ export async function lierRiotId(formData: FormData) {
     redirect(`/lier-riot?erreur=${encodeURIComponent(traduireErreurRiot(e))}`);
   }
 
-  const cible = tirerIconeCible(invocateur.profileIconId);
-
-  // Écriture réservée au serveur (audit du 27/09/2026, C2) : appelable
-  // depuis le navigateur, lier_compte_riot laissait le joueur choisir lui-
-  // même le puuid, le nom affiché et l'icône-défi — donc « vérifier » un
-  // compte Riot qui n'était pas le sien en indiquant l'icône déjà portée.
-  // Ici, puuid et Riot ID viennent de la réponse Riot, l'icône-défi est
-  // tirée par le serveur (toujours différente de l'icône actuelle), et le
-  // profil vient de la session.
   const admin = creerClientAdmin();
   if (!admin) {
     redirect(
@@ -92,6 +90,26 @@ export async function lierRiotId(formData: FormData) {
       )}`,
     );
   }
+
+  // Demande en cours sur ce Riot ID (peut-être celle d'un autre profil) :
+  // sa propre icône est exclue du tirage, et la base refuse de toute façon
+  // une icône identique (DEFI_IDENTIQUE).
+  const { data: enAttente } = await admin
+    .from("game_accounts")
+    .select("defi_icone_id")
+    .eq("game_id", 1)
+    .eq("puuid", compte.puuid)
+    .is("verifie_le", null)
+    .maybeSingle();
+  const cible = tirerIconeCible(invocateur.profileIconId, enAttente?.defi_icone_id ?? null);
+
+  // Écriture réservée au serveur (audit du 27/09/2026, C2) : appelable
+  // depuis le navigateur, lier_compte_riot laissait le joueur choisir lui-
+  // même le puuid, le nom affiché et l'icône-défi — donc « vérifier » un
+  // compte Riot qui n'était pas le sien en indiquant l'icône déjà portée.
+  // Ici, puuid et Riot ID viennent de la réponse Riot, l'icône-défi est
+  // tirée par le serveur (toujours différente de l'icône actuelle), et le
+  // profil vient de la session (client du serveur créé plus haut).
 
   // game_id=1 est LoL — seule ligne de `games` en V1 (voir docs/design-system.md
   // et le correctif du 13/09/2026 sur l'accueil) : pas besoin de résoudre
@@ -114,7 +132,9 @@ export async function lierRiotId(formData: FormData) {
         ? "Tu joues un tournoi pas encore terminé avec ton compte actuel : déclare ce compte comme secondaire, ou attends la fin du tournoi pour en changer."
         : error.message.includes("TROP_DE_COMPTES")
           ? "Trois comptes Riot au plus par joueur : retire un compte secondaire d'abord."
-          : "Impossible d'enregistrer ce compte pour l'instant.";
+          : error.message.includes("DEFI_IDENTIQUE")
+            ? "Une autre demande vient d'arriver sur ce compte Riot : réessaie dans un instant."
+            : "Impossible d'enregistrer ce compte pour l'instant.";
     redirect(`/lier-riot?erreur=${encodeURIComponent(message)}`);
   }
 
@@ -202,11 +222,24 @@ export async function verifierRiotId(formData: FormData) {
   }
 
   const maintenant = new Date().toISOString();
-  await admin
+  // Seulement la demande contrôlée ci-dessus : si elle a été remplacée entre
+  // le contrôle et l'écriture, rien n'est vérifié et le joueur le sait
+  // (contrôle de sécurité du 21/11/2026).
+  const { data: verifie } = await admin
     .from("game_accounts")
     .update({ verifie_le: maintenant, derniere_sync_le: maintenant, defi_icone_id: null, defi_cree_le: null })
     .eq("puuid", puuid)
-    .eq("profile_id", userData.user.id);
+    .eq("profile_id", userData.user.id)
+    .eq("defi_icone_id", compte.defi_icone_id)
+    .is("verifie_le", null)
+    .select("puuid");
+  if (!verifie || verifie.length === 0) {
+    redirect(
+      `/lier-riot?erreur=${encodeURIComponent(
+        "La vérification n'a pas pu être enregistrée : ta demande a changé entre-temps. Relance la liaison de ton compte.",
+      )}`,
+    );
+  }
 
   // Compte secondaire : retour à la liste des comptes.
   if (!compte.est_principal) {
