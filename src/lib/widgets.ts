@@ -40,10 +40,12 @@ export function pageWidget(
 <title>${echapperHtml(titre)} — Najarena</title>
 <style>
 :root{color-scheme:dark}
+@font-face{font-family:"Big Shoulders";src:url("/fonts/big-shoulders-latin-v1.woff2") format("woff2");font-weight:100 900;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+.titre,.sous-titre,.nom,.titre-tournoi,.pastille-v,.marque{font-family:"Big Shoulders",system-ui,sans-serif;font-variation-settings:"opsz" 72}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:${options.transparent ? "transparent" : "#080908"};color:#f5f5f4;font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding:12px}
 a{color:inherit;text-decoration:none}
-.titre{font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:15px;margin-bottom:8px}
+.titre{font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:19px;margin-bottom:8px}
 h1,h2,h3{font:inherit}
 .muted{color:#9ca39c}
 .accent{color:#b6ff3b}
@@ -61,11 +63,11 @@ td{padding:4px 6px;border-bottom:1px solid rgba(245,245,244,.08)}
 .tableau+.tableau{margin-top:14px;padding-top:10px;border-top:1px solid rgba(245,245,244,.12)}
 .colonne{display:flex;flex-direction:column;gap:6px}
 .colonne .tour{flex:1}
-.sous-titre{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.sous-titre{font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 .entete{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9ca39c}
 .overlay{background:${options.transparent ? "rgba(19,21,19,.82)" : "#131513"};border:1px solid rgba(245,245,244,.12);border-radius:6px;padding:10px 16px;display:flex;flex-direction:column;gap:4px}
 .overlay-haut{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;font-size:15px;text-transform:uppercase;letter-spacing:.06em}
-.titre-tournoi{font-weight:800}
+.titre-tournoi{font-weight:800;font-size:19px}
 .etat{margin-left:auto;font-weight:700;display:inline-flex;align-items:center;gap:6px}
 .point{width:8px;height:8px;border-radius:50%;background:#f5f5f4}
 .danger{color:#ff4d4f}
@@ -74,7 +76,7 @@ td{padding:4px 6px;border-bottom:1px solid rgba(245,245,244,.08)}
 .cote.droite{text-align:right;align-items:flex-end}
 .ligne-nom{display:flex;align-items:center;gap:10px;min-width:0;max-width:100%}
 .droite .ligne-nom{flex-direction:row-reverse}
-.nom{font-size:26px;line-height:1.15;font-weight:800;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.nom{font-size:32px;line-height:1.1;font-weight:800;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .a-determiner{font-size:17px;font-style:italic}
 .pastille-v{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:4px;background:rgba(182,255,59,.14);color:#b6ff3b;font-weight:800;font-size:16px}
 .pastille-v.neutre{background:rgba(245,245,244,.1);color:#f5f5f4}
@@ -206,7 +208,7 @@ export function widgetTop(lignes: LigneTop[], lien: string, options: OptionsWidg
 
 export function widgetJoueur(j: JoueurPublic, options: OptionsWidget): string {
   const niveau = j.classe
-    ? `<p><span class="accent chiffre" style="font-size:28px;font-weight:800">${j.rating}</span> <span class="muted">${echapperHtml(j.palier ?? "")}</span></p>`
+    ? `<p><span class="accent chiffre marque" style="font-size:34px;font-weight:800">${j.rating}</span> <span class="muted">${echapperHtml(j.palier ?? "")}</span></p>`
     : `<p class="muted">Pas encore classé · confiance <span class="chiffre">${j.confiancePct} %</span></p>`;
   const corps = `<div class="carte"><p class="titre">${echapperHtml(j.pseudo)}</p>${niveau}<p class="muted chiffre">${j.matchsVerifies} match${j.matchsVerifies > 1 ? "s" : ""} vérifié${j.matchsVerifies > 1 ? "s" : ""} chez Riot</p></div>`;
   return pageWidget(j.pseudo, corps, j.url, options);

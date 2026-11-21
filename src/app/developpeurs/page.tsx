@@ -44,7 +44,7 @@ const OVERLAYS = [
     titre: "Le match d'un joueur, toujours à jour",
     chemin: "/widget/joueur/ADRESSE-DU-PROFIL/match?fond=transparent",
     texte:
-      "Suit le match du moment d'un joueur, d'un tournoi à l'autre : tournois, défis, arène et matchs de son équipe en 5v5. Le résultat reste affiché 15 minutes, puis le match suivant prend sa place. Pour ton stream, mets l'adresse de ton profil ; pour commenter un match, celle de l'un des deux joueurs. L'adresse du profil est la fin du lien du CV.",
+      "Suit le match du moment d'un joueur, d'un tournoi à l'autre : tournois, défis, arène et matchs de son équipe en 5v5. Le résultat reste affiché 15 minutes, puis le match suivant prend sa place. Pour ton stream, l'adresse toute prête est dans ton tableau de bord (« Overlay de stream ») ; pour commenter un match, mets l'adresse du profil de l'un des deux joueurs, la fin du lien de son CV.",
   },
   {
     titre: "Un match précis",
@@ -126,12 +126,14 @@ export default function DeveloppeursPage() {
           </ul>
         </section>
 
-        <section className="flex flex-col gap-4">
-          <LibelleSection as="h2">Overlay de match pour ton stream</LibelleSection>
+        <section aria-labelledby="overlay" className="flex scroll-mt-28 flex-col gap-4">
+          <LibelleSection as="h2" id="overlay">
+            Overlay de match pour ton stream
+          </LibelleSection>
           <p className="text-sm text-muted">
             Une bannière avec les deux joueurs (ou les deux équipes), l&apos;étape du tournoi et l&apos;état du match,
             puis le vainqueur et la source du verdict. Dans OBS, ajoute une source « Navigateur » avec l&apos;adresse
-            ci-dessous, largeur 1280, hauteur 180. Pas de score en direct : le résultat s&apos;affiche une fois lu chez
+            ci-dessous, largeur 1280, hauteur 200. Pas de score en direct : le résultat s&apos;affiche une fois lu chez
             Riot, en général quelques minutes après la partie, ou marqué « manuel » s&apos;il a été tranché par
             l&apos;organisateur.
           </p>
