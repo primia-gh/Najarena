@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { cashPrizesActifs } from "@/lib/dotations";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/confidentialite" },
   title: "Politique de confidentialité — Najarena",
   description: "Politique de confidentialité et protection des données personnelles sur Najarena.",
 };
@@ -20,7 +22,7 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 12&nbsp;octobre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 19&nbsp;novembre 2026.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>
@@ -56,7 +58,7 @@ export default function ConfidentialitePage() {
             </li>
             <li><strong>Historique</strong>&nbsp;: tournois, matchs et résultats.</li>
             <li>
-              <strong>Bio et lien du CV</strong>&nbsp;: avec l&apos;offre Vérifié ou plus, la bio et le lien externe que tu
+              <strong>Bio et lien du CV</strong>&nbsp;: avec l&apos;offre Plus ou au-dessus, la bio et le lien externe que tu
               ajoutes sont publics sur ton CV (le lien y apparaît par le nom de son site).
             </li>
             <li>
@@ -65,6 +67,21 @@ export default function ConfidentialitePage() {
               proposition de scrim n&apos;est visible que des deux capitaines&nbsp;; un scrim accepté est public. La
               liste des agents libres d&apos;un tournoi (pseudo, rôle choisi) est publique, comme l&apos;échéance
               visée par une annonce «&nbsp;cherche une équipe&nbsp;».
+            </li>
+            <li>
+              <strong>Équipes qui recrutent</strong>&nbsp;: l&apos;annonce d&apos;une équipe (postes, niveau demandé, région,
+              message) est publique pendant 30&nbsp;jours. Une candidature (poste, message) n&apos;est visible que de toi et du
+              capitaine de l&apos;équipe, qui en est prévenu (notification du navigateur, message privé Discord)&nbsp;; s&apos;il
+              l&apos;accepte, tu apparais dans l&apos;effectif public de l&apos;équipe.
+            </li>
+            <li>
+              <strong>Recherche d&apos;un duo</strong>&nbsp;: ton annonce (poste, postes cherchés, créneaux, objectif, message) est
+              publique avec ton pseudo, ton avatar et ton rating si tu es classé, pendant 14&nbsp;jours ou jusqu&apos;à ce que tu
+              la retires. Une demande de duo n&apos;est visible que de vous deux et prévient le joueur demandé (notification du
+              navigateur, message privé Discord)&nbsp;; la conversation ne s&apos;ouvre que s&apos;il accepte. Bloquer un joueur
+              coupe vos messages dans les deux sens, ses défis, invitations et demandes&nbsp;; il ne reçoit aucune notification, mais
+              voit que ses messages ne passent plus. Ton annonce, tes demandes et tes blocages
+              sont effacés avec ton compte.
             </li>
             <li>
               <strong>Statistiques des parties vérifiées</strong>&nbsp;: lues chez Riot avec le résultat (champion, poste, KDA, sbires, or,
@@ -80,7 +97,7 @@ export default function ConfidentialitePage() {
               voient que des moyennes anonymes (5&nbsp;joueurs au moins). Retirer ton accord les efface, avec ton rang.
             </li>
             <li>
-              <strong>Bilan de la semaine</strong>&nbsp;: si tu le demandes (offre Elite), un message privé Discord chaque lundi, avec tes
+              <strong>Bilan de la semaine</strong>&nbsp;: si tu le demandes (offre Pro), un message privé Discord chaque lundi, avec tes
               chiffres de la semaine&nbsp;; Najarena garde la date de chaque envoi.
             </li>
             <li>
@@ -170,6 +187,11 @@ export default function ConfidentialitePage() {
               navigateur, pour t&apos;envoyer les rappels de tournoi.
             </li>
             <li>
+              <strong>Alertes «&nbsp;tournoi pour toi&nbsp;»</strong>&nbsp;: si tu les demandes, les créneaux et les formats
+              choisis, et la liste des tournois déjà signalés (pour ne jamais t&apos;écrire deux fois), effacée après
+              30&nbsp;jours. Visibles de toi seul&nbsp;; les couper efface ton réglage, supprimer ton compte efface aussi la liste.
+            </li>
+            <li>
               <strong>Offre payante</strong>&nbsp;: si tu en souscris une, ton identifiant client et l&apos;état de ton
               abonnement chez Stripe (jamais tes coordonnées bancaires).
             </li>
@@ -205,7 +227,7 @@ export default function ConfidentialitePage() {
           <p className="mt-2 text-muted">
             Quand tu consultes le profil d&apos;un joueur en étant connecté, ta
             visite (ton pseudo et la date) est enregistrée. Ce joueur la voit
-            dans «&nbsp;Qui a vu ton profil&nbsp;» s&apos;il a l&apos;offre Vérifié. Tu
+            dans «&nbsp;Qui a vu ton profil&nbsp;» s&apos;il a l&apos;offre Plus. Tu
             peux t&apos;y opposer à tout moment depuis{" "}
             <Link href="/moi/profil" className="text-text underline underline-offset-3">
               Modifier mon profil
@@ -289,18 +311,26 @@ export default function ConfidentialitePage() {
               e-mail ni ton mot de passe ne lui sont transmis.
             </li>
             <li>
+              <strong>Cloudflare Turnstile</strong> (États-Unis) — vérification anti-robot des formulaires
+              d&apos;inscription, de connexion et de mot de passe oublié, quand elle est activée&nbsp;: ton navigateur
+              lui transmet des signaux techniques (adresse IP, caractéristiques du navigateur) le temps de la
+              vérification. Ni cookie publicitaire, ni suivi d&apos;un site à l&apos;autre.
+            </li>
+            <li>
               <strong>Anthropic</strong> (États-Unis) — uniquement quand une
               fonction d&apos;IA est utilisée&nbsp;: le texte saisi dans l&apos;assistant de création de
               tournoi ou dans la recherche de joueurs&nbsp;; les statistiques Riot d&apos;un match
               (champion, KDA, sbires, or, durée) pour son analyse détaillée, demandée par le joueur
-              ou rédigée automatiquement après chaque partie vérifiée d&apos;un abonné Elite&nbsp;; les faits d&apos;un litige (pseudos, Riot ID, horaires, parties Riot
+              ou rédigée automatiquement après chaque partie vérifiée d&apos;un abonné Pro&nbsp;; les chiffres de ton bilan
+              (tendances, forces, axes de travail, objectifs, champions joués, sans ton pseudo) pour l&apos;analyse de ta
+              progression, à ta demande (offre Pro)&nbsp;; les faits d&apos;un litige (pseudos, Riot ID, horaires, parties Riot
               retrouvées, motif du litige) pour son dossier. Ni e-mail, ni mot de passe, ni moyen
               de paiement ne lui sont envoyés, et l&apos;IA n&apos;écrit aucun résultat.
             </li>
           </ul>
           <p className="mt-2 text-muted">
             Plusieurs de ces prestataires (Riot Games, Vercel, Discord, Stripe,
-            Resend, Sentry, Anthropic) sont établis aux États-Unis ou y
+            Resend, Sentry, Cloudflare, Anthropic) sont établis aux États-Unis ou y
             traitent des données. Ces transferts hors de l&apos;Union
             européenne s&apos;appuient sur le cadre de protection des données
             UE–États-Unis (Data Privacy Framework) lorsque le prestataire y

@@ -1,6 +1,6 @@
 "use client";
 
-// Export CV premium (offre Elite) — "PDF" au sens du site veut dire
+// Export CV premium (offre Pro) — "PDF" au sens du site veut dire
 // impression navigateur, pas de dépendance PDF ajoutée : chaque
 // navigateur propose déjà "Enregistrer en PDF" dans sa boîte d'impression.
 export default function BoutonImprimer() {

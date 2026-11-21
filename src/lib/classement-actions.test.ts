@@ -56,6 +56,9 @@ class Requete implements PromiseLike<Reponse> {
   eq() {
     return this;
   }
+  neq() {
+    return this;
+  }
   in() {
     return this;
   }

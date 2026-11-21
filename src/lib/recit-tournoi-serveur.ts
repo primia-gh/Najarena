@@ -10,13 +10,14 @@ import { probabiliteVictoire } from "@/lib/glicko2";
 import { ETAT_DE_DEPART, type EtatRating } from "@/lib/estimations";
 import { recitTournoi, type MatchRecit } from "@/lib/recit-tournoi";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
+import { recitSuisse } from "@/lib/suisse";
 
 export async function annoncerVainqueur(tournamentId: string, gagnantId: string): Promise<void> {
   const admin = creerClientAdmin();
   if (!admin) return;
 
   const [{ data: tournoi }, { data: matchs }, { data: departs }] = await Promise.all([
-    admin.from("tournaments").select("nom, slug, best_of, format, nature").eq("id", tournamentId).maybeSingle(),
+    admin.from("tournaments").select("nom, slug, best_of, format, nature, type_bracket, rondes").eq("id", tournamentId).maybeSingle(),
     admin
       .from("matches")
       .select(
@@ -31,6 +32,29 @@ export async function annoncerVainqueur(tournamentId: string, gagnantId: string)
   ]);
   // Un scrim (audit N22) est un entraînement : rien à annoncer.
   if (!tournoi || tournoi.nature === "scrim") return;
+  const lienTournoi = `${URL_SITE}/lol/tournois/${tournoi.slug}`;
+  // Format suisse (19/11/2026) : le classement final, pas de finale.
+  if (tournoi.type_bracket === "suisse") {
+    const { data: classement } = await admin.rpc("classement_suisse", { p_tournament: tournamentId });
+    const phrases = recitSuisse(tournoi.nom, tournoi.rondes, classement ?? []);
+    if (phrases) await notifierDiscord(`🏆 ${phrases.map(echapperDiscord).join("\n")}\n${lienTournoi}`);
+    return;
+  }
+  // Double élimination (20/11/2026) : le vainqueur de la grande finale.
+  if (tournoi.type_bracket === "double_elim") {
+    // La grande finale porte le plus grand numéro de tour.
+    const finale = [...(matchs ?? [])].sort((a, b) => b.tour - a.tour)[0];
+    const joueurs = new Set((matchs ?? []).flatMap((m) => m.match_participants.map((p) => p.profile_id))).size;
+    const gagnant = finale?.match_participants.find((p) => p.profile_id === gagnantId)?.profile?.pseudo ?? "Un joueur";
+    const finaliste = finale?.match_participants.find((p) => p.profile_id !== gagnantId)?.profile?.pseudo;
+    await notifierDiscord(
+      `🏆 ${echapperDiscord(
+        `${gagnant} remporte ${tournoi.nom} en double élimination (${joueurs} joueurs)${finaliste ? `, en grande finale contre ${finaliste}` : ""}.`,
+      )}
+${lienTournoi}`,
+    );
+    return;
+  }
   // 5v5 (audit N21) : chaque capitaine du bracket représente son équipe.
   const equipes = tournoi.format === "5v5" ? await chargerEquipesDesTournois(admin, [tournamentId]) : new Map();
   const nom = (id: string, pseudo: string | undefined) =>

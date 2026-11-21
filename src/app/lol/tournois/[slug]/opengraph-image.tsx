@@ -17,13 +17,17 @@ async function chargerAffiche(slug: string): Promise<AfficheTournoi | null> {
   const supabase = creerClientPublic();
   const { data: tournoi } = await supabase
     .from("tournaments")
-    .select("id, slug, nom, format, capacite, region, statut, debute_le, best_of")
+    .select("id, slug, nom, format, capacite, region, statut, debute_le, best_of, type_bracket")
     .eq("slug", slug)
     .maybeSingle();
   if (!tournoi || !estVisiblePubliquement(tournoi.statut)) return null;
 
   let vainqueur: string | null = null;
-  if (tournoi.statut === "termine") {
+  // Format suisse (19/11/2026) : le premier du classement, pas une finale.
+  if (tournoi.statut === "termine" && tournoi.type_bracket === "suisse") {
+    const { data: classement } = await supabase.rpc("classement_suisse", { p_tournament: tournoi.id });
+    vainqueur = (classement ?? []).find((l) => l.rang === 1)?.pseudo ?? null;
+  } else if (tournoi.statut === "termine") {
     const { data: finale } = await supabase
       .from("matches")
       .select("id")
@@ -45,7 +49,14 @@ async function chargerAffiche(slug: string): Promise<AfficheTournoi | null> {
   // Bracket lancé : chaque match avec ses deux places et son vainqueur. En
   // 5v5, le capitaine représente son équipe : on affiche l'équipe.
   let bracket: MatchImage[] = [];
-  if (tournoi.statut === "en_cours" || tournoi.statut === "termine") {
+  // Pas de mini-bracket pour le format suisse : ses rondes ne forment pas
+  // un arbre (construireBracketImage suppose l'élimination directe).
+  // Double élimination : deux tableaux et une grande finale, pas un arbre.
+  if (
+    (tournoi.statut === "en_cours" || tournoi.statut === "termine") &&
+    tournoi.type_bracket !== "suisse" &&
+    tournoi.type_bracket !== "double_elim"
+  ) {
     const [{ data: matchs }, { data: equipes }] = await Promise.all([
       supabase
         .from("matches")

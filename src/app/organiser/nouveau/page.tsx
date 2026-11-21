@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { creerTournoi } from "@/lib/tournoi-actions";
 import { REGIONS } from "@/lib/regions";
+import { AIDE_LIMITE_HAUTE, CHOIX_MAXIMUM, CHOIX_MINIMUM, SEUILS_LISIBLES } from "@/lib/niveau-tournoi";
+import { typographie } from "@/lib/typographie";
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { chargerOffre } from "@/lib/offres";
@@ -196,6 +198,71 @@ export default async function OrganiserNouveauPage({
                   ))}
                 </select>
               </Champ>
+
+              {/* Format du bracket : élimination directe, double élimination (20/11/2026) ou suisse (19/11/2026), 1v1. */}
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-1.5 font-texte text-mini font-medium text-muted uppercase">Déroulement (1v1)</legend>
+                <div className="grid gap-2">
+                  <Choix
+                    name="type_bracket"
+                    value="elim_simple"
+                    defaultChecked
+                    titre="Élimination directe"
+                    detail={typographie("Le perdant d'un match est éliminé, jusqu'à la finale.")}
+                  />
+                  <Choix
+                    name="type_bracket"
+                    value="double_elim"
+                    titre="Double élimination"
+                    detail={typographie(
+                      "Un joueur n'est éliminé qu'à sa deuxième défaite. Grande finale en un seul match, sans revanche. 4 joueurs confirmés au moins.",
+                    )}
+                  />
+                  <Choix
+                    name="type_bracket"
+                    value="suisse"
+                    titre="Format suisse"
+                    detail={typographie(
+                      "Chacun joue toutes les rondes contre un adversaire au même bilan : 3 rondes pour 8 joueurs, 4 pour 16, 5 au plus. Plus de matchs, un classement plus précis.",
+                    )}
+                  />
+                </div>
+              </fieldset>
+
+              {/* Tournoi par niveau (19/11/2026) : 1v1 seulement, vérifié par la base. */}
+              <fieldset className="flex flex-col gap-2" aria-describedby="aide-niveau aide-niveau-seuils">
+                <legend className="mb-1.5 font-texte text-mini font-medium text-muted uppercase">Niveau (1v1)</legend>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <Champ libelle="Palier minimum">
+                    <select id="niveau_min" name="niveau_min" defaultValue="" className={classeChamp()}>
+                      <option value="">Ouvert à tous</option>
+                      {CHOIX_MINIMUM.map((c) => (
+                        <option key={c.valeur} value={c.valeur}>
+                          {c.libelle}
+                        </option>
+                      ))}
+                    </select>
+                  </Champ>
+                  <Champ libelle="Palier maximum">
+                    <select id="niveau_max" name="niveau_max" defaultValue="" className={classeChamp()}>
+                      <option value="">Sans limite</option>
+                      {CHOIX_MAXIMUM.map((c) => (
+                        <option key={c.valeur} value={c.valeur}>
+                          {c.libelle}
+                        </option>
+                      ))}
+                    </select>
+                  </Champ>
+                </div>
+                <p id="aide-niveau" className="text-xs text-muted">
+                  {typographie(
+                    `Facultatif. Selon le rating Najarena de la saison (1500 pour qui n'a pas encore joué), vérifié à l'inscription et de nouveau au check-in. ${AIDE_LIMITE_HAUTE}`,
+                  )}
+                </p>
+                <p id="aide-niveau-seuils" className="text-xs text-muted tabular-nums">
+                  {typographie(`Seuils : ${SEUILS_LISIBLES}.`)}
+                </p>
+              </fieldset>
             </GroupeFormulaire>
 
             <GroupeFormulaire numero={numero()} titre="Date et serveur" id="groupe-date">

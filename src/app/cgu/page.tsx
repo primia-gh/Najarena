@@ -6,6 +6,8 @@ import { DELAI_FORFAIT_MINUTES } from "@/lib/forfait";
 import { cashPrizesActifs } from "@/lib/dotations";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/cgu" },
   title: "Conditions générales d'utilisation — Najarena",
   description: "Conditions générales d'utilisation du site Najarena.",
 };
@@ -154,6 +156,47 @@ export default function CguPage() {
             joueurs.
           </p>
           <p className="mt-2 text-muted">
+            Un tournoi 1v1 peut aussi être réservé à un niveau, c&apos;est-à-dire
+            à une fourchette de paliers (par exemple «&nbsp;Argent à Or&nbsp;»)&nbsp;:
+            le rating Najarena de la saison du joueur (1500 s&apos;il n&apos;a pas
+            encore joué) est vérifié à l&apos;inscription, puis de nouveau au
+            check-in. Pour la limite haute, c&apos;est le meilleur rating atteint
+            dans la saison en cours ou la précédente qui compte&nbsp;: redescendre
+            en perdant, même en fin de saison, ne rouvre pas un tournoi de
+            niveau inférieur. Un joueur sorti de la fourchette
+            entre-temps ne confirme plus sa place.
+          </p>
+          <p className="mt-2 text-muted">
+            Un tournoi 1v1 peut aussi se jouer en double élimination&nbsp;: un
+            joueur battu passe dans le tableau des perdants et n&apos;est
+            éliminé qu&apos;à sa deuxième défaite. La grande finale oppose, en
+            un seul match et sans revanche, le vainqueur de chaque
+            tableau&nbsp;: le joueur venu du tableau des perdants qui la gagne
+            remporte le tournoi. Avec moins de
+            joueurs confirmés que de places, les mieux classés sont exemptés
+            de certains matchs&nbsp;: une exemption compte comme une victoire
+            dans le tableau, jamais au classement Najarena.
+          </p>
+          <p className="mt-2 text-muted">
+            Un tournoi 1v1 peut se jouer au format suisse plutôt qu&apos;en
+            élimination directe&nbsp;: chaque joueur confirmé dispute toutes
+            les rondes, contre un adversaire au même bilan. Avec un nombre
+            impair de joueurs, l&apos;un d&apos;eux est exempté à chaque ronde
+            (jamais deux fois s&apos;il est possible de l&apos;éviter)&nbsp;:
+            l&apos;exemption compte comme une victoire au classement du
+            tournoi, jamais au classement Najarena. Le classement final suit
+            les victoires, puis la somme des victoires des adversaires
+            affrontés. Un joueur peut abandonner en cours de tournoi, de façon
+            définitive&nbsp;: son match en cours, s&apos;il y en a un, est considéré
+            comme perdu, sauf si la partie est retrouvée chez Riot dans les 20
+            minutes (son vrai résultat compte alors)&nbsp;; sinon, il est donné à
+            son adversaire par une décision manuelle, jamais comptée au
+            classement Najarena. Il n&apos;est plus apparié et
+            reste au classement du tournoi avec ses résultats, après les
+            joueurs allés au bout. S&apos;il ne reste qu&apos;un joueur en lice, le
+            tournoi s&apos;arrête à la ronde jouée.
+          </p>
+          <p className="mt-2 text-muted">
             Dans un tournoi 5v5, le capitaine inscrit son équipe avec cinq
             de ses membres, lui compris, chacun titulaire d&apos;un compte
             Riot vérifié dans la région du tournoi ; un joueur ne joue que
@@ -240,14 +283,23 @@ export default function CguPage() {
             8. Résiliation
           </h2>
           <p className="mt-2 text-muted">
-            Un utilisateur peut demander la suppression de son compte à tout
-            moment en écrivant à l&apos;adresse de contact indiquée dans les{" "}
+            Un utilisateur peut supprimer son compte à tout moment, lui-même,
+            depuis la page «&nbsp;Modifier mon profil&nbsp;», ou en écrivant à
+            l&apos;adresse de contact indiquée dans les{" "}
             <Link href="/mentions-legales" className="text-text underline underline-offset-3">
               mentions légales
             </Link>
             . Le journal public des points reste conservé après suppression
             d&apos;un compte, conformément au principe de classement
             incontestable.
+          </p>
+          <p className="mt-2 text-muted">
+            Les offres payantes (Plus, Pro, Organisateur) sont régies par les{" "}
+            <Link href="/cgv" className="text-text underline underline-offset-3">
+              conditions générales de vente
+            </Link>
+            . Elles ne donnent aucun droit sur les résultats, les verdicts ni
+            le classement.
           </p>
         </section>
 

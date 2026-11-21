@@ -4,10 +4,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { slugifier } from "@/lib/slug";
 import { notifierJoueur, URL_SITE } from "@/lib/notifications";
-import { estLogoEquipeValide, TAILLE_MAX_EQUIPE } from "@/lib/equipe";
+import { estLogoEquipeValide, estNomEquipeValide, TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { chargerOffre, ORDRE_OFFRE } from "@/lib/offres";
 import type { TablesUpdate } from "@/lib/supabase/types";
 import { messageModeration } from "@/lib/moderation";
+
+const MESSAGE_NOM_INVALIDE =
+  "Nom refusé : lettres (accents compris), chiffres, espaces et ponctuation simple seulement, 3 à 40 caractères ; « Agents libres » est réservé.";
 
 // 2 à 5 lettres/chiffres, convention standard des tags d'équipe esport.
 const TAG_REGEX = /^[A-Za-z0-9]{2,5}$/;
@@ -32,6 +35,9 @@ export async function creerEquipe(formData: FormData) {
       `/equipe/nouvelle?erreur=${encodeURIComponent("Le nom doit faire entre 3 et 40 caractères.")}`,
     );
   }
+  if (!estNomEquipeValide(nom)) {
+    redirect(`/equipe/nouvelle?erreur=${encodeURIComponent(MESSAGE_NOM_INVALIDE)}`);
+  }
 
   if (!TAG_REGEX.test(tag)) {
     redirect(
@@ -53,9 +59,19 @@ export async function creerEquipe(formData: FormData) {
     .single();
 
   if (error || !equipe) {
-    redirect(
-      `/equipe/nouvelle?erreur=${encodeURIComponent(messageModeration(error?.message) ?? "Impossible de créer l'équipe pour l'instant.")}`,
-    );
+    // Nom déjà pris, à la casse, aux accents et aux espaces près : refusé
+    // par la base (index teams_nom_unique, 18/11/2026).
+    const erreur = error?.message ?? "";
+    const message = erreur.includes("teams_nom_unique")
+      ? "Une équipe porte déjà ce nom (ou presque : seules les majuscules, les accents ou les espaces changent). Choisis-en un autre."
+      : erreur.includes("NOM_EQUIPE_INVALIDE")
+        ? MESSAGE_NOM_INVALIDE
+        : erreur.includes("TROP_D_EQUIPES")
+          ? "Tu es déjà capitaine de 5 équipes : c'est le maximum."
+          : erreur.includes("LIMITE_ATTEINTE")
+            ? "Tu as créé 3 équipes ces dernières 24 heures : réessaie plus tard."
+            : (messageModeration(erreur) ?? "Impossible de créer l'équipe pour l'instant.");
+    redirect(`/equipe/nouvelle?erreur=${encodeURIComponent(message)}`);
   }
 
   // Le capitaine est automatiquement membre, déjà accepté — pas d'invitation
@@ -81,8 +97,12 @@ export async function inviterMembre(formData: FormData) {
   const teamId = String(formData.get("team_id") ?? "");
   const slug = String(formData.get("slug") ?? "");
   const pseudoInvite = String(formData.get("pseudo") ?? "").trim();
+  // Depuis les propositions du recrutement : le joueur est désigné par son
+  // identifiant, pas par son pseudo (qui peut avoir changé entre-temps).
+  const idInvite = String(formData.get("profile_id") ?? "").trim();
+  const parIdentifiant = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idInvite);
 
-  if (!pseudoInvite) {
+  if (!pseudoInvite && !parIdentifiant) {
     redirect(
       `/equipe/${slug}?erreur=${encodeURIComponent("Indique le pseudo du joueur à inviter.")}`,
     );
@@ -92,7 +112,15 @@ export async function inviterMembre(formData: FormData) {
   // de l'autre — lancés en parallèle plutôt qu'en série (correctif du
   // 13/09/2026, même logique que sur l'accueil).
   const [{ data: profil }, { count }] = await Promise.all([
-    supabase.from("profiles").select("id, pseudo").ilike("pseudo", pseudoInvite).maybeSingle(),
+    parIdentifiant
+      ? supabase.from("profiles").select("id, pseudo").eq("id", idInvite).maybeSingle()
+      : // Pseudo exact, sans tenir compte des majuscules : « _ » et « % »
+        // (permis ou non dans un pseudo) ne servent pas de jokers.
+        supabase
+          .from("profiles")
+          .select("id, pseudo")
+          .ilike("pseudo", pseudoInvite.replace(/[\\%_]/g, (c) => `\\${c}`))
+          .maybeSingle(),
     // Vérification applicative, en plus de la policy RLS "capitaine invite
     // un membre" (qui revérifie elle-même l'identité du capitaine) : rien
     // côté base n'empêche encore un roster de dépasser 5 joueurs, et
@@ -205,7 +233,7 @@ export async function refuserInvitation(formData: FormData) {
 }
 
 // Description/contact recrutement restent ouverts à tout capitaine ; logo
-// et couleur d'accent sont réservés à l'offre Vérifié+ — vérifié ici, pas
+// et couleur d'accent sont réservés à l'offre Plus et au-dessus — vérifié ici, pas
 // seulement caché côté formulaire. L'update passe par le client RLS normal
 // (pas creerClientAdmin) : "capitaine modifie son equipe" l'autorise déjà,
 // contrairement à comptes_offres qui n'a aucune policy client.

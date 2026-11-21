@@ -15,6 +15,7 @@ import AfficheTournoi, { type VarianteAffiche } from "@/components/vitrine/Affic
 import ApercuClassement, { type Tendance } from "@/components/vitrine/ApercuClassement";
 import { IllustrationEquipe, IllustrationRecherche } from "@/components/vitrine/IllustrationsPortes";
 import styles from "@/components/vitrine/vitrine.module.css";
+import type { Metadata } from "next";
 
 // Accueil — refonte « Venin » (design-system/najarena/pages/accueil.md,
 // maquette najarena-design/maquettes/accueil.dc.html). Seules les sections 03
@@ -124,7 +125,7 @@ const ETAPES = [
 ];
 
 const POINTS_CV = [
-  "Rating vérifié et classement national",
+  "Rating vérifié et place au classement",
   "Chaque résultat prouvé, match par match",
   "Historique complet des matchs",
   "Lien partageable avec les équipes",
@@ -169,6 +170,12 @@ const AFFICHES_COMPLEMENT = [
     action: "Créer",
   },
 ];
+
+// Adresse canonique de l'accueil (audit M11) ; titre et description
+// viennent du layout.
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function Home() {
   const { classement, paliers, tendances, tournois } = await chargerAccueil();
@@ -291,7 +298,7 @@ export default async function Home() {
               Pas déclaré.
             </h2>
             <p className="text-lg leading-[1.65] text-text-2">
-              Chaque match joué sur Najarena alimente un profil vérifiable : rating, classement national,
+              Chaque match joué sur Najarena alimente un profil vérifiable : rating, place au classement,
               historique, journal des points. Le document que tu envoies quand une équipe te demande ce que tu
               vaux.
             </p>
@@ -375,7 +382,7 @@ export default async function Home() {
               top 10.
             </h2>
             <p className="text-lg leading-[1.65] text-text-2">
-              Un classement national, recalculé à la fin de chaque tournoi. Public, vérifiable, impossible à
+              Un seul classement pour tous les joueurs, recalculé à la fin de chaque tournoi. Public, vérifiable, impossible à
               acheter : ta place se gagne en jouant.
             </p>
             <BoutonLien href="/lol/classement" variante="secondaire" className="self-start">

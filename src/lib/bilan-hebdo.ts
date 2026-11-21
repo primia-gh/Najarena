@@ -3,7 +3,7 @@ import { bornesSemaine } from "./recap-semaine";
 import { formaterIndicateur, INDICATEURS, type CleIndicateur, type FormatBilan, type PartieBilan } from "./bilan";
 
 // Bilan de la semaine sur Discord (bilan du joueur, étape 2, 05/10/2026) :
-// chaque lundi, en message privé, aux abonnés Elite qui l'ont demandé et
+// chaque lundi, en message privé, aux abonnés Pro qui l'ont demandé et
 // qui ont joué. Que des chiffres : parties de la semaine, trois indicateurs
 // comparés à la semaine d'avant, la règle d'arrêt de l'hygiène de jeu s'il
 // y en a une. Aucun texte d'IA, aucune donnée d'un autre joueur. Logique

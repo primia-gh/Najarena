@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { arrondir, calibrationPct, trouverPalier } from "@/lib/classement";
+import { estMatchVide } from "@/lib/double-elim";
 import { estVisiblePubliquement } from "@/lib/tournois";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 
@@ -130,6 +131,8 @@ export interface ParticipantPublic {
 export interface MatchPublic {
   tour: number;
   position: number;
+  /** Double élimination : « gagnants », « perdants » ou « finale » ; nul sinon. */
+  tableau: string | null;
   participants: ParticipantPublic[];
   /** Verdict définitif ; `verifie` faux pour une décision manuelle. */
   verdict: { niveau: string; verifie: boolean } | null;
@@ -161,7 +164,7 @@ export async function chargerTournoiPublic(supabase: Client, slug: string): Prom
     supabase
       .from("matches")
       .select(
-        "tour, position, match_participants(profile_id, slot, score, est_gagnant, profile:profiles(pseudo, slug)), match_verdicts(niveau, est_definitif)",
+        "tour, position, tableau, statut, match_participants(profile_id, slot, score, est_gagnant, profile:profiles(pseudo, slug)), match_verdicts(niveau, est_definitif)",
       )
       .eq("tournament_id", tournoi.id)
       .order("tour", { ascending: true })
@@ -178,11 +181,14 @@ export async function chargerTournoiPublic(supabase: Client, slug: string): Prom
     region: tournoi.region,
     debuteLe: tournoi.debute_le,
     url: `${URL_PUBLIQUE}/lol/tournois/${tournoi.slug}`,
-    matchs: (matchs ?? []).map((m) => {
+    // Double élimination (20/11/2026) : un match clos sans aucun joueur
+    // (deux places d'origine vides) n'est pas publié.
+    matchs: (matchs ?? []).filter((m) => !estMatchVide(m)).map((m) => {
       const verdict = m.match_verdicts.find((v) => v.est_definitif);
       return {
         tour: m.tour,
         position: m.position,
+        tableau: m.tableau,
         participants: [...m.match_participants]
           .sort((a, b) => a.slot - b.slot)
           .map((p) => {

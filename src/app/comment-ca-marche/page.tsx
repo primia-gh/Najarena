@@ -9,6 +9,8 @@ import { RATING_INITIAL, RD_INITIAL, RD_SEUIL_CLASSEMENT } from "@/lib/classemen
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/comment-ca-marche" },
   title: "Comment ça marche — Najarena",
   description:
     "Comment un résultat de match devient une preuve sur Najarena : liaison du Riot ID, système de verdict à trois niveaux, classement Glicko-2.",

@@ -4,6 +4,8 @@ import { demanderReinitialisation } from "@/lib/auth-actions";
 import { classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import Captcha from "@/components/compte/Captcha";
+import { cleSiteCaptcha } from "@/lib/captcha";
 import CadreCompte, { ChampCompte } from "@/components/compte/CadreCompte";
 
 export const metadata: Metadata = {
@@ -18,6 +20,7 @@ interface MotDePasseOubliePageProps {
 
 export default async function MotDePasseOubliePage({ searchParams }: MotDePasseOubliePageProps) {
   const { erreur, message } = await searchParams;
+  const cleCaptcha = cleSiteCaptcha();
 
   return (
     <CadreCompte
@@ -42,6 +45,7 @@ export default async function MotDePasseOubliePage({ searchParams }: MotDePasseO
         <ChampCompte libelle="E-mail">
           <input name="email" type="email" required autoComplete="email" className={classeChamp()} />
         </ChampCompte>
+        {cleCaptcha && <Captcha cleSite={cleCaptcha} />}
         <BoutonEnvoi libelleEnCours="Envoi…" className="mt-2 w-full">
           Recevoir le lien
         </BoutonEnvoi>

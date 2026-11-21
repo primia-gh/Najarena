@@ -7,11 +7,14 @@ import { envoyerRappel, notifierJoueur, notifierDiscord, URL_SITE } from "@/lib/
 import { formaterDate } from "@/lib/tournois";
 import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction";
 import { echapperDiscord, echapperHtml } from "@/lib/echappement";
-import { matchsOuverts, prevenirMatchOuvert } from "@/lib/apres-verdict";
+import { matchsOuverts, prevenirMatchOuvert, prevenirSuitesDouble, suiteSuisse } from "@/lib/apres-verdict";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import { annoncerVainqueur } from "@/lib/recit-tournoi-serveur";
 import { formerEquipes } from "@/lib/agents-libres";
 import { ROLES, type Role } from "@/lib/roles";
+import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
+import { messageRefusModification } from "@/lib/modifier-tournoi";
+import { lireNiveau, MESSAGE_NIVEAU_ORGANISATEUR } from "@/lib/niveau-tournoi";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -21,7 +24,7 @@ async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createCl
 
   const { data: tournoi } = await supabase
     .from("tournaments")
-    .select("id, nom, slug, capacite, organisateur_id, statut, format")
+    .select("id, nom, slug, capacite, organisateur_id, statut, format, type_bracket")
     .eq("id", tournamentId)
     .maybeSingle();
 
@@ -59,6 +62,13 @@ export async function confirmerInscription(formData: FormData) {
   if (erreurConfirmation?.message.includes("RESERVE_MEMBRES")) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent("Ce joueur (ou un joueur de cette équipe) n'est plus membre de la communauté, ou n'a plus son adresse d'école vérifiée : sa présence ne peut pas être confirmée.")}`,
+    );
+  }
+
+  // Tournoi par niveau (19/11/2026) : revérifié à la confirmation.
+  if (erreurConfirmation?.message.includes("NIVEAU_HORS_TOURNOI")) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(MESSAGE_NIVEAU_ORGANISATEUR)}`,
     );
   }
 
@@ -190,6 +200,44 @@ export async function genererBracket(formData: FormData) {
     );
   }
 
+  // Format suisse (19/11/2026) : la base fixe le nombre de rondes et
+  // apparie la première ; les suivantes se créent au fil des verdicts.
+  if (tournoi.type_bracket === "suisse") {
+    const { error } = await supabase.rpc("demarrer_suisse", { p_tournament: tournamentId });
+    if (error) {
+      redirect(
+        `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+          error.message.includes("PAS_ASSEZ_DE_JOUEURS")
+            ? "Il faut au moins 2 joueurs confirmés pour lancer le tournoi."
+            : error.message.includes("TOURNOI_DEJA_LANCE")
+              ? "Le tournoi est déjà lancé."
+              : "Impossible de lancer le tournoi pour l'instant.",
+        )}`,
+      );
+    }
+    await Promise.all((await matchsOuverts(tournamentId)).map((m) => prevenirMatchOuvert(m.matchId)));
+    redirect(`/moi/organisation/${tournamentId}`);
+  }
+
+  // Double élimination (20/11/2026) : la base crée les deux tableaux et la
+  // grande finale, place les joueurs et résout les exemptions.
+  if (tournoi.type_bracket === "double_elim") {
+    const { error } = await supabase.rpc("demarrer_double_elim", { p_tournament: tournamentId });
+    if (error) {
+      redirect(
+        `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+          error.message.includes("PAS_ASSEZ_DE_JOUEURS")
+            ? "Il faut au moins 4 joueurs confirmés pour lancer une double élimination."
+            : error.message.includes("TOURNOI_DEJA_LANCE")
+              ? "Le tournoi est déjà lancé."
+              : "Impossible de lancer le tournoi pour l'instant.",
+        )}`,
+      );
+    }
+    await Promise.all((await matchsOuverts(tournamentId)).map((m) => prevenirMatchOuvert(m.matchId)));
+    redirect(`/moi/organisation/${tournamentId}`);
+  }
+
   // Tournoi 5v5 (audit N23) : les agents libres confirmés forment d'abord
   // leurs équipes, inscrites comme les autres.
   if (tournoi.format === "5v5") {
@@ -223,17 +271,22 @@ export async function genererBracket(formData: FormData) {
     );
   }
 
+  // Une exemption refusée par la base n'arrête pas le lancement, mais
+  // l'organisateur en est averti (contrôle de sécurité du 20/11/2026 :
+  // avant, l'erreur passait inaperçue et le match restait bloqué).
+  let exemptionsRefusees = 0;
   const { ok } = await construireBracket(
     supabase,
     tournamentId,
     tournoi.capacite,
     joueurs,
     async (matchId, gagnantId) => {
-      await supabase.rpc("enregistrer_verdict_manuel", {
+      const { error } = await supabase.rpc("enregistrer_verdict_manuel", {
         p_match_id: matchId,
         p_gagnant_id: gagnantId,
         p_motif: "Bye — moins d'inscrits confirmés que de places dans le bracket.",
       });
+      if (error) exemptionsRefusees += 1;
     },
   );
 
@@ -252,6 +305,13 @@ export async function genererBracket(formData: FormData) {
   // l'étaient.
   await Promise.all((await matchsOuverts(tournamentId)).map((m) => prevenirMatchOuvert(m.matchId)));
 
+  if (exemptionsRefusees > 0) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+        "Le bracket est lancé, mais une exemption n'a pas pu être enregistrée : un match reste en attente avec un seul joueur. Écris-nous (adresse dans les mentions légales) pour le débloquer.",
+      )}`,
+    );
+  }
   redirect(`/moi/organisation/${tournamentId}`);
 }
 
@@ -291,7 +351,11 @@ export async function enregistrerResultat(formData: FormData) {
   if (error) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
-        "Impossible d'enregistrer ce résultat pour l'instant.",
+        error.message.includes("ADVERSAIRE_ATTENDU")
+          ? "Ce match attend encore son second joueur : tu pourras le trancher quand il sera arrivé."
+          : error.message.includes("MATCH_DEJA_DECIDE")
+            ? "Ce match est déjà décidé."
+            : "Impossible d'enregistrer ce résultat pour l'instant.",
       )}`,
     );
   }
@@ -302,7 +366,7 @@ export async function enregistrerResultat(formData: FormData) {
   const { data: matchDecide } = await supabase
     .from("matches")
     .select(
-      "match_suivant_id, tournament:tournaments(nom, slug, format), match_participants(profile_id, profile:profiles(pseudo))",
+      "match_suivant_id, match_perdant_suivant_id, tour, tournament:tournaments(nom, slug, format, type_bracket), match_participants(profile_id, profile:profiles(pseudo))",
     )
     .eq("id", matchId)
     .maybeSingle();
@@ -334,11 +398,16 @@ export async function enregistrerResultat(formData: FormData) {
     );
   }
 
-  if (matchDecide?.match_suivant_id) {
+  // Format suisse (19/11/2026) : ronde suivante ou fin, jamais de finale.
+  if (matchDecide?.tournament?.type_bracket === "suisse") {
+    await suiteSuisse(tournamentId, matchDecide.tour);
+  } else if (matchDecide?.tournament?.type_bracket === "double_elim") {
+    await prevenirSuitesDouble([matchDecide.match_suivant_id, matchDecide.match_perdant_suivant_id]);
+  } else if (matchDecide?.match_suivant_id) {
     await prevenirMatchOuvert(matchDecide.match_suivant_id);
   }
 
-  if (matchDecide && matchDecide.match_suivant_id === null) {
+  if (matchDecide && matchDecide.match_suivant_id === null && matchDecide.tournament?.type_bracket !== "suisse") {
     await cloturerTournoi(tournamentId);
     // Le récit dit que la finale a été tranchée à la main (hors classement).
     await annoncerVainqueur(tournamentId, gagnantId);
@@ -434,6 +503,46 @@ export async function publierTournoi(formData: FormData) {
   );
 
   redirect(`/moi/organisation/${tournamentId}?message=${encodeURIComponent("Tournoi publié : les inscriptions sont ouvertes.")}`);
+}
+
+// Modification avant la première inscription (19/11/2026, audit M7) : nom,
+// capacité, Best-of, serveur, dates, niveau. La base (modifier_tournoi) vérifie
+// tout — propriétaire, statut, aucune inscription, mêmes règles qu'à la
+// création, modération du nom — et repose la date de publication si la
+// date de début change. Personne n'est inscrit : personne à prévenir.
+export async function modifierTournoi(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+  const supabase = await createClient();
+  const { tournoi } = await verifierOrganisateur(supabase, tournamentId);
+
+  const page = `/moi/organisation/${tournamentId}`;
+  const debuteLe = instantDepuisSaisieParis(String(formData.get("debute_le") ?? ""));
+  const checkinOuvreLe = instantDepuisSaisieParis(String(formData.get("checkin_ouvre_le") ?? ""));
+  if (!debuteLe || !checkinOuvreLe) {
+    redirect(`${page}?erreur=${encodeURIComponent("Dates invalides.")}#retour`);
+  }
+
+  const niveau = lireNiveau(formData.get("niveau_min"), formData.get("niveau_max"), tournoi.format);
+  if (!niveau.ok) {
+    redirect(`${page}?erreur=${encodeURIComponent(niveau.erreur)}#retour`);
+  }
+
+  const { error } = await supabase.rpc("modifier_tournoi", {
+    p_tournament_id: tournamentId,
+    p_nom: String(formData.get("nom") ?? "").slice(0, 200),
+    p_capacite: Number(formData.get("capacite")),
+    p_best_of: Number(formData.get("best_of") ?? 1),
+    p_region: String(formData.get("region") ?? ""),
+    p_debute_le: debuteLe.toISOString(),
+    p_checkin_ouvre_le: checkinOuvreLe.toISOString(),
+    p_rating_min: niveau.min,
+    p_rating_max: niveau.max,
+  });
+  if (error) {
+    redirect(`${page}?erreur=${encodeURIComponent(messageRefusModification(error.message))}#retour`);
+  }
+
+  redirect(`${page}?message=${encodeURIComponent("Tournoi modifié.")}#retour`);
 }
 
 // Annulation par l'organisateur (28/09/2026, audit M7), tant que le bracket

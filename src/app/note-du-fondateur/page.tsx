@@ -4,6 +4,8 @@ import Apparition from "@/components/design/Apparition";
 import LibelleSection from "@/components/design/LibelleSection";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/note-du-fondateur" },
   title: "Une note du fondateur — Najarena",
   description: "Pourquoi Najarena existe.",
 };

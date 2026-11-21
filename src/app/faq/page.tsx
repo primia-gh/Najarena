@@ -14,6 +14,8 @@ const QUOTIDIEN = CRENEAUX[0];
 const COUPE_NOUVEAUX = CRENEAUX.find((c) => c.reserveNonClasses);
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/faq" },
   title: "FAQ — Najarena",
   description:
     "Les questions de confiance, sans détour : gratuité, affiliation à Riot Games, vérification des résultats, délais de mise à jour du classement, panne de l'API Riot, rôle de l'IA.",
@@ -27,7 +29,7 @@ const QUESTIONS = [
   {
     question: "Najarena est-il gratuit ?",
     reponse:
-      "L'essentiel l'est, pour toujours : le classement, les verdicts et le profil public ne seront jamais payants. Des paliers payants (Vérifié, Elite, Organisateur) ajoutent de l'identité et du confort, jamais un péage sur la preuve. Ils sont en cours de lancement — voir la page Tarifs.",
+      "L'essentiel l'est, pour toujours : le classement, les verdicts et le profil public ne seront jamais payants. Des paliers payants (Plus, Pro, Organisateur) ajoutent de l'identité et du confort, jamais un péage sur la preuve. Ils sont en cours de lancement — voir la page Tarifs.",
   },
   {
     question: "Najarena est-il affilié à Riot Games ?",
@@ -63,7 +65,7 @@ const QUESTIONS = [
   {
     question: "L'intelligence artificielle peut-elle toucher à mon classement ?",
     reponse:
-      "Non. L'IA n'écrit jamais de résultat ni de point : elle rédige seulement des textes d'aide, à la demande (ou, pour l'analyse des parties d'un abonné Elite, automatiquement après chaque partie vérifiée), à partir de données déjà vérifiées. Quatre usages, disponibles quand ils sont activés : l'assistant de création de tournoi (l'organisateur valide avant de créer), l'analyse détaillée d'un match (offre Elite, à partir des seuls chiffres Riot du match, en plus de la revue par règles), le dossier de litige (il rassemble les faits pour l'organisateur et ne désigne jamais de vainqueur : la décision reste humaine) et la recherche de joueurs en langage naturel (offre Organisateur : l'IA traduit la demande en filtres, la recherche ne porte que sur des comptes vérifiés).",
+      "Non. L'IA n'écrit jamais de résultat ni de point : elle rédige seulement des textes d'aide, à la demande (ou, pour l'analyse des parties d'un abonné Pro, automatiquement après chaque partie vérifiée), à partir de données déjà vérifiées. Cinq usages, disponibles quand ils sont activés : l'assistant de création de tournoi (l'organisateur valide avant de créer), l'analyse détaillée d'un match (offre Pro, à partir des seuls chiffres Riot du match, en plus de la revue par règles), l'analyse de ta progression (offre Pro, à ta demande, à partir des seuls chiffres de ton bilan, jamais le KDA), le dossier de litige (il rassemble les faits pour l'organisateur et ne désigne jamais de vainqueur : la décision reste humaine) et la recherche de joueurs en langage naturel (offre Organisateur : l'IA traduit la demande en filtres, la recherche ne porte que sur des comptes vérifiés).",
   },
   {
     question: "Mes parties classées comptent-elles pour le classement Najarena ?",

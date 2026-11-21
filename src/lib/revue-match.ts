@@ -1,4 +1,4 @@
-// Revue de match écrite (offre Elite) — comparaison à base de règles,
+// Revue de match écrite (offre Pro) — comparaison à base de règles,
 // jamais de texte généré librement : les chiffres viennent de Riot
 // (stats_match_joueur, capturés gratuitement pendant le rapprochement,
 // voir src/lib/rapprochement.ts), la phrase n'est qu'un calcul mis en

@@ -39,6 +39,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/lol/saisons`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/lol/tournois/demo`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${BASE_URL}/lol/coequipiers`, changeFrequency: "daily", priority: 0.6 },
+    { url: `${BASE_URL}/lol/duo`, changeFrequency: "daily", priority: 0.6 },
+    { url: `${BASE_URL}/lol/recrutement`, changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/lol/arene`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/lol/a-la-demande`, changeFrequency: "daily", priority: 0.5 },
     { url: `${BASE_URL}/lol/divisions`, changeFrequency: "daily", priority: 0.5 },
@@ -55,6 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/tarifs`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${BASE_URL}/mentions-legales`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${BASE_URL}/cgu`, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${BASE_URL}/cgv`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${BASE_URL}/confidentialite`, changeFrequency: "yearly", priority: 0.2 },
   ];
 

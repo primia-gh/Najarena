@@ -7,7 +7,8 @@ import { lignesFiche } from "@/lib/fiche-organisateur";
 import { lignesFiabilite } from "@/lib/fiabilite";
 
 // Données d'affichage ajoutées par la refonte « Venin » du profil
-// (design-system/najarena/pages/profil.md) : classement national, palier,
+// (design-system/najarena/pages/profil.md) : rang général (tous pays et
+// serveurs confondus — la maquette disait « national », audit M14), palier,
 // courbe de la saison, annonce « cherche une équipe », équipes, rôle.
 // Uniquement des LECTURES de tables publiques, rangées ici pour laisser
 // intact le chargement d'origine de joueur/[pseudo]/page.tsx (chargerJoueur :
@@ -92,9 +93,9 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
 
   const paliers: Palier[] = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
 
-  // Rating de la saison courante : base du rang national et de la courbe.
+  // Rating de la saison courante : base du rang général et de la courbe.
   let ratingSaison: { rating: number; est_classe: boolean | null } | null = null;
-  let rangNational: number | null = null;
+  let rangGeneral: number | null = null;
   let totalClasses = 0;
   let courbe: PointCourbe[] = [];
 
@@ -133,7 +134,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
         .eq("season_id", saison.id)
         .eq("est_classe", true)
         .gt("rating", ratingSaison.rating);
-      rangNational = (devant ?? 0) + 1;
+      rangGeneral = (devant ?? 0) + 1;
     }
 
     // Courbe : point de départ (rating avant le premier événement), puis le
@@ -299,7 +300,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
 
   return {
     saison,
-    rangNational,
+    rangGeneral,
     totalClasses,
     palier,
     palierSuivant,

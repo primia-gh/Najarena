@@ -147,6 +147,22 @@ export function instantDepuisSaisieParis(saisie: string): Date | null {
   return instant;
 }
 
+/**
+ * Valeur d'un champ datetime-local (« 2026-09-30T20:00 ») pour un instant
+ * donné, en heure de Paris : l'inverse d'instantDepuisSaisieParis, pour
+ * pré-remplir un formulaire de modification.
+ */
+export function saisieParisDepuisInstant(iso: string): string {
+  const instant = new Date(iso);
+  const heure = new Intl.DateTimeFormat("en-GB", {
+    timeZone: FUSEAU_PARIS,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(instant);
+  return `${jourParis(instant)}T${heure}`;
+}
+
 /** Jour calendaire à Paris (« 2026-09-24 ») d'un instant donné. */
 export function jourParis(instant: Date): string {
   return new Intl.DateTimeFormat("en-CA", {

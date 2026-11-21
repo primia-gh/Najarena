@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/supabase/types";
 import { estOfficiel } from "@/lib/a-la-demande";
 import { FUSEAU_PARIS } from "@/lib/tournois-auto/creneaux";
+import { libelleNiveau } from "@/lib/niveau-tournoi";
 
 export type Statut = Database["public"]["Enums"]["tournament_status"];
 
@@ -124,6 +125,8 @@ export interface TournoiListe {
   reserve_membres: boolean;
   /** Coupe des nouveaux : réservé aux joueurs pas encore classés. */
   reserve_non_classes: boolean;
+  /** Tournoi par niveau : « Or et plus », « Argent à Or »… (null : ouvert à tous). */
+  niveau: string | null;
   /** Tournoi quotidien créé par Najarena. */
   officiel: boolean;
   /** Déclaré amical par son organisateur : ne compte jamais au classement. */
@@ -139,7 +142,7 @@ export interface TournoiListe {
  * `.in("registrations.statut", INSCRIPTIONS_ACTIVES)`.
  */
 export const COLONNES_TOURNOI_LISTE =
-  "id, slug, nom, format, capacite, region, statut, debute_le, reserve_membres, reserve_non_classes, creneau_auto, compte_pour_classement, classe, registrations(count)";
+  "id, slug, nom, format, capacite, region, statut, debute_le, reserve_membres, reserve_non_classes, rating_min, rating_max, creneau_auto, compte_pour_classement, classe, registrations(count)";
 export const INSCRIPTIONS_ACTIVES = ["inscrit", "confirme"] as const;
 
 interface LigneTournoiBrute {
@@ -153,6 +156,8 @@ interface LigneTournoiBrute {
   debute_le: string;
   reserve_membres: boolean;
   reserve_non_classes: boolean;
+  rating_min: number | null;
+  rating_max: number | null;
   creneau_auto: string | null;
   compte_pour_classement: boolean;
   classe: boolean | null;
@@ -173,6 +178,7 @@ export function versTournoiListe(t: LigneTournoiBrute): TournoiListe | null {
     debute_le: t.debute_le,
     reserve_membres: t.reserve_membres,
     reserve_non_classes: t.reserve_non_classes,
+    niveau: libelleNiveau(t.rating_min, t.rating_max),
     officiel: estOfficiel(t.creneau_auto),
     amical: t.compte_pour_classement === false,
     classe: t.classe,

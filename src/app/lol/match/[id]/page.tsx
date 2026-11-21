@@ -6,7 +6,7 @@ import { arrondir } from "@/lib/classement";
 import { formaterDate } from "@/lib/tournois";
 import { empreinteCourte } from "@/lib/registre";
 import { libelleTour } from "@/lib/bracket-image";
-import { chargerPreuveMatch, type PreuveMatch } from "@/lib/preuve-match";
+import { chargerPreuveMatch, type JoueurPreuve, type PreuveMatch } from "@/lib/preuve-match";
 import Apparition from "@/components/design/Apparition";
 import { BadgeVerdict } from "@/components/design/Badges";
 import BoutonCopier from "@/components/design/BoutonCopier";
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const preuve = await chargerPreuveMatch(id);
   if (!preuve) return { title: "Match introuvable — Najarena" };
   return {
-    title: `Preuve du match ${preuve.joueurs.map((j) => j.pseudo).join(" contre ")} — Najarena`,
+    title: `Preuve du match ${titreMatch(preuve)} — Najarena`,
     description: `D'où vient le résultat de ce match du tournoi ${preuve.tournoi.nom} : verdict, partie Riot, registre des points.`,
     robots: { index: false, follow: true },
   };
@@ -42,6 +42,53 @@ function Ligne({ libelle, children }: { libelle: string; children: ReactNode }) 
       <dt className="font-texte text-mini font-medium text-muted uppercase">{libelle}</dt>
       <dd className="text-sm text-text [overflow-wrap:anywhere]">{children}</dd>
     </div>
+  );
+}
+
+/** « A contre B » : les équipes en 5v5, les joueurs en 1v1. */
+function titreMatch(p: PreuveMatch): string {
+  if (p.equipes?.length === 2) return p.equipes.map((e) => e.libelle).join(" contre ");
+  return p.joueurs.length === 2 ? p.joueurs.map((j) => j.pseudo).join(" contre ") : "Match à venir";
+}
+
+/** Une ligne du tableau des joueurs : profil, compte Riot, champion. */
+function LigneJoueur({ j, verdict, vainqueur }: { j: JoueurPreuve; verdict: PreuveMatch["verdict"]; vainqueur: boolean }) {
+  return (
+    <tr>
+      <td>
+        <span className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+          {j.slug ? (
+            <Link href={`/joueur/${j.slug}`} className="font-semibold hover:text-accent">
+              {j.pseudo}
+            </Link>
+          ) : (
+            <span className="font-semibold">{j.pseudo}</span>
+          )}
+          {vainqueur && <span className="text-mini font-semibold text-text-2 uppercase">Vainqueur</span>}
+        </span>
+      </td>
+      <td>
+        {j.riotId ? (
+          <span className="flex flex-col">
+            <span className="tabular-nums">{j.riotId}</span>
+            <span className="text-xs text-muted">
+              {j.compteDeLaPartie
+                ? "A joué cette partie"
+                : j.partieLue
+                  ? "Partie lue chez Riot, compte joué non enregistré"
+                  : verdict && verdict.niveau !== "manuel"
+                    ? "Compte lié — détail de la partie non conservé"
+                    : "Compte lié — partie non lue chez Riot"}
+            </span>
+          </span>
+        ) : j.compteDelie ? (
+          <span className="text-xs text-muted">A joué cette partie avec un compte délié depuis</span>
+        ) : (
+          <span className="text-muted">—</span>
+        )}
+      </td>
+      <td>{j.champion ?? <span className="text-muted">—</span>}</td>
+    </tr>
   );
 }
 
@@ -66,9 +113,19 @@ export default async function PreuveMatchPage({ params }: PageProps) {
   const preuve = await chargerPreuveMatch(id);
   if (!preuve) notFound();
   const { verdict, tournoi } = preuve;
-  const titre = preuve.joueurs.length === 2 ? preuve.joueurs.map((j) => j.pseudo).join(" contre ") : "Match à venir";
+  const titre = titreMatch(preuve);
   const tourLisible =
-    tournoi.nature === "tournoi" ? libelleTour(preuve.tour, preuve.dernierTour).toLowerCase() : "duel en une partie";
+    tournoi.nature !== "tournoi"
+      ? "duel en une partie"
+      : preuve.suisse
+        ? `ronde ${preuve.tour} (format suisse)`
+        : preuve.tableau === "finale"
+          ? "grande finale (double élimination)"
+          : preuve.tableau === "perdants"
+            ? "tableau des perdants (double élimination)"
+            : preuve.tableau === "gagnants"
+              ? `tour ${preuve.tour} du tableau des gagnants (double élimination)`
+              : libelleTour(preuve.tour, preuve.dernierTour).toLowerCase();
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
@@ -156,54 +213,49 @@ export default async function PreuveMatchPage({ params }: PageProps) {
               <LibelleSection as="h2" id="titre-joueurs" className="border-b border-line-strong pb-4">
                 Joueurs et comptes Riot
               </LibelleSection>
-              <Tableau legende={`Joueurs du match ${titre}`}>
-                <thead>
-                  <tr>
-                    <th scope="col">Joueur</th>
-                    <th scope="col">Compte Riot</th>
-                    <th scope="col">Champion</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preuve.joueurs.map((j) => (
-                    <tr key={j.profileId}>
-                      <td>
-                        <span className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
-                          {j.slug ? (
-                            <Link href={`/joueur/${j.slug}`} className="font-semibold hover:text-accent">
-                              {j.pseudo}
+              {preuve.equipes ? (
+                preuve.equipes.map((e) => (
+                  <Tableau key={e.capitaineId} legende={`Joueurs de ${e.libelle}`}>
+                    <thead>
+                      <tr>
+                        <th scope="col">
+                          <span className="sr-only">Joueurs de l&apos;équipe </span>
+                          {e.slug ? (
+                            <Link href={`/equipe/${e.slug}`} className="hover:text-accent">
+                              {e.libelle}
                             </Link>
                           ) : (
-                            <span className="font-semibold">{j.pseudo}</span>
+                            e.libelle
                           )}
-                          {j.gagnant && <span className="text-mini font-semibold text-text-2 uppercase">Vainqueur</span>}
-                        </span>
-                      </td>
-                      <td>
-                        {j.riotId ? (
-                          <span className="flex flex-col">
-                            <span className="tabular-nums">{j.riotId}</span>
-                            <span className="text-xs text-muted">
-                              {j.compteDeLaPartie
-                                ? "A joué cette partie"
-                                : j.partieLue
-                                  ? "Partie lue chez Riot, compte joué non enregistré"
-                                  : verdict && verdict.niveau !== "manuel"
-                                    ? "Compte lié — détail de la partie non conservé"
-                                    : "Compte lié — partie non lue chez Riot"}
-                            </span>
-                          </span>
-                        ) : j.compteDelie ? (
-                          <span className="text-xs text-muted">A joué cette partie avec un compte délié depuis</span>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </td>
-                      <td>{j.champion ?? <span className="text-muted">—</span>}</td>
+                          {e.gagnant && <span className="ml-2 text-text-2">· Vainqueur</span>}
+                        </th>
+                        <th scope="col">Compte Riot</th>
+                        <th scope="col">Champion</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {e.joueurs.map((j) => (
+                        <LigneJoueur key={j.profileId} j={j} verdict={verdict} vainqueur={false} />
+                      ))}
+                    </tbody>
+                  </Tableau>
+                ))
+              ) : (
+                <Tableau legende={`Joueurs du match ${titre}`}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Joueur</th>
+                      <th scope="col">Compte Riot</th>
+                      <th scope="col">Champion</th>
                     </tr>
-                  ))}
-                </tbody>
-              </Tableau>
+                  </thead>
+                  <tbody>
+                    {preuve.joueurs.map((j) => (
+                      <LigneJoueur key={j.profileId} j={j} verdict={verdict} vainqueur={Boolean(j.gagnant)} />
+                    ))}
+                  </tbody>
+                </Tableau>
+              )}
               <p className="text-xs text-muted">
                 Comptes Riot vérifiés par l&apos;icône de profil. « A joué cette partie » et le champion viennent de la
                 fiche officielle de la partie, seulement quand elle a été retrouvée chez Riot.

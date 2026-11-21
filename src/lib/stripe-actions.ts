@@ -13,33 +13,47 @@ import { creerClientAdmin } from "@/lib/supabase/admin";
 import { URL_SITE } from "@/lib/notifications";
 import type { Offre } from "@/lib/offres";
 import { RETOURS_EXTERNES } from "@/lib/messages-adresse";
+import { DELAI_RETRACTATION_JOURS, VERSION_CGV } from "@/lib/cgv";
+import { prixCourant } from "@/lib/offre-stripe";
 
 const cleSecrete = process.env.STRIPE_SECRET_KEY;
 const stripe = cleSecrete ? new Stripe(cleSecrete) : null;
 
 const PRIX_PAR_OFFRE: Record<Exclude<Offre, "gratuit">, string | undefined> = {
-  verifie: process.env.STRIPE_PRICE_VERIFIE,
-  elite: process.env.STRIPE_PRICE_ELITE,
-  organisateur: process.env.STRIPE_PRICE_ORGANISATEUR,
+  verifie: prixCourant(process.env.STRIPE_PRICE_VERIFIE),
+  elite: prixCourant(process.env.STRIPE_PRICE_ELITE),
+  organisateur: prixCourant(process.env.STRIPE_PRICE_ORGANISATEUR),
 };
 
 export async function demarrerAbonnement(formData: FormData) {
   const offre = String(formData.get("offre") ?? "") as Offre;
 
-  if (offre === "gratuit" || !(offre in PRIX_PAR_OFFRE)) {
-    redirect(`/tarifs?erreur=${encodeURIComponent("Offre invalide.")}`);
+  // Object.hasOwn : « constructor », « toString »… ne passent pas pour une offre.
+  if (offre === "gratuit" || !Object.hasOwn(PRIX_PAR_OFFRE, offre)) {
+    redirect(`/tarifs?erreur=${encodeURIComponent("Offre invalide.")}#retour`);
+  }
+
+  // CGV acceptées et accès immédiat demandé (audit E11) : sans cette case,
+  // pas de paiement. L'accord est gardé dans l'abonnement Stripe (version
+  // des CGV, date), preuve de ce que le client a accepté.
+  if (formData.get("cgv") !== "on") {
+    redirect(
+      `/tarifs?erreur=${encodeURIComponent(
+        "Coche la case : acceptation des CGV et accès immédiat à l'offre (tu gardes 14 jours pour te rétracter).",
+      )}#retour`,
+    );
   }
 
   if (!stripe) {
     redirect(
-      `/tarifs?erreur=${encodeURIComponent("Le paiement n'est pas encore activé — reviens bientôt.")}`,
+      `/tarifs?erreur=${encodeURIComponent("Le paiement n'est pas encore activé — reviens bientôt.")}#retour`,
     );
   }
 
   const prixId = PRIX_PAR_OFFRE[offre as Exclude<Offre, "gratuit">];
   if (!prixId) {
     redirect(
-      `/tarifs?erreur=${encodeURIComponent("Ce palier n'est pas encore configuré côté paiement.")}`,
+      `/tarifs?erreur=${encodeURIComponent("Ce palier n'est pas encore configuré côté paiement.")}#retour`,
     );
   }
 
@@ -53,6 +67,8 @@ export async function demarrerAbonnement(formData: FormData) {
   // factures et moyens de paiement restent au même endroit.
   const clientExistant = await clientStripe(userData.user.id);
 
+  const accord = { cgv_version: VERSION_CGV, cgv_acceptees_le: new Date().toISOString(), acces_immediat: "oui" };
+
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: prixId, quantity: 1 }],
@@ -65,12 +81,17 @@ export async function demarrerAbonnement(formData: FormData) {
     ...(clientExistant ? { customer: clientExistant } : { customer_email: userData.user.email ?? undefined }),
     success_url: `${URL_SITE}/moi?message=${encodeURIComponent(RETOURS_EXTERNES.abonnementEnCours)}`,
     cancel_url: `${URL_SITE}/tarifs`,
-    metadata: { profile_id: userData.user.id, offre },
-    subscription_data: { metadata: { profile_id: userData.user.id, offre } },
+    metadata: { profile_id: userData.user.id, offre, ...accord },
+    subscription_data: { metadata: { profile_id: userData.user.id, offre, ...accord } },
+    custom_text: {
+      submit: {
+        message: `En t'abonnant, tu acceptes les conditions générales de vente de Najarena (${URL_SITE}/cgv) et tu demandes l'accès immédiat à ton offre. Tu gardes ${DELAI_RETRACTATION_JOURS} jours pour te rétracter, et tu résilies en ligne à tout moment depuis ton tableau de bord.`,
+      },
+    },
   });
 
   if (!session.url) {
-    redirect(`/tarifs?erreur=${encodeURIComponent("Impossible de démarrer le paiement pour l'instant.")}`);
+    redirect(`/tarifs?erreur=${encodeURIComponent("Impossible de démarrer le paiement pour l'instant.")}#retour`);
   }
 
   redirect(session.url);

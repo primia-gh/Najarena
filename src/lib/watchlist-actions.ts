@@ -31,10 +31,10 @@ export async function suivreJoueur(formData: FormData) {
     .upsert({ recruteur_id: utilisateur.id, joueur_suivi_id: joueurSuiviId });
 
   if (error) {
-    redirect(`${retour}?erreur=${encodeURIComponent("Impossible de suivre ce joueur pour l'instant.")}`);
+    redirect(`${retour}${retour.includes("?") ? "&" : "?"}erreur=${encodeURIComponent("Impossible de suivre ce joueur pour l'instant.")}`);
   }
 
-  redirect(`${retour}?message=${encodeURIComponent("Joueur ajouté à ta watchlist.")}`);
+  redirect(`${retour}${retour.includes("?") ? "&" : "?"}message=${encodeURIComponent("Joueur ajouté à ta watchlist.")}`);
 }
 
 export async function retirerDeLaWatchlist(formData: FormData) {
@@ -50,5 +50,5 @@ export async function retirerDeLaWatchlist(formData: FormData) {
     .eq("recruteur_id", utilisateur.id)
     .eq("joueur_suivi_id", joueurSuiviId);
 
-  redirect(`${retour}?message=${encodeURIComponent("Joueur retiré de ta watchlist.")}`);
+  redirect(`${retour}${retour.includes("?") ? "&" : "?"}message=${encodeURIComponent("Joueur retiré de ta watchlist.")}`);
 }

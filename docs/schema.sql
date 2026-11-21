@@ -11003,3 +11003,3489 @@ as $$
   order by 7 desc nulls last, 5 desc, c.nom;
 $$;
 grant execute on function public.classement_ecoles() to anon, authenticated;
+
+-- ---------- Défis et arène : pas de duel pendant un match ouvert ; noms d'équipe uniques (2026-11-18) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- 1. Un défi accepté, un duel d'arène : refusés (ou sautés) quand un match
+--    est encore ouvert entre les deux joueurs, comme le duel de division
+--    depuis le 17/10/2026. Sinon une même partie Riot pourrait trancher
+--    deux matchs (parties_utilisees l'empêche déjà, mais l'un des deux
+--    resterait sans résultat).
+-- 2. Deux équipes ne portent plus le même nom, à la casse, aux accents et
+--    aux espaces près (« Les Loups », « LES-LOUPS », « Lès Loups »).
+
+-- Un match encore ouvert entre deux joueurs : même règle que le duel de
+-- division (je_suis_la_division) — tournoi 1v1 en cours, match à jouer ou
+-- en cours, ou en litige depuis moins de 25 h (la recherche des résultats
+-- le suit encore).
+create or replace function public.match_ouvert_entre(p_a uuid, p_b uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.match_participants pa
+    join public.match_participants pb on pb.match_id = pa.match_id and pb.profile_id = p_b
+    join public.matches m on m.id = pa.match_id
+    join public.tournaments t on t.id = m.tournament_id and t.statut = 'en_cours' and t.format = '1v1'
+    where pa.profile_id = p_a
+      and (m.statut in ('en_attente', 'en_cours')
+           or (m.statut = 'litige' and m.demarre_le > now() - interval '25 hours'))
+  );
+$$;
+revoke all on function public.match_ouvert_entre(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.creer_duel(p_defi_id uuid)
+returns text -- adresse (slug) du duel
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_defi record;
+  v_region text;
+  v_arbitre uuid;
+  v_saison uuid;
+  v_classe boolean;
+  v_tournoi uuid;
+  v_match uuid;
+  v_slug text;
+  v_pseudo_a text;
+  v_pseudo_b text;
+begin
+  select * into v_defi from public.defis where id = p_defi_id for update;
+
+  v_region := public.region_compte_verifie(v_defi.lanceur_id);
+  if v_region is null or public.region_compte_verifie(v_defi.adversaire_id) is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if public.region_compte_verifie(v_defi.adversaire_id) <> v_region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  -- Un match déjà ouvert entre eux (tournoi, autre duel) se joue d'abord :
+  -- une même partie Riot ne tranche jamais deux matchs (18/11/2026).
+  if public.match_ouvert_entre(v_defi.lanceur_id, v_defi.adversaire_id) then
+    raise exception 'MATCH_OUVERT_ENTRE_VOUS';
+  end if;
+
+  -- Trois défis en cours au plus par joueur.
+  if exists (
+    select 1 from (values (v_defi.lanceur_id), (v_defi.adversaire_id)) as j(id)
+    where (select count(*) from public.registrations r
+           join public.tournaments t on t.id = r.tournament_id
+           where r.profile_id = j.id and t.nature = 'defi' and t.statut = 'en_cours') >= 3
+  ) then
+    raise exception 'TROP_DE_DEFIS_EN_COURS';
+  end if;
+
+  select profile_id into v_arbitre from public.admins order by ajoute_le, profile_id limit 1;
+  if v_arbitre is null then
+    raise exception 'AUCUN_ARBITRE';
+  end if;
+
+  select id into v_saison from public.seasons where game_id = 1 and est_courante;
+
+  -- Un seul défi classé par paire et par 24 h : les suivants en amical.
+  v_classe := not exists (
+    select 1 from public.tournaments t
+    where t.nature = 'defi' and t.compte_pour_classement and t.cree_le > now() - interval '24 hours'
+      and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = v_defi.lanceur_id)
+      and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = v_defi.adversaire_id)
+  );
+
+  select pseudo into v_pseudo_a from public.profiles where id = v_defi.lanceur_id;
+  select pseudo into v_pseudo_b from public.profiles where id = v_defi.adversaire_id;
+  v_slug := 'defi-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
+
+  insert into public.tournaments (
+    game_id, season_id, organisateur_id, slug, nom, format, type_bracket, best_of, capacite,
+    region, compte_pour_classement, debute_le, checkin_ouvre_le, statut, condition_victoire, nature
+  ) values (
+    1, v_saison, v_arbitre, v_slug, 'Défi ' || v_pseudo_a || ' contre ' || v_pseudo_b, '1v1', 'elim_simple', 1, 2,
+    v_region, v_classe, now(), now(), 'en_cours', v_defi.condition_victoire, 'defi'
+  ) returning id into v_tournoi;
+
+  insert into public.registrations (tournament_id, profile_id, statut, confirme_le, seed) values
+    (v_tournoi, v_defi.lanceur_id, 'confirme', now(), 1),
+    (v_tournoi, v_defi.adversaire_id, 'confirme', now(), 2);
+
+  insert into public.matches (tournament_id, tour, position, statut, demarre_le)
+  values (v_tournoi, 1, 1, 'en_cours', now())
+  returning id into v_match;
+
+  insert into public.match_participants (match_id, profile_id, slot) values
+    (v_match, v_defi.lanceur_id, 1),
+    (v_match, v_defi.adversaire_id, 2);
+
+  update public.defis
+  set statut = 'accepte', repondu_le = now(), tournament_id = v_tournoi
+  where id = p_defi_id;
+
+  return v_slug;
+end;
+$$;
+revoke all on function public.creer_duel(uuid) from public, anon, authenticated;
+
+create or replace function public.apparier_joueur_arene(p_joueur uuid)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi record;
+  v_lui record;
+  v_defi uuid;
+  v_slug text;
+begin
+  select * into v_moi from public.file_arene where profile_id = p_joueur;
+  if not found then
+    return null;
+  end if;
+  -- Un appariement à la fois par région : deux joueurs ne prennent pas le
+  -- même adversaire.
+  perform pg_advisory_xact_lock(hashtext('arene:' || v_moi.region));
+  -- Un défi accepté pendant l'attente : le joueur patiente jusqu'à la fin
+  -- de ce duel (ou l'expiration de sa place).
+  if exists (
+    select 1 from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = p_joueur and t.nature = 'defi' and t.statut = 'en_cours'
+  ) then
+    return null;
+  end if;
+
+  select f.* into v_lui
+  from public.file_arene f
+  where f.profile_id <> p_joueur
+    and f.region = v_moi.region
+    and f.condition_victoire = v_moi.condition_victoire
+    and abs(f.rating - v_moi.rating) <= public.ecart_arene(
+      v_moi.rd, f.rd, extract(epoch from now() - least(f.entree_le, v_moi.entree_le)) / 60
+    )
+    -- Toujours apte au duel : compte vérifié dans la région, pas suspendu,
+    -- pas déjà en duel (un défi accepté pendant l'attente).
+    and public.region_compte_verifie(f.profile_id) = v_moi.region
+    and not exists (select 1 from public.suspensions s where s.profile_id = f.profile_id and s.levee_le is null)
+    and not exists (
+      select 1 from public.registrations r
+      join public.tournaments t on t.id = r.tournament_id
+      where r.profile_id = f.profile_id and t.nature = 'defi' and t.statut = 'en_cours'
+    )
+    -- Pas un adversaire contre qui un match est encore ouvert (18/11/2026).
+    and not public.match_ouvert_entre(p_joueur, f.profile_id)
+    -- Ni un joueur bloqué, dans un sens ou l'autre (blocages, 19/11/2026).
+    and not public.blocage_entre(p_joueur, f.profile_id)
+  order by abs(f.rating - v_moi.rating), f.entree_le
+  limit 1
+  for update;
+  if not found then
+    return null;
+  end if;
+
+  delete from public.file_arene where profile_id in (p_joueur, v_lui.profile_id);
+  -- Le plus ancien en file « lance » le défi, accepté d'office.
+  insert into public.defis (lanceur_id, adversaire_id, condition_victoire, expire_le)
+  values (
+    case when v_lui.entree_le <= v_moi.entree_le then v_lui.profile_id else p_joueur end,
+    case when v_lui.entree_le <= v_moi.entree_le then p_joueur else v_lui.profile_id end,
+    v_moi.condition_victoire,
+    now() + interval '1 hour'
+  )
+  returning id into v_defi;
+  v_slug := public.creer_duel(v_defi);
+  -- « Arène X contre Y » plutôt que « Défi X contre Y ».
+  update public.tournaments set nom = 'Arène ' || substr(nom, length('Défi ') + 1) where slug = v_slug;
+  return v_slug;
+end;
+$$;
+revoke all on function public.apparier_joueur_arene(uuid) from public, anon, authenticated;
+
+-- Clé de comparaison d'un nom d'équipe : minuscules, sans accents, lettres
+-- et chiffres seulement. Les chiffres restent des chiffres (« Team 1 » et
+-- « Team I » sont deux noms). Un nom fait seulement de symboles n'a pas de
+-- clé (il ne bloque personne).
+create or replace function public.cle_nom_equipe(p_nom text)
+returns text
+language sql
+immutable
+set search_path = public
+as $$
+  -- ð ø þ ß (contrôle du 19/11/2026) : sans eux, « ÐRX » passait à côté de « DRX ».
+  select nullif(regexp_replace(
+    replace(translate(lower(p_nom), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæðøþ', 'aaaaaaceeeeiiiinooooouuuuyyoadot'), 'ß', 'ss'),
+    '[^a-z0-9]', '', 'g'
+  ), '');
+$$;
+create unique index if not exists teams_nom_unique on public.teams (game_id, public.cle_nom_equipe(nom));
+
+-- Avec des noms uniques, un compte ne doit pas pouvoir réserver d'avance
+-- les noms connus (contrôle de sécurité du 18/11/2026) : 3 équipes créées
+-- par 24 h, 5 équipes au plus dont on est capitaine, et un nom en lettres
+-- latines (accents compris), chiffres et ponctuation simple — pas de
+-- lettres sosies d'un autre alphabet (« е » cyrillique pour « e »). Les
+-- noms « Agents libres… » sont réservés aux équipes formées par la base.
+create or replace function public.consommer_limite(p_action text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_plafond integer;
+  v_fenetre interval;
+  v_nombre integer;
+begin
+  case p_action
+    when 'liaison_riot' then v_plafond := 10; v_fenetre := interval '1 hour';
+    when 'creation_tournoi' then v_plafond := 5; v_fenetre := interval '24 hours';
+    when 'litige' then v_plafond := 10; v_fenetre := interval '24 hours';
+    when 'message' then v_plafond := 30; v_fenetre := interval '1 hour';
+    when 'creation_equipe' then v_plafond := 3; v_fenetre := interval '24 hours';
+    when 'recherche_joueurs' then v_plafond := 120; v_fenetre := interval '1 hour';
+    else raise exception 'ACTION_INCONNUE';
+  end case;
+
+  if v_joueur is null then
+    return false;
+  end if;
+
+  -- Une demande à la fois par joueur : deux onglets ne dépassent pas la limite.
+  perform 1 from public.profiles where id = v_joueur for update;
+
+  delete from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le < now() - interval '7 days';
+
+  select count(*) into v_nombre
+  from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le > now() - v_fenetre;
+
+  if v_nombre >= v_plafond then
+    return false;
+  end if;
+
+  insert into public.limites_usage (profile_id, action) values (v_joueur, p_action);
+  return true;
+end;
+$$;
+revoke execute on function public.consommer_limite(text) from public, anon;
+grant execute on function public.consommer_limite(text) to authenticated;
+
+drop trigger if exists teams_limite on public.teams;
+create trigger teams_limite
+  before insert on public.teams
+  for each row execute function public.limiter_ecriture('creation_equipe');
+
+create or replace function public.controler_nom_equipe()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  -- Une création à la fois par capitaine : des envois simultanés ne
+  -- dépassent pas le plafond de 5 équipes.
+  perform 1 from public.profiles where id = new.capitaine_id for update;
+  if char_length(btrim(new.nom)) not between 3 and 40
+     or new.nom !~ '^[A-Za-zÀ-ÖØ-öø-ÿŒœ0-9 ''’.&!?#+:()_-]+$'
+     or public.cle_nom_equipe(new.nom) is null
+     or public.cle_nom_equipe(new.nom) like 'agentslibres%' then
+    raise exception 'NOM_EQUIPE_INVALIDE';
+  end if;
+  if tg_op = 'INSERT' and (
+    select count(*) from public.teams where capitaine_id = new.capitaine_id
+  ) >= 5 then
+    raise exception 'TROP_D_EQUIPES';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_nom_equipe() from public, anon, authenticated;
+drop trigger if exists controler_nom_equipe on public.teams;
+create trigger controler_nom_equipe
+  before insert or update of nom on public.teams
+  for each row execute function public.controler_nom_equipe();
+
+-- ---------- Matching duo (2026-11-18, roadmap phase 3) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Un joueur au compte Riot vérifié publie une annonce « cherche un duo » :
+-- son poste, les postes qu'il cherche chez son duo, ses créneaux, son
+-- objectif (classées, noyau d'une équipe, loisir) et un court message.
+-- /lol/duo lui propose d'abord les joueurs de sa région dont le poste
+-- complète le sien et qui jouent aux mêmes heures (src/lib/duo.ts), avec
+-- l'écart de rating Najarena quand les deux sont classés. Pour contacter
+-- un joueur, il lui envoie une demande ; la conversation ne s'ouvre dans
+-- la messagerie que si l'autre accepte (démarrer une conversation reste
+-- sinon réservé à l'offre Organisateur). Annonce valable 14 jours, demande
+-- 7 jours ; 10 demandes par 24 h ; après un refus, pas de nouvelle demande
+-- au même joueur pendant 30 jours.
+
+create table if not exists public.annonces_duo (
+  profile_id      uuid primary key references public.profiles(id) on delete cascade,
+  poste           text not null check (poste in ('top', 'jungle', 'mid', 'adc', 'support')),
+  postes_cherches text[] not null check (
+    cardinality(postes_cherches) between 1 and 4
+    and postes_cherches <@ array['top', 'jungle', 'mid', 'adc', 'support']::text[]
+    and not (poste = any (postes_cherches))
+  ),
+  creneaux        text[] not null check (
+    cardinality(creneaux) between 1 and 6
+    and creneaux <@ array['semaine_journee', 'semaine_soir', 'semaine_nuit',
+                          'weekend_journee', 'weekend_soir', 'weekend_nuit']::text[]
+  ),
+  objectif        text not null check (objectif in ('classees', 'equipe', 'loisir')),
+  message         text check (char_length(message) <= 200),
+  cree_le         timestamptz not null default now(),
+  maj_le          timestamptz not null default now(),
+  expire_le       timestamptz not null default now() + interval '14 days'
+);
+alter table public.annonces_duo enable row level security;
+-- Lecture publique par annonces_duo_publiques (comptes vérifiés, non
+-- suspendus, annonces en cours) ; chacun relit la sienne. Aucune écriture
+-- directe : publier_annonce_duo, retirer_annonce_duo.
+drop policy if exists "chacun lit son annonce duo" on public.annonces_duo;
+create policy "chacun lit son annonce duo" on public.annonces_duo
+  for select using (profile_id = (select auth.uid()));
+revoke insert, update, delete on public.annonces_duo from anon, authenticated;
+-- Message public : même modération que l'annonce « cherche une équipe ».
+drop trigger if exists moderation_annonce_duo on public.annonces_duo;
+create trigger moderation_annonce_duo
+  before insert or update of message on public.annonces_duo
+  for each row execute function public.moderer_annonce();
+
+create table if not exists public.demandes_duo (
+  id              uuid primary key default gen_random_uuid(),
+  demandeur_id    uuid not null references public.profiles(id) on delete cascade,
+  destinataire_id uuid not null references public.profiles(id) on delete cascade,
+  statut          text not null default 'en_attente'
+                  check (statut in ('en_attente', 'acceptee', 'refusee', 'annulee', 'expiree')),
+  cree_le         timestamptz not null default now(),
+  repondu_le      timestamptz,
+  conversation_id uuid references public.conversations(id) on delete set null,
+  check (demandeur_id <> destinataire_id)
+);
+-- Une seule demande en attente par paire, dans un sens comme dans l'autre.
+create unique index if not exists demandes_duo_une_en_attente on public.demandes_duo
+  (least(demandeur_id, destinataire_id), greatest(demandeur_id, destinataire_id))
+  where statut = 'en_attente';
+create index if not exists demandes_duo_destinataire_idx on public.demandes_duo (destinataire_id, statut);
+create index if not exists demandes_duo_demandeur_idx on public.demandes_duo (demandeur_id, cree_le);
+alter table public.demandes_duo enable row level security;
+drop policy if exists "demande duo lue par ses deux joueurs" on public.demandes_duo;
+create policy "demande duo lue par ses deux joueurs" on public.demandes_duo
+  for select using ((select auth.uid()) in (demandeur_id, destinataire_id));
+revoke insert, update, delete on public.demandes_duo from anon, authenticated;
+
+-- Blocage d'un joueur (contrôle de sécurité du 18/11/2026) : une
+-- conversation ouverte par une demande de duo acceptée ne doit pas pouvoir
+-- devenir un canal de harcèlement. Bloquer un joueur coupe les messages
+-- dans les deux sens (règle d'envoi des messages), ses demandes de duo et
+-- son annonce dans la liste de l'autre ; il n'en est pas prévenu. Visible
+-- de celui qui bloque seulement.
+create table if not exists public.blocages (
+  bloqueur_id uuid not null references public.profiles(id) on delete cascade,
+  bloque_id   uuid not null references public.profiles(id) on delete cascade,
+  cree_le     timestamptz not null default now(),
+  primary key (bloqueur_id, bloque_id),
+  check (bloqueur_id <> bloque_id)
+);
+create index if not exists blocages_bloque_idx on public.blocages (bloque_id);
+alter table public.blocages enable row level security;
+drop policy if exists "chacun voit qui il bloque" on public.blocages;
+create policy "chacun voit qui il bloque" on public.blocages
+  for select using (bloqueur_id = (select auth.uid()));
+revoke insert, update, delete on public.blocages from anon, authenticated;
+
+-- Un blocage entre deux joueurs, dans un sens ou dans l'autre.
+create or replace function public.blocage_entre(p_a uuid, p_b uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.blocages
+    where (bloqueur_id = p_a and bloque_id = p_b) or (bloqueur_id = p_b and bloque_id = p_a)
+  );
+$$;
+revoke all on function public.blocage_entre(uuid, uuid) from public, anon, authenticated;
+
+-- Pour la règle d'envoi des messages (évaluée avec les droits du joueur) :
+-- une conversation dont il fait partie, sans blocage entre les deux. Elle
+-- ne répond rien sur une conversation des autres (contrôle du 19/11/2026 :
+-- une fonction qui prenait n'importe quel joueur permettait de dresser la
+-- liste de ceux qui vous ont bloqué).
+create or replace function public.conversation_ouverte(p_conversation uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.conversations c
+    where c.id = p_conversation
+      and auth.uid() in (c.profile_a, c.profile_b)
+      and not public.blocage_entre(c.profile_a, c.profile_b)
+  );
+$$;
+revoke all on function public.conversation_ouverte(uuid) from public, anon;
+grant execute on function public.conversation_ouverte(uuid) to authenticated;
+
+-- Le blocage coupe aussi les autres façons de solliciter quelqu'un :
+-- défi (site, lien, bouton Discord), invitation d'équipe, demande de suivi
+-- à un coach, recommandation, nouvelle conversation (offre Organisateur).
+-- Le joueur bloqué n'est pas prévenu ; il voit seulement que l'action ne
+-- passe pas (JOUEUR_INDISPONIBLE).
+create or replace function public.refuser_si_bloque()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_a uuid;
+  v_b uuid;
+begin
+  case tg_table_name
+    when 'defis' then v_a := new.lanceur_id; v_b := new.adversaire_id;
+    when 'team_members' then
+      v_a := new.profile_id;
+      select capitaine_id into v_b from public.teams where id = new.team_id;
+    when 'coachings' then v_a := new.coach_id; v_b := new.eleve_id;
+    when 'recommandations' then v_a := new.auteur_id; v_b := new.destinataire_id;
+    when 'conversations' then v_a := new.profile_a; v_b := new.profile_b;
+    else return new;
+  end case;
+  if v_a is not null and v_b is not null and v_a <> v_b and public.blocage_entre(v_a, v_b) then
+    raise exception 'JOUEUR_INDISPONIBLE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_si_bloque() from public, anon, authenticated;
+drop trigger if exists defis_blocage on public.defis;
+create trigger defis_blocage before insert or update of adversaire_id on public.defis
+  for each row execute function public.refuser_si_bloque();
+drop trigger if exists team_members_blocage on public.team_members;
+create trigger team_members_blocage before insert on public.team_members
+  for each row execute function public.refuser_si_bloque();
+drop trigger if exists coachings_blocage on public.coachings;
+create trigger coachings_blocage before insert on public.coachings
+  for each row execute function public.refuser_si_bloque();
+drop trigger if exists recommandations_blocage on public.recommandations;
+create trigger recommandations_blocage before insert on public.recommandations
+  for each row execute function public.refuser_si_bloque();
+drop trigger if exists conversations_blocage on public.conversations;
+create trigger conversations_blocage before insert on public.conversations
+  for each row execute function public.refuser_si_bloque();
+
+create or replace function public.bloquer_joueur(p_joueur uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if p_joueur is null or p_joueur = v_moi or not exists (select 1 from public.profiles where id = p_joueur) then
+    raise exception 'JOUEUR_INTROUVABLE';
+  end if;
+  insert into public.blocages (bloqueur_id, bloque_id) values (v_moi, p_joueur) on conflict do nothing;
+  -- Les demandes de duo encore en attente entre eux tombent.
+  update public.demandes_duo set statut = 'annulee', repondu_le = now()
+  where statut = 'en_attente'
+    and ((demandeur_id = v_moi and destinataire_id = p_joueur) or (demandeur_id = p_joueur and destinataire_id = v_moi));
+end;
+$$;
+revoke execute on function public.bloquer_joueur(uuid) from public, anon;
+grant execute on function public.bloquer_joueur(uuid) to authenticated;
+
+create or replace function public.debloquer_joueur(p_joueur uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  delete from public.blocages where bloqueur_id = auth.uid() and bloque_id = p_joueur;
+  return found;
+end;
+$$;
+revoke execute on function public.debloquer_joueur(uuid) from public, anon;
+grant execute on function public.debloquer_joueur(uuid) to authenticated;
+
+-- Règle d'envoi des messages : plus rien ne passe entre deux joueurs dont
+-- l'un a bloqué l'autre.
+drop policy if exists "participants repondent" on public.messages;
+create policy "participants repondent" on public.messages
+  for insert with check (
+    expediteur_id = (select auth.uid())
+    and exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id
+        and (select auth.uid()) in (c.profile_a, c.profile_b)
+    )
+    and public.conversation_ouverte(conversation_id)
+  );
+
+-- Annonce active d'un joueur apte au duo : en cours, compte vérifié, pas
+-- suspendu, compte pas supprimé. Renvoie sa région, ou nul.
+create or replace function public.region_annonce_duo(p_profile_id uuid)
+returns text
+language sql
+stable
+security definer set search_path = public
+as $$
+  select public.region_compte_verifie(a.profile_id)
+  from public.annonces_duo a
+  join public.profiles p on p.id = a.profile_id and p.supprime_le is null
+  where a.profile_id = p_profile_id and a.expire_le > now()
+    and not exists (select 1 from public.suspensions s where s.profile_id = a.profile_id and s.levee_le is null);
+$$;
+revoke all on function public.region_annonce_duo(uuid) from public, anon, authenticated;
+
+-- Publier (ou mettre à jour) son annonce : elle repart pour 14 jours.
+create or replace function public.publier_annonce_duo(
+  p_poste text,
+  p_postes_cherches text[],
+  p_creneaux text[],
+  p_objectif text,
+  p_message text default null
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_message text := nullif(btrim(coalesce(p_message, '')), '');
+  v_cherches text[];
+  v_creneaux text[];
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if public.region_compte_verifie(v_joueur) is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if p_poste is null or p_poste not in ('top', 'jungle', 'mid', 'adc', 'support') then
+    raise exception 'POSTE_INVALIDE';
+  end if;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_cherches from unnest(coalesce(p_postes_cherches, '{}')) as x;
+  if cardinality(v_cherches) not between 1 and 4
+     or not v_cherches <@ array['top', 'jungle', 'mid', 'adc', 'support']::text[]
+     or p_poste = any (v_cherches) then
+    raise exception 'POSTES_CHERCHES_INVALIDES';
+  end if;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_creneaux from unnest(coalesce(p_creneaux, '{}')) as x;
+  if cardinality(v_creneaux) not between 1 and 6
+     or not v_creneaux <@ array['semaine_journee', 'semaine_soir', 'semaine_nuit',
+                                'weekend_journee', 'weekend_soir', 'weekend_nuit']::text[] then
+    raise exception 'CRENEAUX_INVALIDES';
+  end if;
+  if p_objectif is null or p_objectif not in ('classees', 'equipe', 'loisir') then
+    raise exception 'OBJECTIF_INVALIDE';
+  end if;
+  if char_length(v_message) > 200 then
+    raise exception 'MESSAGE_TROP_LONG';
+  end if;
+
+  insert into public.annonces_duo (profile_id, poste, postes_cherches, creneaux, objectif, message)
+  values (v_joueur, p_poste, v_cherches, v_creneaux, p_objectif, v_message)
+  on conflict (profile_id) do update
+  set poste = excluded.poste, postes_cherches = excluded.postes_cherches, creneaux = excluded.creneaux,
+      objectif = excluded.objectif, message = excluded.message,
+      -- Republier sans cesse ne garde pas l'annonce en tête de liste : sa
+      -- date ne remonte qu'une fois par heure (contrôle du 18/11/2026).
+      maj_le = case when annonces_duo.maj_le < now() - interval '1 hour' then now() else annonces_duo.maj_le end,
+      expire_le = now() + interval '14 days';
+end;
+$$;
+revoke execute on function public.publier_annonce_duo(text, text[], text[], text, text) from public, anon;
+grant execute on function public.publier_annonce_duo(text, text[], text[], text, text) to authenticated;
+
+-- Retirer son annonce : ses demandes envoyées encore en attente sont
+-- annulées (celles reçues restent, il peut encore y répondre).
+create or replace function public.retirer_annonce_duo()
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_fait boolean;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  -- Expire au lieu d'être effacée : la retirer puis la republier ne la
+  -- remet pas en tête de liste (contrôle du 19/11/2026).
+  update public.annonces_duo set expire_le = now()
+  where profile_id = v_joueur and expire_le > now();
+  v_fait := found;
+  update public.demandes_duo set statut = 'annulee', repondu_le = now()
+  where demandeur_id = v_joueur and statut = 'en_attente';
+  return v_fait;
+end;
+$$;
+revoke execute on function public.retirer_annonce_duo() from public, anon;
+grant execute on function public.retirer_annonce_duo() to authenticated;
+
+-- Annonces visibles : en cours, joueur vérifié et non suspendu. Le rating
+-- n'est donné qu'à un joueur classé (règle des données publiques).
+create or replace function public.annonces_duo_publiques(p_region text default null)
+returns table (
+  profile_id uuid, pseudo text, slug text, avatar_url text, region text,
+  poste text, postes_cherches text[], creneaux text[], objectif text, message text,
+  maj_le timestamptz, rating numeric
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select a.profile_id, p.pseudo, p.slug, p.avatar_url, g.region,
+         a.poste, a.postes_cherches, a.creneaux, a.objectif, a.message, a.maj_le,
+         case when r.est_classe then r.rating end
+  from public.annonces_duo a
+  join public.profiles p on p.id = a.profile_id and p.supprime_le is null
+  join public.game_accounts g on g.profile_id = a.profile_id and g.game_id = 1 and g.est_principal and g.verifie_le is not null
+  left join public.seasons s on s.game_id = 1 and s.est_courante
+  left join public.ratings r on r.profile_id = a.profile_id and r.game_id = 1 and r.season_id = s.id
+  where a.expire_le > now()
+    and not exists (select 1 from public.suspensions su where su.profile_id = a.profile_id and su.levee_le is null)
+    and (p_region is null or g.region = p_region)
+    -- Ni ceux que le visiteur a bloqués, ni ceux qui l'ont bloqué.
+    and (auth.uid() is null or not public.blocage_entre(auth.uid(), a.profile_id))
+  order by a.maj_le desc
+  limit 300;
+$$;
+revoke execute on function public.annonces_duo_publiques(text) from public;
+grant execute on function public.annonces_duo_publiques(text) to anon, authenticated;
+
+-- Demander un joueur en duo. Il faut soi-même une annonce en cours (on ne
+-- contacte que des joueurs qui cherchent aussi), le même serveur, et
+-- aucune demande en attente ni conversation déjà ouverte entre les deux.
+create or replace function public.demander_duo(p_destinataire uuid)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_region text;
+  v_id uuid;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if p_destinataire is null or p_destinataire = v_joueur then
+    raise exception 'DUO_SOI_MEME';
+  end if;
+  v_region := public.region_annonce_duo(v_joueur);
+  if v_region is null then
+    raise exception 'ANNONCE_REQUISE';
+  end if;
+  -- Une demande à la fois par joueur : des envois simultanés ne dépassent
+  -- pas le plafond (contrôle du 18/11/2026).
+  perform 1 from public.profiles where id = v_joueur for update;
+  -- Deux clics simultanés (dans un sens et dans l'autre) : un seul passe.
+  perform pg_advisory_xact_lock(hashtext('duo:' || least(v_joueur, p_destinataire)::text || greatest(v_joueur, p_destinataire)::text));
+  -- Un joueur bloqué (dans un sens ou l'autre) ne cherche plus de duo
+  -- pour l'autre : même réponse qu'une annonce retirée.
+  if public.region_annonce_duo(p_destinataire) is null or public.blocage_entre(v_joueur, p_destinataire) then
+    raise exception 'ANNONCE_INTROUVABLE';
+  end if;
+  if public.region_annonce_duo(p_destinataire) <> v_region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  if exists (
+    select 1 from public.conversations c
+    where least(c.profile_a, c.profile_b) = least(v_joueur, p_destinataire)
+      and greatest(c.profile_a, c.profile_b) = greatest(v_joueur, p_destinataire)
+  ) then
+    raise exception 'DEJA_EN_CONTACT';
+  end if;
+  -- Une demande sans réponse depuis 7 jours a expiré.
+  update public.demandes_duo set statut = 'expiree'
+  where statut = 'en_attente' and cree_le <= now() - interval '7 days'
+    and least(demandeur_id, destinataire_id) = least(v_joueur, p_destinataire)
+    and greatest(demandeur_id, destinataire_id) = greatest(v_joueur, p_destinataire);
+  if exists (
+    select 1 from public.demandes_duo
+    where statut = 'en_attente'
+      and least(demandeur_id, destinataire_id) = least(v_joueur, p_destinataire)
+      and greatest(demandeur_id, destinataire_id) = greatest(v_joueur, p_destinataire)
+  ) then
+    raise exception 'DEMANDE_DEJA_EN_COURS';
+  end if;
+  if exists (
+    select 1 from public.demandes_duo
+    where demandeur_id = v_joueur and destinataire_id = p_destinataire
+      and statut = 'refusee' and repondu_le > now() - interval '30 days'
+  ) then
+    raise exception 'DEMANDE_REFUSEE_RECEMMENT';
+  end if;
+  -- Retirer puis renvoyer sa demande ne relance pas le même joueur : une
+  -- demande au même joueur par 7 jours, quel que soit son sort (contrôle
+  -- du 18/11/2026).
+  if exists (
+    select 1 from public.demandes_duo
+    where demandeur_id = v_joueur and destinataire_id = p_destinataire
+      and cree_le > now() - interval '7 days'
+  ) then
+    raise exception 'DEMANDE_RECENTE';
+  end if;
+  if (select count(*) from public.demandes_duo
+      where demandeur_id = v_joueur and cree_le > now() - interval '24 hours') >= 10 then
+    raise exception 'LIMITE_DEMANDES_DUO';
+  end if;
+
+  insert into public.demandes_duo (demandeur_id, destinataire_id)
+  values (v_joueur, p_destinataire)
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke execute on function public.demander_duo(uuid) from public, anon;
+grant execute on function public.demander_duo(uuid) to authenticated;
+
+-- Réponse du joueur demandé. S'il accepte, la conversation s'ouvre (ou
+-- reprend) dans la messagerie ; renvoie son identifiant.
+create or replace function public.repondre_demande_duo(p_demande uuid, p_accepte boolean)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_demande record;
+  v_conversation uuid;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select * into v_demande from public.demandes_duo where id = p_demande for update;
+  if not found then
+    raise exception 'DEMANDE_INTROUVABLE';
+  end if;
+  if v_demande.destinataire_id is distinct from v_joueur then
+    raise exception 'NON_DESTINATAIRE';
+  end if;
+  if v_demande.statut <> 'en_attente' then
+    raise exception 'DEMANDE_DEJA_TRAITEE';
+  end if;
+  if v_demande.cree_le <= now() - interval '7 days' then
+    raise exception 'DEMANDE_EXPIREE';
+  end if;
+
+  if not coalesce(p_accepte, false) then
+    update public.demandes_duo set statut = 'refusee', repondu_le = now() where id = p_demande;
+    return null;
+  end if;
+
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_demande.demandeur_id and levee_le is null)
+     or exists (select 1 from public.profiles where id = v_demande.demandeur_id and supprime_le is not null) then
+    raise exception 'DEMANDEUR_INDISPONIBLE';
+  end if;
+
+  insert into public.conversations (profile_a, profile_b)
+  values (v_demande.demandeur_id, v_joueur)
+  on conflict do nothing
+  returning id into v_conversation;
+  if v_conversation is null then
+    select id into v_conversation from public.conversations c
+    where least(c.profile_a, c.profile_b) = least(v_demande.demandeur_id, v_joueur)
+      and greatest(c.profile_a, c.profile_b) = greatest(v_demande.demandeur_id, v_joueur);
+  end if;
+
+  update public.demandes_duo
+  set statut = 'acceptee', repondu_le = now(), conversation_id = v_conversation
+  where id = p_demande;
+  return v_conversation;
+end;
+$$;
+revoke execute on function public.repondre_demande_duo(uuid, boolean) from public, anon;
+grant execute on function public.repondre_demande_duo(uuid, boolean) to authenticated;
+
+-- Le demandeur retire sa demande tant qu'elle attend.
+create or replace function public.annuler_demande_duo(p_demande uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  update public.demandes_duo set statut = 'annulee', repondu_le = now()
+  where id = p_demande and demandeur_id = auth.uid() and statut = 'en_attente';
+  return found;
+end;
+$$;
+revoke execute on function public.annuler_demande_duo(uuid) from public, anon;
+grant execute on function public.annuler_demande_duo(uuid) to authenticated;
+
+-- Compte supprimé : son annonce et ses demandes disparaissent.
+create or replace function public.effacer_duo_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.annonces_duo where profile_id = new.id;
+  delete from public.demandes_duo where demandeur_id = new.id or destinataire_id = new.id;
+  delete from public.blocages where bloqueur_id = new.id or bloque_id = new.id;
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_duo_compte_supprime() from public, anon, authenticated;
+drop trigger if exists duo_compte_supprime on public.profiles;
+create trigger duo_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_duo_compte_supprime();
+
+-- ---------- Analyse de progression rédigée par l'IA (2026-11-18, roadmap phase 3) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Offre Elite, à la demande depuis /moi/bilan, une par format (1v1, 5v5,
+-- classées) : l'IA lit les chiffres du bilan déjà calculés (forces, axes,
+-- tendances sur les 5 dernières parties contre les 5 précédentes, plan,
+-- champions ; jamais le KDA ni l'or par minute) et rédige un résumé, ce qui
+-- progresse, ce qui recule et les priorités. Écrite par le serveur seul
+-- (src/lib/progression-ia-serveur.ts), dans la limite des demandes à l'IA
+-- (reserver_appel_assistant_ia, 10 par 24 h) ; refaite seulement s'il y a
+-- de nouvelles parties. Lisible du joueur seul.
+create table if not exists public.analyses_progression_ia (
+  profile_id      uuid not null references public.profiles(id) on delete cascade,
+  format          text not null check (format in ('1v1', '5v5', 'classees')),
+  resume          text not null check (char_length(resume) between 1 and 700),
+  progres         text[] not null default '{}' check (cardinality(progres) <= 3),
+  reculs          text[] not null default '{}' check (cardinality(reculs) <= 3),
+  priorites       text[] not null check (cardinality(priorites) between 1 and 3),
+  parties         integer not null check (parties > 0),
+  derniere_partie timestamptz,
+  modele          text not null,
+  cree_le         timestamptz not null default now(),
+  primary key (profile_id, format)
+);
+alter table public.analyses_progression_ia enable row level security;
+drop policy if exists "un joueur lit ses analyses de progression" on public.analyses_progression_ia;
+create policy "un joueur lit ses analyses de progression" on public.analyses_progression_ia
+  for select using (profile_id = (select auth.uid()));
+revoke insert, update, delete on public.analyses_progression_ia from anon, authenticated;
+
+-- Jamais écrite sans accord pour les classées, ni pour un compte supprimé,
+-- même par le serveur : la rédaction prend quelques secondes, l'accord peut
+-- être retiré entre-temps (contrôle du 19/11/2026).
+create or replace function public.controler_analyse_progression()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (select 1 from public.profiles where id = new.profile_id and supprime_le is not null) then
+    raise exception 'COMPTE_SUPPRIME';
+  end if;
+  if new.format = 'classees' and not exists (
+    select 1 from public.analyse_reglages where profile_id = new.profile_id and classees
+  ) then
+    raise exception 'ANALYSE_NON_ACTIVEE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_analyse_progression() from public, anon, authenticated;
+drop trigger if exists controle_analyse_progression on public.analyses_progression_ia;
+create trigger controle_analyse_progression
+  before insert or update on public.analyses_progression_ia
+  for each row execute function public.controler_analyse_progression();
+
+-- Accord retiré pour les parties classées : tout ce qui en est tiré
+-- disparaît, l'analyse rédigée comprise (comme parties_classees).
+create or replace function public.effacer_analyse_classees_sans_accord()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.analyses_progression_ia where profile_id = new.profile_id and format = 'classees';
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_analyse_classees_sans_accord() from public, anon, authenticated;
+drop trigger if exists analyse_classees_sans_accord on public.analyse_reglages;
+create trigger analyse_classees_sans_accord
+  after update of classees on public.analyse_reglages
+  for each row
+  when (old.classees and not new.classees)
+  execute function public.effacer_analyse_classees_sans_accord();
+
+-- Compte supprimé : ses analyses rédigées disparaissent.
+create or replace function public.effacer_analyses_ia_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.analyses_progression_ia where profile_id = new.id;
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_analyses_ia_compte_supprime() from public, anon, authenticated;
+drop trigger if exists analyses_ia_compte_supprime on public.profiles;
+create trigger analyses_ia_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_analyses_ia_compte_supprime();
+
+-- ---------- Recherche recruteurs : scouting sur données vérifiées (2026-11-18, roadmap phase 4) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- /lol/recherche (offre Organisateur) cherchait parmi les 200 comptes lus
+-- le plus récemment, filtrés dans la page. La recherche se fait désormais
+-- en base, sur tous les comptes Riot vérifiés (ni suspendus, ni
+-- supprimés), avec des critères de recruteur, tous tirés de données
+-- vérifiées et déjà publiques sur les CV :
+-- - niveau : rating et confiance de la saison, seulement pour un joueur
+--   classé (aucun rating avant l'entrée au classement) ;
+-- - progression : somme des variations « tournoi » du registre sur 30 jours
+--   (joueur classé seulement) et nombre de tournois concernés ;
+-- - activité : parties vérifiées (verdict lu chez Riot) sur 90 jours et la
+--   dernière ;
+-- - fiabilité : comptes du bloc « Fiabilité » du CV (fiabilite_joueur) —
+--   « fiable » = 3 matchs 1v1 joués au moins, aucun forfait, et présent au
+--   check-in d'au moins 80 % de ses tournois à partir de 5 tournois ;
+-- - disponibilité : annonce « cherche une équipe », annonce de duo en
+--   cours, appartenance à une équipe.
+-- Le poste reste celui que le joueur a déclaré.
+create or replace function public.rechercher_joueurs(
+  p_role text default null,
+  p_region text default null,
+  p_rating_min numeric default null,
+  p_classes_seulement boolean default false,
+  p_disponible boolean default false,
+  p_sans_equipe boolean default false,
+  p_actif_jours integer default null,
+  p_en_progression boolean default false,
+  p_fiable boolean default false,
+  p_tri text default 'rating',
+  p_limite integer default 50
+)
+returns table (
+  profile_id uuid,
+  pseudo text,
+  slug text,
+  avatar_url text,
+  region text,
+  role_prefere text,
+  rating numeric,
+  rd numeric,
+  progression_30j numeric,
+  tournois_30j integer,
+  parties_90j integer,
+  derniere_partie timestamptz,
+  cherche_equipe boolean,
+  cherche_duo boolean,
+  en_equipe boolean,
+  tournois_1v1 integer,
+  checkins integer,
+  matchs_joues integer,
+  forfaits integer
+)
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.comptes_offres where comptes_offres.profile_id = auth.uid() and offre = 'organisateur'
+  ) then
+    raise exception 'OFFRE_ORGANISATEUR_REQUISE';
+  end if;
+  if p_tri not in ('rating', 'progression', 'activite') then
+    raise exception 'TRI_INVALIDE';
+  end if;
+  -- Une recherche parcourt tous les comptes vérifiés : 120 par heure au
+  -- plus (contrôle du 19/11/2026, saturation de la base).
+  if not public.consommer_limite('recherche_joueurs') then
+    raise exception 'LIMITE_ATTEINTE';
+  end if;
+
+  return query
+  with candidats as (
+    select g.profile_id, p.pseudo, p.slug, p.avatar_url, g.region, g.role_prefere,
+           case when r.est_classe then r.rating end as rating,
+           case when r.est_classe then r.rd end as rd
+    from public.game_accounts g
+    join public.profiles p on p.id = g.profile_id and p.supprime_le is null
+    left join public.seasons s on s.game_id = 1 and s.est_courante
+    left join public.ratings r on r.profile_id = g.profile_id and r.game_id = 1 and r.season_id = s.id
+    where g.game_id = 1 and g.est_principal and g.verifie_le is not null
+      and not exists (select 1 from public.suspensions su where su.profile_id = g.profile_id and su.levee_le is null)
+      and (p_role is null or g.role_prefere = p_role)
+      and (p_region is null or g.region = p_region)
+      and (not p_classes_seulement or r.est_classe)
+      and (p_rating_min is null or (r.est_classe and r.rating >= p_rating_min))
+  ),
+  enrichis as (
+    select c.*,
+           prog.variation as progression_30j,
+           prog.tournois as tournois_30j,
+           act.parties as parties_90j,
+           act.derniere as derniere_partie,
+           exists (select 1 from public.recherches_coequipiers rc where rc.profile_id = c.profile_id) as cherche_equipe,
+           exists (select 1 from public.annonces_duo ad where ad.profile_id = c.profile_id and ad.expire_le > now()) as cherche_duo,
+           exists (select 1 from public.team_members tm where tm.profile_id = c.profile_id and tm.accepte_le is not null) as en_equipe
+    from candidats c
+    left join lateral (
+      select case when c.rating is not null then sum(e.rating_apres - e.rating_avant) end as variation,
+             count(distinct e.tournament_id)::integer as tournois
+      from public.rating_events e
+      where e.profile_id = c.profile_id and e.motif = 'tournoi' and e.cree_le > now() - interval '30 days'
+    ) prog on true
+    left join lateral (
+      select count(*)::integer as parties, max(m.demarre_le) as derniere
+      from public.stats_match_joueur sm
+      join public.matches m on m.id = sm.match_id
+      join public.match_verdicts v on v.match_id = m.id and v.est_definitif and v.niveau <> 'manuel'
+      where sm.profile_id = c.profile_id and m.demarre_le > now() - interval '90 days'
+    ) act on true
+  ),
+  filtres as (
+    select e.* from enrichis e
+    where (not p_disponible or e.cherche_equipe)
+      and (not p_sans_equipe or not e.en_equipe)
+      and (p_actif_jours is null or e.derniere_partie > now() - make_interval(days => least(greatest(p_actif_jours, 1), 365)))
+      and (not p_en_progression or e.progression_30j > 0)
+  ),
+  -- La fiabilité (plusieurs sous-requêtes par joueur) n'est calculée pour
+  -- tous que si elle filtre ; sinon, seulement pour les joueurs gardés.
+  avec_fiabilite as (
+    select f.*, fj.tournois, fj.checkins, fj.matchs_joues, fj.forfaits
+    from (
+      select x.* from filtres x
+      order by
+        case when p_tri = 'progression' then x.progression_30j end desc nulls last,
+        case when p_tri = 'activite' then x.parties_90j end desc nulls last,
+        case when p_tri = 'activite' then x.derniere_partie end desc nulls last,
+        x.rating desc nulls last,
+        x.pseudo
+      limit case when p_fiable then null else least(greatest(coalesce(p_limite, 50), 1), 100) end
+    ) f
+    cross join lateral public.fiabilite_joueur(f.profile_id) fj
+  )
+  select a.profile_id, a.pseudo, a.slug, a.avatar_url, a.region, a.role_prefere, a.rating, a.rd,
+         a.progression_30j, a.tournois_30j, a.parties_90j, a.derniere_partie,
+         a.cherche_equipe, a.cherche_duo, a.en_equipe,
+         a.tournois, a.checkins, a.matchs_joues, a.forfaits
+  from avec_fiabilite a
+  where not p_fiable
+     or (a.matchs_joues >= 3 and a.forfaits = 0
+         and (a.tournois < 5 or a.checkins * 100 >= 80 * a.tournois))
+  order by
+    case when p_tri = 'progression' then a.progression_30j end desc nulls last,
+    case when p_tri = 'activite' then a.parties_90j end desc nulls last,
+    case when p_tri = 'activite' then a.derniere_partie end desc nulls last,
+    a.rating desc nulls last,
+    a.pseudo
+  limit least(greatest(coalesce(p_limite, 50), 1), 100);
+end;
+$$;
+revoke execute on function public.rechercher_joueurs(text, text, numeric, boolean, boolean, boolean, integer, boolean, boolean, text, integer) from public, anon;
+grant execute on function public.rechercher_joueurs(text, text, numeric, boolean, boolean, boolean, integer, boolean, boolean, text, integer) to authenticated;
+
+-- ---------- Modifier un tournoi avant la première inscription (2026-11-19, audit M7) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (formulaire « Modifier le tournoi » du cockpit).
+-- Les réglages d'un tournoi sont figés dès sa création (controler_ecriture_tournoi) :
+-- une faute dans le nom ou la date imposait d'annuler et de recréer. Tant
+-- que personne ne s'est inscrit (ni joueur, ni équipe, ni agent libre, ni
+-- remplaçant), l'organisateur peut changer le nom, la capacité, le Best-of,
+-- le serveur, la date de début et l'ouverture du check-in — avec les mêmes
+-- règles qu'à la création. Le format, la condition de victoire, le
+-- caractère amical, la communauté et l'adresse restent figés. Les
+-- fonctions d'inscription verrouillent la ligne du tournoi : une
+-- inscription et une modification simultanées passent l'une après l'autre.
+--
+-- Date, serveur ou capacité changés après publication : le tournoi tel
+-- qu'il se jouera n'est connu du public que maintenant. publie_le est donc
+-- reposée à l'heure de la modification, sans quoi un tournoi publié de
+-- longue date pour dans un mois (ou sur un serveur où personne ne peut
+-- s'inscrire, ou à 4 places), puis avancé à dans deux heures (ou passé sur
+-- EUW, ou à 8 places), compterait encore comme « publié 24 h avant »
+-- (criteres_tournoi_classe ; contrôle de sécurité du 19/11/2026). Un nom
+-- corrigé seul ne change rien. Seulement pour un tournoi d'organisateur
+-- pas encore lancé (ceux que modifier_tournoi accepte) : la tâche des
+-- tournois automatiques réduit la capacité d'un tournoi à la demande à la
+-- taille des présents au lancement, ce qui ne doit pas lui faire perdre
+-- son « publié 24 h avant ».
+create or replace function public.controler_classement_tournoi()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.publie_le := case when new.statut = 'brouillon' then null else now() end;
+    if current_user = 'authenticated' and new.classe is not null then
+      raise exception 'CHAMP_RESERVE';
+    end if;
+    return new;
+  end if;
+
+  if old.statut = 'brouillon' and new.statut = 'ouvert' then
+    new.publie_le := now();
+  elsif old.publie_le is not null
+        and new.creneau_auto is null
+        and old.statut in ('brouillon', 'ouvert')
+        and (new.debute_le, new.region, new.capacite, new.rating_min, new.rating_max)
+            is distinct from (old.debute_le, old.region, old.capacite, old.rating_min, old.rating_max) then
+    -- Le niveau aussi (contrôle de sécurité du 19/11/2026) : passer de
+    -- « Champion » à « Bronze à Argent » la veille change qui peut jouer.
+    new.publie_le := now();
+  else
+    new.publie_le := old.publie_le;
+  end if;
+
+  if new.classe is distinct from old.classe then
+    if old.classe is not null then
+      raise exception 'CLASSEMENT_FIGE';
+    end if;
+    if current_user = 'authenticated' then
+      raise exception 'CHAMP_NON_MODIFIABLE';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_classement_tournoi() from public, anon, authenticated;
+
+-- Plafond : 10 modifications par organisateur et par 24 h.
+create or replace function public.consommer_limite(p_action text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_plafond integer;
+  v_fenetre interval;
+  v_nombre integer;
+begin
+  case p_action
+    when 'liaison_riot' then v_plafond := 10; v_fenetre := interval '1 hour';
+    when 'creation_tournoi' then v_plafond := 5; v_fenetre := interval '24 hours';
+    when 'litige' then v_plafond := 10; v_fenetre := interval '24 hours';
+    when 'message' then v_plafond := 30; v_fenetre := interval '1 hour';
+    when 'creation_equipe' then v_plafond := 3; v_fenetre := interval '24 hours';
+    when 'recherche_joueurs' then v_plafond := 120; v_fenetre := interval '1 hour';
+    when 'modification_tournoi' then v_plafond := 10; v_fenetre := interval '24 hours';
+    else raise exception 'ACTION_INCONNUE';
+  end case;
+
+  if v_joueur is null then
+    return false;
+  end if;
+
+  -- Une demande à la fois par joueur : deux onglets ne dépassent pas la limite.
+  perform 1 from public.profiles where id = v_joueur for update;
+
+  delete from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le < now() - interval '7 days';
+
+  select count(*) into v_nombre
+  from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le > now() - v_fenetre;
+
+  if v_nombre >= v_plafond then
+    return false;
+  end if;
+
+  insert into public.limites_usage (profile_id, action) values (v_joueur, p_action);
+  return true;
+end;
+$$;
+revoke execute on function public.consommer_limite(text) from public, anon;
+grant execute on function public.consommer_limite(text) to authenticated;
+
+create or replace function public.modifier_tournoi(
+  p_tournament_id uuid,
+  p_nom text,
+  p_capacite integer,
+  p_best_of integer,
+  p_region text,
+  p_debute_le timestamptz,
+  p_checkin_ouvre_le timestamptz,
+  -- Niveau (tournois par niveau, 19/11/2026) : bornes de rating, ou nul.
+  p_rating_min integer default null,
+  p_rating_max integer default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_tournoi record;
+  v_nom text := btrim(coalesce(p_nom, ''));
+  v_premium boolean;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  select id, organisateur_id, statut, nature, creneau_auto, capacite, best_of
+  into v_tournoi
+  from public.tournaments
+  where id = p_tournament_id
+  for update;
+
+  if not found or v_tournoi.organisateur_id <> v_moi then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  -- Ni défi, ni scrim, ni tournoi automatique : leurs réglages sont écrits
+  -- par la base ou le serveur.
+  if v_tournoi.nature <> 'tournoi' or v_tournoi.creneau_auto is not null
+     or v_tournoi.statut not in ('brouillon', 'ouvert') then
+    raise exception 'TOURNOI_NON_MODIFIABLE';
+  end if;
+  if exists (select 1 from public.registrations where tournament_id = p_tournament_id)
+     or exists (select 1 from public.alignements where tournament_id = p_tournament_id)
+     or exists (select 1 from public.agents_libres where tournament_id = p_tournament_id)
+     or exists (select 1 from public.remplacants_disponibles where tournament_id = p_tournament_id) then
+    raise exception 'INSCRIPTIONS_COMMENCEES';
+  end if;
+  if exists (select 1 from public.dotations where tournament_id = p_tournament_id) then
+    raise exception 'DOTATION_ENREGISTREE';
+  end if;
+
+  if char_length(v_nom) not between 3 and 60 then
+    raise exception 'NOM_INVALIDE';
+  end if;
+  if p_capacite is null or p_capacite not in (4, 8, 16, 32, 64, 128) then
+    raise exception 'CAPACITE_INVALIDE';
+  end if;
+  if p_best_of is null or p_best_of not in (1, 3, 5) then
+    raise exception 'BEST_OF_INVALIDE';
+  end if;
+  -- Comme à la création : 128 places et Best-of 3 ou 5 demandent l'offre
+  -- Organisateur. Une valeur obtenue avec l'offre et laissée telle quelle
+  -- reste acceptée.
+  select exists (
+    select 1 from public.comptes_offres where profile_id = v_moi and offre = 'organisateur'
+  ) into v_premium;
+  if not v_premium and (
+       (p_capacite = 128 and v_tournoi.capacite <> 128)
+    or (p_best_of > 1 and p_best_of <> v_tournoi.best_of)) then
+    raise exception 'OFFRE_ORGANISATEUR_REQUISE';
+  end if;
+  if p_region is null or p_region not in ('EUW', 'EUNE', 'TR', 'RU', 'NA', 'BR', 'LAN', 'LAS', 'OCE', 'KR', 'JP') then
+    raise exception 'REGION_INVALIDE';
+  end if;
+  if p_debute_le is null or p_debute_le <= now() then
+    raise exception 'DATE_PASSEE';
+  end if;
+  if p_checkin_ouvre_le is null or p_checkin_ouvre_le > p_debute_le then
+    raise exception 'CHECKIN_APRES_DEBUT';
+  end if;
+
+  if not public.consommer_limite('modification_tournoi') then
+    raise exception 'LIMITE_ATTEINTE';
+  end if;
+
+  -- Le nom passe par la modération (moderer_tournoi), le niveau par
+  -- controler_niveau_tournoi, comme à la création.
+  update public.tournaments
+  set nom = v_nom,
+      capacite = p_capacite,
+      best_of = p_best_of,
+      region = p_region,
+      debute_le = p_debute_le,
+      checkin_ouvre_le = p_checkin_ouvre_le,
+      rating_min = p_rating_min,
+      rating_max = p_rating_max
+  where id = p_tournament_id;
+end;
+$$;
+revoke execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz, integer, integer) from public, anon;
+grant execute on function public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz, integer, integer) to authenticated;
+
+-- « Je peux remplacer » (bourse aux remplaçants) lit le tournoi avec un
+-- verrou partagé, comme les inscriptions : un joueur ne s'ajoute plus à la
+-- bourse avec le serveur d'avant une modification faite au même instant.
+create or replace function public.proposer_remplacement(p_tournament_id uuid, p_role text default null)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_tournoi record;
+  v_region text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  -- Verrou partagé : une modification du tournoi (serveur) attend, ou se
+  -- fait avant et se relit ici (contrôle de sécurité du 19/11/2026).
+  select id, statut, format, nature, region into v_tournoi
+  from public.tournaments where id = p_tournament_id
+  for share;
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_tournoi.format <> '5v5' or v_tournoi.nature <> 'tournoi' then
+    raise exception 'TOURNOI_EN_SOLO';
+  end if;
+  if v_tournoi.statut not in ('ouvert', 'checkin') then
+    raise exception 'ALIGNEMENT_FIGE';
+  end if;
+  if p_role is not null and p_role not in ('top', 'jungle', 'mid', 'adc', 'support') then
+    raise exception 'ROLE_INVALIDE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_joueur);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if v_region <> v_tournoi.region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  if exists (select 1 from public.alignements where tournament_id = p_tournament_id and profile_id = v_joueur) then
+    raise exception 'DEJA_DANS_UNE_EQUIPE';
+  end if;
+  if not coalesce(public.eligible_tournoi_reserve(p_tournament_id, v_joueur), true) then
+    raise exception 'RESERVE_MEMBRES';
+  end if;
+
+  insert into public.remplacants_disponibles (tournament_id, profile_id, role)
+  values (p_tournament_id, v_joueur, p_role)
+  on conflict (tournament_id, profile_id) do update set role = excluded.role;
+  return true;
+end;
+$$;
+revoke execute on function public.proposer_remplacement(uuid, text) from public, anon;
+grant execute on function public.proposer_remplacement(uuid, text) to authenticated;
+
+-- ---------- Tournois par niveau (2026-11-19) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (création et modification de tournoi, page du tournoi).
+-- Un organisateur peut réserver son tournoi 1v1 à une fourchette de
+-- niveau : « Or et plus », « jusqu'à Argent », « Argent à Or ». Les bornes
+-- sont des seuils de paliers (table tiers) : rating_min inclus, rating_max
+-- exclu (« jusqu'à Argent » = rating sous 1450, seuil de l'Or). Le rating
+-- pris en compte est celui de la saison en cours, provisoire compris, et
+-- 1500 (rating de départ) pour un joueur qui n'a pas encore joué. Pour la
+-- limite haute, c'est le meilleur rating atteint dans la saison qui compte
+-- (décision du porteur du 19/11/2026) : redescendre exprès en perdant ne
+-- rouvre pas un tournoi de niveau inférieur. Contrôlé à l'inscription et
+-- de nouveau au check-in : un joueur qui a changé de niveau entre les deux
+-- ne confirme plus sa place. Jamais pour un tournoi automatique, un défi,
+-- un scrim ni un 5v5.
+
+-- Rating d'un joueur pour le niveau d'un tournoi : saison en cours, sinon
+-- 1500.
+create or replace function public.rating_niveau(p_profile_id uuid)
+returns numeric
+language sql
+stable
+security definer set search_path = public
+as $$
+  select coalesce((
+    select r.rating from public.ratings r
+    join public.seasons s on s.id = r.season_id and s.est_courante
+    where r.profile_id = p_profile_id and r.game_id = 1
+  ), 1500);
+$$;
+revoke all on function public.rating_niveau(uuid) from public, anon, authenticated;
+
+-- Meilleur rating atteint dans la saison en cours ou la précédente (rating
+-- actuel compris), pour la limite haute d'un tournoi par niveau : le plus
+-- haut des ratings obtenus à la fin de ses tournois. La saison précédente
+-- compte aussi (décision du porteur du 19/11/2026) : perdre exprès en fin
+-- de saison pour repartir plus bas ne rouvre pas un tournoi de niveau
+-- inférieur. Un joueur qui n'a jamais
+-- joué compte pour 1500, comme pour le plancher ; mais le point de départ
+-- (1500) d'un joueur qui a joué n'est pas un rating « atteint » : sinon un
+-- vrai débutant, même redescendu à 1300, n'entrerait dans aucun tournoi
+-- « Bronze à Argent » de toute sa première saison.
+create or replace function public.rating_niveau_meilleur(p_profile_id uuid)
+returns numeric
+language sql
+stable
+security definer set search_path = public
+as $$
+  select greatest(
+    public.rating_niveau(p_profile_id),
+    coalesce((
+      select max(e.rating_apres) from public.rating_events e
+      where e.profile_id = p_profile_id and e.game_id = 1
+        and e.season_id in (
+          select s.id from public.seasons s where s.game_id = 1 and s.est_courante
+          union all
+          select p.id from public.seasons p
+          where p.game_id = 1 and p.numero = (
+            select max(x.numero) from public.seasons x
+            join public.seasons c on c.game_id = 1 and c.est_courante
+            where x.game_id = 1 and x.numero < c.numero
+          )
+        )
+    ), 0)
+  );
+$$;
+revoke all on function public.rating_niveau_meilleur(uuid) from public, anon, authenticated;
+
+-- Pour la page d'un tournoi : le joueur connecté lit son rating de la
+-- saison, son meilleur rating et s'il a déjà joué, calculés comme par le
+-- contrôle d'inscription (les mêmes données sont publiques dans le
+-- registre ; la fonction évite seulement de refaire le calcul ailleurs).
+create or replace function public.mon_niveau_tournoi()
+returns table (actuel numeric, meilleur numeric, a_joue boolean)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select public.rating_niveau(auth.uid()),
+         public.rating_niveau_meilleur(auth.uid()),
+         exists (
+           select 1 from public.ratings r
+           join public.seasons s on s.id = r.season_id and s.est_courante
+           where r.profile_id = auth.uid() and r.game_id = 1
+         )
+  where auth.uid() is not null;
+$$;
+revoke execute on function public.mon_niveau_tournoi() from public, anon;
+grant execute on function public.mon_niveau_tournoi() to authenticated;
+
+create or replace function public.controler_niveau_tournoi()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.rating_min is null and new.rating_max is null then
+    return new;
+  end if;
+  if new.format <> '1v1' or new.nature <> 'tournoi' or new.creneau_auto is not null then
+    raise exception 'NIVEAU_1V1_SEULEMENT';
+  end if;
+  if (new.rating_min is not null and not exists (
+        select 1 from public.tiers where game_id = new.game_id and rating_min = new.rating_min and rating_min > 0))
+     or (new.rating_max is not null and not exists (
+        select 1 from public.tiers where game_id = new.game_id and rating_min = new.rating_max and rating_min > 0))
+     or (new.rating_min is not null and new.rating_max is not null and new.rating_min >= new.rating_max) then
+    raise exception 'NIVEAU_INVALIDE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_niveau_tournoi() from public, anon, authenticated;
+drop trigger if exists controle_niveau_tournoi on public.tournaments;
+create trigger controle_niveau_tournoi
+  before insert or update of rating_min, rating_max, format, nature, creneau_auto on public.tournaments
+  for each row execute function public.controler_niveau_tournoi();
+
+-- Inscription (et check-in) : le joueur doit être dans la fourchette.
+create or replace function public.controler_inscription_niveau()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_min integer;
+  v_max integer;
+  v_rating numeric;
+begin
+  if new.statut not in ('inscrit', 'confirme')
+     or (tg_op = 'UPDATE' and new.statut is not distinct from old.statut) then
+    return new;
+  end if;
+  select rating_min, rating_max into v_min, v_max from public.tournaments where id = new.tournament_id;
+  if v_min is null and v_max is null then
+    return new;
+  end if;
+  v_rating := public.rating_niveau(new.profile_id);
+  if (v_min is not null and v_rating < v_min)
+     or (v_max is not null and public.rating_niveau_meilleur(new.profile_id) >= v_max) then
+    raise exception 'NIVEAU_HORS_TOURNOI';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_inscription_niveau() from public, anon, authenticated;
+drop trigger if exists controle_inscription_niveau on public.registrations;
+create trigger controle_inscription_niveau
+  before insert or update of statut on public.registrations
+  for each row execute function public.controler_inscription_niveau();
+
+-- ---------- Face-à-face entre deux joueurs (2026-11-19) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (page /lol/face-a-face/[a]/[b]).
+-- Les matchs 1v1 (tournois, défis, arène, divisions) entre deux joueurs, avec
+-- leur verdict définitif. Avec les droits de celui qui lit (security
+-- invoker) : seulement ce que les pages publiques montrent déjà (tournois
+-- publiés, verdicts publics). Le bilan affiché ne compte que les verdicts
+-- lus chez Riot ; décisions manuelles et forfaits sont listés à part.
+create or replace function public.face_a_face(p_a uuid, p_b uuid)
+returns table (
+  match_id uuid,
+  joue_le timestamptz,
+  tournoi_slug text,
+  tournoi_nom text,
+  nature text,
+  gagnant_id uuid,
+  niveau public.verdict_level,
+  forfait boolean
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select m.id,
+         coalesce(m.demarre_le, v.cree_le),
+         t.slug,
+         t.nom,
+         t.nature,
+         v.gagnant_id,
+         v.niveau,
+         m.statut = 'forfait'
+  from public.match_participants pa
+  join public.match_participants pb on pb.match_id = pa.match_id and pb.profile_id = p_b
+  join public.matches m on m.id = pa.match_id
+  join public.tournaments t on t.id = m.tournament_id and t.format = '1v1'
+  join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+  where pa.profile_id = p_a and p_a <> p_b
+  order by coalesce(m.demarre_le, v.cree_le) desc
+  limit 200;
+$$;
+revoke execute on function public.face_a_face(uuid, uuid) from public;
+grant execute on function public.face_a_face(uuid, uuid) to anon, authenticated;
+
+-- ---------- Équipes qui recrutent (2026-11-19) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (page d'équipe, /lol/recrutement).
+-- Le sens inverse de « cherche une équipe » : le capitaine publie
+-- « on cherche un support, Or et plus », valable 30 jours, sur la région de
+-- son compte Riot vérifié. Un joueur vérifié de la même région, au bon
+-- niveau, postule en un clic pour l'un des postes cherchés ; le capitaine
+-- accepte (le joueur entre dans l'équipe, l'acceptation vient de sa
+-- candidature) ou décline. Le capitaine voit aussi les joueurs qui
+-- cherchent une équipe et correspondent. Une candidature en attente par
+-- joueur et par équipe, 10 par 24 h, expirée après 14 jours, pas de
+-- nouvelle candidature à la même équipe 30 jours après un refus.
+
+create table if not exists public.annonces_recrutement (
+  team_id     uuid primary key references public.teams(id) on delete cascade,
+  postes      text[] not null check (
+    cardinality(postes) between 1 and 5
+    and postes <@ array['top', 'jungle', 'mid', 'adc', 'support']::text[]
+  ),
+  niveau_min  integer,
+  region      text not null,
+  message     text check (char_length(message) <= 300),
+  cree_le     timestamptz not null default now(),
+  maj_le      timestamptz not null default now(),
+  expire_le   timestamptz not null default now() + interval '30 days'
+);
+alter table public.annonces_recrutement enable row level security;
+drop policy if exists "annonces de recrutement lisibles par tous" on public.annonces_recrutement;
+create policy "annonces de recrutement lisibles par tous" on public.annonces_recrutement
+  for select using (true);
+revoke insert, update, delete on public.annonces_recrutement from anon, authenticated;
+drop trigger if exists moderation_annonce_recrutement on public.annonces_recrutement;
+create trigger moderation_annonce_recrutement
+  before insert or update of message on public.annonces_recrutement
+  for each row execute function public.moderer_annonce();
+
+create table if not exists public.candidatures_equipe (
+  id          uuid primary key default gen_random_uuid(),
+  team_id     uuid not null references public.teams(id) on delete cascade,
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  poste       text not null check (poste in ('top', 'jungle', 'mid', 'adc', 'support')),
+  message     text check (char_length(message) <= 300),
+  statut      text not null default 'en_attente'
+              check (statut in ('en_attente', 'acceptee', 'refusee', 'annulee', 'expiree')),
+  cree_le     timestamptz not null default now(),
+  repondu_le  timestamptz
+);
+create unique index if not exists candidatures_equipe_une_en_attente on public.candidatures_equipe (team_id, profile_id)
+  where statut = 'en_attente';
+create index if not exists candidatures_equipe_profile_idx on public.candidatures_equipe (profile_id, cree_le);
+alter table public.candidatures_equipe enable row level security;
+drop policy if exists "candidature lue par le candidat et le capitaine" on public.candidatures_equipe;
+create policy "candidature lue par le candidat et le capitaine" on public.candidatures_equipe
+  for select using (
+    profile_id = (select auth.uid())
+    or exists (select 1 from public.teams t where t.id = team_id and t.capitaine_id = (select auth.uid()))
+  );
+revoke insert, update, delete on public.candidatures_equipe from anon, authenticated;
+drop trigger if exists moderation_candidature_equipe on public.candidatures_equipe;
+create trigger moderation_candidature_equipe
+  before insert or update of message on public.candidatures_equipe
+  for each row execute function public.moderer_annonce();
+
+-- Effectif accepté d'une équipe (capitaine compris).
+create or replace function public.effectif_equipe(p_team uuid)
+returns integer
+language sql
+stable
+security definer set search_path = public
+as $$
+  select count(*)::integer from public.team_members where team_id = p_team and accepte_le is not null;
+$$;
+revoke all on function public.effectif_equipe(uuid) from public, anon, authenticated;
+
+-- Seuil de palier valide pour un niveau minimum (comme les tournois par niveau).
+create or replace function public.seuil_palier_valide(p_seuil integer)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select p_seuil is null or exists (select 1 from public.tiers where game_id = 1 and rating_min = p_seuil and rating_min > 0);
+$$;
+revoke all on function public.seuil_palier_valide(integer) from public, anon, authenticated;
+
+create or replace function public.publier_recrutement(
+  p_team uuid,
+  p_postes text[],
+  p_niveau_min integer default null,
+  p_message text default null
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_region text;
+  v_postes text[];
+  v_message text := nullif(btrim(coalesce(p_message, '')), '');
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  perform 1 from public.teams where id = p_team and capitaine_id = v_moi and game_id = 1 for update;
+  if not found then
+    raise exception 'NON_CAPITAINE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_moi);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if public.effectif_equipe(p_team) >= 5 then
+    raise exception 'EQUIPE_COMPLETE';
+  end if;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_postes from unnest(coalesce(p_postes, '{}')) as x;
+  if cardinality(v_postes) not between 1 and 5
+     or not v_postes <@ array['top', 'jungle', 'mid', 'adc', 'support']::text[] then
+    raise exception 'POSTES_INVALIDES';
+  end if;
+  if not public.seuil_palier_valide(p_niveau_min) then
+    raise exception 'NIVEAU_INVALIDE';
+  end if;
+  if char_length(v_message) > 300 then
+    raise exception 'MESSAGE_TROP_LONG';
+  end if;
+
+  insert into public.annonces_recrutement (team_id, postes, niveau_min, region, message)
+  values (p_team, v_postes, p_niveau_min, v_region, v_message)
+  on conflict (team_id) do update
+  set postes = excluded.postes, niveau_min = excluded.niveau_min, region = excluded.region,
+      message = excluded.message,
+      -- Republier sans cesse ne remonte pas l'annonce : une fois par heure.
+      maj_le = case when annonces_recrutement.maj_le < now() - interval '1 hour' then now() else annonces_recrutement.maj_le end,
+      expire_le = now() + interval '30 days';
+end;
+$$;
+revoke execute on function public.publier_recrutement(uuid, text[], integer, text) from public, anon;
+grant execute on function public.publier_recrutement(uuid, text[], integer, text) to authenticated;
+
+create or replace function public.retirer_recrutement(p_team uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if not exists (select 1 from public.teams where id = p_team and capitaine_id = auth.uid()) then
+    raise exception 'NON_CAPITAINE';
+  end if;
+  update public.annonces_recrutement set expire_le = now() where team_id = p_team and expire_le > now();
+  return found;
+end;
+$$;
+revoke execute on function public.retirer_recrutement(uuid) from public, anon;
+grant execute on function public.retirer_recrutement(uuid) to authenticated;
+
+-- Annonces en cours, pour /lol/recrutement : équipe pas complète,
+-- capitaine ni suspendu ni supprimé, ni bloqué par le visiteur (ou
+-- l'inverse).
+create or replace function public.annonces_recrutement_publiques(p_region text default null)
+returns table (
+  team_id uuid, slug text, nom text, tag text, logo_url text,
+  postes text[], niveau_min integer, region text, message text, maj_le timestamptz, effectif integer
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select t.id, t.slug, t.nom, t.tag, t.logo_url,
+         a.postes, a.niveau_min, a.region, a.message, a.maj_le, public.effectif_equipe(t.id)
+  from public.annonces_recrutement a
+  join public.teams t on t.id = a.team_id
+  join public.profiles p on p.id = t.capitaine_id and p.supprime_le is null
+  where a.expire_le > now()
+    and (p_region is null or a.region = p_region)
+    and public.effectif_equipe(t.id) < 5
+    and not exists (select 1 from public.suspensions s where s.profile_id = t.capitaine_id and s.levee_le is null)
+    and (auth.uid() is null or not public.blocage_entre(auth.uid(), t.capitaine_id))
+  order by a.maj_le desc
+  limit 200;
+$$;
+revoke execute on function public.annonces_recrutement_publiques(text) from public;
+grant execute on function public.annonces_recrutement_publiques(text) to anon, authenticated;
+
+-- Page d'une équipe : son annonce est-elle visible ? Mêmes règles que la
+-- liste publique (en cours, de la place, capitaine ni suspendu, ni
+-- supprimé, ni bloqué par le lecteur ou l'inverse).
+create or replace function public.annonce_recrutement_visible(p_team uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.annonces_recrutement a
+    join public.teams t on t.id = a.team_id
+    join public.profiles p on p.id = t.capitaine_id and p.supprime_le is null
+    where a.team_id = p_team and a.expire_le > now()
+      and public.effectif_equipe(t.id) < 5
+      and not exists (select 1 from public.suspensions s where s.profile_id = t.capitaine_id and s.levee_le is null)
+      and (auth.uid() is null or not public.blocage_entre(auth.uid(), t.capitaine_id))
+  );
+$$;
+revoke execute on function public.annonce_recrutement_visible(uuid) from public;
+grant execute on function public.annonce_recrutement_visible(uuid) to anon, authenticated;
+
+create or replace function public.postuler_equipe(p_team uuid, p_poste text, p_message text default null)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_annonce record;
+  v_capitaine uuid;
+  v_region text;
+  v_message text := nullif(btrim(coalesce(p_message, '')), '');
+  v_id uuid;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(v_moi);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  -- Une candidature à la fois par joueur : le plafond tient face à des
+  -- envois simultanés.
+  perform 1 from public.profiles where id = v_moi for update;
+
+  select a.* into v_annonce from public.annonces_recrutement a where a.team_id = p_team and a.expire_le > now();
+  select capitaine_id into v_capitaine from public.teams where id = p_team;
+  -- Annonce retirée, équipe disparue, capitaine suspendu, supprimé ou bloqué
+  -- (dans un sens ou l'autre) : même réponse.
+  if v_annonce.team_id is null or v_capitaine is null or public.blocage_entre(v_moi, v_capitaine)
+     or exists (select 1 from public.suspensions where profile_id = v_capitaine and levee_le is null)
+     or exists (select 1 from public.profiles where id = v_capitaine and supprime_le is not null) then
+    raise exception 'ANNONCE_INTROUVABLE';
+  end if;
+  if v_annonce.region <> v_region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  if exists (select 1 from public.team_members where team_id = p_team and profile_id = v_moi and accepte_le is not null) then
+    raise exception 'DEJA_MEMBRE';
+  end if;
+  if public.effectif_equipe(p_team) >= 5 then
+    raise exception 'EQUIPE_COMPLETE';
+  end if;
+  if p_poste is null or not (p_poste = any (v_annonce.postes)) then
+    raise exception 'POSTE_NON_RECHERCHE';
+  end if;
+  if v_annonce.niveau_min is not null and public.rating_niveau(v_moi) < v_annonce.niveau_min then
+    raise exception 'NIVEAU_INSUFFISANT';
+  end if;
+  if char_length(v_message) > 300 then
+    raise exception 'MESSAGE_TROP_LONG';
+  end if;
+  -- Une candidature sans réponse depuis 14 jours a expiré.
+  update public.candidatures_equipe set statut = 'expiree'
+  where team_id = p_team and profile_id = v_moi and statut = 'en_attente' and cree_le <= now() - interval '14 days';
+  if exists (select 1 from public.candidatures_equipe where team_id = p_team and profile_id = v_moi and statut = 'en_attente') then
+    raise exception 'CANDIDATURE_EN_COURS';
+  end if;
+  if exists (
+    select 1 from public.candidatures_equipe
+    where team_id = p_team and profile_id = v_moi and statut = 'refusee' and repondu_le > now() - interval '30 days'
+  ) then
+    raise exception 'CANDIDATURE_REFUSEE_RECEMMENT';
+  end if;
+  if exists (
+    select 1 from public.candidatures_equipe
+    where team_id = p_team and profile_id = v_moi and cree_le > now() - interval '7 days'
+  ) then
+    raise exception 'CANDIDATURE_RECENTE';
+  end if;
+  if (select count(*) from public.candidatures_equipe where profile_id = v_moi and cree_le > now() - interval '24 hours') >= 10 then
+    raise exception 'LIMITE_CANDIDATURES';
+  end if;
+
+  insert into public.candidatures_equipe (team_id, profile_id, poste, message)
+  values (p_team, v_moi, p_poste, v_message)
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke execute on function public.postuler_equipe(uuid, text, text) from public, anon;
+grant execute on function public.postuler_equipe(uuid, text, text) to authenticated;
+
+create or replace function public.repondre_candidature(p_candidature uuid, p_accepte boolean)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_c record;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select c.* into v_c from public.candidatures_equipe c where c.id = p_candidature for update;
+  if not found then
+    raise exception 'CANDIDATURE_INTROUVABLE';
+  end if;
+  -- L'équipe verrouillée : deux acceptations simultanées ne dépassent pas
+  -- cinq joueurs. Le verrou d'effectif est aussi pris par l'acceptation
+  -- d'une invitation (controler_membre_equipe).
+  perform 1 from public.teams where id = v_c.team_id and capitaine_id = v_moi for update;
+  if not found then
+    raise exception 'NON_CAPITAINE';
+  end if;
+  -- Même ordre que l'acceptation d'une invitation (ligne du joueur, puis
+  -- verrou d'effectif) : pas d'interblocage si les deux arrivent ensemble.
+  perform 1 from public.team_members where team_id = v_c.team_id and profile_id = v_c.profile_id for update;
+  perform pg_advisory_xact_lock(hashtextextended('effectif_equipe:' || v_c.team_id::text, 0));
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if v_c.statut <> 'en_attente' then
+    raise exception 'CANDIDATURE_DEJA_TRAITEE';
+  end if;
+  if v_c.cree_le <= now() - interval '14 days' then
+    update public.candidatures_equipe set statut = 'expiree' where id = p_candidature;
+    raise exception 'CANDIDATURE_EXPIREE';
+  end if;
+
+  if not coalesce(p_accepte, false) then
+    update public.candidatures_equipe set statut = 'refusee', repondu_le = now() where id = p_candidature;
+    return;
+  end if;
+
+  if exists (select 1 from public.suspensions where profile_id = v_c.profile_id and levee_le is null)
+     or exists (select 1 from public.profiles where id = v_c.profile_id and supprime_le is not null) then
+    raise exception 'CANDIDAT_INDISPONIBLE';
+  end if;
+  if public.effectif_equipe(v_c.team_id) >= 5 then
+    raise exception 'EQUIPE_COMPLETE';
+  end if;
+
+  -- Le joueur a lui-même demandé à entrer : sa candidature vaut
+  -- acceptation (le blocage entre eux reste refusé par refuser_si_bloque).
+  insert into public.team_members (team_id, profile_id, role, accepte_le)
+  values (
+    v_c.team_id, v_c.profile_id,
+    case v_c.poste when 'top' then 'Top' when 'jungle' then 'Jungle' when 'mid' then 'Mid'
+                   when 'adc' then 'ADC' else 'Support' end,
+    now()
+  )
+  on conflict (team_id, profile_id) do update set accepte_le = now(), role = coalesce(team_members.role, excluded.role);
+  update public.candidatures_equipe set statut = 'acceptee', repondu_le = now() where id = p_candidature;
+
+  -- Équipe complète : l'annonce se ferme, les autres candidatures tombent
+  -- (sans délai de 30 jours : elles n'ont pas été refusées).
+  if public.effectif_equipe(v_c.team_id) >= 5 then
+    update public.annonces_recrutement set expire_le = now() where team_id = v_c.team_id and expire_le > now();
+    update public.candidatures_equipe set statut = 'annulee', repondu_le = now()
+    where team_id = v_c.team_id and statut = 'en_attente';
+  end if;
+end;
+$$;
+revoke execute on function public.repondre_candidature(uuid, boolean) from public, anon;
+grant execute on function public.repondre_candidature(uuid, boolean) to authenticated;
+
+create or replace function public.annuler_candidature(p_candidature uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  update public.candidatures_equipe set statut = 'annulee', repondu_le = now()
+  where id = p_candidature and profile_id = auth.uid() and statut = 'en_attente';
+  return found;
+end;
+$$;
+revoke execute on function public.annuler_candidature(uuid) from public, anon;
+grant execute on function public.annuler_candidature(uuid) to authenticated;
+
+-- Pour le capitaine : les joueurs qui cherchent une équipe (annonce
+-- « cherche une équipe ») et correspondent à son annonce — région, poste
+-- déclaré, niveau. Rating montré seulement pour un joueur classé.
+create or replace function public.joueurs_pour_recrutement(p_team uuid)
+returns table (profile_id uuid, pseudo text, slug text, role_prefere text, rating numeric, message text)
+language plpgsql
+stable
+security definer set search_path = public
+as $$
+declare
+  v_annonce record;
+begin
+  if not exists (select 1 from public.teams where id = p_team and capitaine_id = auth.uid()) then
+    raise exception 'NON_CAPITAINE';
+  end if;
+  select a.* into v_annonce from public.annonces_recrutement a where a.team_id = p_team and a.expire_le > now();
+  if v_annonce.team_id is null then
+    return;
+  end if;
+  return query
+  select g.profile_id, p.pseudo, p.slug, g.role_prefere,
+         case when r.est_classe then r.rating end,
+         rc.message
+  from public.recherches_coequipiers rc
+  join public.game_accounts g on g.profile_id = rc.profile_id and g.game_id = 1 and g.est_principal and g.verifie_le is not null
+  join public.profiles p on p.id = rc.profile_id and p.supprime_le is null
+  left join public.seasons s on s.game_id = 1 and s.est_courante
+  left join public.ratings r on r.profile_id = rc.profile_id and r.game_id = 1 and r.season_id = s.id
+  where g.region = v_annonce.region
+    and g.role_prefere = any (v_annonce.postes)
+    and (v_annonce.niveau_min is null or public.rating_niveau(rc.profile_id) >= v_annonce.niveau_min)
+    and not exists (select 1 from public.team_members tm where tm.team_id = p_team and tm.profile_id = rc.profile_id)
+    and not exists (select 1 from public.suspensions su where su.profile_id = rc.profile_id and su.levee_le is null)
+    and not public.blocage_entre(auth.uid(), rc.profile_id)
+  order by case when r.est_classe then r.rating end desc nulls last, p.pseudo
+  limit 20;
+end;
+$$;
+revoke execute on function public.joueurs_pour_recrutement(uuid) from public, anon;
+grant execute on function public.joueurs_pour_recrutement(uuid) to authenticated;
+
+-- Compte supprimé : ses candidatures disparaissent, les annonces de ses
+-- équipes se ferment.
+create or replace function public.effacer_recrutement_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.candidatures_equipe where profile_id = new.id;
+  update public.annonces_recrutement set expire_le = now()
+  where expire_le > now() and team_id in (select id from public.teams where capitaine_id = new.id);
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_recrutement_compte_supprime() from public, anon, authenticated;
+drop trigger if exists recrutement_compte_supprime on public.profiles;
+create trigger recrutement_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_recrutement_compte_supprime();
+
+-- ---------- Tournois au format suisse (2026-11-19) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (création de tournoi, cockpit, page du tournoi).
+-- Un tournoi 1v1 d'organisateur peut se jouer au format suisse plutôt
+-- qu'en élimination directe : chaque joueur dispute toutes les rondes,
+-- même après une défaite — plus de matchs par joueur, donc un classement
+-- plus précis (CLAUDE.md §10). Nombre de rondes fixé au lancement :
+-- ⌈log2(joueurs)⌉, 5 au plus. Ronde 1 : la première moitié (par rating à
+-- l'inscription) contre la seconde. Rondes suivantes : joueurs au même
+-- bilan l'un contre l'autre, sans revanche quand c'est possible ; nombre
+-- impair : le moins bien placé qui n'en a pas encore eu est exempté
+-- (victoire tranchée « manuel », jamais comptée au classement). Classement
+-- final : victoires, puis Buchholz (victoires cumulées des adversaires),
+-- puis rating à l'inscription. Chaque match reste un match ordinaire :
+-- même salle, même lecture Riot, même verdict, même clôture Glicko-2.
+alter table public.tournaments add column if not exists rondes smallint;
+alter table public.tournaments drop constraint if exists tournaments_type_bracket_check;
+alter table public.tournaments add constraint tournaments_type_bracket_check
+  check (type_bracket in ('elim_simple', 'suisse'));
+alter table public.tournaments drop constraint if exists tournaments_rondes_check;
+alter table public.tournaments add constraint tournaments_rondes_check
+  check (rondes is null or (type_bracket = 'suisse' and rondes between 1 and 5));
+-- Abandon officiel en cours de tournoi suisse (abandonner_suisse) : le
+-- joueur n'est plus apparié ; ses résultats restent au classement.
+-- Écrit par la base seule (aucun droit de colonne pour les comptes).
+alter table public.registrations add column if not exists abandonne_le timestamptz;
+
+-- Le format suisse : 1v1, tournoi d'organisateur. Le nombre de rondes
+-- n'est écrit que par la base (demarrer_suisse).
+create or replace function public.controler_format_suisse()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.type_bracket = 'suisse'
+     and (new.format <> '1v1' or new.nature <> 'tournoi' or new.creneau_auto is not null) then
+    raise exception 'SUISSE_1V1_SEULEMENT';
+  end if;
+  if current_user = 'authenticated'
+     and ((tg_op = 'INSERT' and new.rondes is not null)
+          or (tg_op = 'UPDATE' and new.rondes is distinct from old.rondes)) then
+    raise exception 'CHAMP_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_format_suisse() from public, anon, authenticated;
+drop trigger if exists controle_format_suisse on public.tournaments;
+create trigger controle_format_suisse
+  before insert or update of type_bracket, format, nature, creneau_auto, rondes on public.tournaments
+  for each row execute function public.controler_format_suisse();
+
+-- Classement d'un tournoi suisse : joueurs confirmés, victoires, défaites,
+-- Buchholz. Lisible de tous (tournoi publié).
+create or replace function public.classement_suisse(p_tournament uuid)
+returns table (
+  profile_id uuid,
+  pseudo text,
+  slug text,
+  victoires integer,
+  defaites integer,
+  buchholz integer,
+  rang integer,
+  abandon boolean
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  -- Les joueurs sont ceux des matchs du tournoi, pas les inscriptions :
+  -- une fois les rondes lancées, changer le statut d'une inscription ne
+  -- retire personne du classement (contrôle de sécurité du 19/11/2026).
+  with joueurs as (
+    select distinct mp.profile_id, r.rating_a_inscription, r.abandonne_le is not null as abandon
+    from public.matches m
+    join public.tournaments t on t.id = m.tournament_id and t.type_bracket = 'suisse' and t.statut <> 'brouillon'
+    join public.match_participants mp on mp.match_id = m.id
+    left join public.registrations r on r.tournament_id = m.tournament_id and r.profile_id = mp.profile_id
+    where m.tournament_id = p_tournament
+  ),
+  bilans as (
+    select j.profile_id, j.rating_a_inscription, j.abandon,
+           count(*) filter (where mp.est_gagnant is true)::integer as victoires,
+           count(*) filter (where mp.est_gagnant is false)::integer as defaites
+    from joueurs j
+    left join public.match_participants mp on mp.profile_id = j.profile_id
+      and mp.match_id in (select id from public.matches where tournament_id = p_tournament)
+    group by j.profile_id, j.rating_a_inscription, j.abandon
+  ),
+  avec_buchholz as (
+    select b.*,
+           coalesce((
+             select sum(ba.victoires)
+             from public.match_participants moi
+             join public.matches m on m.id = moi.match_id and m.tournament_id = p_tournament
+             join public.match_participants adv on adv.match_id = moi.match_id and adv.profile_id <> moi.profile_id
+             join bilans ba on ba.profile_id = adv.profile_id
+             where moi.profile_id = b.profile_id
+           ), 0)::integer as buchholz
+    from bilans b
+  )
+  select a.profile_id, p.pseudo, p.slug, a.victoires, a.defaites, a.buchholz,
+         -- Un joueur qui a abandonné est classé après ceux qui sont allés au
+         -- bout (jamais annoncé vainqueur). Dernier départage : un tirage
+         -- stable, jamais le pseudo (qu'un joueur peut changer pour passer
+         -- devant).
+         (row_number() over (order by a.abandon, a.victoires desc, a.buchholz desc, a.rating_a_inscription desc nulls last,
+                                      md5(a.profile_id::text || p_tournament::text)))::integer,
+         a.abandon
+  from avec_buchholz a
+  join public.profiles p on p.id = a.profile_id
+  order by 7;
+$$;
+revoke execute on function public.classement_suisse(uuid) from public;
+grant execute on function public.classement_suisse(uuid) to anon, authenticated, service_role;
+
+-- Crée la ronde suivante si la ronde en cours est entièrement jouée.
+-- Appelée par avancer_vainqueur après chaque verdict, et au lancement.
+-- Renvoie le numéro de la ronde créée, ou nul.
+create or replace function public.ronde_suisse_suivante(p_tournament uuid)
+returns smallint
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_t record;
+  v_tour smallint;
+  v_ordre uuid[];
+  v_libres uuid[];
+  v_bye uuid;
+  v_p uuid;
+  v_q uuid;
+  v_moitie integer;
+  v_n integer;
+  v_pos smallint := 0;
+  v_match uuid;
+  i integer;
+begin
+  -- Un seul appariement à la fois : deux verdicts simultanés ne créent pas
+  -- deux fois la même ronde.
+  select id, type_bracket, rondes, statut, organisateur_id into v_t
+  from public.tournaments where id = p_tournament for update;
+  if v_t.type_bracket is distinct from 'suisse' or v_t.statut <> 'en_cours' or v_t.rondes is null then
+    return null;
+  end if;
+  select coalesce(max(tour), 0) into v_tour from public.matches where tournament_id = p_tournament;
+  if v_tour >= v_t.rondes then
+    return null;
+  end if;
+  if v_tour > 0 and exists (
+    select 1 from public.matches where tournament_id = p_tournament and tour = v_tour and statut not in ('termine', 'forfait')
+  ) then
+    return null;
+  end if;
+
+  if v_tour = 0 then
+    -- Ronde 1 : par rating à l'inscription (égalités départagées par un
+    -- tirage stable), la première moitié contre la seconde.
+    select array_agg(r.profile_id order by r.rating_a_inscription desc nulls last, md5(r.profile_id::text || p_tournament::text))
+    into v_ordre
+    from public.registrations r where r.tournament_id = p_tournament and r.statut = 'confirme';
+  else
+    -- Les joueurs qui ont abandonné ne sont plus appariés.
+    select array_agg(c.profile_id order by c.rang) into v_ordre
+    from public.classement_suisse(p_tournament) c
+    where not c.abandon;
+  end if;
+  v_n := coalesce(array_length(v_ordre, 1), 0);
+  if v_n < 2 then
+    -- Moins de deux joueurs encore en lice après des abandons : le tournoi
+    -- s'arrête à la ronde jouée (suisse_terminee devient vrai).
+    if v_tour > 0 then
+      update public.tournaments set rondes = v_tour where id = p_tournament;
+    end if;
+    return null;
+  end if;
+
+  -- Nombre impair : le moins bien placé qui n'a pas encore été exempté.
+  if v_n % 2 = 1 then
+    for i in reverse v_n..1 loop
+      if not exists (
+        select 1 from public.matches m
+        join public.match_participants mp on mp.match_id = m.id and mp.profile_id = v_ordre[i]
+        where m.tournament_id = p_tournament
+          and (select count(*) from public.match_participants x where x.match_id = m.id) = 1
+      ) then
+        v_bye := v_ordre[i];
+        exit;
+      end if;
+    end loop;
+    v_bye := coalesce(v_bye, v_ordre[v_n]);
+    v_ordre := array_remove(v_ordre, v_bye);
+    v_n := v_n - 1;
+  end if;
+
+  -- Ronde 1 : 1 contre (n/2 + 1), 2 contre (n/2 + 2)… mis côte à côte.
+  if v_tour = 0 then
+    v_moitie := v_n / 2;
+    v_libres := '{}';
+    for i in 1..v_moitie loop
+      v_libres := v_libres || v_ordre[i] || v_ordre[i + v_moitie];
+    end loop;
+  else
+    v_libres := v_ordre;
+  end if;
+
+  while coalesce(array_length(v_libres, 1), 0) >= 2 loop
+    v_p := v_libres[1];
+    v_q := null;
+    for i in 2..array_length(v_libres, 1) loop
+      if not exists (
+        select 1 from public.match_participants a
+        join public.match_participants b on b.match_id = a.match_id and b.profile_id = v_libres[i]
+        join public.matches m on m.id = a.match_id and m.tournament_id = p_tournament
+        where a.profile_id = v_p
+      ) then
+        v_q := v_libres[i];
+        exit;
+      end if;
+    end loop;
+    -- Plus personne de neuf à affronter : revanche plutôt que pas de match.
+    v_q := coalesce(v_q, v_libres[2]);
+    v_pos := v_pos + 1;
+    insert into public.matches (tournament_id, tour, position, statut, demarre_le)
+    values (p_tournament, v_tour + 1, v_pos, 'en_cours', now())
+    returning id into v_match;
+    insert into public.match_participants (match_id, profile_id, slot) values (v_match, v_p, 1), (v_match, v_q, 2);
+    v_libres := array_remove(array_remove(v_libres, v_p), v_q);
+  end loop;
+
+  if v_bye is not null then
+    v_pos := v_pos + 1;
+    insert into public.matches (tournament_id, tour, position, statut)
+    values (p_tournament, v_tour + 1, v_pos, 'termine')
+    returning id into v_match;
+    insert into public.match_participants (match_id, profile_id, slot, est_gagnant) values (v_match, v_bye, 1, true);
+    insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+    values (v_match, 'manuel', v_bye, v_t.organisateur_id,
+            'Exemption : nombre impair de joueurs (format suisse), hors classement.', true);
+  end if;
+
+  return v_tour + 1;
+end;
+$$;
+revoke execute on function public.ronde_suisse_suivante(uuid) from public, anon, authenticated;
+
+create or replace function public.avancer_vainqueur(p_match_id uuid, p_gagnant_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi uuid;
+  v_match_suivant_id uuid;
+  v_slot_libre smallint;
+  v_nb_participants int;
+begin
+  update match_participants
+  set est_gagnant = (profile_id = p_gagnant_id)
+  where match_id = p_match_id;
+
+  update matches set statut = 'termine' where id = p_match_id;
+
+  select tournament_id, match_suivant_id into v_tournoi, v_match_suivant_id
+  from matches where id = p_match_id;
+  if v_match_suivant_id is null then
+    -- Format suisse (19/11/2026) : pas de match suivant ; la ronde
+    -- suivante se crée quand la ronde en cours est entièrement jouée.
+    if exists (select 1 from tournaments where id = v_tournoi and type_bracket = 'suisse') then
+      perform public.ronde_suisse_suivante(v_tournoi);
+    end if;
+    return;
+  end if;
+
+  perform 1 from matches
+  where id = v_match_suivant_id and tournament_id = v_tournoi
+  for update;
+  if not found then
+    raise exception 'MATCH_SUIVANT_INVALIDE';
+  end if;
+
+  if exists (select 1 from match_participants where match_id = v_match_suivant_id and profile_id = p_gagnant_id) then
+    return;
+  end if;
+
+  if (select count(*) from match_participants where match_id = v_match_suivant_id) >= 2 then
+    raise exception 'MATCH_COMPLET';
+  end if;
+
+  select case
+    when exists (select 1 from match_participants where match_id = v_match_suivant_id and slot = 1)
+    then 2 else 1
+  end into v_slot_libre;
+
+  insert into match_participants (match_id, profile_id, slot)
+  values (v_match_suivant_id, p_gagnant_id, v_slot_libre)
+  on conflict (match_id, profile_id) do nothing;
+
+  select count(*) into v_nb_participants from match_participants where match_id = v_match_suivant_id;
+  if v_nb_participants = 2 then
+    update matches set statut = 'en_cours', demarre_le = now() where id = v_match_suivant_id;
+  end if;
+end;
+$$;
+revoke execute on function public.avancer_vainqueur from public, anon, authenticated;
+
+-- Lancement par l'organisateur (bouton « Générer le bracket » du cockpit).
+create or replace function public.demarrer_suisse(p_tournament uuid)
+returns smallint -- nombre de rondes
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_t record;
+  v_n integer;
+  v_rondes smallint;
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, organisateur_id, type_bracket, statut into v_t from public.tournaments where id = p_tournament for update;
+  if not found or v_t.organisateur_id <> auth.uid() then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_t.type_bracket <> 'suisse' then
+    raise exception 'PAS_UN_TOURNOI_SUISSE';
+  end if;
+  if v_t.statut not in ('ouvert', 'checkin')
+     or exists (select 1 from public.matches where tournament_id = p_tournament) then
+    raise exception 'TOURNOI_DEJA_LANCE';
+  end if;
+  select count(*) into v_n from public.registrations where tournament_id = p_tournament and statut = 'confirme';
+  if v_n < 2 then
+    raise exception 'PAS_ASSEZ_DE_JOUEURS';
+  end if;
+  v_rondes := least(5, greatest(1, ceil(log(2, v_n::numeric))))::smallint;
+  update public.tournaments set statut = 'en_cours', rondes = v_rondes where id = p_tournament;
+  perform public.ronde_suisse_suivante(p_tournament);
+  return v_rondes;
+end;
+$$;
+revoke execute on function public.demarrer_suisse(uuid) from public, anon;
+grant execute on function public.demarrer_suisse(uuid) to authenticated;
+
+-- Abandon officiel d'un joueur en cours de tournoi suisse : il n'est plus
+-- apparié ensuite et reste au classement du tournoi avec ses résultats.
+-- Son match en cours n'est jamais tranché sur le coup (contrôle de sécurité
+-- du 20/11/2026 : un abandon juste après une partie perdue aurait effacé une
+-- défaite lue chez Riot) : il vaut « défaite reconnue », comme le bouton
+-- « J'ai perdu ce match ». La recherche Riot garde 20 minutes pour retrouver
+-- la partie, dont le résultat compte alors pour les deux joueurs ; sinon,
+-- la tâche de recherche donne le match à l'adversaire
+-- (enregistrer_defaite_reconnue). Match déjà en litige : tranché tout de
+-- suite, comme pour reconnaitre_defaite. Sans match en cours, la ronde
+-- suivante se crée sans lui si la ronde est complète.
+create or replace function public.abandonner_suisse(p_tournament uuid)
+returns uuid -- match tranché sur-le-champ (litige), ou nul
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_t record;
+  v_match uuid;
+  v_statut public.match_status;
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, type_bracket, statut into v_t from public.tournaments where id = p_tournament for update;
+  if not found or v_t.type_bracket is distinct from 'suisse' then
+    raise exception 'PAS_UN_TOURNOI_SUISSE';
+  end if;
+  if v_t.statut <> 'en_cours' then
+    raise exception 'TOURNOI_PAS_EN_COURS';
+  end if;
+  if not exists (
+    select 1 from public.matches m join public.match_participants mp on mp.match_id = m.id
+    where m.tournament_id = p_tournament and mp.profile_id = v_moi
+  ) then
+    raise exception 'NON_PARTICIPANT';
+  end if;
+  update public.registrations set abandonne_le = now()
+  where tournament_id = p_tournament and profile_id = v_moi and abandonne_le is null;
+  if not found then
+    raise exception 'DEJA_ABANDONNE';
+  end if;
+
+  select m.id, m.statut into v_match, v_statut
+  from public.matches m
+  join public.match_participants mp on mp.match_id = m.id and mp.profile_id = v_moi
+  where m.tournament_id = p_tournament and m.statut in ('en_cours', 'litige')
+    and not exists (select 1 from public.match_verdicts v where v.match_id = m.id and v.est_definitif)
+  for update of m;
+
+  if v_match is null then
+    perform public.ronde_suisse_suivante(p_tournament);
+    return null;
+  end if;
+
+  if (select count(*) from public.match_participants where match_id = v_match) = 2 then
+    update public.matches set defaite_reconnue_par = v_moi, defaite_reconnue_le = now()
+    where id = v_match and defaite_reconnue_par is null;
+    if found and v_statut = 'litige' then
+      perform public.enregistrer_defaite_reconnue(v_match);
+      return v_match;
+    end if;
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function public.abandonner_suisse(uuid) from public, anon;
+grant execute on function public.abandonner_suisse(uuid) to authenticated;
+
+-- Toutes les rondes jouées : le tournoi peut être clôturé.
+create or replace function public.suisse_terminee(p_tournament uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.tournaments t
+    where t.id = p_tournament and t.type_bracket = 'suisse' and t.rondes is not null
+      and (select coalesce(max(tour), 0) from public.matches where tournament_id = t.id) = t.rondes
+      and not exists (select 1 from public.matches m where m.tournament_id = t.id and m.statut not in ('termine', 'forfait'))
+  );
+$$;
+revoke execute on function public.suisse_terminee(uuid) from public;
+grant execute on function public.suisse_terminee(uuid) to anon, authenticated, service_role;
+
+-- Pas de pronostic en format suisse : il n'a ni demi-finale ni finale.
+create or replace function public.refuser_pronostic_suisse()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from public.matches m join public.tournaments t on t.id = m.tournament_id
+    where m.id = new.match_id and t.type_bracket = 'suisse'
+  ) then
+    raise exception 'PRONOSTIC_HORS_PHASE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_pronostic_suisse() from public, anon, authenticated;
+drop trigger if exists pronostics_suisse on public.pronostics;
+create trigger pronostics_suisse
+  before insert on public.pronostics
+  for each row execute function public.refuser_pronostic_suisse();
+
+-- Cash prizes (désactivés) : leurs gagnants se lisent dans un bracket à
+-- élimination directe ; pas de dotation sur un tournoi suisse.
+create or replace function public.refuser_dotation_suisse()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (select 1 from public.tournaments where id = new.tournament_id and type_bracket = 'suisse') then
+    raise exception 'DOTATION_SUISSE_INDISPONIBLE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_dotation_suisse() from public, anon, authenticated;
+drop trigger if exists dotations_suisse on public.dotations;
+create trigger dotations_suisse
+  before insert on public.dotations
+  for each row execute function public.refuser_dotation_suisse();
+
+-- ---------- Contrôle de sécurité des nouveautés du 19/11/2026 ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- (Les sections « Modifier un tournoi », « Équipes qui recrutent » et
+-- « Format suisse » ci-dessus ont aussi été corrigées sur place : niveau
+-- pris en compte dans la date de publication, classement suisse tiré des
+-- matchs, capitaine suspendu, verrou d'effectif.)
+
+-- Ancienne signature de modifier_tournoi (sans niveau), si une base l'a
+-- reçue : une seule version doit rester.
+drop function if exists public.modifier_tournoi(uuid, text, integer, integer, text, timestamptz, timestamptz);
+
+-- Inscriptions figées une fois le tournoi lancé : un organisateur ne passe
+-- plus un joueur « absent » en plein tournoi (ni après) pour le retirer
+-- d'un classement suisse ou le libérer de son compte Riot principal. Les
+-- fonctions de la base et le serveur (rôle service) ne sont pas concernés.
+create or replace function public.figer_inscriptions_lancees()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+  if new.statut is distinct from old.statut
+     and exists (
+       select 1 from public.tournaments
+       where id = new.tournament_id and statut not in ('brouillon', 'ouvert', 'checkin')
+     ) then
+    raise exception 'INSCRIPTIONS_FIGEES';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.figer_inscriptions_lancees() from public, anon, authenticated;
+drop trigger if exists registrations_figees on public.registrations;
+create trigger registrations_figees
+  before update of statut on public.registrations
+  for each row execute function public.figer_inscriptions_lancees();
+
+-- Un joueur placé dans un match d'un tournoi en cours reste engagé (il ne
+-- change pas de compte Riot principal), quel que soit le statut de son
+-- inscription.
+create or replace function public.engage_en_tournoi(p_profile_id uuid, p_game_id smallint)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = p_profile_id and r.statut in ('inscrit', 'confirme')
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) or exists (
+    select 1 from public.alignements a
+    join public.registrations r on r.id = a.registration_id
+    join public.tournaments t on t.id = a.tournament_id
+    where a.profile_id = p_profile_id and r.statut in ('inscrit', 'confirme')
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) or exists (
+    select 1 from public.agents_libres g
+    join public.tournaments t on t.id = g.tournament_id
+    where g.profile_id = p_profile_id and g.statut <> 'place'
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin')
+  ) or exists (
+    select 1 from public.match_participants mp
+    join public.matches m on m.id = mp.match_id
+    join public.tournaments t on t.id = m.tournament_id
+    where mp.profile_id = p_profile_id and t.game_id = p_game_id and t.statut = 'en_cours'
+  );
+$$;
+revoke all on function public.engage_en_tournoi(uuid, smallint) from public, anon, authenticated;
+
+-- Clôture d'un tournoi suisse : seulement toutes ses rondes jouées. En
+-- suisse, aucun match n'a de suivant : « un match sans suivant terminé »
+-- ne prouve pas que le tournoi est fini.
+create or replace function public.figer_classement_tournoi(p_tournament_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_classe boolean;
+  v_type text;
+begin
+  select classe, type_bracket into v_classe, v_type
+  from public.tournaments
+  where id = p_tournament_id
+  for update;
+
+  if not found then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+
+  if v_classe is not null then
+    return v_classe;
+  end if;
+
+  if v_type = 'suisse' then
+    if not public.suisse_terminee(p_tournament_id) then
+      raise exception 'SUISSE_NON_TERMINEE';
+    end if;
+  elsif not exists (
+    select 1 from public.matches
+    where tournament_id = p_tournament_id and match_suivant_id is null
+      and statut in ('termine', 'forfait')
+  ) then
+    raise exception 'FINALE_NON_JOUEE';
+  end if;
+
+  select c.classe into v_classe from public.criteres_tournoi_classe(p_tournament_id) c;
+  update public.tournaments set classe = v_classe where id = p_tournament_id;
+  return v_classe;
+end;
+$$;
+revoke all on function public.figer_classement_tournoi(uuid) from public, anon, authenticated;
+grant execute on function public.figer_classement_tournoi(uuid) to service_role;
+
+-- Tournoi suisse : lancé seulement par demarrer_suisse (ses rondes), clos
+-- seulement une fois toutes les rondes jouées — pour tous les rôles,
+-- serveur compris, pour la clôture.
+create or replace function public.controler_statut_suisse()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.type_bracket is distinct from 'suisse' or new.statut is not distinct from old.statut then
+    return new;
+  end if;
+  if new.statut = 'en_cours' and current_user = 'authenticated' then
+    raise exception 'LANCEMENT_SUISSE_RESERVE';
+  end if;
+  if new.statut = 'termine' and not public.suisse_terminee(new.id) then
+    raise exception 'SUISSE_NON_TERMINEE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_statut_suisse() from public, anon, authenticated;
+drop trigger if exists tournaments_statut_suisse on public.tournaments;
+create trigger tournaments_statut_suisse
+  before update of statut on public.tournaments
+  for each row execute function public.controler_statut_suisse();
+
+-- Les matchs d'un tournoi suisse ne sont créés que par la base
+-- (ronde_suisse_suivante) : pas de bracket inséré à la main.
+create or replace function public.refuser_match_suisse_client()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user = 'authenticated'
+     and exists (select 1 from public.tournaments where id = new.tournament_id and type_bracket = 'suisse') then
+    raise exception 'BRACKET_SUISSE_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_match_suisse_client() from public, anon, authenticated;
+drop trigger if exists matches_suisse_client on public.matches;
+create trigger matches_suisse_client
+  before insert on public.matches
+  for each row execute function public.refuser_match_suisse_client();
+
+-- Cinq joueurs au plus, même quand une invitation est acceptée au même
+-- instant qu'une candidature : les deux chemins prennent le même verrou
+-- avant de compter (repondre_candidature le prend aussi).
+create or replace function public.controler_membre_equipe()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_capitaine uuid;
+  v_effectif int;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' and (new.team_id, new.profile_id) is distinct from (old.team_id, old.profile_id) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+
+  select capitaine_id into v_capitaine from public.teams where id = new.team_id;
+
+  if tg_op = 'UPDATE' and new.role is distinct from old.role and v_capitaine <> auth.uid() then
+    raise exception 'ROLE_FIXE_PAR_LE_CAPITAINE';
+  end if;
+
+  -- Une acceptation n'est faite que par le joueur concerné (le capitaine
+  -- s'ajoute lui-même, déjà accepté, à la création de l'équipe).
+  if new.accepte_le is not null and (tg_op = 'INSERT' or old.accepte_le is null) then
+    if new.profile_id <> auth.uid() then
+      raise exception 'ACCEPTATION_PAR_LE_JOUEUR';
+    end if;
+
+    perform pg_advisory_xact_lock(hashtextextended('effectif_equipe:' || new.team_id::text, 0));
+
+    -- 5 joueurs maximum : même limite que TAILLE_MAX_EQUIPE (src/lib/equipe.ts).
+    select count(*) into v_effectif
+    from public.team_members
+    where team_id = new.team_id and accepte_le is not null;
+
+    if v_effectif >= 5 then
+      raise exception 'EQUIPE_COMPLETE';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+revoke execute on function public.controler_membre_equipe() from public, anon, authenticated;
+
+-- ---------- Format double élimination (2026-11-20) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (création de tournoi, cockpit, page du tournoi).
+-- Un tournoi 1v1 d'organisateur peut se jouer en double élimination : un
+-- joueur battu descend dans le tableau des perdants et n'est éliminé qu'à
+-- sa deuxième défaite — plus de matchs par joueur, donc un classement plus
+-- précis (CLAUDE.md §10). Taille N = puissance de deux ≥ inscrits
+-- confirmés (4 au moins), têtes de série par rating à l'inscription (ordre
+-- standard, comme l'élimination directe). Tableau des gagnants : k = log2 N
+-- tours ; tableau des perdants : 2(k-1) tours ; grande finale en un seul
+-- match entre le vainqueur de chaque tableau (pas de seconde finale). Tous
+-- les matchs sont créés par la base au lancement (demarrer_double_elim) ;
+-- le perdant d'un match du tableau des gagnants descend dans celui des
+-- perdants (matches.match_perdant_suivant_id) ; une place restée vide
+-- (moins d'inscrits que de places) donne une exemption (verdict manuel,
+-- jamais classé), un match sans aucun joueur est clos vide. Seule la
+-- grande finale n'a pas de match suivant : « match sans suivant = finale »
+-- reste vrai pour la clôture et l'annonce du vainqueur.
+alter table public.matches add column if not exists tableau text;
+alter table public.matches add column if not exists match_perdant_suivant_id uuid references public.matches(id);
+alter table public.matches drop constraint if exists matches_tableau_check;
+alter table public.matches add constraint matches_tableau_check
+  check (tableau is null or tableau in ('gagnants', 'perdants', 'finale'));
+create index if not exists matches_perdant_suivant_idx on public.matches (match_perdant_suivant_id);
+alter table public.tournaments drop constraint if exists tournaments_type_bracket_check;
+alter table public.tournaments add constraint tournaments_type_bracket_check
+  check (type_bracket in ('elim_simple', 'suisse', 'double_elim'));
+
+-- Double élimination : 1v1, tournoi d'organisateur, 4 places au moins.
+create or replace function public.controler_format_double_elim()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.type_bracket = 'double_elim' then
+    if new.format <> '1v1' or new.nature <> 'tournoi' or new.creneau_auto is not null then
+      raise exception 'DOUBLE_1V1_SEULEMENT';
+    end if;
+    if new.capacite < 4 then
+      raise exception 'DOUBLE_4_PLACES_MINIMUM';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_format_double_elim() from public, anon, authenticated;
+drop trigger if exists controle_format_double_elim on public.tournaments;
+create trigger controle_format_double_elim
+  before insert or update of type_bracket, format, nature, creneau_auto, capacite on public.tournaments
+  for each row execute function public.controler_format_double_elim();
+
+-- Tableau et route du perdant : écrits par la base seule.
+create or replace function public.proteger_routes_double_elim()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user = 'authenticated'
+     and ((tg_op = 'INSERT' and (new.tableau is not null or new.match_perdant_suivant_id is not null))
+          or (tg_op = 'UPDATE' and (new.tableau, new.match_perdant_suivant_id)
+                                   is distinct from (old.tableau, old.match_perdant_suivant_id))) then
+    raise exception 'CHAMP_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.proteger_routes_double_elim() from public, anon, authenticated;
+drop trigger if exists matches_routes_double_elim on public.matches;
+create trigger matches_routes_double_elim
+  before insert or update on public.matches
+  for each row execute function public.proteger_routes_double_elim();
+
+-- Pas de match écrit à la main, pas de lancement sans la base (comme le
+-- format suisse).
+create or replace function public.refuser_match_suisse_client()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_type text;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+  select type_bracket into v_type from public.tournaments where id = new.tournament_id;
+  if v_type = 'suisse' then
+    raise exception 'BRACKET_SUISSE_RESERVE';
+  elsif v_type = 'double_elim' then
+    raise exception 'BRACKET_DOUBLE_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_match_suisse_client() from public, anon, authenticated;
+
+create or replace function public.controler_statut_double_elim()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.type_bracket = 'double_elim' and new.statut is distinct from old.statut
+     and new.statut = 'en_cours' and current_user = 'authenticated' then
+    raise exception 'LANCEMENT_DOUBLE_RESERVE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_statut_double_elim() from public, anon, authenticated;
+drop trigger if exists tournaments_statut_double_elim on public.tournaments;
+create trigger tournaments_statut_double_elim
+  before update of statut on public.tournaments
+  for each row execute function public.controler_statut_double_elim();
+
+-- Pronostics (demi-finales et finale d'un arbre simple) et dotations (rangs
+-- lus dans le bracket) : ni en suisse, ni en double élimination.
+create or replace function public.refuser_pronostic_suisse()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from public.matches m join public.tournaments t on t.id = m.tournament_id
+    where m.id = new.match_id and t.type_bracket in ('suisse', 'double_elim')
+  ) then
+    raise exception 'PRONOSTIC_HORS_PHASE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_pronostic_suisse() from public, anon, authenticated;
+
+create or replace function public.refuser_dotation_suisse()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_type text;
+begin
+  select type_bracket into v_type from public.tournaments where id = new.tournament_id;
+  if v_type = 'suisse' then
+    raise exception 'DOTATION_SUISSE_INDISPONIBLE';
+  elsif v_type = 'double_elim' then
+    raise exception 'DOTATION_DOUBLE_INDISPONIBLE';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_dotation_suisse() from public, anon, authenticated;
+
+-- Place un joueur dans un match (première place libre) ; le match s'ouvre
+-- quand ses deux joueurs sont connus. Idempotent.
+create or replace function public.placer_dans_match(p_match uuid, p_joueur uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_slot smallint;
+begin
+  perform 1 from public.matches where id = p_match for update;
+  if exists (select 1 from public.match_participants where match_id = p_match and profile_id = p_joueur) then
+    return;
+  end if;
+  if (select count(*) from public.match_participants where match_id = p_match) >= 2 then
+    raise exception 'MATCH_COMPLET';
+  end if;
+  select case
+    when exists (select 1 from public.match_participants where match_id = p_match and slot = 1) then 2 else 1
+  end into v_slot;
+  insert into public.match_participants (match_id, profile_id, slot)
+  values (p_match, p_joueur, v_slot)
+  on conflict (match_id, profile_id) do nothing;
+  if (select count(*) from public.match_participants where match_id = p_match) = 2 then
+    update public.matches set statut = 'en_cours', demarre_le = now() where id = p_match;
+  end if;
+end;
+$$;
+revoke all on function public.placer_dans_match(uuid, uuid) from public, anon, authenticated;
+
+-- Avancement après un verdict, sans la résolution des exemptions de la
+-- double élimination (utilisé par cette résolution elle-même).
+create or replace function public.avancer_vainqueur_simple(p_match_id uuid, p_gagnant_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi uuid;
+  v_type text;
+  v_suivant uuid;
+  v_perdant_suivant uuid;
+  v_perdant uuid;
+begin
+  update public.match_participants
+  set est_gagnant = (profile_id = p_gagnant_id)
+  where match_id = p_match_id;
+
+  update public.matches set statut = 'termine' where id = p_match_id;
+
+  select m.tournament_id, t.type_bracket, m.match_suivant_id, m.match_perdant_suivant_id
+  into v_tournoi, v_type, v_suivant, v_perdant_suivant
+  from public.matches m join public.tournaments t on t.id = m.tournament_id
+  where m.id = p_match_id;
+
+  if v_suivant is null then
+    -- Format suisse (19/11/2026) : pas de match suivant ; la ronde
+    -- suivante se crée quand la ronde en cours est entièrement jouée.
+    if v_type = 'suisse' then
+      perform public.ronde_suisse_suivante(v_tournoi);
+    end if;
+    return;
+  end if;
+
+  if not exists (select 1 from public.matches where id = v_suivant and tournament_id = v_tournoi) then
+    raise exception 'MATCH_SUIVANT_INVALIDE';
+  end if;
+  perform public.placer_dans_match(v_suivant, p_gagnant_id);
+
+  -- Double élimination : le perdant descend dans le tableau des perdants.
+  if v_perdant_suivant is not null then
+    select profile_id into v_perdant
+    from public.match_participants
+    where match_id = p_match_id and profile_id <> p_gagnant_id
+    limit 1;
+    if v_perdant is not null then
+      if not exists (select 1 from public.matches where id = v_perdant_suivant and tournament_id = v_tournoi) then
+        raise exception 'MATCH_SUIVANT_INVALIDE';
+      end if;
+      perform public.placer_dans_match(v_perdant_suivant, v_perdant);
+    end if;
+  end if;
+end;
+$$;
+revoke all on function public.avancer_vainqueur_simple(uuid, uuid) from public, anon, authenticated;
+
+-- Double élimination : un match dont tous les matchs d'origine sont joués
+-- et qui n'a reçu qu'un joueur est une exemption (verdict manuel, jamais
+-- classé) ; sans aucun joueur, il est clos vide. Répété jusqu'à ce que
+-- plus rien ne change (une exemption peut en libérer une autre).
+create or replace function public.resoudre_double_elim(p_tournament uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_m record;
+  v_change boolean := true;
+  v_n integer;
+  v_joueur uuid;
+  v_organisateur uuid;
+begin
+  select organisateur_id into v_organisateur from public.tournaments where id = p_tournament;
+  while v_change loop
+    v_change := false;
+    for v_m in
+      select m.id
+      from public.matches m
+      where m.tournament_id = p_tournament and m.tableau is not null
+        and m.statut not in ('termine', 'forfait')
+        and not exists (
+          select 1 from public.matches f
+          where f.tournament_id = p_tournament
+            and (f.match_suivant_id = m.id or f.match_perdant_suivant_id = m.id)
+            and f.statut not in ('termine', 'forfait')
+        )
+      order by m.tour, m.position
+    loop
+      select count(*) into v_n from public.match_participants where match_id = v_m.id;
+      if v_n = 1 then
+        select profile_id into v_joueur from public.match_participants where match_id = v_m.id;
+        insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+        values (v_m.id, 'manuel', v_joueur, v_organisateur,
+                'Exemption : pas d''adversaire à cette place (double élimination), hors classement.', true);
+        perform public.avancer_vainqueur_simple(v_m.id, v_joueur);
+        v_change := true;
+      elsif v_n = 0 then
+        update public.matches set statut = 'termine' where id = v_m.id;
+        v_change := true;
+      end if;
+    end loop;
+  end loop;
+end;
+$$;
+revoke all on function public.resoudre_double_elim(uuid) from public, anon, authenticated;
+
+create or replace function public.avancer_vainqueur(p_match_id uuid, p_gagnant_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_tournoi uuid;
+begin
+  perform public.avancer_vainqueur_simple(p_match_id, p_gagnant_id);
+  select m.tournament_id into v_tournoi
+  from public.matches m join public.tournaments t on t.id = m.tournament_id
+  where m.id = p_match_id and t.type_bracket = 'double_elim';
+  if v_tournoi is not null then
+    perform public.resoudre_double_elim(v_tournoi);
+  end if;
+end;
+$$;
+revoke execute on function public.avancer_vainqueur from public, anon, authenticated;
+
+-- Lancement par l'organisateur (bouton du cockpit).
+create or replace function public.demarrer_double_elim(p_tournament uuid)
+returns smallint -- nombre de tours du tableau des gagnants
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_t record;
+  v_joueurs uuid[];
+  v_n integer;
+  v_k integer;
+  v_taille integer;
+  v_l integer;
+  v_ordre integer[] := array[1];
+  v_nouvel integer[];
+  v_s integer;
+  v_ids jsonb := '{}'::jsonb;
+  v_id uuid;
+  v_finale uuid;
+  v_suivant uuid;
+  v_nb integer;
+  r integer;
+  p integer;
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select id, organisateur_id, type_bracket, statut into v_t
+  from public.tournaments where id = p_tournament for update;
+  if not found or v_t.organisateur_id <> auth.uid() then
+    raise exception 'TOURNOI_INTROUVABLE';
+  end if;
+  if v_t.type_bracket <> 'double_elim' then
+    raise exception 'PAS_UNE_DOUBLE_ELIMINATION';
+  end if;
+  if v_t.statut not in ('ouvert', 'checkin')
+     or exists (select 1 from public.matches where tournament_id = p_tournament) then
+    raise exception 'TOURNOI_DEJA_LANCE';
+  end if;
+  select array_agg(r2.profile_id order by r2.rating_a_inscription desc nulls last, md5(r2.profile_id::text || p_tournament::text))
+  into v_joueurs
+  from public.registrations r2
+  where r2.tournament_id = p_tournament and r2.statut = 'confirme';
+  v_n := coalesce(array_length(v_joueurs, 1), 0);
+  if v_n < 4 then
+    raise exception 'PAS_ASSEZ_DE_JOUEURS';
+  end if;
+  v_k := ceil(log(2, v_n::numeric))::integer;
+  v_taille := (2 ^ v_k)::integer;
+  v_l := 2 * (v_k - 1);
+
+  -- Ordre standard des têtes de série (le même que lib/bracket.ts) : les
+  -- deux meilleurs ne se croisent qu'en finale, les exemptions vont aux
+  -- mieux classés.
+  while array_length(v_ordre, 1) < v_taille loop
+    v_nouvel := '{}';
+    foreach v_s in array v_ordre loop
+      v_nouvel := v_nouvel || v_s || (2 * array_length(v_ordre, 1) + 1 - v_s);
+    end loop;
+    v_ordre := v_nouvel;
+  end loop;
+
+  -- Grande finale, puis les tableaux du dernier tour au premier (un match
+  -- suivant doit exister avant ses matchs d'origine). Numéros de tour :
+  -- gagnants 1..k, perdants k+1..k+2(k-1), grande finale 3k-1.
+  insert into public.matches (tournament_id, tour, position, tableau)
+  values (p_tournament, 3 * v_k - 1, 1, 'finale')
+  returning id into v_finale;
+
+  for r in reverse v_k..1 loop
+    v_nb := v_taille / (2 ^ r)::integer;
+    for p in 1..v_nb loop
+      v_suivant := case when r = v_k then v_finale
+                        else (v_ids ->> ('g' || (r + 1) || '-' || ((p + 1) / 2)))::uuid end;
+      insert into public.matches (tournament_id, tour, position, tableau, match_suivant_id)
+      values (p_tournament, r, p, 'gagnants', v_suivant)
+      returning id into v_id;
+      v_ids := v_ids || jsonb_build_object('g' || r || '-' || p, v_id);
+    end loop;
+  end loop;
+
+  -- Tableau des perdants : le tour r compte N / 2^(⌈r/2⌉+1) matchs ; un
+  -- tour impair envoie ses vainqueurs au même rang du tour suivant (où
+  -- arrivent les perdants du tableau des gagnants), un tour pair les
+  -- regroupe deux à deux.
+  for r in reverse v_l..1 loop
+    v_nb := v_taille / (2 ^ ((r + 1) / 2 + 1))::integer;
+    for p in 1..v_nb loop
+      v_suivant := case
+        when r = v_l then v_finale
+        when r % 2 = 1 then (v_ids ->> ('p' || (r + 1) || '-' || p))::uuid
+        else (v_ids ->> ('p' || (r + 1) || '-' || ((p + 1) / 2)))::uuid
+      end;
+      insert into public.matches (tournament_id, tour, position, tableau, match_suivant_id)
+      values (p_tournament, v_k + r, p, 'perdants', v_suivant)
+      returning id into v_id;
+      v_ids := v_ids || jsonb_build_object('p' || r || '-' || p, v_id);
+    end loop;
+  end loop;
+
+  -- Où descend le perdant de chaque match du tableau des gagnants : tour 1
+  -- vers le tour 1 des perdants (deux par deux) ; tour r vers le tour
+  -- 2(r-1) des perdants, dans l'ordre inverse (moins de revanches
+  -- immédiates).
+  for r in 1..v_k loop
+    v_nb := v_taille / (2 ^ r)::integer;
+    for p in 1..v_nb loop
+      v_suivant := case when r = 1 then (v_ids ->> ('p1-' || ((p + 1) / 2)))::uuid
+                        else (v_ids ->> ('p' || (2 * (r - 1)) || '-' || (v_nb + 1 - p)))::uuid end;
+      update public.matches set match_perdant_suivant_id = v_suivant
+      where id = (v_ids ->> ('g' || r || '-' || p))::uuid;
+    end loop;
+  end loop;
+
+  -- Joueurs du premier tour, dans l'ordre des têtes de série.
+  for v_s in 1..v_taille loop
+    if v_ordre[v_s] <= v_n then
+      insert into public.match_participants (match_id, profile_id, slot)
+      values ((v_ids ->> ('g1-' || ((v_s + 1) / 2)))::uuid, v_joueurs[v_ordre[v_s]],
+              case when v_s % 2 = 1 then 1 else 2 end);
+    end if;
+  end loop;
+  update public.matches m set statut = 'en_cours', demarre_le = now()
+  where m.tournament_id = p_tournament and m.tableau = 'gagnants' and m.tour = 1
+    and (select count(*) from public.match_participants x where x.match_id = m.id) = 2;
+
+  update public.tournaments set statut = 'en_cours' where id = p_tournament;
+  perform public.resoudre_double_elim(p_tournament);
+  return v_k::smallint;
+end;
+$$;
+revoke execute on function public.demarrer_double_elim(uuid) from public, anon;
+grant execute on function public.demarrer_double_elim(uuid) to authenticated;
+
+-- Verdict manuel (contrôle de sécurité du 20/11/2026) : jamais sur un match
+-- déjà décidé, et jamais sur un match à un seul joueur tant qu'un adversaire
+-- peut encore y arriver (un match en amont, par la route du vainqueur ou
+-- celle du perdant, pas terminé et qui a ou recevra des joueurs). Sinon un
+-- organisateur tranchait un match du tableau des perdants avant l'arrivée
+-- du second joueur, éliminé sans jouer. Les exemptions du lancement (match
+-- du premier tour seul, en cascade derrière des places vides) passent
+-- toujours : rien en amont ne peut plus amener personne.
+create or replace function public.enregistrer_verdict_manuel(
+  p_match_id uuid,
+  p_gagnant_id uuid,
+  p_motif text
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_organisateur_id uuid;
+  v_statut text;
+  v_joueurs integer;
+begin
+  select t.organisateur_id, m.statut
+  into v_organisateur_id, v_statut
+  from public.matches m
+  join public.tournaments t on t.id = m.tournament_id
+  where m.id = p_match_id
+  for update of m;
+
+  if v_organisateur_id is null then
+    raise exception 'MATCH_INTROUVABLE';
+  end if;
+
+  -- Sans utilisateur, « <> » ne vaut ni vrai ni faux : refus explicite.
+  if auth.uid() is null or v_organisateur_id is distinct from auth.uid() then
+    raise exception 'NON_AUTORISE';
+  end if;
+
+  if not exists (
+    select 1 from public.match_participants
+    where match_id = p_match_id and profile_id = p_gagnant_id
+  ) then
+    raise exception 'GAGNANT_INVALIDE';
+  end if;
+
+  if v_statut in ('termine', 'forfait')
+     or exists (select 1 from public.match_verdicts where match_id = p_match_id and est_definitif) then
+    raise exception 'MATCH_DEJA_DECIDE';
+  end if;
+
+  select count(*) into v_joueurs from public.match_participants where match_id = p_match_id;
+  if v_joueurs = 1 and exists (
+    with recursive amont as (
+      select p.id, p.statut from public.matches p
+      where (p.match_suivant_id = p_match_id or p.match_perdant_suivant_id = p_match_id)
+        and p.statut not in ('termine', 'forfait')
+      union
+      select p.id, p.statut from public.matches p
+      join amont a on p.match_suivant_id = a.id or p.match_perdant_suivant_id = a.id
+      where p.statut not in ('termine', 'forfait')
+    )
+    select 1 from amont a where exists (select 1 from public.match_participants x where x.match_id = a.id)
+  ) then
+    raise exception 'ADVERSAIRE_ATTENDU';
+  end if;
+
+  insert into public.match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+  values (p_match_id, 'manuel', p_gagnant_id, auth.uid(), p_motif, true);
+
+  perform public.avancer_vainqueur(p_match_id, p_gagnant_id);
+end;
+$$;
+revoke execute on function public.enregistrer_verdict_manuel(uuid, uuid, text) from public, anon;
+grant execute on function public.enregistrer_verdict_manuel(uuid, uuid, text) to authenticated;
+
+-- ---------- Alertes « tournoi pour toi » (2026-11-20) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (réglage dans /moi, tâche des tournois automatiques).
+-- Un joueur au compte Riot vérifié peut demander à être prévenu (push et
+-- message privé Discord, jamais d'e-mail) quand un tournoi s'ouvre pour
+-- lui : sur le serveur de son compte Riot, dans un format choisi (1v1,
+-- 5v5), à un créneau choisi (semaine / week-end × journée, soir, nuit,
+-- heure de Paris, comme le duo), à son niveau (mêmes règles que
+-- l'inscription), avec encore de la place. Jamais deux fois pour le même
+-- tournoi, 3 alertes au plus par 24 h. Les tournois sont annoncés de 1 h à
+-- 7 jours avant leur début.
+create table if not exists public.alertes_tournoi (
+  profile_id uuid primary key references public.profiles(id) on delete cascade,
+  creneaux   text[] not null,
+  formats    text[] not null default array['1v1']::text[],
+  maj_le     timestamptz not null default now(),
+  constraint alertes_tournoi_creneaux_check check (
+    cardinality(creneaux) between 1 and 6
+    and creneaux <@ array['semaine_journee', 'semaine_soir', 'semaine_nuit',
+                          'weekend_journee', 'weekend_soir', 'weekend_nuit']::text[]),
+  constraint alertes_tournoi_formats_check check (
+    cardinality(formats) between 1 and 2 and formats <@ array['1v1', '5v5']::text[])
+);
+alter table public.alertes_tournoi enable row level security;
+drop policy if exists "joueur lit ses alertes" on public.alertes_tournoi;
+create policy "joueur lit ses alertes" on public.alertes_tournoi
+  for select to authenticated using (profile_id = auth.uid());
+revoke all on public.alertes_tournoi from anon;
+revoke insert, update, delete on public.alertes_tournoi from authenticated;
+
+-- Alertes déjà envoyées : jamais deux fois le même tournoi, plafond par
+-- 24 h. Écrites par la base seule, lues par personne, effacées après 30 jours.
+create table if not exists public.alertes_envoyees (
+  profile_id    uuid not null references public.profiles(id) on delete cascade,
+  tournament_id uuid not null references public.tournaments(id) on delete cascade,
+  envoye_le     timestamptz not null default now(),
+  primary key (profile_id, tournament_id)
+);
+alter table public.alertes_envoyees enable row level security;
+revoke all on public.alertes_envoyees from anon, authenticated;
+create index if not exists alertes_envoyees_recentes_idx on public.alertes_envoyees (profile_id, envoye_le desc);
+
+-- Créneau d'un instant, heure de Paris : week-end = samedi et dimanche ;
+-- journée avant 18 h, soir de 18 h à 23 h, nuit après 23 h (et avant 6 h).
+create or replace function public.creneau_de(p_instant timestamptz)
+returns text
+language sql
+stable
+set search_path = public
+as $$
+  select (case when extract(isodow from p_instant at time zone 'Europe/Paris') >= 6 then 'weekend' else 'semaine' end)
+         || '_' ||
+         (case when extract(hour from p_instant at time zone 'Europe/Paris') >= 23
+                 or extract(hour from p_instant at time zone 'Europe/Paris') < 6 then 'nuit'
+               when extract(hour from p_instant at time zone 'Europe/Paris') >= 18 then 'soir'
+               else 'journee' end);
+$$;
+
+create or replace function public.regler_alertes_tournoi(p_creneaux text[], p_formats text[])
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi uuid := auth.uid();
+  v_creneaux text[];
+  v_formats text[];
+begin
+  if v_moi is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_moi and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if public.region_compte_verifie(v_moi) is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_creneaux from unnest(coalesce(p_creneaux, '{}')) as x;
+  select coalesce(array_agg(distinct x order by x), '{}') into v_formats from unnest(coalesce(p_formats, '{}')) as x;
+  if cardinality(v_creneaux) not between 1 and 6
+     or not v_creneaux <@ array['semaine_journee', 'semaine_soir', 'semaine_nuit',
+                                'weekend_journee', 'weekend_soir', 'weekend_nuit']::text[] then
+    raise exception 'CRENEAUX_INVALIDES';
+  end if;
+  if cardinality(v_formats) not between 1 and 2 or not v_formats <@ array['1v1', '5v5']::text[] then
+    raise exception 'FORMATS_INVALIDES';
+  end if;
+  insert into public.alertes_tournoi (profile_id, creneaux, formats, maj_le)
+  values (v_moi, v_creneaux, v_formats, now())
+  on conflict (profile_id) do update set creneaux = excluded.creneaux, formats = excluded.formats, maj_le = now();
+end;
+$$;
+revoke execute on function public.regler_alertes_tournoi(text[], text[]) from public, anon;
+grant execute on function public.regler_alertes_tournoi(text[], text[]) to authenticated;
+
+create or replace function public.couper_alertes_tournoi()
+returns boolean
+language sql
+security definer set search_path = public
+as $$
+  with supprime as (delete from public.alertes_tournoi where profile_id = auth.uid() returning 1)
+  select exists (select 1 from supprime);
+$$;
+revoke execute on function public.couper_alertes_tournoi() from public, anon;
+grant execute on function public.couper_alertes_tournoi() to authenticated;
+
+-- Tâche des tournois automatiques : réserve les alertes à envoyer (au plus
+-- p_limite) et les renvoie avec ce qu'il faut pour le message. Contrôle de
+-- sécurité du 20/11/2026 :
+-- - un passage à la fois (verrou) : le second attend le premier et voit ses
+--   envois, donc le plafond de 3 par 24 h tient même si deux passages se
+--   croisent ; un même tournoi n'est de toute façon jamais envoyé deux fois
+--   (clé primaire, « on conflict do nothing ») ;
+-- - coût borné : 500 joueurs au plus par passage, les moins récemment
+--   examinés d'abord (alertes_tournoi.examine_le), joueurs au plafond
+--   écartés d'emblée, créneau calculé une fois par tournoi ;
+-- - un organisateur (hors tournois automatiques) n'envoie qu'une alerte par
+--   joueur et par 24 h, et jamais s'il est suspendu.
+alter table public.alertes_tournoi add column if not exists examine_le timestamptz;
+create index if not exists alertes_tournoi_examine_idx on public.alertes_tournoi (examine_le nulls first, profile_id);
+
+drop function if exists public.reserver_alertes_tournoi(integer);
+create or replace function public.reserver_alertes_tournoi(p_limite integer default 200)
+returns table (profile_id uuid, tournament_id uuid, nom text, slug text, debute_le timestamptz, format text, region text)
+language plpgsql
+security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  v_limite integer := greatest(0, least(coalesce(p_limite, 200), 500));
+begin
+  perform pg_advisory_xact_lock(hashtextextended('reserver_alertes_tournoi', 0));
+
+  -- Rien n'est gardé plus de 30 jours (un tournoi est annoncé 7 jours avant
+  -- au plus).
+  delete from public.alertes_envoyees e where e.envoye_le < now() - interval '30 days';
+
+  return query
+  with joueurs as materialized (
+    select a.profile_id, a.creneaux, a.formats, g.region, x.deja, a.examine_le as file_le
+    from public.alertes_tournoi a
+    join public.profiles p on p.id = a.profile_id and p.supprime_le is null
+    join public.game_accounts g on g.profile_id = a.profile_id and g.game_id = 1
+                                and g.est_principal and g.verifie_le is not null
+    cross join lateral (
+      select count(*)::integer as deja from public.alertes_envoyees e
+      where e.profile_id = a.profile_id and e.envoye_le > now() - interval '24 hours'
+    ) x
+    where x.deja < 3
+      and not exists (select 1 from public.suspensions s where s.profile_id = a.profile_id and s.levee_le is null)
+    order by a.examine_le nulls first, a.profile_id
+    limit 500
+  ),
+  tournois as materialized (
+    select t.id, t.nom, t.slug, t.debute_le, t.format, t.region, t.organisateur_id,
+           t.creneau_auto is not null as automatique, t.rating_min, t.rating_max,
+           t.reserve_membres, t.reserve_non_classes, public.creneau_de(t.debute_le) as creneau
+    from public.tournaments t
+    where t.game_id = 1 and t.statut = 'ouvert' and t.nature = 'tournoi'
+      and t.debute_le between now() + interval '1 hour' and now() + interval '7 days'
+      and not exists (select 1 from public.suspensions s where s.profile_id = t.organisateur_id and s.levee_le is null)
+      and (select count(*) from public.registrations r
+           where r.tournament_id = t.id and r.statut <> 'retire') < t.capacite
+  ),
+  candidats as (
+    select j.profile_id, j.deja, j.file_le, t.*,
+           row_number() over (
+             partition by j.profile_id, case when t.automatique then null else t.organisateur_id end
+             order by t.debute_le, t.id) as rang_orga
+    from joueurs j
+    join tournois t on t.region = j.region and t.format = any (j.formats) and t.creneau = any (j.creneaux)
+    where t.organisateur_id <> j.profile_id
+      and not exists (select 1 from public.blocages b
+                      where (b.bloqueur_id = j.profile_id and b.bloque_id = t.organisateur_id)
+                         or (b.bloqueur_id = t.organisateur_id and b.bloque_id = j.profile_id))
+      and not exists (select 1 from public.alertes_envoyees e where e.profile_id = j.profile_id and e.tournament_id = t.id)
+      and not exists (select 1 from public.registrations r
+                      where r.tournament_id = t.id and r.profile_id = j.profile_id and r.statut <> 'retire')
+      and not exists (select 1 from public.alignements al where al.tournament_id = t.id and al.profile_id = j.profile_id)
+      and not exists (select 1 from public.agents_libres ag where ag.tournament_id = t.id and ag.profile_id = j.profile_id)
+      and not exists (select 1 from public.remplacants_disponibles rd where rd.tournament_id = t.id and rd.profile_id = j.profile_id)
+      and (t.automatique or not exists (
+             select 1 from public.alertes_envoyees e
+             join public.tournaments t2 on t2.id = e.tournament_id
+             where e.profile_id = j.profile_id and e.envoye_le > now() - interval '24 hours'
+               and t2.organisateur_id = t.organisateur_id and t2.creneau_auto is null))
+      and (t.rating_min is null or public.rating_niveau(j.profile_id) >= t.rating_min)
+      and (t.rating_max is null or public.rating_niveau_meilleur(j.profile_id) < t.rating_max)
+      and (not t.reserve_membres or public.eligible_tournoi_reserve(t.id, j.profile_id))
+      and (not t.reserve_non_classes or public.est_non_classe(j.profile_id))
+  ),
+  classes as (
+    select c.*, row_number() over (partition by c.profile_id order by c.debute_le, c.id) as rang
+    from candidats c
+    where c.automatique or c.rang_orga = 1
+  ),
+  -- Servis dans l'ordre de la file (les moins récemment examinés d'abord),
+  -- pas par date de tournoi : sinon un joueur en tête de file dont les
+  -- tournois sont lointains attendait toute une rotation.
+  choisis as (
+    select * from classes c where c.rang <= 3 - c.deja
+    order by c.file_le nulls first, c.profile_id, c.rang
+    limit v_limite
+  ),
+  inseres as (
+    insert into public.alertes_envoyees (profile_id, tournament_id)
+    select c.profile_id, c.id from choisis c
+    on conflict do nothing
+    returning alertes_envoyees.profile_id, alertes_envoyees.tournament_id
+  ),
+  -- Examinés : servis en entier, ou sans tournoi pour eux. Un joueur dont
+  -- une alerte a été coupée par la limite du lot garde sa place en tête de
+  -- file pour le passage suivant.
+  examines as (
+    update public.alertes_tournoi a set examine_le = now()
+    from joueurs j
+    where a.profile_id = j.profile_id
+      and not exists (
+        select 1 from classes c
+        where c.profile_id = j.profile_id and c.rang <= 3 - c.deja
+          and not exists (select 1 from choisis ch where ch.profile_id = c.profile_id and ch.id = c.id))
+  )
+  select c.profile_id, c.id, c.nom::text, c.slug::text, c.debute_le, c.format::text, c.region::text
+  from choisis c
+  join inseres i on i.profile_id = c.profile_id and i.tournament_id = c.id;
+end;
+$$;
+revoke execute on function public.reserver_alertes_tournoi(integer) from public, anon, authenticated;
+grant execute on function public.reserver_alertes_tournoi(integer) to service_role;
+
+-- Compte supprimé : ses alertes disparaissent.
+create or replace function public.effacer_alertes_compte_supprime()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  delete from public.alertes_tournoi where profile_id = new.id;
+  delete from public.alertes_envoyees where profile_id = new.id;
+  return null;
+end;
+$$;
+revoke execute on function public.effacer_alertes_compte_supprime() from public, anon, authenticated;
+drop trigger if exists alertes_compte_supprime on public.profiles;
+create trigger alertes_compte_supprime
+  after update of supprime_le on public.profiles
+  for each row
+  when (old.supprime_le is null and new.supprime_le is not null)
+  execute function public.effacer_alertes_compte_supprime();
+revoke execute on function public.creneau_de(timestamptz) from public, anon, authenticated;

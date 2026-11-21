@@ -82,6 +82,7 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
           {t.statut === "termine" && t.classe === true && <Etiquette>Classé</Etiquette>}
           {t.reserve_membres && <Etiquette>Réservé aux membres</Etiquette>}
           {t.reserve_non_classes && <Etiquette>Réservé aux nouveaux</Etiquette>}
+          {t.niveau && <Etiquette>Niveau {t.niveau}</Etiquette>}
         </span>
       </div>
 

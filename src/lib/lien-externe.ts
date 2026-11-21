@@ -1,6 +1,6 @@
 import { cheminSansMessages } from "@/lib/messages-adresse";
 
-// Lien externe du CV (offre Vérifié et plus). Contrôles de sécurité du
+// Lien externe du CV (offre Plus et au-dessus). Contrôles de sécurité du
 // 12/10/2026 : le lien n'était pas vérifié du tout. Il est désormais refusé
 // par la base s'il n'est pas une adresse web complète ou si la modération
 // le refuse (verdict_lien_externe, docs/schema.sql), et filtré ici à

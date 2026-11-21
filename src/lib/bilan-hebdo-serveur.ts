@@ -14,7 +14,7 @@ import { envoyerMessagePriveDiscord, URL_SITE } from "@/lib/notifications";
 
 // Envoi du bilan de la semaine (bilan du joueur, étape 2, 05/10/2026) : le
 // lundi à partir de 10 h (heure de Paris), en message privé Discord, aux
-// joueurs qui l'ont demandé, ont l'offre Elite et Discord lié — une seule
+// joueurs qui l'ont demandé, ont l'offre Pro et Discord lié — une seule
 // fois par joueur et par semaine (ligne de bilans_hebdo, écrite avant
 // l'envoi), jamais pour une semaine sans partie. Appelé par la tâche
 // /api/cron/analyse-classees, dans le temps qui reste après la lecture des

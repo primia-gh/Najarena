@@ -46,7 +46,13 @@ export async function demarrerConversation(formData: FormData) {
       .single();
 
     if (error || !nouvelle) {
-      redirect(`${retour}?erreur=${encodeURIComponent("Impossible de démarrer la conversation — offre Organisateur requise.")}`);
+      redirect(
+        `${retour}?erreur=${encodeURIComponent(
+          error?.message.includes("JOUEUR_INDISPONIBLE")
+            ? "Ce joueur n'est pas joignable par message."
+            : "Impossible de démarrer la conversation — offre Organisateur requise.",
+        )}`,
+      );
     }
     conversationId = nouvelle.id;
   }
@@ -110,8 +116,13 @@ export async function envoyerMessage(formData: FormData) {
     .single();
 
   if (error) {
+    // Refus de la règle d'envoi : l'un des deux a bloqué l'autre (18/11/2026).
+    const bloque = error.message.includes("row-level security");
     redirect(
-      `/moi/messages/${conversationId}?erreur=${encodeURIComponent(messageModeration(error.message) ?? "Message non envoyé.")}`,
+      `/moi/messages/${conversationId}?erreur=${encodeURIComponent(
+        messageModeration(error.message) ??
+          (bloque ? "Message non envoyé : cette conversation est fermée." : "Message non envoyé."),
+      )}`,
     );
   }
 
@@ -138,4 +149,37 @@ export async function envoyerMessage(formData: FormData) {
   }
 
   redirect(`/moi/messages/${conversationId}`);
+}
+
+// Blocage d'un joueur (18/11/2026) : coupe les messages dans les deux sens
+// (règle d'envoi des messages, en base), ses demandes de duo et son
+// annonce de duo. Il ne reçoit aucune notification, mais voit que ses
+// messages ne passent plus.
+export async function bloquerJoueur(formData: FormData) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+  const joueurId = String(formData.get("joueur_id") ?? "");
+  const retour = destinationInterne(String(formData.get("retour") ?? "") || null, "/moi/messages");
+  const { error } = await supabase.rpc("bloquer_joueur", { p_joueur: joueurId });
+  if (error) {
+    redirect(`${retour}?erreur=${encodeURIComponent("Impossible de bloquer ce joueur pour l'instant.")}#retour`);
+  }
+  redirect(
+    `${retour}?message=${encodeURIComponent("Joueur bloqué : plus aucun message ne passe entre vous, ni défi, ni demande de duo. Il ne reçoit aucune notification.")}#retour`,
+  );
+}
+
+export async function debloquerJoueur(formData: FormData) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+  const joueurId = String(formData.get("joueur_id") ?? "");
+  const retour = destinationInterne(String(formData.get("retour") ?? "") || null, "/moi/messages");
+  await supabase.rpc("debloquer_joueur", { p_joueur: joueurId });
+  redirect(`${retour}?message=${encodeURIComponent("Joueur débloqué.")}#retour`);
 }

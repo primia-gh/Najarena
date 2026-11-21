@@ -71,6 +71,7 @@ const REFUS: Record<string, string> = {
   COMPTE_SUSPENDU: "Ton compte est suspendu.",
   COACH_NON_ELIGIBLE: "Ce coach n'a pas un rating officiel de 1750 ou plus (palier Diamant Najarena) : pas de suivi possible.",
   COACH_FERME: "Ce joueur n'accepte pas d'élèves pour l'instant.",
+  JOUEUR_INDISPONIBLE: "Ce joueur n'est pas disponible pour un suivi.",
   SUIVI_EN_COURS: "Tu as déjà un suivi en cours ou demandé : termine-le d'abord.",
   DEMANDE_RECENTE:
     "Demande impossible pour l'instant : 7 jours d'attente après une demande annulée ou refusée par ce coach, et 5 demandes par jour au plus.",

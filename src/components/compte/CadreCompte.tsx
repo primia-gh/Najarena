@@ -22,7 +22,7 @@ const PROMESSES: { icone: NomIcone; titre: string; texte: string }[] = [
   {
     icone: "coche",
     titre: "Rating officiel",
-    texte: "Un classement national Glicko-2, recalculé à la fin de chaque tournoi classé.",
+    texte: "Un seul classement Glicko-2 pour tous les joueurs, recalculé à la fin de chaque tournoi classé.",
   },
   {
     icone: "joueur",

@@ -21,6 +21,8 @@ export function libelleMatchsCommuns(ensemble: number, contre: number): string {
 }
 
 const REFUS: Record<string, string> = {
+  // Blocage entre les deux joueurs (19/11/2026).
+  JOUEUR_INDISPONIBLE: "Tu ne peux pas recommander ce joueur.",
   NON_CONNECTE: "Connecte-toi pour recommander un joueur.",
   RECOMMANDATION_SOI_MEME: "Tu ne peux pas te recommander toi-même.",
   COMPTE_SUSPENDU: "Ton compte est suspendu.",

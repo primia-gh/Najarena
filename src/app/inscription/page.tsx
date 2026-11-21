@@ -5,6 +5,8 @@ import { sInscrire, seConnecterAvecDiscord } from "@/lib/auth-actions";
 import { classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import Captcha from "@/components/compte/Captcha";
+import { cleSiteCaptcha } from "@/lib/captcha";
 import CadreCompte, { ChampCompte, SeparateurOu } from "@/components/compte/CadreCompte";
 import ConsentementCompte from "@/components/compte/ConsentementCompte";
 
@@ -21,6 +23,7 @@ interface InscriptionPageProps {
 
 export default async function InscriptionPage({ searchParams }: InscriptionPageProps) {
   const { erreur, suite: suiteDemandee } = await searchParams;
+  const cleCaptcha = cleSiteCaptcha();
   // Page où revenir ensuite (lien de défi d'un ami, audit N18) : chemin du site seulement.
   const suite = suiteDemandee ? destinationInterne(suiteDemandee, "") || null : null;
 
@@ -75,6 +78,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
           />
         </ChampCompte>
         <ConsentementCompte />
+        {cleCaptcha && <Captcha cleSite={cleCaptcha} />}
         <BoutonEnvoi libelleEnCours="Création…" className="mt-2 w-full">
           Créer mon compte
         </BoutonEnvoi>

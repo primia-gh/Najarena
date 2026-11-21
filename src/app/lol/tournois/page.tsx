@@ -21,6 +21,8 @@ import Panneau from "@/components/design/Panneau";
 import LigneTournoi from "@/components/tournoi/LigneTournoi";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/lol/tournois" },
   title: "Tournois LoL — Najarena",
   description:
     "Tous les tournois League of Legends en 1v1 et en 5v5 sur Najarena : à venir, en cours et terminés. Résultats lus dans la donnée officielle Riot.",

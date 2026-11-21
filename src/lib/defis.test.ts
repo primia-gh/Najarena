@@ -18,6 +18,7 @@ describe("défis", () => {
   it("traduit les refus de la base, et garde un message par défaut sinon", () => {
     expect(messageRefusDefi('new row ... "REGION_DIFFERENTE"', "?")).toMatch(/même région/);
     expect(messageRefusDefi("ADVERSAIRE_SANS_COMPTE_RIOT", "?")).toMatch(/compte Riot vérifié/);
+    expect(messageRefusDefi("MATCH_OUVERT_ENTRE_VOUS", "?")).toMatch(/jouez-le d'abord/);
     expect(messageRefusDefi("erreur réseau", "Réessaie.")).toBe("Réessaie.");
   });
 });

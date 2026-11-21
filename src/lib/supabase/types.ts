@@ -37,6 +37,35 @@ export type Database = {
           },
         ]
       }
+      alertes_tournoi: {
+        Row: {
+          creneaux: string[]
+          formats: string[]
+          maj_le: string
+          profile_id: string
+        }
+        Insert: {
+          creneaux: string[]
+          formats?: string[]
+          maj_le?: string
+          profile_id: string
+        }
+        Update: {
+          creneaux?: string[]
+          formats?: string[]
+          maj_le?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alertes_tournoi_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agents_libres: {
         Row: {
           inscrit_le: string
@@ -827,6 +856,271 @@ export type Database = {
           {
             foreignKeyName: "disponibilites_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analyses_progression_ia: {
+        Row: {
+          cree_le: string
+          derniere_partie: string | null
+          format: string
+          modele: string
+          parties: number
+          priorites: string[]
+          profile_id: string
+          progres: string[]
+          reculs: string[]
+          resume: string
+        }
+        Insert: {
+          cree_le?: string
+          derniere_partie?: string | null
+          format: string
+          modele: string
+          parties: number
+          priorites: string[]
+          profile_id: string
+          progres?: string[]
+          reculs?: string[]
+          resume: string
+        }
+        Update: {
+          cree_le?: string
+          derniere_partie?: string | null
+          format?: string
+          modele?: string
+          parties?: number
+          priorites?: string[]
+          profile_id?: string
+          progres?: string[]
+          reculs?: string[]
+          resume?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyses_progression_ia_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      annonces_recrutement: {
+        Row: {
+          cree_le: string
+          expire_le: string
+          maj_le: string
+          message: string | null
+          niveau_min: number | null
+          postes: string[]
+          region: string
+          team_id: string
+        }
+        Insert: {
+          cree_le?: string
+          expire_le?: string
+          maj_le?: string
+          message?: string | null
+          niveau_min?: number | null
+          postes: string[]
+          region: string
+          team_id: string
+        }
+        Update: {
+          cree_le?: string
+          expire_le?: string
+          maj_le?: string
+          message?: string | null
+          niveau_min?: number | null
+          postes?: string[]
+          region?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annonces_recrutement_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidatures_equipe: {
+        Row: {
+          cree_le: string
+          id: string
+          message: string | null
+          poste: string
+          profile_id: string
+          repondu_le: string | null
+          statut: string
+          team_id: string
+        }
+        Insert: {
+          cree_le?: string
+          id?: string
+          message?: string | null
+          poste: string
+          profile_id: string
+          repondu_le?: string | null
+          statut?: string
+          team_id: string
+        }
+        Update: {
+          cree_le?: string
+          id?: string
+          message?: string | null
+          poste?: string
+          profile_id?: string
+          repondu_le?: string | null
+          statut?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidatures_equipe_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidatures_equipe_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      annonces_duo: {
+        Row: {
+          cree_le: string
+          creneaux: string[]
+          expire_le: string
+          maj_le: string
+          message: string | null
+          objectif: string
+          poste: string
+          postes_cherches: string[]
+          profile_id: string
+        }
+        Insert: {
+          cree_le?: string
+          creneaux: string[]
+          expire_le?: string
+          maj_le?: string
+          message?: string | null
+          objectif: string
+          poste: string
+          postes_cherches: string[]
+          profile_id: string
+        }
+        Update: {
+          cree_le?: string
+          creneaux?: string[]
+          expire_le?: string
+          maj_le?: string
+          message?: string | null
+          objectif?: string
+          poste?: string
+          postes_cherches?: string[]
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annonces_duo_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demandes_duo: {
+        Row: {
+          conversation_id: string | null
+          cree_le: string
+          demandeur_id: string
+          destinataire_id: string
+          id: string
+          repondu_le: string | null
+          statut: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          cree_le?: string
+          demandeur_id: string
+          destinataire_id: string
+          id?: string
+          repondu_le?: string | null
+          statut?: string
+        }
+        Update: {
+          conversation_id?: string | null
+          cree_le?: string
+          demandeur_id?: string
+          destinataire_id?: string
+          id?: string
+          repondu_le?: string | null
+          statut?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demandes_duo_demandeur_id_fkey"
+            columns: ["demandeur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandes_duo_destinataire_id_fkey"
+            columns: ["destinataire_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demandes_duo_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blocages: {
+        Row: {
+          bloque_id: string
+          bloqueur_id: string
+          cree_le: string
+        }
+        Insert: {
+          bloque_id: string
+          bloqueur_id: string
+          cree_le?: string
+        }
+        Update: {
+          bloque_id?: string
+          bloqueur_id?: string
+          cree_le?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocages_bloqueur_id_fkey"
+            columns: ["bloqueur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocages_bloque_id_fkey"
+            columns: ["bloque_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1743,9 +2037,11 @@ export type Database = {
           defaite_reconnue_par: string | null
           demarre_le: string | null
           id: string
+          match_perdant_suivant_id: string | null
           match_suivant_id: string | null
           position: number
           statut: Database["public"]["Enums"]["match_status"]
+          tableau: string | null
           tour: number
           tournament_id: string
         }
@@ -1755,9 +2051,11 @@ export type Database = {
           defaite_reconnue_par?: string | null
           demarre_le?: string | null
           id?: string
+          match_perdant_suivant_id?: string | null
           match_suivant_id?: string | null
           position: number
           statut?: Database["public"]["Enums"]["match_status"]
+          tableau?: string | null
           tour: number
           tournament_id: string
         }
@@ -1767,9 +2065,11 @@ export type Database = {
           defaite_reconnue_par?: string | null
           demarre_le?: string | null
           id?: string
+          match_perdant_suivant_id?: string | null
           match_suivant_id?: string | null
           position?: number
           statut?: Database["public"]["Enums"]["match_status"]
+          tableau?: string | null
           tour?: number
           tournament_id?: string
         }
@@ -2214,6 +2514,7 @@ export type Database = {
       }
       registrations: {
         Row: {
+          abandonne_le: string | null
           confirme_le: string | null
           equipe_nom: string | null
           equipe_tag: string | null
@@ -2227,6 +2528,7 @@ export type Database = {
           tournament_id: string
         }
         Insert: {
+          abandonne_le?: string | null
           confirme_le?: string | null
           equipe_nom?: string | null
           equipe_tag?: string | null
@@ -2240,6 +2542,7 @@ export type Database = {
           tournament_id: string
         }
         Update: {
+          abandonne_le?: string | null
           confirme_le?: string | null
           equipe_nom?: string | null
           equipe_tag?: string | null
@@ -2723,6 +3026,7 @@ export type Database = {
       }
       tournaments: {
         Row: {
+          rondes: number | null
           best_of: number
           capacite: number
           checkin_ouvre_le: string
@@ -2755,6 +3059,7 @@ export type Database = {
           verrouille_le: string | null
         }
         Insert: {
+          rondes?: number | null
           best_of?: number
           capacite: number
           checkin_ouvre_le: string
@@ -2787,6 +3092,7 @@ export type Database = {
           verrouille_le?: string | null
         }
         Update: {
+          rondes?: number | null
           best_of?: number
           capacite?: number
           checkin_ouvre_le?: string
@@ -3231,6 +3537,173 @@ export type Database = {
         Returns: { semaine: string; matchs: number; matchs_verifies: number; joueurs_actifs: number }[]
       }
       declarer_disponibilite: { Args: { p_debut: string }; Returns: number }
+      publier_annonce_duo: {
+        Args: {
+          p_poste: string
+          p_postes_cherches: string[]
+          p_creneaux: string[]
+          p_objectif: string
+          p_message?: string | null
+        }
+        Returns: undefined
+      }
+      retirer_annonce_duo: { Args: Record<PropertyKey, never>; Returns: boolean }
+      annonces_duo_publiques: {
+        Args: { p_region?: string | null }
+        Returns: {
+          profile_id: string
+          pseudo: string
+          slug: string
+          avatar_url: string | null
+          region: string
+          poste: string
+          postes_cherches: string[]
+          creneaux: string[]
+          objectif: string
+          message: string | null
+          maj_le: string
+          rating: number | null
+        }[]
+      }
+      demander_duo: { Args: { p_destinataire: string }; Returns: string }
+      demarrer_suisse: { Args: { p_tournament: string }; Returns: number }
+      suisse_terminee: { Args: { p_tournament: string }; Returns: boolean }
+      classement_suisse: {
+        Args: { p_tournament: string }
+        Returns: {
+          profile_id: string
+          pseudo: string
+          slug: string
+          victoires: number
+          defaites: number
+          buchholz: number
+          rang: number
+          abandon: boolean
+        }[]
+      }
+      abandonner_suisse: { Args: { p_tournament: string }; Returns: string | null }
+      demarrer_double_elim: { Args: { p_tournament: string }; Returns: number }
+      annonce_recrutement_visible: { Args: { p_team: string }; Returns: boolean }
+      publier_recrutement: {
+        Args: { p_team: string; p_postes: string[]; p_niveau_min?: number | null; p_message?: string | null }
+        Returns: undefined
+      }
+      retirer_recrutement: { Args: { p_team: string }; Returns: boolean }
+      annonces_recrutement_publiques: {
+        Args: { p_region?: string | null }
+        Returns: {
+          team_id: string
+          slug: string
+          nom: string
+          tag: string
+          logo_url: string | null
+          postes: string[]
+          niveau_min: number | null
+          region: string
+          message: string | null
+          maj_le: string
+          effectif: number
+        }[]
+      }
+      postuler_equipe: { Args: { p_team: string; p_poste: string; p_message?: string | null }; Returns: string }
+      repondre_candidature: { Args: { p_candidature: string; p_accepte: boolean }; Returns: undefined }
+      annuler_candidature: { Args: { p_candidature: string }; Returns: boolean }
+      joueurs_pour_recrutement: {
+        Args: { p_team: string }
+        Returns: {
+          profile_id: string
+          pseudo: string
+          slug: string
+          role_prefere: string | null
+          rating: number | null
+          message: string | null
+        }[]
+      }
+      regler_alertes_tournoi: { Args: { p_creneaux: string[]; p_formats: string[] }; Returns: undefined }
+      couper_alertes_tournoi: { Args: Record<PropertyKey, never>; Returns: boolean }
+      reserver_alertes_tournoi: {
+        Args: { p_limite?: number }
+        Returns: {
+          profile_id: string
+          tournament_id: string
+          nom: string
+          slug: string
+          debute_le: string
+          format: string
+          region: string
+        }[]
+      }
+      mon_niveau_tournoi: {
+        Args: Record<PropertyKey, never>
+        Returns: { actuel: number; meilleur: number; a_joue: boolean }[]
+      }
+      face_a_face: {
+        Args: { p_a: string; p_b: string }
+        Returns: {
+          match_id: string
+          joue_le: string
+          tournoi_slug: string
+          tournoi_nom: string
+          nature: string
+          gagnant_id: string | null
+          niveau: Database["public"]["Enums"]["verdict_level"]
+          forfait: boolean
+        }[]
+      }
+      bloquer_joueur: { Args: { p_joueur: string }; Returns: undefined }
+      debloquer_joueur: { Args: { p_joueur: string }; Returns: boolean }
+      rechercher_joueurs: {
+        Args: {
+          p_role?: string | null
+          p_region?: string | null
+          p_rating_min?: number | null
+          p_classes_seulement?: boolean
+          p_disponible?: boolean
+          p_sans_equipe?: boolean
+          p_actif_jours?: number | null
+          p_en_progression?: boolean
+          p_fiable?: boolean
+          p_tri?: string
+          p_limite?: number
+        }
+        Returns: {
+          profile_id: string
+          pseudo: string
+          slug: string
+          avatar_url: string | null
+          region: string
+          role_prefere: string | null
+          rating: number | null
+          rd: number | null
+          progression_30j: number | null
+          tournois_30j: number
+          parties_90j: number
+          derniere_partie: string | null
+          cherche_equipe: boolean
+          cherche_duo: boolean
+          en_equipe: boolean
+          tournois_1v1: number
+          checkins: number
+          matchs_joues: number
+          forfaits: number
+        }[]
+      }
+      repondre_demande_duo: { Args: { p_demande: string; p_accepte: boolean }; Returns: string | null }
+      annuler_demande_duo: { Args: { p_demande: string }; Returns: boolean }
+      modifier_tournoi: {
+        Args: {
+          p_tournament_id: string
+          p_nom: string
+          p_capacite: number
+          p_best_of: number
+          p_region: string
+          p_debute_le: string
+          p_checkin_ouvre_le: string
+          p_rating_min?: number | null
+          p_rating_max?: number | null
+        }
+        Returns: undefined
+      }
       retirer_disponibilite: { Args: { p_debut: string }; Returns: boolean }
       disponibilites_creneaux: { Args: { p_region: string }; Returns: { debut: string; joueurs: number }[] }
       ouvrir_tournois_a_la_demande: {

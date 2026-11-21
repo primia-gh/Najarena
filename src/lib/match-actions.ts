@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { apresVerdict } from "@/lib/apres-verdict";
+import { apresAbandonSansMatch, apresVerdict, derniereRonde } from "@/lib/apres-verdict";
 import { DELAI_FORFAIT_MINUTES } from "@/lib/forfait";
 import { apresDeclarationPret } from "@/lib/suites-joueur";
 
@@ -107,5 +107,64 @@ export async function declarerPret(formData: FormData) {
     `${page}?message=${encodeURIComponent(
       `Tu es prêt. Si ton adversaire ne l'est pas dans les ${DELAI_FORFAIT_MINUTES} minutes, il perd par forfait (aucun point pour personne).`,
     )}#ton-match`,
+  );
+}
+
+// Refus de la fonction abandonner_suisse (docs/schema.sql).
+const MESSAGES_REFUS_ABANDON: Record<string, string> = {
+  PAS_UN_TOURNOI_SUISSE: "L'abandon en cours de route n'existe qu'au format suisse.",
+  TOURNOI_PAS_EN_COURS: "Ce tournoi n'est pas en cours.",
+  NON_PARTICIPANT: "Tu ne joues pas ce tournoi.",
+  DEJA_ABANDONNE: "Tu as déjà abandonné ce tournoi.",
+};
+
+// Abandon officiel d'un tournoi suisse (19/11/2026, revu le 20/11) : la
+// base ne m'apparie plus ; mon match en cours vaut « défaite reconnue »
+// (la partie lue chez Riot reste prioritaire 20 minutes, sinon la tâche de
+// recherche le donne à l'adversaire), sauf s'il était déjà en litige :
+// tranché tout de suite. Ensuite, comme après tout verdict.
+export async function abandonnerTournoiSuisse(formData: FormData) {
+  const tournamentId = String(formData.get("tournament_id") ?? "");
+
+  const supabase = await createClient();
+  // Adresse de retour lue en base, jamais dans le formulaire.
+  const { data: tournoi } = await supabase.from("tournaments").select("slug").eq("id", tournamentId).maybeSingle();
+  const page = tournoi ? `/lol/tournois/${tournoi.slug}` : "/lol/tournois";
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/connexion");
+  }
+
+  const rondeAvant = await derniereRonde(tournamentId);
+  const { data: matchTranche, error } = await supabase.rpc("abandonner_suisse", { p_tournament: tournamentId });
+  if (error) {
+    const code = Object.keys(MESSAGES_REFUS_ABANDON).find((c) => error.message.includes(c));
+    redirect(
+      `${page}?erreur=${encodeURIComponent(code ? MESSAGES_REFUS_ABANDON[code] : "Impossible d'enregistrer ton abandon pour l'instant.")}`,
+    );
+  }
+
+  if (matchTranche) {
+    const { data: adversaire } = await supabase
+      .from("match_participants")
+      .select("profile_id")
+      .eq("match_id", matchTranche)
+      .neq("profile_id", userData.user.id)
+      .maybeSingle();
+    if (adversaire) {
+      await apresVerdict(
+        matchTranche,
+        adversaire.profile_id,
+        "Ton adversaire a abandonné le tournoi pendant votre match en litige : le match t'est donné (décision manuelle, hors classement Najarena).",
+      );
+    }
+  } else {
+    await apresAbandonSansMatch(tournamentId, rondeAvant);
+  }
+
+  redirect(
+    `${page}?message=${encodeURIComponent(
+      "Abandon enregistré : tu n'es plus apparié. Si tu avais un match en cours, il est considéré comme perdu, sauf si la partie est retrouvée chez Riot dans les 20 minutes : son vrai résultat compte alors.",
+    )}`,
   );
 }

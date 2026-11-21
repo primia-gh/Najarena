@@ -4,6 +4,7 @@ import { doitSynchroniserClash, synchroniserClash } from "@/lib/echeances-serveu
 import { apparierArene } from "@/lib/arene-serveur";
 import { ouvrirTournoisALaDemande } from "@/lib/a-la-demande-serveur";
 import { executerDivisions } from "@/lib/divisions-serveur";
+import { envoyerAlertesTournoi } from "@/lib/alertes-tournoi-serveur";
 
 // Tournois automatiques (24/09/2026) : création des tournois quotidiens,
 // ouverture du check-in, rappels, démarrage ou annulation — voir
@@ -44,5 +45,11 @@ export async function GET(request: Request) {
   const aLaDemande = simulation ? undefined : await ouvrirTournoisALaDemande().catch(() => null);
   // Divisions mensuelles (idée en réserve n°13) : poules, annonces, clôture.
   const divisions = simulation ? undefined : await executerDivisions().catch(() => null);
-  return NextResponse.json({ ...bilan, clash, arene, aLaDemande, divisions }, { status: bilan.erreur ? 503 : 200 });
+  // Alertes « tournoi pour toi » (20/11/2026) : les joueurs qui l'ont
+  // demandé sont prévenus des tournois ouverts pour eux.
+  const alertes = simulation ? undefined : await envoyerAlertesTournoi().catch(() => null);
+  return NextResponse.json(
+    { ...bilan, clash, arene, aLaDemande, divisions, alertes },
+    { status: bilan.erreur ? 503 : 200 },
+  );
 }

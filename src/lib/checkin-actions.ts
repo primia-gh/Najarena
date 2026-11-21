@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { MESSAGE_NIVEAU_CHECKIN } from "@/lib/niveau-tournoi";
 import { createClient } from "@/lib/supabase/server";
 import { checkinEstOuvert } from "@/lib/checkin";
 import { heureParis } from "@/lib/tournois-auto/creneaux";
@@ -71,6 +72,13 @@ export async function confirmerMaPresence(formData: FormData) {
   if (error?.message.includes("RESERVE_MEMBRES")) {
     redirect(
       `${page}?erreur=${encodeURIComponent(tournoi.format === "5v5" ? REFUS_RESERVE_EQUIPE : REFUS_RESERVE_SOLO)}`,
+    );
+  }
+
+  // Tournoi par niveau (19/11/2026) : revérifié au check-in.
+  if (error?.message.includes("NIVEAU_HORS_TOURNOI")) {
+    redirect(
+      `${page}?erreur=${encodeURIComponent(MESSAGE_NIVEAU_CHECKIN)}`,
     );
   }
 

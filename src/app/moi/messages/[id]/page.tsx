@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { envoyerMessage } from "@/lib/messagerie-actions";
+import { bloquerJoueur, debloquerJoueur, envoyerMessage } from "@/lib/messagerie-actions";
 import { formaterDate } from "@/lib/tournois";
 import { classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
@@ -12,6 +12,7 @@ import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import FondEcailles from "@/components/design/FondEcailles";
 import Icone from "@/components/design/Icone";
 import LibelleSection from "@/components/design/LibelleSection";
+import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 
 export const metadata: Metadata = {
   title: "Conversation — Najarena",
@@ -49,12 +50,17 @@ export default async function ConversationPage({ params, searchParams }: Convers
   }
 
   const autre = conversation.profile_a === userData.user.id ? conversation.b : conversation.a;
+  const autreId = conversation.profile_a === userData.user.id ? conversation.profile_b : conversation.profile_a;
 
-  const { data: messagesData } = await supabase
-    .from("messages")
-    .select("id, expediteur_id, contenu, envoye_le, lu_le, en_revue")
-    .eq("conversation_id", id)
-    .order("envoye_le", { ascending: true });
+  const [{ data: messagesData }, { data: blocage }] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("id, expediteur_id, contenu, envoye_le, lu_le, en_revue")
+      .eq("conversation_id", id)
+      .order("envoye_le", { ascending: true }),
+    // Blocage posé par moi (18/11/2026) ; celui de l'autre ne se voit pas.
+    supabase.from("blocages").select("cree_le").eq("bloqueur_id", userData.user.id).eq("bloque_id", autreId).maybeSingle(),
+  ]);
 
   const messages = messagesData ?? [];
 
@@ -92,7 +98,7 @@ export default async function ConversationPage({ params, searchParams }: Convers
             {autre?.slug && (
               <Link
                 href={`/joueur/${autre.slug}`}
-                className="ml-auto hidden shrink-0 text-sm text-muted underline underline-offset-3 hover:text-text sm:inline"
+                className="ml-auto inline-flex min-h-11 shrink-0 items-center text-sm text-muted underline underline-offset-3 hover:text-text"
               >
                 Voir son CV
               </Link>
@@ -101,7 +107,7 @@ export default async function ConversationPage({ params, searchParams }: Convers
         </Apparition>
 
         {(erreur || message) && (
-          <div className="flex flex-col gap-3">
+          <div id="retour" className="flex scroll-mt-28 flex-col gap-3">
             {erreur && <Alerte type="erreur">{erreur}</Alerte>}
             {message && <Alerte type="succes">{message}</Alerte>}
           </div>
@@ -143,23 +149,61 @@ export default async function ConversationPage({ params, searchParams }: Convers
         </Apparition>
 
         <Apparition delai={0.12}>
-          <form action={envoyerMessage} className="flex flex-col gap-3 border-t border-line pt-6">
-            <input type="hidden" name="conversation_id" value={conversation.id} />
-            <label className="flex flex-col gap-1.5">
-              <span className="font-texte text-mini font-medium text-muted uppercase">Ton message</span>
-              <textarea
-                name="message"
-                rows={3}
-                maxLength={2000}
-                required
-                placeholder="Écris ton message…"
-                className={`${classeChamp()} resize-none`}
-              />
-            </label>
-            <BoutonEnvoi libelleEnCours="Envoi…" className="self-start">
-              Envoyer
-            </BoutonEnvoi>
-          </form>
+          {blocage ? (
+            <div className="flex flex-col items-start gap-3 border-t border-line pt-6">
+              <p className="text-text-2">
+                Tu as bloqué {autre?.pseudo ?? "ce joueur"}&nbsp;: plus aucun message ne passe entre vous, ni défi, ni
+                demande de duo.
+              </p>
+              <form action={debloquerJoueur}>
+                <input type="hidden" name="joueur_id" value={autreId} />
+                <input type="hidden" name="retour" value={`/moi/messages/${conversation.id}`} />
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 cursor-pointer items-center text-sm text-text underline underline-offset-3 hover:text-accent"
+                >
+                  Débloquer {autre?.pseudo ?? "ce joueur"}
+                </button>
+              </form>
+            </div>
+          ) : (
+            <form action={envoyerMessage} className="flex flex-col gap-3 border-t border-line pt-6">
+              <input type="hidden" name="conversation_id" value={conversation.id} />
+              <label className="flex flex-col gap-1.5">
+                <span className="font-texte text-mini font-medium text-muted uppercase">Ton message</span>
+                <textarea
+                  name="message"
+                  rows={3}
+                  maxLength={2000}
+                  required
+                  placeholder="Écris ton message…"
+                  className={`${classeChamp()} resize-none`}
+                />
+              </label>
+              <BoutonEnvoi libelleEnCours="Envoi…" className="self-start">
+                Envoyer
+              </BoutonEnvoi>
+            </form>
+          )}
+          {!blocage && (
+            <form action={bloquerJoueur} className="mt-6 flex flex-col items-start gap-1 border-t border-line pt-4">
+              <input type="hidden" name="joueur_id" value={autreId} />
+              <input type="hidden" name="retour" value={`/moi/messages/${conversation.id}`} />
+              <p id="aide-bloquer" className="text-xs text-muted">
+                Un problème avec ce joueur&nbsp;? Le bloquer coupe vos messages dans les deux sens, ses défis et ses
+                demandes de duo. Il ne reçoit aucune notification, mais verra que ses messages ne passent plus. Tu
+                pourras le débloquer.
+              </p>
+              <BoutonConfirmation
+                type="submit"
+                aria-describedby="aide-bloquer"
+                confirmation={`Bloquer ${autre?.pseudo ?? "ce joueur"} ? Plus aucun message ne passera entre vous, ni demande de duo.`}
+                className="inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger"
+              >
+                Bloquer ce joueur
+              </BoutonConfirmation>
+            </form>
+          )}
         </Apparition>
       </div>
     </main>

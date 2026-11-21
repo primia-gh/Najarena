@@ -24,6 +24,11 @@ const MESSAGES_REFUS: Record<string, string> = {
   DEFI_DEJA_TRAITE: "Ce défi a déjà reçu une réponse.",
   DEFI_EXPIRE: "Ce défi a expiré.",
   TROP_DE_DEFIS_EN_COURS: `L'un de vous a déjà ${DEFIS_EN_COURS_MAX} défis en cours : jouez-les d'abord.`,
+  // Blocage entre les deux joueurs (19/11/2026) : message neutre.
+  JOUEUR_INDISPONIBLE: "Ce joueur n'est pas disponible pour un défi.",
+  // Refusé par la base depuis le 18/11/2026 (creer_duel), comme le duel de division.
+  MATCH_OUVERT_ENTRE_VOUS:
+    "Vous avez déjà un match en cours l'un contre l'autre (tournoi ou défi) : jouez-le d'abord, puis acceptez ce défi. Une même partie ne compte qu'une fois.",
   AUCUN_ARBITRE: "Les défis ne sont pas encore ouverts (aucun arbitre désigné).",
 };
 

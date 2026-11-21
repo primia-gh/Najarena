@@ -45,7 +45,7 @@ import BoutonPartager from "@/components/profil/BoutonPartager";
 // maquette najarena-design/maquettes/profil.dc.html) : seule l'apparence a
 // changé. chargerJoueur ci-dessous (vues de profil, offres, suivi, revue de
 // match) est repris tel quel ; les données d'affichage ajoutées (rang
-// national, palier, courbe, équipes, annonce) viennent de
+// général, palier, courbe, équipes, annonce) viennent de
 // lib/profil-vitrine.ts. Blocs de la maquette sans donnée réelle (Talent
 // Score, analyse IA, classement par rôle, VOD, réglage public/privé par
 // bloc) : absents tant que la fonctionnalité n'existe pas (CLAUDE.md §7).
@@ -77,7 +77,7 @@ interface JoueurPageProps {
 const MESSAGES_REVUE_IA: Record<string, { texte: string; erreur: boolean }> = {
   ok: { texte: "Analyse détaillée prête : elle est rangée sous le match.", erreur: false },
   deja: { texte: "Ce match a déjà son analyse détaillée.", erreur: false },
-  offre: { texte: "L'analyse détaillée fait partie de l'offre Elite.", erreur: true },
+  offre: { texte: "L'analyse détaillée fait partie de l'offre Pro.", erreur: true },
   "sans-stats": { texte: "Pas de statistiques Riot pour ce match : rien à analyser.", erreur: true },
   limite: { texte: "Tu as atteint tes 10 demandes à l'IA des dernières 24 heures : réessaie demain.", erreur: true },
   refus: { texte: "L'IA n'a pas pu rédiger cette analyse.", erreur: true },
@@ -181,7 +181,7 @@ const chargerJoueur = cache(async (slug: string) => {
     dejaSuivi = Boolean(suivi);
   }
 
-  // "Qui a vu mon profil" — réservé au propriétaire, offre Vérifié+.
+  // "Qui a vu mon profil" — réservé au propriétaire, offre Plus et au-dessus.
   const visiteurs: Array<{ pseudo: string; slug: string; derniereVueLe: string }> = [];
   if (estProprietaire && ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.verifie) {
     const { data } = await supabase
@@ -224,7 +224,7 @@ const chargerJoueur = cache(async (slug: string) => {
     (autresParticipantsData ?? []).map((a) => [a.match_id, a.profile]),
   );
 
-  // Revue de match écrite — réservée au propriétaire, offre Elite+.
+  // Revue de match écrite — réservée au propriétaire, offre Pro et au-dessus.
   // stats_match_joueur/chargerMoyennes ne sont interrogés que si les deux
   // conditions sont réunies, pour ne pas alourdir la page pour tout le monde.
   const peutRevue = estProprietaire && ORDRE_OFFRE[infoOffre.offre] >= ORDRE_OFFRE.elite;
@@ -414,10 +414,11 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
   const tauxVictoire = matchsCalibres > 0 ? Math.round((victoires / matchsCalibres) * 100) : null;
 
   // Face-à-face : uniquement les adversaires affrontés au moins deux fois —
-  // une seule rencontre n'est pas une rivalité, juste un match.
+  // une seule rencontre n'est pas une rivalité, juste un match. Comme la
+  // page face-à-face (19/11/2026) : matchs 1v1 lus chez Riot seulement.
   const rivalites = Array.from(
     historique.reduce((carte, h) => {
-      if (!h.adversaire) return carte;
+      if (!h.adversaire || h.niveau === "manuel" || h.tournoi?.format !== "1v1") return carte;
       const existant = carte.get(h.adversaire.slug);
       if (existant) {
         existant.victoires += h.estGagnant ? 1 : 0;
@@ -453,9 +454,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
 
   const kpis = [
     {
-      libelle: "Rang national",
-      valeur: complements.rangNational ? `#${complements.rangNational}` : "—",
-      sous: complements.rangNational
+      libelle: "Rang général",
+      valeur: complements.rangGeneral ? `#${complements.rangGeneral}` : "—",
+      sous: complements.rangGeneral
         ? `sur ${complements.totalClasses}\u00a0joueur${complements.totalClasses > 1 ? "s" : ""} classé${complements.totalClasses > 1 ? "s" : ""}`
         : "Classé à partir de RD ≤ 150",
     },
@@ -1310,11 +1311,19 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                       >
                         {r.pseudo}
                       </Link>
-                      <span className="text-sm font-bold tabular-nums">
+                      <Link
+                        href={`/lol/face-a-face/${profil.slug}/${r.slug}`}
+                        className="inline-flex min-h-11 items-center gap-2 text-sm font-bold tabular-nums hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
                         <span className="text-accent">{r.victoires} V</span>
                         <span className="text-faint"> · </span>
                         <span className="text-danger">{r.defaites} D</span>
-                      </span>
+                        <span className="sr-only">
+                          {" "}
+                          — voir le face-à-face avec {r.pseudo}
+                        </span>
+                        <Icone nom="fleche-droite" taille={13} className="text-muted" />
+                      </Link>
                     </li>
                   ))}
                 </ul>

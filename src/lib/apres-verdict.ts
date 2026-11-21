@@ -20,7 +20,7 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
   const { data: m } = await admin
     .from("matches")
     .select(
-      "tournament_id, match_suivant_id, tournament:tournaments(nom, slug, format, nature), match_participants(profile_id, profile:profiles(pseudo))",
+      "tournament_id, tour, match_suivant_id, match_perdant_suivant_id, tournament:tournaments(nom, slug, format, nature, type_bracket), match_participants(profile_id, profile:profiles(pseudo))",
     )
     .eq("id", matchId)
     .maybeSingle();
@@ -70,15 +70,131 @@ export async function apresVerdict(matchId: string, gagnantId: string, explicati
     );
   }
 
-  if (m.match_suivant_id) {
+  // Format suisse (19/11/2026) : ni match suivant ni finale.
+  if (tournoi.type_bracket === "suisse") {
+    await suiteSuisse(m.tournament_id, m.tour);
+    return;
+  }
+
+  if (tournoi.type_bracket === "double_elim") {
+    // Double élimination : le match du vainqueur et celui du perdant.
+    await prevenirSuitesDouble([m.match_suivant_id, m.match_perdant_suivant_id]);
+  } else if (m.match_suivant_id) {
     await prevenirMatchOuvert(m.match_suivant_id);
   }
 
-  // Aucun match suivant : c'était la finale.
+  // Aucun match suivant : c'était la finale (en double élimination, la
+  // grande finale).
   if (m.match_suivant_id === null) {
     await cloturerTournoi(m.tournament_id);
     await annoncerVainqueur(m.tournament_id, gagnantId);
   }
+}
+
+/**
+ * Format suisse (19/11/2026), après un verdict : toutes les rondes jouées,
+ * on clôture et on annonce le premier du classement ; sinon, si ce verdict
+ * a clos la ronde, la base vient d'ouvrir la suivante : ses joueurs sont
+ * prévenus (salle de match, « Je suis prêt »).
+ */
+export async function suiteSuisse(tournamentId: string, tour: number): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  const { data: fini } = await admin.rpc("suisse_terminee", { p_tournament: tournamentId });
+  if (fini) {
+    // Deux verdicts qui finissent la dernière ronde au même moment : seul
+    // l'appel qui écrit « terminé » annonce le premier. Clôture reportée
+    // (échec d'écriture) : la reprise automatique clôturera et annoncera.
+    if (await cloturerTournoi(tournamentId)) await annoncerPremierSuisse(tournamentId);
+    return;
+  }
+  const recemment = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+  const { data: ouverts } = await admin
+    .from("matches")
+    .select("id")
+    .eq("tournament_id", tournamentId)
+    .eq("tour", tour + 1)
+    .eq("statut", "en_cours")
+    .gt("demarre_le", recemment);
+  await Promise.all((ouverts ?? []).map((o) => prevenirMatchOuvert(o.id)));
+}
+
+/**
+ * Double élimination (20/11/2026) : après un verdict, prévient les joueurs
+ * des matchs qui viennent de s'ouvrir — celui du vainqueur, celui du
+ * perdant, et au-delà d'une exemption (un joueur seul avancé d'office peut
+ * ouvrir le match suivant). Chaque match n'est visité qu'une fois.
+ */
+export async function prevenirSuitesDouble(departs: (string | null)[]): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  const vus = new Set<string>();
+  const aVisiter = departs.filter((id): id is string => Boolean(id));
+  while (aVisiter.length > 0 && vus.size < 20) {
+    const id = aVisiter.shift()!;
+    if (vus.has(id)) continue;
+    vus.add(id);
+    const { data: suivant } = await admin
+      .from("matches")
+      .select("statut, match_suivant_id, match_participants(profile_id)")
+      .eq("id", id)
+      .maybeSingle();
+    if (!suivant) continue;
+    if (suivant.statut === "en_cours") {
+      await prevenirMatchOuvert(id);
+    } else if (suivant.statut === "termine" && suivant.match_participants.length === 1 && suivant.match_suivant_id) {
+      aVisiter.push(suivant.match_suivant_id);
+    }
+  }
+}
+
+/** Dernière ronde créée d'un tournoi (0 sans match). */
+export async function derniereRonde(tournamentId: string): Promise<number> {
+  const admin = creerClientAdmin();
+  if (!admin) return 0;
+  const { data: dernier } = await admin
+    .from("matches")
+    .select("tour")
+    .eq("tournament_id", tournamentId)
+    .order("tour", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return dernier?.tour ?? 0;
+}
+
+/**
+ * Abandon d'un tournoi suisse sans match à trancher (le joueur attendait la
+ * ronde suivante) : la base a peut-être arrêté le tournoi faute de joueurs
+ * (clôture et annonce), ou créé la ronde suivante — ses joueurs sont alors
+ * prévenus, seulement si c'est cet abandon qui l'a créée (`rondeAvant` :
+ * dernière ronde avant l'abandon), jamais une seconde fois.
+ */
+export async function apresAbandonSansMatch(tournamentId: string, rondeAvant: number): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  const { data: fini } = await admin.rpc("suisse_terminee", { p_tournament: tournamentId });
+  if (fini) {
+    if (await cloturerTournoi(tournamentId)) await annoncerPremierSuisse(tournamentId);
+    return;
+  }
+  const ronde = await derniereRonde(tournamentId);
+  if (ronde <= rondeAvant) return;
+  const { data: ouverts } = await admin
+    .from("matches")
+    .select("id")
+    .eq("tournament_id", tournamentId)
+    .eq("tour", ronde)
+    .eq("statut", "en_cours");
+  await Promise.all((ouverts ?? []).map((o) => prevenirMatchOuvert(o.id)));
+}
+
+/** Annonce le premier du classement d'un tournoi suisse qui vient d'être clos. */
+export async function annoncerPremierSuisse(tournamentId: string): Promise<void> {
+  const admin = creerClientAdmin();
+  if (!admin) return;
+  const { data: classement } = await admin.rpc("classement_suisse", { p_tournament: tournamentId });
+  const premier = (classement ?? []).find((l) => l.rang === 1);
+  if (premier) await annoncerVainqueur(tournamentId, premier.profile_id);
 }
 
 /**

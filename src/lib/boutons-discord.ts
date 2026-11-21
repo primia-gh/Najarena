@@ -7,6 +7,7 @@
 // agir_depuis_discord : mêmes règles que sur le site.
 
 import { DELAI_FORFAIT_MINUTES } from "@/lib/forfait";
+import { MESSAGE_NIVEAU_CHECKIN } from "@/lib/niveau-tournoi";
 import { messageRefusDefi } from "@/lib/defis";
 
 export const ACTIONS_BOUTON = ["checkin", "pret", "defi_oui", "defi_non", "revanche"] as const;
@@ -99,6 +100,7 @@ const REFUS_CHECKIN: Record<string, string> = {
     "Ton alignement n'a plus cinq joueurs : complète-le sur le site avant de confirmer la présence de l'équipe.",
   RESERVE_MEMBRES:
     "Ce tournoi est réservé aux membres de sa communauté (aux membres vérifiés, pour une école) : au moins un des joueurs inscrits, toi compris, ne remplit plus cette condition. Règle-le depuis le site, puis confirme à nouveau.",
+  NIVEAU_HORS_TOURNOI: MESSAGE_NIVEAU_CHECKIN,
 };
 
 const REFUS_PRET: Record<string, string> = {

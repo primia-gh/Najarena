@@ -20,6 +20,8 @@ import Panneau from "@/components/design/Panneau";
 import CarteJoueurDisponible from "@/components/coequipiers/CarteJoueurDisponible";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/lol/coequipiers" },
   title: "Trouver un coéquipier — Najarena",
   description:
     "Recherche de coéquipiers pour former une équipe 5v5 sur Najarena et jouer les tournois 5v5 — publie une annonce ou invite un joueur disponible dans ton équipe.",
@@ -98,7 +100,7 @@ async function chargerCoequipiers() {
     annonces.map((a) => a.profile_id),
   );
 
-  // Offre payante d'abord (Vérifié/Elite/Organisateur), puis classés du
+  // Offre payante d'abord (Plus/Pro/Organisateur), puis classés du
   // meilleur rating au plus modeste, non-classés en dernier.
   const annoncesTriees = [...annonces].sort((a, b) => {
     const oa = ORDRE_OFFRE[offresParJoueur.get(a.profile_id)?.offre ?? "gratuit"];
@@ -232,9 +234,17 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
               5v5. Publie une annonce pour te rendre visible, ou invite un joueur disponible dans ton équipe.
             </p>
           </div>
-          <BoutonLien href="/equipe/nouvelle" variante="contour">
-            Créer une équipe
-          </BoutonLien>
+          <div className="flex flex-wrap gap-3">
+            <BoutonLien href="/lol/recrutement" variante="contour">
+              Équipes qui recrutent
+            </BoutonLien>
+            <BoutonLien href="/lol/duo" variante="contour">
+              Trouver un duo
+            </BoutonLien>
+            <BoutonLien href="/equipe/nouvelle" variante="contour">
+              Créer une équipe
+            </BoutonLien>
+          </div>
         </Apparition>
 
         {(erreur || message) && (
@@ -258,6 +268,13 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                   </Link>
                 )}
               </div>
+              {annonces.length > 0 && (
+                // Mise en avant payante annoncée, jamais cachée (revue du 19/11/2026).
+                <p className="-mt-2 text-xs text-muted">
+                  Ordre&nbsp;: abonnés Plus, Pro et Organisateur d&apos;abord, puis les joueurs classés du meilleur
+                  rating au plus modeste.
+                </p>
+              )}
               {annonces.length === 0 ? (
                 <Panneau reperes className="flex flex-col items-start gap-3 p-8">
                   <p className="font-titre text-3xl font-black uppercase">Personne pour l&apos;instant.</p>

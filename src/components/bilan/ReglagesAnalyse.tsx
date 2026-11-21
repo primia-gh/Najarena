@@ -122,9 +122,9 @@ export default function ReglagesAnalyse({
           </p>
           {!elite ? (
             <p className="text-sm text-muted">
-              Fait partie de l&apos;offre Elite.{" "}
+              Fait partie de l&apos;offre Pro.{" "}
               <Link href="/tarifs?pour=joueur" className="text-text underline underline-offset-3 hover:text-accent">
-                Voir l&apos;offre Elite
+                Voir l&apos;offre Pro
               </Link>
             </p>
           ) : !discordLie ? (

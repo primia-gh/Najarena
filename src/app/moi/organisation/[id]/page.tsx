@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { typographie } from "@/lib/typographie";
+import { nombreRondes } from "@/lib/suisse";
+import { estMatchVide, estTableau, libelleTourDouble, type Tableau as TableauDouble } from "@/lib/double-elim";
 import { redirect, notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
@@ -27,6 +30,8 @@ import Tableau from "@/components/design/Tableau";
 import CarteMatchCockpit from "@/components/organisation/CarteMatchCockpit";
 import { libelleEquipe } from "@/lib/cinq-contre-cinq";
 import DossierLitige, { lireSynthese } from "@/components/litige/DossierLitige";
+import ModifierTournoi from "@/components/organisation/ModifierTournoi";
+import { chargerOffre } from "@/lib/offres";
 
 export const metadata: Metadata = {
   title: "Cockpit organisateur — Najarena",
@@ -51,7 +56,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     supabase.auth.getUser(),
     supabase
       .from("tournaments")
-      .select("id, slug, nom, statut, capacite, region, debute_le, checkin_ouvre_le, organisateur_id, format")
+      .select("id, slug, nom, statut, capacite, best_of, region, debute_le, checkin_ouvre_le, organisateur_id, format, nature, creneau_auto, rating_min, rating_max, type_bracket, rondes")
       .eq("id", id)
       .maybeSingle(),
   ]);
@@ -75,7 +80,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     supabase
       .from("matches")
       .select(
-        "id, tour, position, statut, match_participants(profile_id, slot, est_gagnant, profile:profiles(pseudo, slug))",
+        "id, tour, position, tableau, statut, match_participants(profile_id, slot, est_gagnant, profile:profiles(pseudo, slug))",
       )
       .eq("tournament_id", id)
       .order("tour", { ascending: true })
@@ -134,8 +139,11 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     (dossiersData ?? []).map((d) => [d.dispute_id, { faits: d.faits, synthese: lireSynthese(d.synthese) }]),
   );
 
+  const estDouble = tournoi.type_bracket === "double_elim";
+  const toursGagnants = estDouble ? Math.max(0, ...matchs.filter((m) => m.tableau === "gagnants").map((m) => m.tour)) : 0;
   const rounds = new Map<number, typeof matchs>();
-  for (const m of matchs) {
+  // Double élimination : un match clos sans aucun joueur n'est pas affiché.
+  for (const m of estDouble ? matchs.filter((x) => !estMatchVide(x)) : matchs) {
     const liste = rounds.get(m.tour) ?? [];
     liste.push(m);
     rounds.set(m.tour, liste);
@@ -149,6 +157,17 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   const matchsATrancher = matchs.filter((m) => m.statut === "litige" && !verdictParMatch.has(m.id)).length;
   const unite = tournoi.format === "5v5" ? "équipes" : "joueurs";
   const actionsAvantLancement = ["brouillon", "ouvert", "checkin"].includes(tournoi.statut);
+  // Modifier avant la première inscription (19/11/2026, audit M7) — la base
+  // revérifie tout, inscriptions d'agents libres et de remplaçants comprises.
+  const modifiable =
+    ["brouillon", "ouvert"].includes(tournoi.statut) &&
+    tournoi.nature === "tournoi" &&
+    !tournoi.creneau_auto &&
+    inscriptions.length === 0 &&
+    (nbAgentsConfirmes ?? 0) === 0;
+  const organisateurPremium = modifiable
+    ? (await chargerOffre(supabase, userData.user.id)).offre === "organisateur"
+    : false;
   const debut = partiesDate(tournoi.debute_le);
 
   // Ordre de la page (revue visuelle du 05/10/2026) : pendant le tournoi,
@@ -215,6 +234,25 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
             {nbConfirmes === 1 ? "" : "s"}. Têtes de série selon le rating à l&apos;inscription (le tirage au sort ne
             départage que les égalités).
           </p>
+          {estDouble && nbConfirmes >= 4 && (
+            <p className="max-w-2xl text-sm text-muted">
+              {typographie(
+                `Double élimination : ${nbConfirmes} joueurs dans un tableau de ${2 ** Math.ceil(Math.log2(nbConfirmes))}. Un joueur battu passe dans le tableau des perdants et n'est éliminé qu'à sa deuxième défaite ; grande finale en un seul match, sans revanche ; les places vides donnent des exemptions aux mieux classés.`,
+              )}
+            </p>
+          )}
+          {estDouble && nbConfirmes < 4 && (
+            <p className="max-w-2xl text-sm text-muted">
+              {typographie("Double élimination : il faut au moins 4 joueurs confirmés pour lancer le tournoi.")}
+            </p>
+          )}
+          {tournoi.type_bracket === "suisse" && nbConfirmes >= 2 && (
+            <p className="max-w-2xl text-sm text-muted">
+              {typographie(
+                `Format suisse : ${nombreRondes(nbConfirmes)} ronde${nombreRondes(nbConfirmes) > 1 ? "s" : ""} pour ${nbConfirmes} joueurs. La ronde 1 oppose la première moitié, par rating, à la seconde ; chaque ronde suivante se crée d'elle-même quand la précédente est jouée.`,
+              )}
+            </p>
+          )}
           {equipesAgents > 0 && (
             <p className="max-w-2xl text-sm text-muted">
               {nbAgentsConfirmes} agents libres confirmés : ils formeront {equipesAgents} équipe
@@ -224,16 +262,34 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
           )}
           <form action={genererBracket}>
             <input type="hidden" name="tournament_id" value={tournoi.id} />
-            <BoutonEnvoi disabled={nbConfirmes + equipesAgents < 2} libelleEnCours="Génération…">
-              Générer le bracket
+            <BoutonEnvoi
+              disabled={estDouble ? nbConfirmes < 4 : nbConfirmes + equipesAgents < 2}
+              libelleEnCours="Génération…"
+            >
+              {tournoi.type_bracket === "suisse"
+                ? "Lancer la première ronde"
+                : estDouble
+                  ? "Générer les deux tableaux"
+                  : "Générer le bracket"}
             </BoutonEnvoi>
+            {tournoi.type_bracket === "suisse" && (
+              <p className="mt-2 max-w-2xl text-xs text-muted">
+                Format suisse : chaque ronde se crée d&apos;elle-même quand la précédente est entièrement jouée.
+              </p>
+            )}
           </form>
         </div>
       ) : (
         <div className="flex flex-col gap-8">
           {toursOrdonnes.map((tour) => (
             <div key={tour} className="flex flex-col gap-3">
-              <h3 className="font-texte text-mini font-medium text-faint uppercase">{libelleTour(tour, dernierTour)}</h3>
+              <h3 className="font-texte text-mini font-medium text-faint uppercase">
+                {tournoi.type_bracket === "suisse"
+                  ? `Ronde ${tour}${tournoi.rondes ? ` / ${tournoi.rondes}` : ""}`
+                  : estDouble && estTableau(rounds.get(tour)?.[0]?.tableau)
+                    ? libelleTourDouble(rounds.get(tour)![0].tableau as TableauDouble, tour, toursGagnants)
+                    : libelleTour(tour, dernierTour)}
+              </h3>
               <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {rounds.get(tour)!.map((m) => {
                   const verdict = verdictParMatch.get(m.id);
@@ -273,6 +329,10 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     absent: { libelle: "Absent", classe: "text-danger" },
     retire: { libelle: "Retiré", classe: "text-faint" },
   };
+
+  // Une fois le tournoi lancé, les inscriptions sont figées par la base
+  // (contrôle de sécurité du 19/11/2026) : plus de boutons.
+  const inscriptionsModifiables = ["brouillon", "ouvert", "checkin"].includes(tournoi.statut);
 
   const sectionInscrits = (
     <section aria-labelledby="cockpit-inscrits" className="flex flex-col gap-4">
@@ -320,7 +380,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                   <td className="py-2!">
                     <span className="flex items-center justify-end gap-4">
                       {/* Un joueur qui s'est désinscrit ne se réinscrit que lui-même. */}
-                      {i.statut !== "confirme" && i.statut !== "retire" && (
+                      {inscriptionsModifiables && i.statut !== "confirme" && i.statut !== "retire" && (
                         <form action={confirmerInscription}>
                           <input type="hidden" name="registration_id" value={i.id} />
                           <input type="hidden" name="tournament_id" value={tournoi.id} />
@@ -333,7 +393,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                           </button>
                         </form>
                       )}
-                      {i.statut !== "absent" && i.statut !== "retire" && (
+                      {inscriptionsModifiables && i.statut !== "absent" && i.statut !== "retire" && (
                         <form action={marquerAbsent}>
                           <input type="hidden" name="registration_id" value={i.id} />
                           <input type="hidden" name="tournament_id" value={tournoi.id} />
@@ -477,10 +537,14 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
         </Apparition>
 
         {(erreur || message) && (
-          <div className="flex max-w-2xl flex-col gap-3">
+          <div id="retour" className="flex max-w-2xl scroll-mt-28 flex-col gap-3">
             {erreur && <Alerte type="erreur">{erreur}</Alerte>}
             {message && <Alerte type="succes">{message}</Alerte>}
           </div>
+        )}
+
+        {modifiable && (
+          <ModifierTournoi tournoi={tournoi} organisateurPremium={organisateurPremium} ouvert={Boolean(erreur)} />
         )}
 
         <Apparition delai={0.08} className="flex flex-col gap-14">

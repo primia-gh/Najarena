@@ -57,7 +57,7 @@ const POINTS_API = [
   {
     chemin: "/api/public/v1/tournois/ADRESSE-DU-TOURNOI",
     texte:
-      "Un tournoi et son bracket : participants, scores, gagnant, niveau du verdict (verifie = lu chez Riot, faux pour une décision manuelle).",
+      "Un tournoi et son bracket : participants, scores, gagnant, niveau du verdict (verifie = lu chez Riot, faux pour une décision manuelle), tableau en double élimination (gagnants, perdants, finale).",
   },
   {
     chemin: "/api/public/v1/certificats/CODE-DU-CERTIFICAT",

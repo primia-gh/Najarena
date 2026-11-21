@@ -16,7 +16,7 @@ import { construireBracket, ordonnerParRating } from "@/lib/bracket-construction
 import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/notifications";
 import { boutonCheckin, boutonPret } from "@/lib/suites-joueur";
 import { configAncrage, deposerEmpreinte } from "@/lib/ancrage-github";
-import { matchsOuverts } from "@/lib/apres-verdict";
+import { annoncerPremierSuisse, matchsOuverts } from "@/lib/apres-verdict";
 import { cloturerTournoi } from "@/lib/classement-actions";
 import { verifierCleRiot } from "@/lib/riot";
 import {
@@ -264,15 +264,31 @@ async function surveillerCleRiot(
 async function reprendreCloturesEnAttente(admin: ClientAdmin): Promise<string[]> {
   const { data: finales } = await admin
     .from("matches")
-    .select("tournament_id, tournament:tournaments!inner(slug, statut)")
+    .select("tournament_id, tournament:tournaments!inner(slug, statut, type_bracket)")
     .is("match_suivant_id", null)
     .in("statut", ["termine", "forfait"])
-    .eq("tournament.statut", "en_cours");
+    .eq("tournament.statut", "en_cours")
+    // Format suisse : aucun match n'a de suivant, ce n'est pas une finale.
+    // Double élimination : seule la grande finale n'a pas de suivant.
+    .in("tournament.type_bracket", ["elim_simple", "double_elim"]);
 
   const resultats: string[] = [];
   for (const finale of finales ?? []) {
     await cloturerTournoi(finale.tournament_id);
     resultats.push(`clôture reprise ${finale.tournament?.slug ?? finale.tournament_id}`);
+  }
+  // Format suisse (19/11/2026) : toutes les rondes jouées, clôture pas faite.
+  const { data: suisses } = await admin
+    .from("tournaments")
+    .select("id, slug")
+    .eq("type_bracket", "suisse")
+    .eq("statut", "en_cours");
+  for (const t of suisses ?? []) {
+    const { data: fini } = await admin.rpc("suisse_terminee", { p_tournament: t.id });
+    if (!fini) continue;
+    // Clôture reportée après la dernière ronde : c'est elle qui annonce.
+    if (await cloturerTournoi(t.id)) await annoncerPremierSuisse(t.id);
+    resultats.push(`clôture reprise ${t.slug}`);
   }
   return resultats;
 }

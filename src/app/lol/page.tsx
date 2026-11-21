@@ -87,6 +87,8 @@ const NIVEAUX = [
 ];
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/lol" },
   title: "League of Legends — Najarena",
   description:
     "Tournois League of Legends en 1v1, quotidiens, sur Najarena. Résultats lus dans la donnée officielle Riot, classement Glicko-2 vérifié.",
@@ -188,7 +190,11 @@ export default async function LolHubPage() {
             <Link href="/lol/bilan" className="text-text underline underline-offset-3 hover:text-accent">
               ton bilan
             </Link>{" "}
-            — forces, axes de travail et builds, mesurés sur tes parties vérifiées.
+            — forces, axes de travail et builds, mesurés sur tes parties vérifiées. Pour jouer à deux :{" "}
+            <Link href="/lol/duo" className="text-text underline underline-offset-3 hover:text-accent">
+              trouve ton duo
+            </Link>{" "}
+            sur ton serveur, à tes horaires.
           </p>
         </div>
       </section>

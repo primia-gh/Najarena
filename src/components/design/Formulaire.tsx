@@ -14,17 +14,20 @@ export function GroupeFormulaire({
   numero,
   titre,
   id,
+  niveau = "h2",
   children,
 }: {
   numero?: string;
   titre: string;
   /** Identifiant du titre (aria-labelledby de la section). */
   id: string;
+  /** h3 quand le formulaire est lui-même sous un titre de section (18/11/2026). */
+  niveau?: "h2" | "h3";
   children: ReactNode;
 }) {
   return (
     <section aria-labelledby={id} className="flex flex-col gap-5">
-      <LibelleSection as="h2" id={id} numero={numero} className="border-b border-line-strong pb-4">
+      <LibelleSection as={niveau} id={id} numero={numero} className="border-b border-line-strong pb-4">
         {titre}
       </LibelleSection>
       {children}
@@ -95,6 +98,39 @@ export function Choix({
         <span className="text-sm font-semibold text-text">{titre}</span>
         {detail && <span className="text-xs leading-normal text-muted">{detail}</span>}
       </span>
+    </label>
+  );
+}
+
+/**
+ * Pastille (18/11/2026, page duo) : choix court en ligne — poste, créneau —
+ * quand une carte `Choix` serait trop haute pour la liste. Même règle : le
+ * choix retenu se lit à sa bordure claire et à sa case cochée, jamais à la
+ * couleur seule ; 44 px de haut. À grouper dans un <fieldset> avec sa légende.
+ */
+export function Pastille({
+  type = "checkbox",
+  name,
+  value,
+  defaultChecked,
+  children,
+}: {
+  type?: "radio" | "checkbox";
+  name: string;
+  value: string;
+  defaultChecked?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-bouton border border-line-strong px-3 text-sm text-text-2 transition-colors duration-200 hover:border-[rgba(245,245,244,0.25)] has-[:checked]:border-text has-[:checked]:text-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent">
+      <input
+        type={type}
+        name={name}
+        value={value}
+        defaultChecked={defaultChecked}
+        className="h-4 w-4 shrink-0 cursor-pointer accent-accent"
+      />
+      {children}
     </label>
   );
 }

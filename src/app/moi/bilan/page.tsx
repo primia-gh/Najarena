@@ -31,11 +31,14 @@ import BoutonLien from "@/components/design/BoutonLien";
 import Panneau from "@/components/design/Panneau";
 import VueBilan, { MethodeBilan, type ExtrasClassees } from "@/components/bilan/VueBilan";
 import ReglagesAnalyse, { type EtatReglages } from "@/components/bilan/ReglagesAnalyse";
+import AnalyseProgressionIA from "@/components/bilan/AnalyseProgressionIA";
+import { progressionMesurable } from "@/lib/progression-ia";
+import { iaDisponible } from "@/lib/claude";
 
 // Mon bilan (05/10/2026) : forces, axes de travail, plan, progression,
 // champions et builds, calculés sur les parties vérifiées du joueur
 // (src/lib/bilan.ts). Visible de lui seul. Bilan express gratuit, bilan
-// complet avec l'offre Elite. Étape 2 : onglet « Classées » pour les
+// complet avec l'offre Pro. Étape 2 : onglet « Classées » pour les
 // parties classées lues chez Riot avec son accord (niveau, hygiène de jeu,
 // carte des morts, sang-froid) et réglages de l'analyse.
 
@@ -45,13 +48,13 @@ export const metadata: Metadata = {
 };
 
 interface BilanPageProps {
-  searchParams: Promise<{ format?: string; message?: string; erreur?: string }>;
+  searchParams: Promise<{ format?: string; message?: string; erreur?: string; analyse?: string }>;
 }
 
 const NOM_ONGLET: Record<FormatBilan, string> = { "1v1": "1v1", "5v5": "5v5", classees: "Classées" };
 
 export default async function BilanPage({ searchParams }: BilanPageProps) {
-  const { format: formatDemande, message, erreur } = await searchParams;
+  const { format: formatDemande, message, erreur, analyse: retourAnalyse } = await searchParams;
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/connexion?suite=%2Fmoi%2Fbilan");
@@ -238,7 +241,7 @@ export default async function BilanPage({ searchParams }: BilanPageProps) {
   const poste = format === "1v1" ? null : posteCompare(partiesDuFormat);
   const palier = format === "classees" && estPalierRiot(etat.palier) ? etat.palier : null;
   const sansRepere = format !== "1v1" && !poste;
-  const [{ data: lignesReperes }, { data: lignesPositions }, donnees] = await Promise.all([
+  const [{ data: lignesReperes }, { data: lignesPositions }, donnees, { data: analyseIA }] = await Promise.all([
     sansRepere
       ? Promise.resolve({ data: [] })
       : format === "classees"
@@ -248,6 +251,15 @@ export default async function BilanPage({ searchParams }: BilanPageProps) {
       ? supabase.rpc("percentiles_classees", { p_palier: palier ?? undefined, p_poste: poste })
       : Promise.resolve({ data: [] }),
     chargerDonneesJeu(),
+    // Analyse de progression rédigée par l'IA (18/11/2026, offre Pro).
+    complet
+      ? supabase
+          .from("analyses_progression_ia")
+          .select("resume, progres, reculs, priorites, parties, derniere_partie, cree_le")
+          .eq("profile_id", moi)
+          .eq("format", format)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const reperes = (lignesReperes ?? []).flatMap((l) => {
     const r = repereDepuisLigne(l);
@@ -289,6 +301,18 @@ export default async function BilanPage({ searchParams }: BilanPageProps) {
   return page(
     <>
       <VueBilan bilan={bilan} builds={builds} donnees={donnees} complet={complet} extras={extras} />
+      {bilan.partiesManquantes === 0 && (
+        <AnalyseProgressionIA
+          format={format}
+          elite={complet}
+          disponible={iaDisponible()}
+          mesurable={progressionMesurable(bilan)}
+          partiesComparees={bilan.partiesComparees}
+          derniere={bilan.derniere}
+          analyse={analyseIA}
+          retour={retourAnalyse}
+        />
+      )}
       {reglagesAnalyse}
     </>,
   );

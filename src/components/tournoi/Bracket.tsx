@@ -19,7 +19,16 @@ export interface TourBracket {
   matchs: { id: string; joue: boolean; atteint: boolean; contenu: ReactNode }[];
 }
 
-export function ColonnesBracket({ tours, legende }: { tours: TourBracket[]; legende: string }) {
+export function ColonnesBracket({
+  tours,
+  legende,
+  sansConnecteurs = false,
+}: {
+  tours: TourBracket[];
+  legende: string;
+  /** Format suisse (19/11/2026) : des rondes indépendantes, pas de chemin vers une finale. */
+  sansConnecteurs?: boolean;
+}) {
   const matchsPremierTour = tours[0]?.matchs.length ?? 1;
   return (
     <div
@@ -34,19 +43,19 @@ export function ColonnesBracket({ tours, legende }: { tours: TourBracket[]; lege
           return (
             <div key={t.numero} className="flex w-[250px] flex-col gap-[22px]">
               <h3 className="text-mini text-muted uppercase">{t.libelle}</h3>
-              <ol className="flex flex-col" style={{ minHeight: `${matchsPremierTour * 112}px` }}>
+              <ol className="flex flex-col" style={sansConnecteurs ? undefined : { minHeight: `${matchsPremierTour * 112}px` }}>
                 {t.matchs.map((m, i) => {
                   const haut = i % 2 === 0;
                   return (
                     <li key={m.id} className="relative flex flex-1 items-center py-3">
-                      {indexTour > 0 && (
+                      {indexTour > 0 && !sansConnecteurs && (
                         <span
                           aria-hidden="true"
                           className={`absolute top-1/2 right-full border-t ${m.atteint ? "border-accent" : "border-line-strong"}`}
                           style={{ width: DEMI_ECART }}
                         />
                       )}
-                      {!dernier && (
+                      {!dernier && !sansConnecteurs && (
                         <span
                           aria-hidden="true"
                           className={`absolute left-full border-r ${haut ? "top-1/2 h-1/2 border-t" : "top-0 h-1/2 border-b"} ${
@@ -96,9 +105,21 @@ interface CaseMatchProps {
   children?: ReactNode;
   /** Fiche de preuve du match (idée en réserve n°1) : le badge du verdict y mène. */
   lienPreuve?: string;
+  /** Texte de la case vide d'un match à un seul joueur (exemption du format suisse). */
+  libelleSeul?: string;
 }
 
-export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit, children, lienPreuve }: CaseMatchProps) {
+export function CaseMatch({
+  participants,
+  etat,
+  niveau,
+  motif,
+  monMatch,
+  exploit,
+  children,
+  lienPreuve,
+  libelleSeul,
+}: CaseMatchProps) {
   const bordure =
     etat === "litige"
       ? "border-danger/60"
@@ -152,7 +173,7 @@ export function CaseMatch({ participants, etat, niveau, motif, monMatch, exploit
               </>
             ) : (
               <span className="text-[13px] tracking-[1px] text-faint">
-                {participants.length === 1 && i === 1 ? "En attente d'adversaire" : "À déterminer"}
+                {participants.length === 1 && i === 1 ? (libelleSeul ?? "En attente d'adversaire") : "À déterminer"}
               </span>
             )}
           </div>

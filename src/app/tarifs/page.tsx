@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { demarrerAbonnement } from "@/lib/stripe-actions";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
+import { prixOffres } from "@/lib/prix-stripe";
+import { DELAI_RETRACTATION_JOURS, offreEnVente } from "@/lib/cgv";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -12,9 +14,11 @@ import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
 
 export const metadata: Metadata = {
+  // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
+  alternates: { canonical: "/tarifs" },
   title: "Tarifs — Najarena",
   description:
-    "Les paliers Najarena : le classement, les verdicts et le profil public restent gratuits pour toujours. Vérifié, Elite et Organisateur ajoutent de l'identité et du confort, jamais un péage sur la preuve.",
+    "Les paliers Najarena : le classement, les verdicts et le profil public restent gratuits pour toujours. Plus, Pro et Organisateur ajoutent de l'identité et du confort, jamais un péage sur la preuve.",
 };
 
 interface Palier {
@@ -53,7 +57,7 @@ const FILTRES: { pour: Profil | null; libelle: string; href: string }[] = [
 ];
 
 // Les paliers sont cumulatifs : « je joue » n'a pas besoin de la colonne
-// Organisateur, « j'organise » n'a pas besoin de Vérifié/Elite.
+// Organisateur, « j'organise » n'a pas besoin de Plus/Pro.
 const OFFRES_VISIBLES: Record<Profil, Offre[]> = {
   joueur: ["gratuit", "verifie", "elite"],
   organiser: ["gratuit", "organisateur"],
@@ -80,8 +84,8 @@ function PastilleBientot() {
 
 const TITRE_GROUPE: Record<Offre, string> = {
   gratuit: "Pour tous, gratuit",
-  verifie: "Dès Vérifié",
-  elite: "Dès Elite",
+  verifie: "Dès Plus",
+  elite: "Dès Pro",
   organisateur: "Organisateur",
 };
 
@@ -101,13 +105,13 @@ const PALIERS: Palier[] = [
     cta: { libelle: "Créer mon compte", href: "/inscription" },
   },
   {
-    nom: "Vérifié",
+    nom: "Plus",
     cle: "verifie",
     prix: "3–4\u00a0€",
     periode: "/mois",
     accroche: "Une identité qui se remarque.",
     inclus: [
-      "Badge Vérifié sur le profil et le classement",
+      "Badge Plus sur le profil, mise en avant dans la recherche de coéquipiers",
       "Qui a consulté mon profil",
       "Personnalisation du profil",
       "Inscription prioritaire aux tournois",
@@ -115,17 +119,18 @@ const PALIERS: Palier[] = [
     cta: { libelle: "S'abonner" },
   },
   {
-    nom: "Elite",
+    nom: "Pro",
     cle: "elite",
     prix: "7–8\u00a0€",
     periode: "/mois",
     accroche: "Pour suivre sa progression de près.",
     inclus: [
-      "Tout Vérifié",
+      "Tout Plus",
       "Bilan complet : plan d'entraînement, progression, champions, builds",
+      "Analyse de ta progression rédigée par l'IA, à partir de tes chiffres vérifiés",
       "Classées : niveau, hygiène de jeu, carte des morts, sang-froid",
       "Bilan de la semaine sur Discord",
-      "Export CV premium (PDF, lien partageable)",
+      "Export du CV imprimable (PDF)",
       "Revue de match écrite",
       "Alertes Discord avancées",
       "Accès aux formats premium",
@@ -161,14 +166,15 @@ const MATRICE: { fonctionnalite: string; depuis: Offre }[] = [
   { fonctionnalite: "Tournois 1v1 quotidiens", depuis: "gratuit" },
   { fonctionnalite: "Recherche de coéquipier", depuis: "gratuit" },
   { fonctionnalite: "Bilan express : forces et axes de travail, tournois et classées", depuis: "gratuit" },
-  { fonctionnalite: "Badge Vérifié sur le profil et le classement", depuis: "verifie" },
+  { fonctionnalite: "Badge Plus sur le profil, mise en avant dans la recherche de coéquipiers", depuis: "verifie" },
   { fonctionnalite: "Qui a consulté mon profil", depuis: "verifie" },
   { fonctionnalite: "Personnalisation du profil", depuis: "verifie" },
   { fonctionnalite: "Inscription prioritaire aux tournois", depuis: "verifie" },
   { fonctionnalite: "Bilan complet : plan d'entraînement, progression, champions, builds", depuis: "elite" },
+  { fonctionnalite: "Analyse de ta progression rédigée par l'IA", depuis: "elite" },
   { fonctionnalite: "Classées : niveau, hygiène de jeu, carte des morts, sang-froid", depuis: "elite" },
   { fonctionnalite: "Bilan de la semaine sur Discord", depuis: "elite" },
-  { fonctionnalite: "Export CV premium (PDF, lien partageable)", depuis: "elite" },
+  { fonctionnalite: "Export du CV imprimable (PDF)", depuis: "elite" },
   { fonctionnalite: "Revue de match écrite", depuis: "elite" },
   { fonctionnalite: "Alertes Discord avancées", depuis: "elite" },
   { fonctionnalite: "Accès aux formats premium", depuis: "elite" },
@@ -188,8 +194,12 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
   const lignesVisibles = pour === "joueur" ? MATRICE.filter((l) => l.depuis !== "organisateur") : MATRICE;
 
   // Un seul palier mis en avant, un seul bouton vert (MASTER §2 : le vert
-  // est rare) : Elite pour un joueur, Organisateur pour qui organise.
+  // est rare) : Pro pour un joueur, Organisateur pour qui organise.
   const enAvant: Offre = pour === "organiser" ? "organisateur" : "elite";
+  // Prix exacts lus chez Stripe (audit E11), sinon la fourchette indicative.
+  const prix = await prixOffres();
+  const prixExact = (offre: Offre) => (offre === "gratuit" ? undefined : prix[offre]);
+  const tousExacts = paliersVisibles.every((p) => !p.cle || prixExact(p.cle));
   const groupes = (Object.keys(TITRE_GROUPE) as Offre[])
     .map((offre) => ({ offre, lignes: lignesVisibles.filter((l) => l.depuis === offre) }))
     .filter((g) => g.lignes.length > 0);
@@ -208,7 +218,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
             paliers ci-dessous ajoutent de l&apos;identité et du confort, jamais un péage sur la preuve.
           </p>
           {(erreur || message) && (
-            <div className="mt-8 flex max-w-2xl flex-col gap-3">
+            <div id="retour" className="mt-8 flex max-w-2xl scroll-mt-28 flex-col gap-3">
               {erreur && <Alerte type="erreur">{erreur}</Alerte>}
               {message && <Alerte type="succes">{message}</Alerte>}
             </div>
@@ -243,24 +253,33 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
               {paliersVisibles.map((p) => {
                 const offre: Offre = p.cle ?? "gratuit";
                 const misEnAvant = offre === enAvant;
+                const exact = prixExact(offre);
                 return (
                   <article
                     key={p.nom}
                     aria-labelledby={`palier-${offre}`}
                     className="panneau relative flex flex-col overflow-hidden p-6 sm:p-7"
                   >
-                    {misEnAvant && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-accent" />}
+                    {/* Le vert reste au seul bouton : il signale la preuve, pas la vente (audit E10). */}
+                    {misEnAvant && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-line-strong" />}
                     <div className="flex min-h-6 items-center justify-between gap-3">
                       <h3 id={`palier-${offre}`} className="font-texte text-libelle font-semibold text-text uppercase">
                         {p.nom}
                       </h3>
                       {misEnAvant && (
-                        <span className="font-texte text-mini font-medium text-accent uppercase">Recommandé</span>
+                        <span className="font-texte text-mini font-medium text-text-2 uppercase">Recommandé</span>
                       )}
                     </div>
                     <p className="mt-5 flex items-baseline gap-2">
-                      <span className="font-titre text-[3.25rem] leading-none font-black tabular-nums">{p.prix}</span>
-                      {p.periode && <span className="text-sm text-muted">{p.periode}</span>}
+                      <span className="font-titre text-[3.25rem] leading-none font-black tabular-nums">
+                        {exact?.montant ?? p.prix}
+                      </span>
+                      {(exact?.periode ?? p.periode) && (
+                        <span className="text-sm text-muted">
+                          {exact?.periode ?? p.periode}
+                          {exact && " TTC"}
+                        </span>
+                      )}
                     </p>
                     <p className="mt-3 text-sm text-text-2">{p.accroche}</p>
 
@@ -280,9 +299,31 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                       <BoutonLien href={p.cta.href} variante={misEnAvant ? "principal" : "contour"} className="mt-8 w-full">
                         {p.cta.libelle}
                       </BoutonLien>
+                    ) : !offreEnVente(offre) ? (
+                      // Paiement pas encore branché : rien à cocher ni à acheter.
+                      <p className="mt-8 rounded-bouton border border-line-strong px-4 py-3 text-center text-sm text-muted">
+                        Bientôt en vente
+                      </p>
                     ) : (
-                      <form action={demarrerAbonnement} className="mt-8">
+                      <form action={demarrerAbonnement} className="mt-8 flex flex-col gap-4">
                         <input type="hidden" name="offre" value={p.cle} />
+                        {/* CGV et accès immédiat (audit E11) : le serveur refuse le paiement sans cette case. */}
+                        <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-text-2">
+                          <input
+                            name="cgv"
+                            type="checkbox"
+                            required
+                            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          />
+                          <span>
+                            J&apos;accepte les{" "}
+                            <Link href="/cgv" className="text-text underline underline-offset-3 hover:text-accent">
+                              CGV
+                            </Link>{" "}
+                            et je demande l&apos;accès immédiat. Je garde {DELAI_RETRACTATION_JOURS}&nbsp;jours pour me
+                            rétracter.
+                          </span>
+                        </label>
                         <BoutonEnvoi
                           variante={misEnAvant ? "principal" : "contour"}
                           libelleEnCours="Redirection…"
@@ -297,7 +338,15 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
               })}
             </div>
             <p className="max-w-2xl text-sm text-muted">
-              Vérifié, Elite et Organisateur sont en cours de lancement — ces prix sont indicatifs et pourront évoluer.
+              {tousExacts
+                ? "Prix toutes taxes comprises. "
+                : "Plus, Pro et Organisateur sont en cours de lancement — ces prix sont indicatifs et pourront évoluer. "}
+              Abonnement mensuel sans engagement, résiliable en ligne à tout moment depuis ton tableau de bord&nbsp;;{" "}
+              {DELAI_RETRACTATION_JOURS}&nbsp;jours pour te rétracter. Voir les{" "}
+              <Link href="/cgv" className="text-text-2 underline underline-offset-3 hover:text-text">
+                conditions générales de vente
+              </Link>
+              .
             </p>
           </section>
         </Apparition>

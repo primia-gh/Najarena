@@ -11,6 +11,7 @@ import Stripe from "stripe";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import type { Offre } from "@/lib/offres";
 import { compteStripeVerifie } from "@/lib/versements-stripe";
+import { offreDepuisPrix, prixParOffre } from "@/lib/offre-stripe";
 
 const cleSecrete = process.env.STRIPE_SECRET_KEY;
 const stripe = cleSecrete ? new Stripe(cleSecrete) : null;
@@ -91,8 +92,10 @@ export async function POST(request: Request) {
     case "checkout.session.completed": {
       const session = evenement.data.object as Stripe.Checkout.Session;
       const profileId = session.client_reference_id ?? session.metadata?.profile_id;
+      // Ici, les métadonnées sont sûres : posées par notre serveur en créant
+      // la session, avec le prix de cette offre (stripe-actions.ts).
       const offre = session.metadata?.offre as Offre | undefined;
-      if (profileId && offre && offre !== "gratuit") {
+      if (profileId && offre && offre !== "gratuit" && Object.hasOwn(prixParOffre(), offre)) {
         await admin.from("comptes_offres").upsert({
           profile_id: profileId,
           offre,
@@ -117,22 +120,28 @@ export async function POST(request: Request) {
     case "customer.subscription.updated": {
       const abonnement = evenement.data.object as Stripe.Subscription;
       const profileId = abonnement.metadata?.profile_id;
-      const offre = abonnement.metadata?.offre as Offre | undefined;
+      // Offre lue dans le prix facturé, pas dans les métadonnées (un
+      // changement de formule dans le portail Stripe ne les met pas à jour).
+      const prixFacture = abonnement.items?.data?.[0]?.price?.id;
+      const offre = offreDepuisPrix(prixFacture, prixParOffre());
       if (profileId) {
         await suivreAbonnement(admin, profileId, abonnement);
       }
-      if (profileId && offre && offre !== "gratuit") {
-        if (abonnement.status === "active" || abonnement.status === "trialing") {
-          await admin.from("comptes_offres").upsert({
-            profile_id: profileId,
-            offre,
-            attribue_le: new Date().toISOString(),
-          });
-        } else {
-          // Paiement échoué, abonnement en pause, etc. — on retire l'offre
-          // plutôt que de la laisser active sans paiement en cours.
-          await admin.from("comptes_offres").delete().eq("profile_id", profileId);
-        }
+      const enCours = abonnement.status === "active" || abonnement.status === "trialing";
+      if (profileId && !enCours) {
+        // Paiement échoué, abonnement en pause, etc. — on retire l'offre,
+        // quel que soit le prix : retirer est toujours sans risque.
+        await admin.from("comptes_offres").delete().eq("profile_id", profileId);
+      } else if (profileId && offre) {
+        await admin.from("comptes_offres").upsert({
+          profile_id: profileId,
+          offre,
+          attribue_le: new Date().toISOString(),
+        });
+      } else if (profileId) {
+        // Prix qui n'est celui d'aucune offre : réglage à revoir (variables
+        // STRIPE_PRICE_*, ancien prix compris) ; rien n'est accordé.
+        console.error(`Webhook Stripe : prix ${prixFacture ?? "absent"} sans offre correspondante.`);
       }
       break;
     }

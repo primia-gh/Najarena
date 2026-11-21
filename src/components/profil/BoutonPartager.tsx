@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 // « Partager le CV » du profil (maquette profil) : partage le lien public
 // du profil — qui EST le CV e-sport (CLAUDE.md §8). Feuille de partage du
 // téléphone quand elle existe, sinon copie du lien. L'export imprimable
-// (/joueur/[pseudo]/cv) reste un bouton à part, réservé à l'offre Elite.
+// (/joueur/[pseudo]/cv) reste un bouton à part, réservé à l'offre Pro.
 
 interface BoutonPartagerProps {
   chemin: string;

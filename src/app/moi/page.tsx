@@ -28,18 +28,28 @@ import { estPseudoAutomatique } from "@/lib/pseudo";
 import { ouvrirPortailAbonnement } from "@/lib/stripe-actions";
 import { chargerMesDefis } from "@/lib/defis-serveur";
 import SectionDefis from "@/components/defis/SectionDefis";
+import { DUREE_DEMANDE_DUO_JOURS } from "@/lib/duo";
+import AlertesTournoi from "@/components/moi/AlertesTournoi";
 
 export const metadata: Metadata = {
   title: "Mon compte — Najarena",
   robots: { index: false, follow: false },
 };
 
+// Hors du composant (règle de pureté du rendu) : une demande de duo expire
+// au bout de DUREE_DEMANDE_DUO_JOURS jours.
+function debutDemandesDuo(): string {
+  return new Date(Date.now() - DUREE_DEMANDE_DUO_JOURS * 24 * 3600 * 1000).toISOString();
+}
+
 interface MoiPageProps {
-  searchParams: Promise<{ message?: string; erreur?: string }>;
+  searchParams: Promise<{ message?: string; erreur?: string; bloc?: string }>;
 }
 
 export default async function MoiPage({ searchParams }: MoiPageProps) {
-  const { message, erreur } = await searchParams;
+  const { message, erreur, bloc } = await searchParams;
+  // Retour d'une action du bloc « Tournois pour toi » : affiché dans le bloc.
+  const retourAlertes = bloc === "alertes";
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -64,6 +74,9 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     { data: matchsEnCoursData },
     { data: abonnement },
     mesDefis,
+    { count: demandesDuo },
+    { data: alertes },
+    { count: abonnementsPush },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -113,6 +126,18 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     supabase.rpc("mon_abonnement_stripe").maybeSingle(),
     // Défis reçus, envoyés, liens d'invitation et duels (audit N16, N18).
     chargerMesDefis(supabase, utilisateur.id),
+    // Demandes de duo reçues, en attente de réponse (18/11/2026).
+    supabase
+      .from("demandes_duo")
+      .select("id", { count: "exact", head: true })
+      .eq("destinataire_id", utilisateur.id)
+      .eq("statut", "en_attente")
+      .gt("cree_le", debutDemandesDuo()),
+    // Alertes « tournoi pour toi » (20/11/2026).
+    supabase.from("alertes_tournoi").select("creneaux, formats").eq("profile_id", utilisateur.id).maybeSingle(),
+    // Canaux des alertes : notifications du navigateur (abonnements du
+    // joueur, lisibles par lui seul).
+    supabase.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("profile_id", utilisateur.id),
   ]);
   const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
@@ -130,7 +155,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
   const equipesCapitaine = equipesCapitaineData ?? [];
 
   // Chiffres de la saison en cours (revue visuelle du 05/10/2026) : les
-  // mêmes que sur le CV public — rating, palier, rang national, matchs.
+  // mêmes que sur le CV public — rating, palier, rang général, matchs.
   const [{ data: saison }, { data: paliersData }] = await Promise.all([
     supabase.from("seasons").select("id, nom").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
     supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
@@ -172,7 +197,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille">
-        {(erreur || message) && (
+        {!retourAlertes && (erreur || message) && (
           <div className="flex max-w-2xl flex-col gap-3">
             {erreur && <Alerte type="erreur">{erreur}</Alerte>}
             {message && <Alerte type="succes">{message}</Alerte>}
@@ -260,7 +285,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               </dd>
             </div>
             <div className="flex flex-col gap-2">
-              <dt className="font-texte text-mini font-medium text-faint uppercase">Rang national</dt>
+              <dt className="font-texte text-mini font-medium text-faint uppercase">Rang général</dt>
               <dd className="font-titre text-5xl leading-none font-black tabular-nums">{rang ? `#${rang}` : "—"}</dd>
             </div>
             <div className="flex flex-col gap-2">
@@ -284,14 +309,22 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               <Icone nom="message" taille={15} />
               Messages
             </Link>
+            <Link href={demandesDuo ? "/lol/duo#demandes" : "/lol/duo"} className={lienCompte}>
+              <Icone nom="joueur" taille={15} />
+              {demandesDuo
+                ? `Duo · ${demandesDuo} demande${demandesDuo > 1 ? "s" : ""} à traiter`
+                : "Trouver un duo"}
+            </Link>
             <Link href="/moi/profil" className={lienCompte}>
               <Icone nom="crayon" taille={15} />
               Modifier mon profil
             </Link>
             {abonnement && (
               <form action={ouvrirPortailAbonnement}>
+                {/* « Résilier » écrit en toutes lettres (résiliation en ligne
+                    obligatoire, Code de la consommation L215-1-1 ; audit E11). */}
                 <button type="submit" className={`${lienCompte} cursor-pointer`}>
-                  Gérer mon abonnement
+                  Gérer ou résilier mon abonnement
                 </button>
               </form>
             )}
@@ -525,6 +558,20 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               </LibelleSection>
               <PushOptIn />
             </section>
+
+            <AlertesTournoi
+              reglage={alertes}
+              compteVerifie={Boolean(comptesRiot?.verifie_le)}
+              region={comptesRiot?.verifie_le ? comptesRiot.region : null}
+              canaux={{
+                push: (abonnementsPush ?? 0) > 0,
+                // Compte créé par la connexion Discord : le bot peut lui écrire.
+                discord:
+                  (utilisateur.identities ?? []).some((i) => i.provider === "discord") ||
+                  (utilisateur.app_metadata?.providers as string[] | undefined)?.includes("discord") === true,
+              }}
+              retour={retourAlertes ? { message, erreur } : null}
+            />
           </Apparition>
         </div>
       </div>

@@ -23,6 +23,7 @@ export const PARAMETRES_MESSAGE = [
   "liaison",
   "demande",
   "ignores",
+  "analyse",
 ] as const;
 
 /** Textes qu'un retour depuis un autre site peut porter. */

@@ -3,13 +3,27 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { chargerOffre } from "@/lib/offres";
-import { arrondir, trouverPalier, type Palier } from "@/lib/classement";
+import { arrondir, calibrationPct, trouverPalier, type Palier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { REGIONS } from "@/lib/regions";
-import { ROLES, LABEL_ROLE, type Role } from "@/lib/roles";
+import { ROLES, LABEL_ROLE } from "@/lib/roles";
+import {
+  ACTIVITES_JOURS,
+  filtresActifs,
+  formaterProgression,
+  LABEL_TRI,
+  lireFiltres,
+  resumeActivite,
+  resumeFiabilite,
+  TRIS,
+  type Filtres,
+  type ParametresRecherche,
+} from "@/lib/recherche";
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { classeBoutonContour, classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
+import BoutonLien from "@/components/design/BoutonLien";
+import { typographie } from "@/lib/typographie";
 import Apparition from "@/components/design/Apparition";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -21,44 +35,60 @@ import Tableau from "@/components/design/Tableau";
 import { iaDisponible } from "@/lib/claude";
 import { rechercherEnLangageNaturel } from "@/lib/recherche-ia-actions";
 
+const LIMITE_RESULTATS = 100;
+
+const PARAMETRES_FILTRES = [
+  "role",
+  "region",
+  "palier_min",
+  "rating_min",
+  "classes",
+  "disponible",
+  "sans_equipe",
+  "actif",
+  "progression",
+  "fiable",
+  "tri",
+] as const;
+
+// Cases « Seulement les joueurs… » du formulaire.
+const CASES: { nom: string; libelle: string; coche: (f: Filtres) => boolean }[] = [
+  { nom: "classes", libelle: "Classés (niveau confirmé)", coche: (f) => f.classesSeulement },
+  { nom: "progression", libelle: "En progression (points gagnés en tournoi classé, 30 jours)", coche: (f) => f.enProgression },
+  { nom: "fiable", libelle: "Fiables (3 matchs 1v1 au moins, aucun forfait, check-in d'au moins 80 %)", coche: (f) => f.fiable },
+  { nom: "disponible", libelle: "Qui cherchent une équipe", coche: (f) => f.disponible },
+  { nom: "sans_equipe", libelle: "Sans équipe", coche: (f) => f.sansEquipe },
+];
+
 export const metadata: Metadata = {
   title: "Recherche de joueurs — Najarena",
   robots: { index: false, follow: false },
 };
 
 interface RecherchePageProps {
-  searchParams: Promise<{
-    role?: string;
-    region?: string;
-    palier_min?: string;
-    disponible?: string;
-    rating_min?: string;
-    demande?: string;
-    ignores?: string;
-    erreur?: string;
-    message?: string;
-  }>;
+  searchParams: Promise<
+    ParametresRecherche & {
+      demande?: string;
+      ignores?: string;
+      erreur?: string;
+      message?: string;
+    }
+  >;
+}
+
+// Hors du composant (règle de pureté du rendu).
+function maintenantMs(): number {
+  return Date.now();
 }
 
 export default async function RecherchePage({ searchParams }: RecherchePageProps) {
-  const {
-    role,
-    region,
-    palier_min: palierMinNom,
-    disponible,
-    rating_min: ratingMinBrut,
-    demande,
-    ignores,
-    erreur,
-    message,
-  } = await searchParams;
-  // Rating minimum précis (recherche en langage naturel, audit N29).
-  const ratingMin = ratingMinBrut && /^\d{1,4}$/.test(ratingMinBrut) ? Number(ratingMinBrut) : null;
+  const params = await searchParams;
+  const { demande, ignores, erreur, message } = params;
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
-    redirect("/connexion");
+    redirect("/connexion?suite=%2Flol%2Frecherche");
   }
 
   const { offre } = await chargerOffre(supabase, userData.user.id);
@@ -68,77 +98,62 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
     );
   }
 
-  // Indépendantes l'une de l'autre — lancées en parallèle plutôt qu'en
-  // série (même logique que sur l'accueil et /lol/coequipiers).
-  const [{ data: paliersData }, { data: saison }, { data: comptesData }, { data: disponiblesData }, { data: watchlistData }] =
-    await Promise.all([
-      supabase.from("tiers").select("nom, rating_min").eq("game_id", 1),
-      supabase.from("seasons").select("id").eq("game_id", 1).eq("est_courante", true).maybeSingle(),
-      supabase
-        .from("game_accounts")
-        .select("profile_id, region, role_prefere, profile:profiles(pseudo, slug, avatar_url)")
-        .eq("game_id", 1)
-        .eq("est_principal", true)
-        .order("derniere_sync_le", { ascending: false, nullsFirst: false })
-        .limit(200),
-      supabase.from("recherches_coequipiers").select("profile_id"),
-      supabase.from("watchlist").select("joueur_suivi_id").eq("recruteur_id", userData.user.id),
-    ]);
+  const { data: paliersData } = await supabase.from("tiers").select("nom, rating_min").eq("game_id", 1);
+  const paliers: Palier[] = (paliersData ?? [])
+    .map((p) => ({ nom: p.nom, ratingMin: p.rating_min }))
+    .sort((a, b) => a.ratingMin - b.ratingMin);
+  const filtres = lireFiltres(params, paliers);
 
-  const paliers: Palier[] = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
-  const comptes = comptesData ?? [];
-  const profileIdsDisponibles = new Set((disponiblesData ?? []).map((d) => d.profile_id));
+  // Recherche faite par la base (rechercher_joueurs, 18/11/2026) : tous les
+  // comptes Riot vérifiés, données vérifiées seulement.
+  const [{ data: resultatsData, error: erreurRecherche }, { data: watchlistData }] = await Promise.all([
+    supabase.rpc("rechercher_joueurs", {
+      p_role: filtres.role,
+      p_region: filtres.region,
+      p_rating_min: filtres.ratingMin,
+      p_classes_seulement: filtres.classesSeulement,
+      p_disponible: filtres.disponible,
+      p_sans_equipe: filtres.sansEquipe,
+      p_actif_jours: filtres.actifJours,
+      p_en_progression: filtres.enProgression,
+      p_fiable: filtres.fiable,
+      p_tri: filtres.tri,
+      p_limite: LIMITE_RESULTATS,
+    }),
+    supabase.from("watchlist").select("joueur_suivi_id").eq("recruteur_id", userData.user.id),
+  ]);
   const profileIdsSuivis = new Set((watchlistData ?? []).map((w) => w.joueur_suivi_id));
+  const maintenant = maintenantMs();
 
-  let ratingsParJoueur = new Map<string, number>();
-  if (saison && comptes.length > 0) {
-    const { data: ratingsData } = await supabase
-      .from("ratings")
-      .select("profile_id, rating")
-      .eq("game_id", 1)
-      .eq("season_id", saison.id)
-      .eq("est_classe", true)
-      .in("profile_id", comptes.map((c) => c.profile_id));
-
-    ratingsParJoueur = new Map((ratingsData ?? []).map((r) => [r.profile_id, r.rating]));
+  const resultats = (resultatsData ?? []).map((r) => ({
+    profileId: r.profile_id,
+    pseudo: r.pseudo,
+    slug: r.slug,
+    avatarUrl: r.avatar_url,
+    region: r.region,
+    role: ROLES.find((x) => x === r.role_prefere) ?? null,
+    rating: r.rating !== null ? arrondir(r.rating) : null,
+    confiance: r.rd !== null ? calibrationPct(r.rd) : null,
+    palier: r.rating !== null ? (trouverPalier(r.rating, paliers)?.nom ?? null) : null,
+    progression: formaterProgression(r.progression_30j),
+    tournois30j: r.tournois_30j,
+    activite: resumeActivite(r.parties_90j, r.derniere_partie, maintenant),
+    fiabilite: resumeFiabilite(r),
+    chercheEquipe: r.cherche_equipe,
+    chercheDuo: r.cherche_duo,
+    enEquipe: r.en_equipe,
+    suivi: profileIdsSuivis.has(r.profile_id),
+  }));
+  const palierActuel = paliers.find((p) => p.nom === params.palier_min)?.nom ?? "";
+  const ratingPrecis = params.rating_min && /^\d{1,4}$/.test(params.rating_min) ? params.rating_min : null;
+  const actifs = filtresActifs(filtres);
+  // Adresse de la recherche en cours : « Suivre » y ramène, filtres compris.
+  const courants = new URLSearchParams();
+  for (const cle of PARAMETRES_FILTRES) {
+    const valeur = params[cle];
+    if (valeur) courants.set(cle, valeur);
   }
-
-  const palierMin = paliers.find((p) => p.nom === palierMinNom);
-
-  const resultats = comptes
-    .filter((c) => c.profile)
-    .filter((c) => !role || c.role_prefere === role)
-    .filter((c) => !region || c.region === region)
-    .filter((c) => !disponible || profileIdsDisponibles.has(c.profile_id))
-    .filter((c) => {
-      if (!palierMin) return true;
-      const rating = ratingsParJoueur.get(c.profile_id);
-      return rating !== undefined && rating >= palierMin.ratingMin;
-    })
-    .filter((c) => {
-      if (ratingMin === null) return true;
-      const rating = ratingsParJoueur.get(c.profile_id);
-      return rating !== undefined && rating >= ratingMin;
-    })
-    .map((c) => {
-      const rating = ratingsParJoueur.get(c.profile_id);
-      return {
-        profileId: c.profile_id,
-        pseudo: c.profile!.pseudo,
-        slug: c.profile!.slug,
-        avatarUrl: c.profile!.avatar_url,
-        region: c.region,
-        role: c.role_prefere as Role | null,
-        disponible: profileIdsDisponibles.has(c.profile_id),
-        suivi: profileIdsSuivis.has(c.profile_id),
-        rating: rating !== undefined ? arrondir(rating) : null,
-        palier: rating !== undefined ? (trouverPalier(rating, paliers)?.nom ?? null) : null,
-      };
-    })
-    // Classés du meilleur rating au plus modeste, puis les non-classés
-    // (revue du 05/10/2026 : avant, les classés n'étaient pas triés entre eux).
-    .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
-  const filtresActifs = Boolean(role || region || palierMinNom || disponible || ratingMin !== null);
+  const adresseCourante = courants.toString() ? `/lol/recherche?${courants.toString()}` : "/lol/recherche";
   const ia = iaDisponible();
   const moi = userData.user.id;
 
@@ -158,11 +173,15 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
             <LibelleSection className="mt-6">Offre Organisateur</LibelleSection>
             <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Recherche de joueurs</h1>
             <p className="mt-4 max-w-2xl text-text-2">
-              Par poste, palier, région et disponibilité, parmi les comptes Riot vérifiés. Le poste est celui que le
-              joueur a renseigné ; palier et rating sont ceux du classement officiel.
+              {typographie(
+                "Parmi tous les comptes Riot vérifiés. Niveau, progression, activité et fiabilité sont lus dans des parties vérifiées ; seuls le poste et les annonces « cherche une équipe » ou « cherche un duo » sont déclarés par le joueur.",
+              )}
             </p>
           </div>
-          <Link href="/moi/watchlist" className="text-sm text-text underline underline-offset-3 hover:text-accent">
+          <Link
+            href="/moi/watchlist"
+            className="inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent"
+          >
             Ma watchlist
           </Link>
         </Apparition>
@@ -185,7 +204,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                     rows={2}
                     maxLength={300}
                     defaultValue={demande ?? ""}
-                    placeholder="Ex. « un mid EUW au-dessus de 1 700 qui cherche une équipe »"
+                    placeholder={typographie("Ex. « un mid EUW au-dessus de 1 700 qui cherche une équipe »")}
                     className={`${classeChamp()} resize-none`}
                   />
                 </label>
@@ -194,18 +213,18 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                 </BoutonEnvoi>
               </form>
               <p className="text-xs text-muted">
-                L&apos;IA traduit ta demande en filtres (rôle, région, rating, disponibilité) ; la recherche ne porte que
+                L&apos;IA traduit ta demande en filtres (rôle, région, rating, activité, progression, fiabilité, disponibilité) ; la recherche ne porte que
                 sur des comptes Riot vérifiés. Ce que Najarena ne sait pas n&apos;est jamais deviné.
               </p>
             </Panneau>
           )}
 
           <Panneau className="p-6">
-            <form className="flex flex-col gap-4">
+            <form className="flex flex-col gap-5">
               <div className="grid gap-4 sm:grid-cols-3">
                 <label className="flex flex-col gap-1.5">
                   <span className="font-texte text-mini font-medium text-muted uppercase">Poste</span>
-                  <select name="role" defaultValue={role ?? ""} className={classeChamp()}>
+                  <select name="role" defaultValue={filtres.role ?? ""} className={classeChamp()}>
                     <option value="">Tous</option>
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
@@ -216,7 +235,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className="font-texte text-mini font-medium text-muted uppercase">Région</span>
-                  <select name="region" defaultValue={region ?? ""} className={classeChamp()}>
+                  <select name="region" defaultValue={filtres.region ?? ""} className={classeChamp()}>
                     <option value="">Toutes</option>
                     {REGIONS.map((r) => (
                       <option key={r.code} value={r.code}>
@@ -227,7 +246,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className="font-texte text-mini font-medium text-muted uppercase">Palier minimum</span>
-                  <select name="palier_min" defaultValue={palierMinNom ?? ""} className={classeChamp()}>
+                  <select name="palier_min" defaultValue={palierActuel} className={classeChamp()}>
                     <option value="">Aucun</option>
                     {paliers.map((p) => (
                       <option key={p.nom} value={p.nom}>
@@ -236,18 +255,53 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                     ))}
                   </select>
                 </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="font-texte text-mini font-medium text-muted uppercase">Actif</span>
+                  <select name="actif" defaultValue={filtres.actifJours ? String(filtres.actifJours) : ""} className={classeChamp()}>
+                    <option value="">Peu importe</option>
+                    {ACTIVITES_JOURS.map((j) => (
+                      <option key={j} value={j}>
+                        Partie vérifiée ces {j} derniers jours
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="font-texte text-mini font-medium text-muted uppercase">Trier par</span>
+                  <select name="tri" defaultValue={filtres.tri} className={classeChamp()}>
+                    {TRIS.map((t) => (
+                      <option key={t} value={t}>
+                        {LABEL_TRI[t]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
-              {ratingMin !== null && <input type="hidden" name="rating_min" value={ratingMin} />}
-              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-text-2">
-                <input type="checkbox" name="disponible" value="1" defaultChecked={disponible === "1"} className="h-4 w-4 accent-accent" />
-                Seulement les joueurs qui cherchent une équipe
-              </label>
+              {ratingPrecis && <input type="hidden" name="rating_min" value={ratingPrecis} />}
+              <fieldset className="grid gap-x-6 sm:grid-cols-2">
+                <legend className="mb-2 font-texte text-mini font-medium text-muted uppercase">Seulement les joueurs</legend>
+                {CASES.map((c) => (
+                  <label key={c.nom} className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-text-2">
+                    <input
+                      type="checkbox"
+                      name={c.nom}
+                      value="1"
+                      defaultChecked={c.coche(filtres)}
+                      className="h-4 w-4 shrink-0 accent-accent"
+                    />
+                    {c.libelle}
+                  </label>
+                ))}
+              </fieldset>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                 <button type="submit" className={classeBoutonContour()}>
                   Filtrer
                 </button>
-                {filtresActifs && (
-                  <Link href="/lol/recherche" className="text-sm text-muted underline underline-offset-3 hover:text-text">
+                {actifs && (
+                  <Link
+                    href="/lol/recherche"
+                    className="inline-flex min-h-11 items-center text-sm text-muted underline underline-offset-3 hover:text-text"
+                  >
                     Réinitialiser
                   </Link>
                 )}
@@ -261,10 +315,11 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
             Ta demande : « {demande} » →{" "}
             <span className="text-text">
               {[
-                role && ROLES.includes(role as Role) ? LABEL_ROLE[role as Role] : null,
-                region || null,
-                ratingMin ? `rating ${ratingMin} et plus` : null,
-                disponible === "1" ? "cherche une équipe" : null,
+                filtres.role ? LABEL_ROLE[filtres.role] : null,
+                filtres.region,
+                filtres.ratingMin ? `rating ${filtres.ratingMin} et plus` : null,
+                ...CASES.filter((c) => c.coche(filtres)).map((c) => c.libelle.toLowerCase()),
+                filtres.actifJours ? `actif ces ${filtres.actifJours} jours` : null,
               ]
                 .filter(Boolean)
                 .join(" · ") || "aucun filtre"}
@@ -275,27 +330,51 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
 
         <Apparition delai={0.1}>
           <section aria-labelledby="recherche-resultats" className="flex flex-col gap-4">
-            <LibelleSection as="h2" id="recherche-resultats" className="border-b border-line-strong pb-4">
-              {resultats.length} joueur{resultats.length !== 1 ? "s" : ""}
-            </LibelleSection>
-            {resultats.length === 0 ? (
-              <p className="text-text-2">Aucun joueur ne correspond à ces critères.</p>
+            <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line-strong pb-4">
+              <LibelleSection as="h2" id="recherche-resultats">
+                {erreurRecherche ? "Résultats" : `${resultats.length} joueur${resultats.length !== 1 ? "s" : ""}`}
+              </LibelleSection>
+              {resultats.length === LIMITE_RESULTATS && (
+                <span className="text-xs text-muted">Les {LIMITE_RESULTATS} premiers : affine les filtres pour aller plus loin.</span>
+              )}
+            </div>
+            {erreurRecherche ? (
+              <Alerte type="erreur">
+                {erreurRecherche.message.includes("LIMITE_ATTEINTE")
+                  ? "Tu as lancé 120 recherches en une heure, le maximum : réessaie un peu plus tard."
+                  : "La recherche est indisponible pour l'instant : réessaie dans un moment."}
+              </Alerte>
+            ) : resultats.length === 0 ? (
+              <Panneau reperes className="flex flex-col items-start gap-3 p-8">
+                <p className="font-titre text-3xl font-black uppercase">Aucun joueur.</p>
+                <p className="max-w-md text-text-2">
+                  {typographie("Personne ne correspond à tous ces critères : élargis la recherche en retirant un filtre.")}
+                </p>
+                {actifs && (
+                  <BoutonLien href="/lol/recherche" variante="contour">
+                    Réinitialiser les filtres
+                  </BoutonLien>
+                )}
+              </Panneau>
             ) : (
               <Tableau legende="Joueurs correspondant à la recherche">
                 <thead>
                   <tr>
                     <th scope="col">Joueur</th>
                     <th scope="col" className="hidden sm:table-cell">
-                      Poste
-                    </th>
-                    <th scope="col" className="hidden md:table-cell">
-                      Région
-                    </th>
-                    <th scope="col" className="hidden sm:table-cell">
-                      Palier
+                      Poste · région
                     </th>
                     <th scope="col" className="text-right!">
                       Rating
+                    </th>
+                    <th scope="col" className="hidden text-right! md:table-cell">
+                      30 jours
+                    </th>
+                    <th scope="col" className="hidden lg:table-cell">
+                      Activité
+                    </th>
+                    <th scope="col" className="hidden xl:table-cell">
+                      Fiabilité
                     </th>
                     <th scope="col" className="text-right!">
                       <span className="sr-only">Suivre</span>
@@ -313,30 +392,71 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                           <AvatarJoueur pseudo={r.pseudo} src={r.avatarUrl} />
                           <span className="flex flex-col">
                             {r.pseudo}
-                            {r.disponible && (
-                              <span className="text-xs font-normal text-text-2">Cherche une équipe</span>
-                            )}
+                            <span className="text-xs font-normal text-text-2">
+                              {[
+                                r.chercheEquipe ? "Cherche une équipe" : null,
+                                r.chercheDuo ? "Cherche un duo" : null,
+                                r.enEquipe ? "En équipe" : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                            {/* Petits écrans : les colonnes masquées, en une ligne. */}
+                            <span className="text-xs font-normal text-muted tabular-nums md:hidden">
+                              {[
+                                r.role ? LABEL_ROLE[r.role] : null,
+                                r.region,
+                                r.progression !== null ? `${r.progression} sur 30 j` : null,
+                                r.activite,
+                                r.fiabilite,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                            <span className="hidden text-xs font-normal text-muted tabular-nums md:block xl:hidden">
+                              {[r.activite, r.fiabilite].filter(Boolean).join(" · ")}
+                            </span>
                           </span>
                         </Link>
                       </td>
-                      <td className="hidden py-3! text-sm text-text-2 sm:table-cell">{r.role ? LABEL_ROLE[r.role] : "—"}</td>
-                      <td className="hidden py-3! text-sm text-text-2 md:table-cell">{r.region}</td>
                       <td className="hidden py-3! text-sm text-text-2 sm:table-cell">
-                        {r.palier ? (
-                          <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                            <span
-                              aria-hidden="true"
-                              className="h-2 w-2 rounded-full"
-                              style={{ background: COULEUR_PALIER[r.palier.toLowerCase()] ?? "var(--color-muted)" }}
-                            />
-                            {r.palier}
+                        {r.role ? LABEL_ROLE[r.role] : "—"} · {r.region}
+                      </td>
+                      <td className="py-3! text-right">
+                        {r.rating !== null ? (
+                          <span className="flex flex-col items-end gap-0.5">
+                            <span className="font-titre text-2xl font-extrabold tabular-nums">{r.rating}</span>
+                            <span className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap text-muted tabular-nums">
+                              {r.palier && (
+                                <span
+                                  aria-hidden="true"
+                                  className="h-1.5 w-1.5 rounded-full"
+                                  style={{ background: COULEUR_PALIER[r.palier.toLowerCase()] ?? "var(--color-muted)" }}
+                                />
+                              )}
+                              {r.palier ?? ""}
+                              {r.confiance !== null ? ` · confiance ${r.confiance} %` : ""}
+                            </span>
                           </span>
                         ) : (
-                          <span className="text-faint">Non classé</span>
+                          <span className="text-xs text-faint">Non classé</span>
                         )}
                       </td>
-                      <td className="py-3! text-right font-titre text-2xl font-extrabold tabular-nums">
-                        {r.rating ?? <span className="font-texte text-sm font-normal text-faint">—</span>}
+                      <td className="hidden py-3! text-right text-sm tabular-nums md:table-cell">
+                        {r.progression !== null ? (
+                          <span className="flex flex-col items-end">
+                            <span className="font-semibold text-text">{r.progression}</span>
+                            <span className="text-xs text-muted">
+                              {r.tournois30j} tournoi{r.tournois30j > 1 ? "s" : ""}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-faint">—</span>
+                        )}
+                      </td>
+                      <td className="hidden py-3! text-sm text-text-2 tabular-nums lg:table-cell">{r.activite}</td>
+                      <td className="hidden py-3! text-sm text-text-2 tabular-nums xl:table-cell">
+                        {r.fiabilite ?? <span className="text-faint">Trop peu de matchs</span>}
                       </td>
                       <td className="py-3! text-right">
                         {r.profileId === moi ? (
@@ -349,7 +469,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                         ) : (
                           <form action={suivreJoueur}>
                             <input type="hidden" name="joueur_suivi_id" value={r.profileId} />
-                            <input type="hidden" name="retour" value="/lol/recherche" />
+                            <input type="hidden" name="retour" value={adresseCourante} />
                             <button
                               type="submit"
                               aria-label={`Suivre ${r.pseudo}`}
@@ -365,6 +485,11 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                 </tbody>
               </Tableau>
             )}
+            <p className="text-xs text-muted">
+              Le rating, la confiance et la progression (somme des variations du registre sur 30 jours) ne sont donnés que pour
+              un joueur classé. L&apos;activité compte les parties dont le résultat a été lu chez Riot ; la fiabilité reprend le
+              bloc du CV (matchs 1v1). Seuls le poste et les annonces (équipe, duo) sont déclarés par le joueur.
+            </p>
           </section>
         </Apparition>
       </div>
