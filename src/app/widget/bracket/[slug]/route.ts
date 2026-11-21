@@ -1,10 +1,13 @@
 import { creerClientPublic } from "@/lib/supabase/public";
 import { chargerTournoiPublic, URL_PUBLIQUE } from "@/lib/donnees-publiques";
 import { optionsWidget, pageWidget, widgetBracket, PIED_NEUTRE } from "@/lib/widgets";
-import { lirePublic, reponseWidget } from "@/lib/reponses-publiques";
+import { lirePublic, redirectionWidget, reponseWidget } from "@/lib/reponses-publiques";
 
 // Widget « bracket » d'un tournoi (audit N31), à intégrer en iframe.
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  // Adresse unique (21/11/2026) : seul ?fond=transparent est gardé, pour que le cache serve tout le monde.
+  const redirection = redirectionWidget(request);
+  if (redirection) return redirection;
   const { slug } = await params;
   const options = optionsWidget(new URL(request.url).searchParams);
   const lecture = await lirePublic(() => chargerTournoiPublic(creerClientPublic(), slug));
