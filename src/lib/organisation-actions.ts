@@ -15,6 +15,7 @@ import { ROLES, type Role } from "@/lib/roles";
 import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 import { messageRefusModification } from "@/lib/modifier-tournoi";
 import { lireNiveau, MESSAGE_NIVEAU_ORGANISATEUR } from "@/lib/niveau-tournoi";
+import { messageModeration } from "@/lib/moderation";
 
 async function verifierOrganisateur(supabase: Awaited<ReturnType<typeof createClient>>, tournamentId: string) {
   const { data: userData } = await supabase.auth.getUser();
@@ -355,7 +356,7 @@ export async function enregistrerResultat(formData: FormData) {
           ? "Ce match attend encore son second joueur : tu pourras le trancher quand il sera arrivé."
           : error.message.includes("MATCH_DEJA_DECIDE")
             ? "Ce match est déjà décidé."
-            : "Impossible d'enregistrer ce résultat pour l'instant.",
+            : (messageModeration(error.message) ?? "Impossible d'enregistrer ce résultat pour l'instant."),
       )}`,
     );
   }
@@ -442,12 +443,21 @@ export async function resoudreLitige(formData: FormData) {
     );
   }
 
-  const { data: litige } = await supabase
+  const { data: litige, error: erreurLitige } = await supabase
     .from("disputes")
     .update({ resolution, resolu_par: utilisateur.id, resolu_le: new Date().toISOString() })
     .eq("id", disputeId)
     .select("ouvert_par")
     .maybeSingle();
+
+  // Résolution modérée par la base (texte public, 21/11/2026).
+  if (erreurLitige) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+        messageModeration(erreurLitige.message) ?? "Impossible d'enregistrer la résolution pour l'instant.",
+      )}`,
+    );
+  }
 
   if (litige) {
     const { data: t } = await supabase.from("tournaments").select("nom, slug").eq("id", tournamentId).maybeSingle();

@@ -433,6 +433,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       name="resolution"
                       type="text"
                       required
+                      maxLength={500}
                       placeholder="Résolution (obligatoire)"
                       className="w-full min-h-11 rounded-bouton border border-line-strong bg-bg px-3 py-2.5 text-sm text-text outline-none placeholder:text-faint focus:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     />

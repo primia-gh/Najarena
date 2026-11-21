@@ -16,6 +16,8 @@ const MESSAGES: Record<string, string> = {
   LIEN_INVALIDE: MESSAGE_LIEN_INVALIDE,
   LIEN_INTERDIT: MESSAGE_LIEN_INTERDIT,
   MOTIF_INTERDIT: "Motif refusé : propos haineux. Décris simplement ce qui ne va pas dans le résultat.",
+  // Motif d'un verdict manuel, résolution d'un litige (21/11/2026).
+  MOTIF_TROP_LONG: "Texte trop long : 300 caractères au plus pour un motif, 500 pour une résolution de litige.",
   // Limites d'usage (audit sécurité du 10/10/2026, consommer_limite) :
   // 5 tournois par 24 h, 10 litiges par 24 h, 30 messages par heure,
   // 10 liaisons Riot par heure.

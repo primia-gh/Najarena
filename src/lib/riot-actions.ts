@@ -19,6 +19,8 @@ import { URL_SITE } from "@/lib/notifications";
 
 const ICONE_MIN = 1;
 const ICONE_MAX = 28; // icônes de niveau classiques, stables sur tout patch/région
+/** Durée de validité d'un défi d'icône (même valeur que la base, section du 21/11/2026). */
+const DUREE_DEFI_ICONE_MS = 60 * 60 * 1000;
 
 const MESSAGE_LIMITE_RIOT =
   "Trop d'essais en une heure (10 au plus, liaisons et vérifications d'icône comprises) : attends un peu avant de réessayer.";
@@ -142,13 +144,24 @@ export async function verifierRiotId(formData: FormData) {
 
   const { data: compte } = await supabase
     .from("game_accounts")
-    .select("region, defi_icone_id, est_principal")
+    .select("region, defi_icone_id, defi_cree_le, est_principal")
     .eq("puuid", puuid)
     .eq("profile_id", userData.user.id)
     .maybeSingle();
 
   if (!compte || compte.defi_icone_id === null) {
     redirect(`/lier-riot?erreur=${encodeURIComponent("Aucune vérification en attente.")}`);
+  }
+
+  // Défi d'icône valable une heure (contrôle de sécurité du 21/11/2026) :
+  // une liaison laissée en attente ne réserve pas un Riot ID, et une icône
+  // tirée au sort ne reste pas exploitable indéfiniment.
+  if (!compte.defi_cree_le || Date.now() - new Date(compte.defi_cree_le).getTime() > DUREE_DEFI_ICONE_MS) {
+    redirect(
+      `/lier-riot?erreur=${encodeURIComponent(
+        "La vérification a expiré (une heure) : relance la liaison de ton compte pour obtenir une nouvelle icône.",
+      )}`,
+    );
   }
 
   const region = trouverRegion(compte.region);
@@ -191,7 +204,7 @@ export async function verifierRiotId(formData: FormData) {
   const maintenant = new Date().toISOString();
   await admin
     .from("game_accounts")
-    .update({ verifie_le: maintenant, derniere_sync_le: maintenant, defi_icone_id: null })
+    .update({ verifie_le: maintenant, derniere_sync_le: maintenant, defi_icone_id: null, defi_cree_le: null })
     .eq("puuid", puuid)
     .eq("profile_id", userData.user.id);
 

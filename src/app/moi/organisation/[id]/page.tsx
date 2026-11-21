@@ -192,7 +192,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                 <input type="hidden" name="tournament_id" value={tournoi.id} />
                 <label className="min-w-0 flex-1">
                   <span className="sr-only">Résolution du litige ouvert par {l.ouvert_par?.pseudo ?? "un joueur"}</span>
-                  <input name="resolution" type="text" required placeholder="Résolution (obligatoire)" className={classeChamp()} />
+                  <input name="resolution" type="text" required maxLength={500} placeholder="Résolution (obligatoire)" className={classeChamp()} />
                 </label>
                 <BoutonEnvoi
                   aria-label={`Résoudre le litige ouvert par ${l.ouvert_par?.pseudo ?? "un joueur"}`}

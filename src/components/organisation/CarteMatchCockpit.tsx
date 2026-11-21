@@ -106,6 +106,7 @@ export default function CarteMatchCockpit({ matchId, tournoiId, statut, particip
               name="motif"
               type="text"
               required
+              maxLength={300}
               aria-label={`Motif — ${affiche}`}
               placeholder="Motif (obligatoire, affiché publiquement)"
               className={classeChamp()}
