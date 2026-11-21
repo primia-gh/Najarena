@@ -212,6 +212,14 @@ describe("widgetMatch", () => {
     expect(html).toContain("décision de l'arbitre");
   });
 
+  it("terminé sans verdict définitif : « Terminé », sans vainqueur ni annonce", () => {
+    const html = widgetMatch(match({ statut: "termine" }), opaque);
+    expect(html).toContain("Terminé");
+    expect(html).not.toContain("À venir");
+    expect(html).not.toContain("Vainqueur");
+    expect(html).not.toContain("Résultat lu chez Riot");
+  });
+
   it("tournoi annulé : pas de « À venir », pas d'annonce de résultat", () => {
     const html = widgetMatch(match({ statut: "en_attente", tournoiAnnule: true }), opaque);
     expect(html).toContain("Tournoi annulé");

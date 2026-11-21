@@ -18,6 +18,20 @@ describe("redirectionCanonique", () => {
   });
 });
 
+describe("adresse codée", () => {
+  it("API : la lettre déguisée en code est décodée, un code invalide est refusé", () => {
+    const reponse = redirectionCanonique(
+      new Request("https://najarena.example/api/public/v1/joueurs/v%69pere/recalcul"),
+    );
+    expect(reponse?.status).toBe(308);
+    expect(reponse?.headers.get("Location")).toBe("/api/public/v1/joueurs/vipere/recalcul");
+    expect(
+      redirectionCanonique(new Request("https://najarena.example/api/public/v1/joueurs/%E0%A4%A/recalcul"))?.status,
+    ).toBe(400);
+    expect(redirectionWidget(new Request("https://najarena.example/widget/joueur/%E0%A4%A/match"))?.status).toBe(400);
+  });
+});
+
 describe("redirectionWidget", () => {
   const base = "https://najarena.example/widget/joueur/vipere/match";
 
@@ -32,7 +46,13 @@ describe("redirectionWidget", () => {
       [`${base}?fond=noir`, "/widget/joueur/vipere/match"],
       [`${base}?fond=transparent&x=1`, "/widget/joueur/vipere/match?fond=transparent"],
       [`${base}?x=1&fond=transparent`, "/widget/joueur/vipere/match?fond=transparent"],
-      ["https://najarena.example/widget/joueur/Vipere/match?fond=transparent", "/widget/joueur/vipere/match?fond=transparent"],
+      [
+        "https://najarena.example/widget/joueur/Vipere/match?fond=transparent",
+        "/widget/joueur/vipere/match?fond=transparent",
+      ],
+      // Une lettre déguisée en code ne fait pas une adresse de plus pour le cache.
+      ["https://najarena.example/widget/joueur/%76ipere/match", "/widget/joueur/vipere/match"],
+      ["https://najarena.example/widget/match/%61bc", "/widget/match/abc"],
     ];
     for (const [adresse, cible] of cas) {
       const reponse = redirectionWidget(new Request(adresse));

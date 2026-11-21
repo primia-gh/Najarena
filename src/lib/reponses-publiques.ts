@@ -21,9 +21,29 @@ export function reponseApi(corps: unknown, statut = 200): Response {
  * toute la base à chaque appel (contrôle de sécurité du 17/10/2026). Null
  * si l'adresse est déjà canonique.
  */
+/**
+ * Chemin canonique : chaque segment décodé, en minuscules, recodé. Une
+ * lettre déguisée en code (« /%76ipere », contrôle de sécurité du
+ * 21/11/2026) faisait une adresse de plus pour le cache, servie par la même
+ * page. Null si un segment ne se décode pas.
+ */
+function cheminCanonique(pathname: string): string | null {
+  try {
+    return pathname
+      .split("/")
+      .map((segment) => encodeURIComponent(decodeURIComponent(segment).toLowerCase()))
+      .join("/");
+  } catch {
+    return null;
+  }
+}
+
+const ADRESSE_INVALIDE = () => new Response(null, { status: 400, headers: { "Cache-Control": "no-store" } });
+
 export function redirectionCanonique(requete: Request): Response | null {
   const url = new URL(requete.url);
-  const chemin = url.pathname.toLowerCase();
+  const chemin = cheminCanonique(url.pathname);
+  if (chemin === null) return ADRESSE_INVALIDE();
   if (!url.search && chemin === url.pathname) return null;
   return new Response(null, {
     status: 308,
@@ -65,7 +85,8 @@ export function reponseWidget(html: string, statut = 200): Response {
  */
 export function redirectionWidget(requete: Request): Response | null {
   const url = new URL(requete.url);
-  const chemin = url.pathname.toLowerCase();
+  const chemin = cheminCanonique(url.pathname);
+  if (chemin === null) return ADRESSE_INVALIDE();
   const transparent = url.searchParams.get("fond") === "transparent";
   const recherche = transparent ? "?fond=transparent" : "";
   if (chemin === url.pathname && url.search === recherche) return null;

@@ -235,10 +235,12 @@ export async function chargerMatchOverlay(supabase: Client, id: string): Promise
   );
   const tournoi = m?.tournament;
   if (!m || !tournoi || !estVisiblePubliquement(tournoi.statut)) return null;
+  // Match clos sans joueur (double élimination) : jamais publié, comme sur le bracket.
+  if (estMatchVide(m)) return null;
 
   const participants = [...m.match_participants].sort((a, b) => a.slot - b.slot);
   const ids = participants.map((p) => p.profile_id);
-  const [{ data: tours }, equipes, { data: ratings }, paliers] = await Promise.all([
+  const [lectureTours, equipes, { data: ratings }, paliers] = await Promise.all([
     supabase.from("matches").select("tour, tableau").eq("tournament_id", tournoi.id),
     tournoi.format === "5v5" ? chargerEquipesDesTournois(supabase, [tournoi.id]) : Promise.resolve(null),
     tournoi.format === "1v1" && ids.length > 0
@@ -252,6 +254,9 @@ export async function chargerMatchOverlay(supabase: Client, id: string): Promise
     tournoi.format === "1v1" ? chargerPaliers(supabase) : Promise.resolve([]),
   ]);
 
+  // Sans les tours, l'étape serait fausse (« Finale » pour un premier tour) :
+  // base injoignable = 503, jamais une bannière fausse mise en cache.
+  const { data: tours } = verifier(lectureTours);
   const verdict = m.match_verdicts.find((v) => v.est_definitif);
   const toursDe = (filtre: (t: { tableau: string | null }) => boolean) =>
     Math.max(m.tour, ...(tours ?? []).filter(filtre).map((t) => t.tour));
@@ -320,7 +325,7 @@ export async function chargerOverlayJoueur(
   // Tournois récents du joueur : inscrit lui-même (1v1, duel, capitaine),
   // ou aligné dans une équipe (5v5) — l'équipe y joue sous son capitaine.
   const depuis = new Date(maintenant.getTime() - FENETRE_OVERLAY_JOURS * 86_400_000).toISOString();
-  const [{ data: inscriptions }, { data: alignements }] = await Promise.all([
+  const [lectureInscriptions, lectureAlignements] = await Promise.all([
     supabase
       .from("registrations")
       .select("tournament_id, tournament:tournaments!inner(debute_le)")
@@ -335,6 +340,9 @@ export async function chargerOverlayJoueur(
       .gte("tournament.debute_le", depuis)
       .limit(50),
   ]);
+  // Lecture ratée = 503, jamais « pas de match en cours » pendant un vrai match.
+  const { data: inscriptions } = verifier(lectureInscriptions);
+  const { data: alignements } = verifier(lectureAlignements);
   const representants = new Set<string>();
   for (const r of inscriptions ?? []) representants.add(`${r.tournament_id}:${profil.id}`);
   for (const a of alignements ?? []) {

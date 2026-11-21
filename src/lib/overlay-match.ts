@@ -125,7 +125,8 @@ export function choisirMatchJoueur(candidats: MatchCandidat[], maintenant: Date)
 
 /** État du match, repérable d'un coup d'œil (jamais en vert : « en cours » = match ouvert, pas une preuve). */
 function etat(m: MatchOverlay): string {
-  if (m.verdict) return `<span class="etat muted">Terminé</span>`;
+  // Terminé sans verdict définitif : « Terminé », sans résultat annoncé.
+  if (m.verdict || m.statut === "termine" || m.statut === "forfait") return `<span class="etat muted">Terminé</span>`;
   if (m.tournoiAnnule) return `<span class="etat muted">Tournoi annulé</span>`;
   if (m.statut === "litige") return `<span class="etat danger">En litige</span>`;
   if (m.statut === "en_cours")
