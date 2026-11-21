@@ -13,6 +13,17 @@ import styles from "./vitrine.module.css";
 
 const DERNIERS_RESULTATS: ("V" | "D")[] = ["V", "V", "D", "V", "V"];
 
+// Étiquette « Exemple » visible (contrôle design du 21/11/2026) : les
+// chiffres de ces cartes sont fictifs, aucun visiteur ne doit les prendre
+// pour un vrai joueur classé. Grise, jamais verte.
+function EtiquetteExemple() {
+  return (
+    <span className="rounded-bouton border border-line-strong px-2 py-0.5 text-mini font-semibold tracking-[1px] text-text-2 uppercase">
+      Exemple
+    </span>
+  );
+}
+
 /** Carte flottante de l'ouverture. */
 export function CarteCvFlottante({ className = "" }: { className?: string }) {
   return (
@@ -20,11 +31,14 @@ export function CarteCvFlottante({ className = "" }: { className?: string }) {
       className={`relative flex flex-col gap-[26px] rounded-panneau border border-line bg-[linear-gradient(160deg,#171917_0%,#0D0F0D_100%)] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,.07),0_50px_100px_rgba(0,0,0,.7),0_0_120px_rgba(182,255,59,.06)] ${styles.flotte} ${className}`}
     >
       <figcaption className="sr-only">
-        Aperçu d&apos;un CV e-sport Najarena : rating, progression sur 7 jours et cinq derniers résultats.
+        Exemple fictif d&apos;un CV e-sport Najarena, au nom de TON_PSEUDO : rating, progression sur 7 jours et cinq
+        derniers résultats.
       </figcaption>
       <div aria-hidden="true" className="flex flex-col gap-[26px]">
         <div className="flex items-center justify-between text-mini text-muted uppercase">
-          <span>CV e-sport</span>
+          <span className="flex items-center gap-2">
+            CV e-sport <EtiquetteExemple />
+          </span>
           <BadgeVerifie />
         </div>
         <div className="flex items-center gap-4">
@@ -94,14 +108,16 @@ export function CarteCvDetail({ className = "" }: { className?: string }) {
       className={`relative flex min-w-0 flex-col gap-9 rounded-panneau border border-[rgba(245,245,244,0.07)] bg-[linear-gradient(160deg,#161816_0%,#0E100E_100%)] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,.07),0_40px_90px_rgba(0,0,0,.5)] sm:p-11 ${className}`}
     >
       <figcaption className="sr-only">
-        Aperçu d&apos;un CV e-sport Najarena : rating, rang au classement, taux de victoires, nombre de matchs et
-        journal des points, où chaque variation indique le niveau de preuve du résultat.
+        Exemple fictif d&apos;un CV e-sport Najarena, au nom de TON_PSEUDO : rating, rang au classement, taux de
+        victoires, nombre de matchs et journal des points, où chaque variation indique le niveau de preuve du résultat.
       </figcaption>
       <div aria-hidden="true" className="flex flex-col gap-9">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between text-mini text-muted uppercase">
-            <span>CV e-sport</span>
-            <BadgeVerifie>Profil vérifié</BadgeVerifie>
+            <span className="flex items-center gap-2">
+              CV e-sport <EtiquetteExemple />
+            </span>
+            <BadgeVerifie>Compte vérifié</BadgeVerifie>
           </div>
           <div className="flex items-center gap-4 sm:gap-[22px]">
             <Image

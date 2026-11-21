@@ -100,12 +100,12 @@ export async function declarerPret(formData: FormData) {
   // les boutons Discord.
   const { adversairePret } = await apresDeclarationPret(matchId, userData.user.id, Boolean(nouveau));
   if (adversairePret) {
-    redirect(`${page}?message=${encodeURIComponent("Vous êtes prêts tous les deux : lancez la partie.")}#ton-match`);
+    redirect(`${page}?message=${encodeURIComponent("C'est bon des deux côtés : lancez la partie.")}#ton-match`);
   }
 
   redirect(
     `${page}?message=${encodeURIComponent(
-      `Tu es prêt. Si ton adversaire ne l'est pas dans les ${DELAI_FORFAIT_MINUTES} minutes, il perd par forfait (aucun point pour personne).`,
+      `C'est noté. Si ton adversaire ne se déclare pas prêt dans les ${DELAI_FORFAIT_MINUTES} minutes, le match lui est compté perdu par forfait (aucun point pour personne).`,
     )}#ton-match`,
   );
 }

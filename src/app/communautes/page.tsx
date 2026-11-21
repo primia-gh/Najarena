@@ -36,7 +36,7 @@ export default async function CommunautesPage() {
           <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Communautés</h1>
           <p className="mt-3 max-w-2xl text-courant text-text-2">
             Un serveur Discord, une association, une école : sa page réunit ses tournois, le classement interne de ses
-            membres — leur rating officiel, vérifié chez Riot — et ses membres.
+            membres — leur rating Najarena, calculé à partir de résultats lus chez Riot — et ses membres.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
             <BoutonLien href="/communaute/nouvelle" variante="contour">

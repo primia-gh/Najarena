@@ -78,8 +78,8 @@ describe("messages", () => {
     expect(messageReussiteBouton("checkin", { ok: true })).toBe("Présence confirmée.");
     expect(messageReussiteBouton("checkin", { ok: false })).toBeNull();
     expect(messageReussiteBouton("pret", { nouveau: true })).toContain("15 minutes");
-    expect(messageReussiteBouton("pret", { nouveau: false })).toBe("Tu étais déjà déclaré prêt.");
-    expect(messageReussiteBouton("pret", { nouveau: true }, { adversairePret: true })).toContain("tous les deux");
+    expect(messageReussiteBouton("pret", { nouveau: false })).toBe("C'était déjà noté de ton côté.");
+    expect(messageReussiteBouton("pret", { nouveau: true }, { adversairePret: true })).toContain("des deux côtés");
     expect(messageReussiteBouton("revanche", { ok: true }, { adversaire: "Bob" })).toContain("à Bob");
   });
 });

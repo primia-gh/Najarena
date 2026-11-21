@@ -145,10 +145,10 @@ export function messageReussiteBouton(
     case "checkin":
       return resultat.ok ? "Présence confirmée." : null;
     case "pret":
-      if (details.adversairePret) return "Vous êtes prêts tous les deux : lancez la partie.";
+      if (details.adversairePret) return "C'est bon des deux côtés : lancez la partie.";
       return resultat.nouveau
-        ? `Tu es prêt. Si ton adversaire ne l'est pas dans les ${DELAI_FORFAIT_MINUTES} minutes, il perd par forfait.`
-        : "Tu étais déjà déclaré prêt.";
+        ? `C'est noté. Si ton adversaire ne se déclare pas prêt dans les ${DELAI_FORFAIT_MINUTES} minutes, le match lui est compté perdu par forfait.`
+        : "C'était déjà noté de ton côté.";
     case "defi_oui":
       return "Défi accepté : le duel est ouvert. Déclare-toi prêt quand tu es en ligne.";
     case "defi_non":

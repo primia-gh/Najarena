@@ -134,7 +134,7 @@ export function CaseMatch({
 
   return (
     <div className="relative flex flex-col gap-1.5">
-      <div className={`relative flex flex-col rounded-[3px] border bg-[#111311] ${bordure} ${monMatch ? "border-l-[3px]" : ""}`}>
+      <div className={`relative flex flex-col rounded-[3px] border bg-surface ${bordure} ${monMatch ? "border-l-[3px]" : ""}`}>
         {lignes.map((p, i) => (
           <div
             key={p?.cle ?? `vide-${i}`}

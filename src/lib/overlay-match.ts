@@ -176,10 +176,10 @@ function cote(c: CoteOverlay | undefined, index: number, m: MatchOverlay): strin
   const marque = gagnant
     ? `<span class="pastille-v${neutre}" aria-hidden="true">V</span>`
     : perdant
-      ? `<span class="pastille-v pastille-d${neutre}" aria-hidden="true">D</span><span class="masque">Défaite</span>`
+      ? `<span class="pastille-v pastille-d${neutre}" aria-hidden="true">D</span>`
       : "";
   const details = [
-    gagnant ? `<span class="vainqueur">Vainqueur</span>` : null,
+    gagnant ? `<span class="vainqueur">Vainqueur</span>` : perdant ? `<span class="defaite">Défaite</span>` : null,
     c.niveau ? echapperHtml(c.niveau) : null,
     !m.verdict && m.statut === "en_cours" && c.pret ? "Prêt" : null,
   ].filter((x) => x !== null);

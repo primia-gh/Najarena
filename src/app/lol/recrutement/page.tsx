@@ -92,7 +92,7 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
             <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Équipes qui recrutent</h1>
             <p className="mt-5 max-w-2xl text-courant text-text-2">
               {typographie(
-                "Les capitaines indiquent les postes qu'ils cherchent et le niveau demandé. Postule depuis la page de l'équipe avec ton compte Riot vérifié : le capitaine accepte ou décline, et tu es prévenu.",
+                "Les capitaines indiquent les postes qu'ils cherchent et le niveau demandé. Postule depuis la page de l'équipe avec ton compte Riot vérifié : le capitaine accepte ou décline, et sa réponse t'arrive en notification.",
               )}
             </p>
           </div>

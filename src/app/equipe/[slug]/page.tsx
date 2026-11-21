@@ -739,7 +739,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                   <input
                     name="couleur_accent"
                     type="color"
-                    defaultValue={equipe.couleur_accent ?? "#D2A257"}
+                    defaultValue={equipe.couleur_accent ?? "#9CA39C"}
                     className="h-9 w-16 rounded-[3px] border border-line bg-bg"
                   />
                 </label>

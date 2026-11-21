@@ -159,7 +159,7 @@ describe("widgetMatch", () => {
     expect(html).toContain("✓ Vérifié");
     expect(html).toContain("partie lue dans l'historique Riot");
     expect(html).toContain(
-      '<div class="cote perdant"><div class="ligne-nom"><p class="nom">Vipere</p><span class="pastille-v pastille-d" aria-hidden="true">D</span><span class="masque">Défaite</span></div>',
+      '<div class="cote perdant"><div class="ligne-nom"><p class="nom">Vipere</p><span class="pastille-v pastille-d" aria-hidden="true">D</span></div><p class="detail muted chiffre"><span class="defaite">Défaite</span>',
     );
     expect(html).toContain(
       '<div class="cote droite"><div class="ligne-nom"><p class="nom">Aspic</p><span class="pastille-v" aria-hidden="true">V</span></div><p class="detail muted chiffre"><span class="vainqueur">Vainqueur</span>',

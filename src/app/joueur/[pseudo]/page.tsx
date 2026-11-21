@@ -608,13 +608,13 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
               )}
               {complements.annonce && (
                 <>
-                  <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#3A3F3A]" />
+                  <span aria-hidden="true" className="h-1 w-1 rounded-full bg-line-strong" />
                   <BadgeChercheEquipe />
                 </>
               )}
               {infoOffre.offre !== "gratuit" && (
                 <>
-                  <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#3A3F3A]" />
+                  <span aria-hidden="true" className="h-1 w-1 rounded-full bg-line-strong" />
                   <span
                     className="inline-flex items-center gap-1.5 text-mini font-semibold whitespace-nowrap uppercase"
                     style={{ color: COULEUR_OFFRE[infoOffre.offre] }}

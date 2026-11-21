@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 const MESSAGES_REFUS: Record<string, string> = {
   INSCRIPTIONS_FERMEES: "Les inscriptions sont fermées pour ce tournoi.",
   TOURNOI_COMPLET: "Ce tournoi est complet.",
-  DEJA_INSCRIT: "Tu es déjà inscrit à ce tournoi.",
+  DEJA_INSCRIT: "Ton inscription à ce tournoi est déjà enregistrée.",
   TOURNOI_INTROUVABLE: "Ce tournoi n'existe pas.",
   // Compte Riot vérifié de la région du tournoi exigé (28/09/2026, audit
   // E2) : sans lui, aucun résultat ne peut être retrouvé automatiquement.
@@ -164,7 +164,7 @@ export async function seDesinscrire(formData: FormData) {
     redirect(`${page}?erreur=${encodeURIComponent(message)}`);
   }
 
-  redirect(`${page}?message=${encodeURIComponent("Tu es désinscrit : ta place est libérée.")}`);
+  redirect(`${page}?message=${encodeURIComponent("Inscription retirée : ta place est libérée.")}`);
 }
 
 // Agents libres (03/10/2026, audit N23) : un joueur sans équipe s'inscrit
@@ -178,8 +178,8 @@ const MESSAGES_REFUS_AGENT: Record<string, string> = {
   COMPTE_SUSPENDU: "Ton compte est suspendu : tu ne peux pas t'inscrire aux tournois.",
   COMPTE_RIOT_REQUIS: "Lie et vérifie ton compte Riot avant de t'inscrire : c'est lui qui permet de retrouver tes résultats.",
   REGION_DIFFERENTE: "Ce tournoi se joue sur une autre région que ton compte Riot vérifié.",
-  DEJA_DANS_UNE_EQUIPE: "Tu es déjà aligné dans une équipe de ce tournoi.",
-  DEJA_INSCRIT: "Tu es déjà inscrit comme agent libre.",
+  DEJA_DANS_UNE_EQUIPE: "Tu figures déjà dans une équipe alignée pour ce tournoi.",
+  DEJA_INSCRIT: "Ton inscription comme agent libre est déjà enregistrée.",
   RESERVE_MEMBRES:
     "Ce tournoi est réservé aux membres de sa communauté (aux membres vérifiés, pour une école) : rejoins-la depuis sa page avant de t'inscrire.",
 };
@@ -208,7 +208,7 @@ export async function inscrireAgentLibre(formData: FormData) {
   }
 
   redirect(
-    `${page}?message=${encodeURIComponent("Tu es inscrit comme agent libre. Confirme ta présence au check-in : ton équipe sera formée au lancement du bracket.")}`,
+    `${page}?message=${encodeURIComponent("Inscription enregistrée comme agent libre. Confirme ta présence au check-in : ton équipe sera formée au lancement du bracket.")}`,
   );
 }
 
