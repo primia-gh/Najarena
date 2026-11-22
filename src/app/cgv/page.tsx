@@ -44,7 +44,7 @@ export default function CgvPage() {
       </h1>
       <p className="mt-2 text-sm text-muted">Version du {DATE_CGV_LISIBLE}.</p>
       {!ouvert && (
-        <p className="mt-6 border-l-2 border-line-strong pl-4 text-sm text-text-2">
+        <p className="mt-6 border-l-2 border-line-strong pl-4 text-courant text-text">
           Les offres payantes ne sont pas encore en vente&nbsp;: ces conditions s&apos;appliqueront à leur ouverture.
         </p>
       )}

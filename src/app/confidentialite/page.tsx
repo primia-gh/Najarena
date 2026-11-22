@@ -376,8 +376,8 @@ export default function ConfidentialitePage() {
             décrite plus bas&nbsp;; le journal public des
             points et les résultats de matchs auxquels tu as participé
             restent conservés sous un pseudo anonyme, conformément au principe
-            du registre public des points, qui ne se modifie jamais, décrit dans les CGU, de
-            même que les messages déjà envoyés à d&apos;autres membres.
+            du registre public des points, qui ne se modifie jamais (voir les
+            CGU), de même que les messages déjà envoyés à d&apos;autres membres.
           </p>
           <ul className="mt-2 flex flex-col gap-1.5 text-muted">
             <li><strong>Visites de profil</strong>&nbsp;: jusqu&apos;à ce que tu passes en visites anonymes, ou jusqu&apos;à la suppression de ton compte.</li>

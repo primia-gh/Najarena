@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: "Najarena — Ton niveau, vérifié.",
   description:
-    "Tournois League of Legends en 1v1, quotidiens. Les résultats sont lus dans la donnée officielle Riot : chaque point inscrit au registre public, un profil joueur vérifié.",
+    "Tournois League of Legends en 1v1, quotidiens. Les résultats sont lus dans la donnée officielle Riot : chaque point est inscrit au registre public, chaque compte Riot est vérifié.",
   openGraph: {
     siteName: "Najarena",
     locale: "fr_FR",

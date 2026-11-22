@@ -1,11 +1,11 @@
-# Mise en ligne du 22/11/2026 — contrôle de sécurité, suite (M1, M2, M3, M6, M7)
+# Mise en ligne du 22/11/2026 — contrôle de sécurité, suite (M1, M2, M3, M6, M7, F1-F5)
 
 Le code de cette mise en ligne lit de nouvelles colonnes, tables et fonctions :
 **la base se met à jour d'abord, le code ensuite.**
 
 ## Ce que contient la migration
 
-Cinq sections datées du 22/11/2026 à la fin de `docs/schema.sql`, à partir de la ligne
+Six sections datées du 22/11/2026 à la fin de `docs/schema.sql`, à partir de la ligne
 `-- ---------- Lancement anticipé d'un tournoi classé (2026-11-22) ----------`
 jusqu'à la fin du fichier :
 
@@ -32,6 +32,10 @@ jusqu'à la fin du fichier :
 5. **Registre** : table `verification_registre` (lisible par tous), fonction
    `garder_verification_registre` (serveur seul) ; `verifier_registre` n'est plus appelable par les
    visiteurs.
+6. **Petites failles** : déclencheur `push_subscriptions_controle` (adresse de notification push
+   seulement chez les services des navigateurs, en https, 10 appareils au plus par joueur, refus
+   `ADRESSE_PUSH_INVALIDE`) ; `texte_acceptable` réservée au serveur ; déclencheur
+   `recherches_coequipiers_date` (date d'une annonce « cherche une équipe » posée par la base).
 
 Aucune donnée existante n'est modifiée. Les tournois déjà lancés ont `lance_le` vide, mais le
 lancement réel compte aussi leur premier match démarré : un tournoi d'organisateur lancé en avance
@@ -44,7 +48,10 @@ les liste.
   la vérification gardée dans les 5 minutes qui suivent la fusion ;
 - un tournoi lancé depuis le cockpit avec l'ancien code garde ses matchs du tour 1 « en attente »
   (l'ancien code démarre le tour 1 avant de passer le tournoi « en cours », la nouvelle base le
-  refuse). Contrôle et réparation à l'étape 4.
+  refuse). Contrôle et réparation à l'étape 4 ;
+- l'inscription ne prévient plus d'un pseudo refusé par la modération (l'ancien code appelle
+  `texte_acceptable` avec le compte du visiteur, désormais refusé) : la base le remplace toujours
+  par un pseudo automatique à la création du compte, comme avant la vérification préalable.
 
 `vercel.json` : la tâche de changement de saison passe de mensuelle à quotidienne (elle ne fait
 rien tant qu'aucune saison n'est due ; un échec n'attend plus un mois). Pris en compte par Vercel
@@ -70,7 +77,7 @@ having t.publie_le > least(t.debute_le, min(m.demarre_le)) - interval '24 hours'
 
 ## 2. Migration
 
-Appliquer les cinq sections, d'un seul tenant. Elles sont rejouables (`if not exists`,
+Appliquer les six sections, d'un seul tenant. Elles sont rejouables (`if not exists`,
 `create or replace`, `drop … if exists`) : rejouées deux fois sur le schéma de `master`, sans
 erreur.
 
@@ -82,9 +89,15 @@ select column_name from information_schema.columns
 select string_agg(tgname, ', ' order by tgname) from pg_trigger
  where tgname in ('tournaments_lancement', 'registrations_absent_apres_checkin',
                   'suspensions_comptes_riot', 'game_accounts_verification_suspendu',
-                  'game_accounts_garder_niveau', 'seasons_purger_niveaux');   -- les 6
+                  'game_accounts_garder_niveau', 'seasons_purger_niveaux',
+                  'push_subscriptions_controle', 'recherches_coequipiers_date'); -- les 8
 select has_function_privilege('anon', 'public.verifier_registre()', 'execute');            -- false
 select has_function_privilege('authenticated', 'public.mon_statut_non_classe()', 'execute'); -- true
+select has_function_privilege('anon', 'public.texte_acceptable(text, text)', 'execute');    -- false
+-- Adresses push déjà enregistrées qui ne seraient plus acceptées (gardées telles quelles ; le
+-- site les efface à leur prochain envoi) :
+select count(*) from public.push_subscriptions
+ where endpoint !~ '^https://(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)/';
 select count(*) from public.comptes_riot_suspendus;                          -- comptes des suspendus en cours
 ```
 
@@ -98,6 +111,9 @@ select count(*) from public.comptes_riot_suspendus;                          -- 
 - Cockpit d'un tournoi d'organisateur publié depuis moins de 24 h et annoncé plus tard : la
   phrase « Lancé maintenant, ce tournoi ne sera pas classé… » apparaît au-dessus du bouton.
 - Cockpit d'un tournoi dont le check-in n'est pas ouvert : plus de bouton « Absent ».
+- `/inscription` avec un pseudo grossier : message « pseudo refusé » avant la création du compte.
+- Une page de joueur, de tournoi et d'équipe qui n'existe pas : vraie page « Page introuvable »
+  (code 404), plus une page vide en 200.
 - `/cgu` : version du 22 novembre 2026 ; `/confidentialite` : deux lignes de plus dans « Durée de
   conservation ».
 - Matchs bloqués par un lancement fait pendant la fenêtre (doit être vide) :
