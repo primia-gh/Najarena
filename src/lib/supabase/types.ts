@@ -1781,6 +1781,7 @@ export type Database = {
       game_accounts: {
         Row: {
           defi_icone_id: number | null
+          defi_cree_le: string | null
           derniere_sync_le: string | null
           est_principal: boolean
           game_id: number
@@ -1796,6 +1797,7 @@ export type Database = {
         }
         Insert: {
           defi_icone_id?: number | null
+          defi_cree_le?: string | null
           derniere_sync_le?: string | null
           est_principal?: boolean
           game_id: number
@@ -1811,6 +1813,7 @@ export type Database = {
         }
         Update: {
           defi_icone_id?: number | null
+          defi_cree_le?: string | null
           derniere_sync_le?: string | null
           est_principal?: boolean
           game_id?: number

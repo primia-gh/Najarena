@@ -168,12 +168,18 @@ function cote(c: CoteOverlay | undefined, index: number, m: MatchOverlay): strin
   if (!c) return `<div class="cote${droite}"><p class="a-determiner muted">À déterminer</p></div>`;
   const gagnant = m.verdict?.gagnant === index;
   const perdant = m.verdict !== null && m.verdict.gagnant !== null && !gagnant;
-  // Victoire : la lettre V et le mot, jamais la couleur seule (MASTER). Le
-  // vert reste à la preuve : pastille grise pour un verdict manuel.
+  // Victoire et défaite : la lettre V ou D, jamais la couleur seule (MASTER :
+  // pastille verte 14 % / rouge 12 %). Les couleurs restent à la preuve :
+  // pastilles grises pour un verdict manuel.
   const verifie = m.verdict !== null && m.verdict.niveau !== "manuel";
-  const marque = gagnant ? `<span class="pastille-v${verifie ? "" : " neutre"}" aria-hidden="true">V</span>` : "";
+  const neutre = verifie ? "" : " neutre";
+  const marque = gagnant
+    ? `<span class="pastille-v${neutre}" aria-hidden="true">V</span>`
+    : perdant
+      ? `<span class="pastille-v pastille-d${neutre}" aria-hidden="true">D</span>`
+      : "";
   const details = [
-    gagnant ? `<span class="vainqueur">Vainqueur</span>` : null,
+    gagnant ? `<span class="vainqueur">Vainqueur</span>` : perdant ? `<span class="defaite">Défaite</span>` : null,
     c.niveau ? echapperHtml(c.niveau) : null,
     !m.verdict && m.statut === "en_cours" && c.pret ? "Prêt" : null,
   ].filter((x) => x !== null);

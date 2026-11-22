@@ -13,7 +13,7 @@ import { creerClientAdmin } from "@/lib/supabase/admin";
 import { URL_SITE } from "@/lib/notifications";
 import type { Offre } from "@/lib/offres";
 import { RETOURS_EXTERNES } from "@/lib/messages-adresse";
-import { DELAI_RETRACTATION_JOURS, VERSION_CGV } from "@/lib/cgv";
+import { DELAI_RETRACTATION_JOURS, paiementActif, VERSION_CGV } from "@/lib/cgv";
 import { prixCourant } from "@/lib/offre-stripe";
 
 const cleSecrete = process.env.STRIPE_SECRET_KEY;
@@ -44,7 +44,8 @@ export async function demarrerAbonnement(formData: FormData) {
     );
   }
 
-  if (!stripe) {
+  // Ventes fermées tant que la clé Stripe ou le médiateur manque (paiementActif).
+  if (!stripe || !paiementActif()) {
     redirect(
       `/tarifs?erreur=${encodeURIComponent("Le paiement n'est pas encore activé — reviens bientôt.")}#retour`,
     );

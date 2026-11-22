@@ -188,7 +188,7 @@ export function Deroulement({ etapes }: { etapes: { titre: string; quand: string
             <span
               aria-hidden="true"
               className={`h-3 w-3 shrink-0 rounded-full border-2 ${
-                e.etat === "a_venir" ? "border-[#3A3F3A]" : "border-accent"
+                e.etat === "a_venir" ? "border-line-strong" : "border-accent"
               } ${e.etat === "fait" ? "bg-accent" : ""} ${e.etat === "maintenant" ? "animate-pulsation" : ""}`}
             />
             <span className={`flex-1 text-[15px] font-semibold ${e.etat === "a_venir" ? "text-faint" : ""}`}>

@@ -119,14 +119,14 @@ const ETAPES = [
   {
     numero: "03",
     titre: "Ton rating monte",
-    texte: "Chaque victoire vérifiée fait progresser ton rating et ton CV e-sport.",
+    texte: "À la fin de chaque tournoi, tes victoires vérifiées font monter ton rating et ton CV e-sport.",
     boucle: <BoucleRating />,
   },
 ];
 
 const POINTS_CV = [
   "Rating vérifié et place au classement",
-  "Chaque résultat prouvé, match par match",
+  "Chaque résultat affiche son niveau de preuve",
   "Historique complet des matchs",
   "Lien partageable avec les équipes",
 ];
@@ -211,7 +211,7 @@ export default async function Home() {
           <div className="flex max-w-[760px] flex-col gap-9">
             <p className="flex items-center gap-3 text-libelle font-medium text-muted uppercase">
               <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulsation rounded-full bg-accent" />
-              Résultats vérifiés automatiquement
+              Résultats lus dans la donnée Riot
             </p>
             <h1 className="font-titre text-ouverture font-black tracking-[-1px] uppercase">
               Prouve
@@ -435,8 +435,8 @@ export default async function Home() {
                 Recherche avancée, progression dans le temps, historique vérifié : toutes les données pour décider
                 vite et bien.
               </p>
-              <BoutonLien href="/tarifs" variante="secondaire" className="mt-2 self-start">
-                Les offres pro
+              <BoutonLien href="/tarifs?pour=organiser" variante="secondaire" className="mt-2 self-start">
+                Voir l&apos;offre Organisateur
               </BoutonLien>
             </div>
           </Apparition>

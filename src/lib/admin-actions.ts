@@ -10,6 +10,7 @@ import { instantDepuisSaisieParis } from "@/lib/tournois-auto/creneaux";
 import { cashPrizesActifs, lireRepartition, messageRefusDotation } from "@/lib/dotations";
 import { cleVirement, groupeVirement } from "@/lib/versements-stripe";
 import { clientStripe } from "@/lib/versements-stripe-serveur";
+import { messageModeration } from "@/lib/moderation";
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -41,12 +42,21 @@ export async function resoudreLitigeAdmin(formData: FormData) {
     redirect(`/admin?erreur=${encodeURIComponent("La résolution ne peut pas être vide.")}`);
   }
 
-  const { data: litige } = await supabase
+  const { data: litige, error: erreurLitige } = await supabase
     .from("disputes")
     .update({ resolution, resolu_par: utilisateur.id, resolu_le: new Date().toISOString() })
     .eq("id", disputeId)
     .select("ouvert_par, match:matches(tournament:tournaments(nom, slug))")
     .maybeSingle();
+
+  // Résolution modérée par la base (texte public, 21/11/2026).
+  if (erreurLitige) {
+    redirect(
+      `/admin?erreur=${encodeURIComponent(
+        messageModeration(erreurLitige.message) ?? "Impossible d'enregistrer la résolution pour l'instant.",
+      )}`,
+    );
+  }
 
   if (litige?.match?.tournament) {
     await notifierJoueur(

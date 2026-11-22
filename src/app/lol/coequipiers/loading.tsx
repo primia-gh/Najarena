@@ -2,8 +2,9 @@ import Squelette from "@/components/ui/Squelette";
 
 export default function Chargement() {
   return (
-    <main className="relative min-h-screen overflow-hidden pt-28 pb-16">
-      <div className="relative mx-auto max-w-3xl px-6">
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24">
+      {/* Calé sur la grille des pages (bord gauche du logo), comme la page qui arrive. */}
+      <div className="relative px-grille">
         <Squelette className="h-3 w-32" />
         <Squelette className="mt-6 h-9 w-64" />
         <Squelette className="mt-2 h-3 w-80" />

@@ -15,7 +15,7 @@ const REFUS: Record<string, string> = {
   COMPTE_SUSPENDU: "Ton compte est suspendu.",
   COMPTE_RIOT_REQUIS: "Il faut un compte Riot vérifié pour jouer : lie le tien d'abord.",
   REGION_DIFFERENTE: "Ton compte Riot n'est pas sur la région de ce tournoi.",
-  DEJA_DANS_UNE_EQUIPE: "Tu es déjà aligné dans une équipe de ce tournoi.",
+  DEJA_DANS_UNE_EQUIPE: "Tu figures déjà dans une équipe alignée pour ce tournoi.",
   RESERVE_MEMBRES: "Ce tournoi est réservé aux membres de sa communauté.",
   EQUIPE_NON_INSCRITE: "Seul le capitaine d'une équipe inscrite peut faire un remplacement.",
   REMPLACER_CAPITAINE: "Le capitaine représente l'équipe : il ne peut pas être remplacé.",

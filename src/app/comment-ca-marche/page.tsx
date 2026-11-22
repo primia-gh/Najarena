@@ -42,7 +42,8 @@ const NIVEAUX = [
     niveau: "code_tournoi" as const,
     n: "03",
     titre: "Code de tournoi Riot",
-    texte: "Lecture directe depuis un lobby officiel Riot — la preuve la plus forte possible, sans intervention humaine.",
+    texte:
+      "Lecture directe depuis un lobby officiel Riot — la preuve la plus forte possible, sans intervention humaine. Pas encore actif : il demande un accès que Riot accorde plus tard (voir la FAQ).",
   },
   {
     niveau: "historique" as const,
@@ -54,7 +55,8 @@ const NIVEAUX = [
     niveau: "manuel" as const,
     n: "01",
     titre: "Décision manuelle",
-    texte: "Aucune partie correspondante trouvée : l'organisateur tranche et son motif reste affiché publiquement, pour toujours.",
+    texte:
+      "Aucune partie correspondante trouvée : l'organisateur tranche. Les forfaits (joueur pas prêt à temps) et les exemptions (place vide) sont aussi des décisions manuelles, appliquées automatiquement par Najarena. Le motif reste affiché publiquement, pour toujours.",
   },
 ];
 

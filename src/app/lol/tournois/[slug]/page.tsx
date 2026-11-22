@@ -1365,7 +1365,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 )}
               </>
             )}{" "}
-            · Résultats vérifiés automatiquement
+            · Chaque résultat indique sa source
           </>
         }
         infos={infos}

@@ -14489,3 +14489,204 @@ create trigger alertes_compte_supprime
   when (old.supprime_le is null and new.supprime_le is not null)
   execute function public.effacer_alertes_compte_supprime();
 revoke execute on function public.creneau_de(timestamptz) from public, anon, authenticated;
+
+-- ---------- Comptes Riot : re-liaison et liaisons en attente (2026-11-21) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (src/lib/riot-actions.ts lit defi_cree_le).
+-- Contrôle de sécurité complet du 21/11/2026 :
+-- C1 — re-lier son propre compte Riot vérifié (formulaire « déclarer un
+--   compte secondaire » avec son propre Riot ID) remettait verifie_le à nul ;
+--   la recherche des résultats ignore un match dont un compte n'est pas
+--   vérifié, donc un joueur pouvait effacer ses défaites (litige puis verdict
+--   manuel, duel annulé) et revérifier ensuite. Désormais un compte déjà
+--   vérifié du même joueur le reste : seuls son Riot ID affiché (lu chez
+--   Riot) et, hors tournoi en cours, sa région sont mis à jour.
+-- E1 — une liaison jamais vérifiée d'un autre profil bloquait pour toujours
+--   le vrai propriétaire (RIOT_ACCOUNT_TAKEN). Désormais une liaison en
+--   attente ne réserve rien : une nouvelle demande la remplace, et le défi
+--   d'icône n'est valable qu'une heure (defi_cree_le, contrôlé par
+--   verifierRiotId).
+
+alter table public.game_accounts add column if not exists defi_cree_le timestamptz;
+
+create or replace function public.lier_compte_riot(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_puuid text,
+  p_riot_game_name text,
+  p_riot_tag_line text,
+  p_region text,
+  p_defi_icone_id smallint,
+  p_principal boolean default true
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_principal boolean := p_principal;
+  v_existant public.game_accounts%rowtype;
+begin
+  select * into v_existant
+  from public.game_accounts
+  where game_id = p_game_id and puuid = p_puuid
+  for update;
+
+  if found and v_existant.profile_id <> p_profile_id then
+    -- Vérifié par un autre profil : il lui appartient.
+    if v_existant.verifie_le is not null then
+      raise exception 'RIOT_ACCOUNT_TAKEN';
+    end if;
+    -- Jamais vérifié : la liaison en attente ne réserve rien (E1). Seul le
+    -- vrai propriétaire pourra la vérifier, en changeant son icône en jeu.
+    -- Une demande encore valable n'est jamais remplacée par la même icône :
+    -- sinon le remplaçant vérifierait le compte avec l'icône que le vrai
+    -- propriétaire est en train de mettre (le serveur en tire une autre).
+    if v_existant.defi_icone_id = p_defi_icone_id
+       and v_existant.defi_cree_le > now() - interval '1 hour' then
+      raise exception 'DEFI_IDENTIQUE';
+    end if;
+    delete from public.game_accounts where game_id = p_game_id and puuid = p_puuid;
+    v_existant := null;
+  end if;
+
+  -- Le premier compte est toujours le principal.
+  if not exists (
+    select 1 from public.game_accounts
+    where profile_id = p_profile_id and game_id = p_game_id and est_principal and puuid <> p_puuid
+  ) then
+    v_principal := true;
+  end if;
+
+  if v_principal
+     and exists (
+       select 1 from public.game_accounts
+       where profile_id = p_profile_id and game_id = p_game_id and est_principal and puuid <> p_puuid
+     )
+     and public.engage_en_tournoi(p_profile_id, p_game_id) then
+    raise exception 'INSCRIT_A_UN_TOURNOI';
+  end if;
+
+  if v_existant.puuid is null
+     and (select count(*) from public.game_accounts where profile_id = p_profile_id and game_id = p_game_id) >= 3 then
+    raise exception 'TROP_DE_COMPTES';
+  end if;
+
+  -- Son propre compte, déjà vérifié : il le reste (C1).
+  if v_existant.puuid is not null and v_existant.verifie_le is not null then
+    -- Compte principal d'un joueur engagé dans un tournoi : la région, qui
+    -- sert à lire ses résultats chez Riot, ne change pas.
+    if v_existant.est_principal
+       and p_region is distinct from v_existant.region
+       and public.engage_en_tournoi(p_profile_id, p_game_id) then
+      raise exception 'INSCRIT_A_UN_TOURNOI';
+    end if;
+    if v_principal and not v_existant.est_principal then
+      update public.game_accounts
+      set est_principal = false
+      where profile_id = p_profile_id and game_id = p_game_id and puuid <> p_puuid and est_principal;
+    end if;
+    update public.game_accounts
+    set riot_game_name = p_riot_game_name,
+        riot_tag_line = p_riot_tag_line,
+        region = p_region,
+        est_principal = est_principal or v_principal
+    where game_id = p_game_id and puuid = p_puuid;
+    return;
+  end if;
+
+  -- Nouveau principal : les autres comptes de ce joueur cessent de l'être
+  -- (annulé avec le reste si la liaison échoue plus bas).
+  if v_principal then
+    update public.game_accounts
+    set est_principal = false
+    where profile_id = p_profile_id
+      and game_id = p_game_id
+      and puuid <> p_puuid
+      and est_principal;
+  end if;
+
+  insert into public.game_accounts (
+    profile_id, game_id, puuid, riot_game_name, riot_tag_line, region,
+    est_principal, defi_icone_id, defi_cree_le, methode_verification
+  )
+  values (
+    p_profile_id, p_game_id, p_puuid, p_riot_game_name, p_riot_tag_line, p_region,
+    v_principal, p_defi_icone_id, now(), 'icone_profil'
+  )
+  on conflict (game_id, puuid) do update set
+    riot_game_name = excluded.riot_game_name,
+    riot_tag_line = excluded.riot_tag_line,
+    region = excluded.region,
+    est_principal = public.game_accounts.est_principal or excluded.est_principal,
+    defi_icone_id = excluded.defi_icone_id,
+    defi_cree_le = excluded.defi_cree_le,
+    methode_verification = 'icone_profil',
+    verifie_le = null
+  -- Seulement une liaison du même joueur encore en attente (le compte
+  -- vérifié du même joueur est traité plus haut, celui d'un autre refusé).
+  where public.game_accounts.profile_id = p_profile_id
+    and public.game_accounts.verifie_le is null;
+
+  if not found then
+    raise exception 'RIOT_ACCOUNT_TAKEN';
+  end if;
+end;
+$$;
+revoke execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint, boolean) from public, anon, authenticated;
+grant execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint, boolean) to service_role;
+
+-- defi_cree_le n'est écrit que par le serveur, comme defi_icone_id et
+-- verifie_le : game_accounts n'a aucune policy d'écriture (RLS).
+
+-- M5 du même contrôle : le motif d'un verdict manuel écrit par un
+-- organisateur (affiché sur la fiche de preuve, l'API publique, l'overlay
+-- des streamers) et la résolution d'un litige sont des textes publics :
+-- longueur bornée et modération comme une annonce (refus d'une insulte, de
+-- propos haineux ou d'un lien). Les motifs posés par la base elle-même
+-- (forfait d'absence, decide_par nul) ne passent pas par ce contrôle.
+create or replace function public.moderer_motif_verdict()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.niveau = 'manuel' and new.decide_par is not null and new.motif is not null then
+    if char_length(new.motif) > 300 then
+      raise exception 'MOTIF_TROP_LONG';
+    end if;
+    if coalesce(public.analyser_texte(new.motif, 'texte_public'), '') like 'refus:%' then
+      raise exception 'TEXTE_INTERDIT';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_motif_verdict() from public, anon, authenticated;
+drop trigger if exists moderation_motif_verdict on public.match_verdicts;
+create trigger moderation_motif_verdict
+  before insert on public.match_verdicts
+  for each row execute function public.moderer_motif_verdict();
+
+create or replace function public.moderer_resolution_litige()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.resolution is not null and new.resolution is distinct from old.resolution then
+    if char_length(new.resolution) > 500 then
+      raise exception 'MOTIF_TROP_LONG';
+    end if;
+    if coalesce(public.analyser_texte(new.resolution, 'texte_public'), '') like 'refus:%' then
+      raise exception 'TEXTE_INTERDIT';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.moderer_resolution_litige() from public, anon, authenticated;
+drop trigger if exists moderation_resolution_litige on public.disputes;
+create trigger moderation_resolution_litige
+  before update of resolution on public.disputes
+  for each row execute function public.moderer_resolution_litige();

@@ -8,9 +8,14 @@ export const DATE_CGV_LISIBLE = "19 novembre 2026";
 /** Délai légal de rétractation (Code de la consommation, art. L221-18). */
 export const DELAI_RETRACTATION_JOURS = 14;
 
-/** Le paiement est-il branché ? (clé secrète Stripe présente sur le serveur) */
+/**
+ * Le paiement est-il ouvert ? Clé secrète Stripe présente sur le serveur ET
+ * médiateur de la consommation désigné (contrôle du 21/11/2026 : vendre à
+ * des particuliers sans médiateur est interdit, art. L612-1 — poser la clé
+ * Stripe seule ne doit pas suffire à ouvrir les ventes).
+ */
 export function paiementActif(): boolean {
-  return Boolean(process.env.STRIPE_SECRET_KEY);
+  return Boolean(process.env.STRIPE_SECRET_KEY) && MEDIATEUR !== null;
 }
 
 const VARIABLE_PRIX: Record<string, string> = {

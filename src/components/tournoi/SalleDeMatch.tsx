@@ -111,7 +111,7 @@ function EtatPret({
                 : `${equipe.estCapitaine ? "Déclare ton équipe prête" : "Ton capitaine déclare l'équipe prête"} dès que vous êtes tous les cinq devant votre jeu. Dès qu'une équipe l'est, l'autre a ${DELAI_FORFAIT_MINUTES} minutes pour le faire, sinon elle perd par forfait.`}
         </p>
       ) : pret.moi && pret.adversaire ? (
-        <p className="text-sm text-text-2">Vous êtes prêts tous les deux : lancez la partie.</p>
+        <p className="text-sm text-text-2">C&apos;est bon des deux côtés : lancez la partie.</p>
       ) : pret.adversaire ? (
         <p role="alert" className="text-sm text-danger">
           {adversaire} est prêt : déclare-toi prêt avant{" "}
