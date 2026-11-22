@@ -30,7 +30,14 @@ export default async function RegistrePage() {
   const supabase = await createClient();
 
   const [{ data: verification, error: erreurVerification }, { data: lignes }, { data: publication }] = await Promise.all([
-    supabase.rpc("verifier_registre").maybeSingle(),
+    // Résultat gardé par la base (vérifié toutes les 5 minutes par la tâche
+    // des tournois automatiques, toute la chaîne une fois par jour) : la
+    // page ne recalcule plus la chaîne à chaque visite (contrôle M7).
+    supabase
+      .from("verification_registre")
+      .select("lignes, derniere_empreinte, premiere_rupture, verifie_le, verification_complete_le")
+      .eq("id", 1)
+      .maybeSingle(),
     supabase
       .from("rating_events")
       .select(
@@ -52,7 +59,7 @@ export default async function RegistrePage() {
     : { data: null };
   const publicationConcorde = publication && lignePubliee ? lignePubliee.empreinte === publication.empreinte : null;
 
-  const intacte = verification ? verification.premiere_rupture === null : null;
+  const intacte = verification?.verifie_le ? verification.premiere_rupture === null : null;
   const adresseExport = `${URL_SITE}/registre/export`;
   // Second témoin (idée en réserve n°3) : le dépôt GitHub public, s'il est configuré.
   const depotGithub = depotAncrage();
@@ -85,8 +92,9 @@ export default async function RegistrePage() {
                 <p className="text-sm text-text-2">
                   <span className="font-semibold text-accent uppercase">Intacte</span> —{" "}
                   <span className="tabular-nums">{verification?.lignes ?? 0}</span> ligne
-                  {(verification?.lignes ?? 0) > 1 ? "s" : ""} vérifiée{(verification?.lignes ?? 0) > 1 ? "s" : ""} à
-                  l&apos;ouverture de cette page.
+                  {(verification?.lignes ?? 0) > 1 ? "s" : ""} vérifiée{(verification?.lignes ?? 0) > 1 ? "s" : ""} le{" "}
+                  <span className="tabular-nums">{verification?.verifie_le ? formaterDate(verification.verifie_le) : ""}</span>
+                  . La base vérifie les nouvelles lignes toutes les 5&nbsp;minutes et relit toute la chaîne chaque jour.
                 </p>
               ) : (
                 <p role="alert" className="text-sm text-danger">

@@ -45,7 +45,14 @@ alter table rating_events enable trigger rating_events_immuable;
 
 set role anon;
 select essai('Visiteur : lit l''export public du registre', $q$select 1 from registre_public$q$, 'passe');
-select essai('Visiteur : vérifie la chaîne', $q$select 1 from public.verifier_registre() where premiere_rupture is null$q$, 'passe');
+-- Depuis le 22/11/2026 (M7), la vérification complète est réservée au
+-- serveur ; le visiteur lit le résultat gardé (99u).
+select essai('Visiteur : lit la vérification gardée', $q$select count(*) from verification_registre$q$, 'passe');
+reset role;
+set role service_role;
+select essai('Serveur : vérifie la chaîne', $q$select 1 from public.verifier_registre() where premiere_rupture is null$q$, 'passe');
+reset role;
+set role anon;
 select essai('Visiteur : publie une fausse empreinte du jour',
   $q$insert into empreintes_publiees (jour, numero, empreinte) values (current_date, 1, 'faux')$q$, 'bloque');
 reset role;

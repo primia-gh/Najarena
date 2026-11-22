@@ -1188,6 +1188,33 @@ export type Database = {
           },
         ]
       }
+      verification_registre: {
+        Row: {
+          derniere_empreinte: string | null
+          id: number
+          lignes: number
+          premiere_rupture: number | null
+          verification_complete_le: string | null
+          verifie_le: string | null
+        }
+        Insert: {
+          derniere_empreinte?: string | null
+          id?: number
+          lignes?: number
+          premiere_rupture?: number | null
+          verification_complete_le?: string | null
+          verifie_le?: string | null
+        }
+        Update: {
+          derniere_empreinte?: string | null
+          id?: number
+          lignes?: number
+          premiere_rupture?: number | null
+          verification_complete_le?: string | null
+          verifie_le?: string | null
+        }
+        Relationships: []
+      }
       versements_dotation: {
         Row: {
           a_verifier: boolean
@@ -3921,6 +3948,10 @@ export type Database = {
       s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
       se_desinscrire: { Args: { p_tournament_id: string }; Returns: boolean }
       supprimer_mon_compte: { Args: never; Returns: string }
+      garder_verification_registre: {
+        Args: never
+        Returns: { complete: boolean; lignes: number; premiere_rupture: number | null }[]
+      }
       verifier_registre: {
         Args: never
         Returns: { derniere_empreinte: string | null; lignes: number; premiere_rupture: number | null }[]

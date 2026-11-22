@@ -95,6 +95,21 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     resultats.push(`contrôle de la clé Riot : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
   }
 
+  // Vérification du registre gardée pour la page /registre (contrôle de
+  // sécurité M7 du 22/11/2026) : nouvelles lignes à chaque passage, toute la
+  // chaîne une fois par 24 h. La page ne recalcule plus rien.
+  try {
+    const { data: verification, error } = await admin.rpc("garder_verification_registre").maybeSingle();
+    if (error) throw new Error(error.message);
+    if (verification?.premiere_rupture != null) {
+      resultats.push(`registre : RUPTURE à la ligne ${verification.premiere_rupture}`);
+    } else if (verification?.complete) {
+      resultats.push(`registre : chaîne complète vérifiée (${verification.lignes} lignes)`);
+    }
+  } catch (erreur) {
+    resultats.push(`vérification du registre : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
   try {
     resultats.push(...(await publierEmpreinteRegistre(admin, maintenant)));
   } catch (erreur) {

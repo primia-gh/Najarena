@@ -15391,3 +15391,191 @@ begin
 end;
 $$;
 revoke execute on function public.cloturer_rating_joueur from public, anon, authenticated;
+
+-- ---------- Défis : 20 par jour (2026-11-22) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Contrôle de sécurité complet du 21/11/2026, M6 : 5 défis en attente au
+-- plus, mais un défi retiré libérait sa place ; un script pouvait lancer,
+-- retirer et relancer sans fin, et chaque défi part en message privé du
+-- bot Discord officiel (que Discord pourrait alors limiter, or c'est le
+-- canal des rappels). Désormais 20 défis lancés par 24 h et par joueur,
+-- invitations par lien comprises, retirés compris (le décompte n'est jamais
+-- rendu). Un défi refusé par la base avant d'être créé ne compte pas.
+create or replace function public.consommer_limite(p_action text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_plafond integer;
+  v_fenetre interval;
+  v_nombre integer;
+begin
+  case p_action
+    when 'liaison_riot' then v_plafond := 10; v_fenetre := interval '1 hour';
+    when 'creation_tournoi' then v_plafond := 5; v_fenetre := interval '24 hours';
+    when 'litige' then v_plafond := 10; v_fenetre := interval '24 hours';
+    when 'message' then v_plafond := 30; v_fenetre := interval '1 hour';
+    when 'creation_equipe' then v_plafond := 3; v_fenetre := interval '24 hours';
+    when 'recherche_joueurs' then v_plafond := 120; v_fenetre := interval '1 hour';
+    when 'modification_tournoi' then v_plafond := 10; v_fenetre := interval '24 hours';
+    when 'defi' then v_plafond := 20; v_fenetre := interval '24 hours';
+    else raise exception 'ACTION_INCONNUE';
+  end case;
+
+  if v_joueur is null then
+    return false;
+  end if;
+
+  -- Une demande à la fois par joueur : deux onglets ne dépassent pas la limite.
+  perform 1 from public.profiles where id = v_joueur for update;
+
+  delete from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le < now() - interval '7 days';
+
+  select count(*) into v_nombre
+  from public.limites_usage
+  where profile_id = v_joueur and action = p_action and cree_le > now() - v_fenetre;
+
+  if v_nombre >= v_plafond then
+    return false;
+  end if;
+
+  insert into public.limites_usage (profile_id, action) values (v_joueur, p_action);
+  return true;
+end;
+$$;
+revoke execute on function public.consommer_limite(text) from public, anon;
+grant execute on function public.consommer_limite(text) to authenticated;
+
+create or replace function public.controler_lanceur_defi(p_joueur uuid, p_condition text)
+returns text -- région du lanceur
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_region text;
+begin
+  if p_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if p_condition not in ('nexus', 'classique') then
+    raise exception 'CONDITION_INVALIDE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = p_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  v_region := public.region_compte_verifie(p_joueur);
+  if v_region is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  -- Un défi à la fois par joueur (verrou), 5 propositions ouvertes au plus.
+  perform 1 from public.profiles where id = p_joueur for update;
+  if (select count(*) from public.defis
+      where lanceur_id = p_joueur and statut = 'propose' and expire_le > now()) >= 5 then
+    raise exception 'LIMITE_DEFIS';
+  end if;
+  -- 20 défis lancés par 24 h, retirés compris (M6) : chaque défi part en
+  -- message privé du bot Discord et en notification.
+  if not public.consommer_limite('defi') then
+    raise exception 'DEFIS_DU_JOUR_ATTEINTS';
+  end if;
+  return v_region;
+end;
+$$;
+revoke all on function public.controler_lanceur_defi(uuid, text) from public, anon, authenticated;
+
+-- ---------- Registre : vérification gardée (2026-11-22) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (src/app/registre/page.tsx lit verification_registre ; la tâche des
+-- tournois automatiques appelle garder_verification_registre).
+-- Contrôle de sécurité complet du 21/11/2026, M7 : la page /registre
+-- recalculait toute la chaîne d'empreintes à chaque visite, et la fonction
+-- était appelable sans compte ; quelques appels en boucle auraient occupé
+-- la base de tout le site. Désormais la base vérifie les nouvelles lignes
+-- à chaque passage de la tâche des tournois automatiques (toutes les
+-- 5 minutes) et toute la chaîne une fois par 24 h ; la page lit le résultat
+-- gardé, avec son heure. La vérification indépendante reste ouverte à tous
+-- (export public et scripts/verifier-registre.mjs).
+
+create table if not exists public.verification_registre (
+  id                       smallint primary key default 1 check (id = 1),
+  lignes                   bigint not null default 0,
+  derniere_empreinte       text,
+  premiere_rupture         bigint,
+  verifie_le               timestamptz,
+  verification_complete_le timestamptz
+);
+alter table public.verification_registre enable row level security;
+drop policy if exists "verification du registre lisible par tous" on public.verification_registre;
+create policy "verification du registre lisible par tous" on public.verification_registre
+  for select using (true);
+revoke insert, update, delete on public.verification_registre from anon, authenticated;
+
+create or replace function public.garder_verification_registre()
+returns table (lignes bigint, premiere_rupture bigint, complete boolean)
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_etat public.verification_registre%rowtype;
+  v_complete boolean;
+  r record;
+  v_precedente text;
+  v_attendu bigint;
+  v_rupture bigint;
+begin
+  -- Un passage à la fois (ligne verrouillée).
+  insert into public.verification_registre (id) values (1) on conflict (id) do nothing;
+  select * into v_etat from public.verification_registre where id = 1 for update;
+
+  v_complete := v_etat.verification_complete_le is null
+             or v_etat.verification_complete_le < now() - interval '24 hours';
+
+  if v_complete then
+    select v.lignes, v.derniere_empreinte, v.premiere_rupture
+      into v_attendu, v_precedente, v_rupture
+    from public.verifier_registre() v;
+  else
+    -- Seulement les lignes ajoutées depuis : les anciennes ne se modifient
+    -- pas (rating_events_immuable), et la vérification complète du jour
+    -- les relit toutes.
+    v_attendu := v_etat.lignes;
+    v_precedente := coalesce(v_etat.derniere_empreinte, repeat('0', 64));
+    v_rupture := v_etat.premiere_rupture;
+    for r in select * from public.rating_events e where e.numero > v_etat.lignes order by e.numero loop
+      v_attendu := v_attendu + 1;
+      if v_rupture is null and (
+        r.numero <> v_attendu
+        or r.empreinte_precedente <> v_precedente
+        or r.empreinte <> public.empreinte_rating_event(public.contenu_scelle_rating_event(
+             r.numero, v_precedente, r.profile_id, r.game_id, r.season_id, r.match_id, r.tournament_id,
+             r.motif, r.rating_avant, r.rd_avant, r.rating_apres, r.rd_apres, r.adversaire_id, r.cree_le))
+      ) then
+        v_rupture := r.numero;
+      end if;
+      v_precedente := r.empreinte;
+    end loop;
+    if v_attendu = 0 then
+      v_precedente := null;
+    end if;
+  end if;
+
+  update public.verification_registre set
+    lignes = v_attendu,
+    derniere_empreinte = v_precedente,
+    premiere_rupture = v_rupture,
+    verifie_le = now(),
+    verification_complete_le = case when v_complete then now() else verification_complete_le end
+  where id = 1;
+
+  return query select v_attendu, v_rupture, v_complete;
+end;
+$$;
+revoke execute on function public.garder_verification_registre() from public, anon, authenticated;
+grant execute on function public.garder_verification_registre() to service_role;
+
+-- La vérification complète n'est plus appelable par les visiteurs.
+revoke execute on function public.verifier_registre() from public, anon, authenticated;
+grant execute on function public.verifier_registre() to service_role;

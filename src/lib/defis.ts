@@ -6,6 +6,8 @@ export const DUREE_DEFI_HEURES = 24;
 export const DUREE_INVITATION_JOURS = 7;
 export const DEFIS_OUVERTS_MAX = 5;
 export const DEFIS_EN_COURS_MAX = 3;
+/** Défis lancés par 24 h, retirés compris (consommer_limite('defi'), contrôle M6 du 22/11/2026). */
+export const DEFIS_PAR_JOUR_MAX = 20;
 
 const MESSAGES_REFUS: Record<string, string> = {
   NON_CONNECTE: "Connecte-toi pour jouer un défi.",
@@ -15,6 +17,7 @@ const MESSAGES_REFUS: Record<string, string> = {
   COMPTE_RIOT_REQUIS:
     "Il faut un compte Riot vérifié aux deux joueurs : c'est lui qui permet de lire le résultat chez Riot.",
   LIMITE_DEFIS: `Tu as déjà ${DEFIS_OUVERTS_MAX} défis en attente de réponse : attends une réponse ou retire-en un.`,
+  DEFIS_DU_JOUR_ATTEINTS: `Tu as lancé ${DEFIS_PAR_JOUR_MAX} défis en 24 heures, défis retirés compris : réessaie demain.`,
   JOUEUR_INTROUVABLE: "Ce joueur n'existe pas.",
   ADVERSAIRE_SANS_COMPTE_RIOT: "Ce joueur n'a pas encore de compte Riot vérifié : il ne peut pas être défié pour l'instant.",
   REGION_DIFFERENTE: "Vous ne jouez pas dans la même région : un défi se joue sur un même serveur.",
