@@ -99,7 +99,15 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
   // sécurité M7 du 22/11/2026) : nouvelles lignes à chaque passage, toute la
   // chaîne une fois par 24 h. La page ne recalcule plus rien.
   try {
-    const { data: verification, error } = await admin.rpc("garder_verification_registre").maybeSingle();
+    let { data: verification, error } = await admin.rpc("garder_verification_registre").maybeSingle();
+    if (error) {
+      // Relecture complète en échec (temps dépassé quand le registre sera
+      // très grand) : au moins les nouvelles lignes.
+      resultats.push(`registre : relecture complète en échec (${error.message}), nouvelles lignes seulement`);
+      ({ data: verification, error } = await admin
+        .rpc("garder_verification_registre", { p_complete_permise: false })
+        .maybeSingle());
+    }
     if (error) throw new Error(error.message);
     if (verification?.premiere_rupture != null) {
       resultats.push(`registre : RUPTURE à la ligne ${verification.premiere_rupture}`);

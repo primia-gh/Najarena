@@ -82,3 +82,58 @@ select essai('Check-in ouvert : l''organisateur marque le joueur absent',
 reset role;
 select verifie('Le joueur est absent',
   (select statut = 'absent' from registrations where tournament_id = 'ad0d0000-0000-0000-0000-0000000000a3' and profile_id = 'ad0d0000-0000-0000-0000-000000000001'));
+
+-- ---- Contre-contrôle du 22/11/2026 : bracket joué sans passage « en cours » ----
+-- E : 4 places, publié il y a une heure, annoncé dans 30 h, check-in ouvert.
+insert into tournaments (id, game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement) values
+  ('ad0d0000-0000-0000-0000-0000000000a5', 1, :'saison', 'ad0d0000-0000-0000-0000-000000000000', 'lance-99r-a5', 'Coupe 99r E', '1v1', 4, 'EUW', now() + interval '30 hours', now() - interval '1 minute', 'ouvert', true);
+alter table tournaments disable trigger controle_classement_tournoi;
+update tournaments set publie_le = now() - interval '1 hour' where id = 'ad0d0000-0000-0000-0000-0000000000a5';
+alter table tournaments enable trigger controle_classement_tournoi;
+insert into registrations (tournament_id, profile_id, statut, confirme_le) values
+  ('ad0d0000-0000-0000-0000-0000000000a5', 'ad0d0000-0000-0000-0000-000000000001', 'confirme', now()),
+  ('ad0d0000-0000-0000-0000-0000000000a5', 'ad0d0000-0000-0000-0000-000000000002', 'confirme', now());
+select verifie('Avant tout match, E est « publié à temps » (date annoncée dans 30 h)',
+  (select publie_a_temps from criteres_tournoi_classe('ad0d0000-0000-0000-0000-0000000000a5')));
+
+set role authenticated;
+select en_tant_que('ad0d0000-0000-0000-0000-000000000000');
+select essai('L''organisateur écrit la finale pendant les inscriptions',
+  $q$insert into matches (id, tournament_id, tour, position, match_suivant_id) values ('ad0d0000-0000-0000-0000-0000000000e3', 'ad0d0000-0000-0000-0000-0000000000a5', 2, 1, null)$q$, 'passe');
+select essai('Puis une demi-finale',
+  $q$insert into matches (id, tournament_id, tour, position, match_suivant_id) values ('ad0d0000-0000-0000-0000-0000000000e1', 'ad0d0000-0000-0000-0000-0000000000a5', 1, 1, 'ad0d0000-0000-0000-0000-0000000000e3')$q$, 'passe');
+select essai('Il y place ses deux joueurs (1)',
+  $q$insert into match_participants (match_id, profile_id, slot) values ('ad0d0000-0000-0000-0000-0000000000e1', 'ad0d0000-0000-0000-0000-000000000001', 1)$q$, 'passe');
+select essai('Il y place ses deux joueurs (2)',
+  $q$insert into match_participants (match_id, profile_id, slot) values ('ad0d0000-0000-0000-0000-0000000000e1', 'ad0d0000-0000-0000-0000-000000000002', 2)$q$, 'passe');
+select refus('Il ne démarre pas le match tant que le tournoi n''est pas « en cours »',
+  $q$update matches set statut = 'en_cours', demarre_le = now() where id = 'ad0d0000-0000-0000-0000-0000000000e1'$q$, 'TOURNOI_PAS_LANCE');
+select refus('Bracket écrit : il ne marque plus un joueur placé « absent »',
+  $q$update registrations set statut = 'absent' where tournament_id = 'ad0d0000-0000-0000-0000-0000000000a5' and profile_id = 'ad0d0000-0000-0000-0000-000000000001'$q$, 'INSCRIPTIONS_FIGEES');
+reset role;
+-- Même absent (écrit par le serveur), un joueur placé reste engagé.
+update registrations set statut = 'absent' where tournament_id = 'ad0d0000-0000-0000-0000-0000000000a5' and profile_id = 'ad0d0000-0000-0000-0000-000000000001';
+select verifie('Un joueur placé dans un match d''un tournoi pas encore lancé reste engagé',
+  public.engage_en_tournoi('ad0d0000-0000-0000-0000-000000000001', 1::smallint));
+
+-- Un verdict posé avant le passage « en cours » compte comme lancement.
+insert into match_verdicts (match_id, niveau, gagnant_id, decide_par, motif, est_definitif)
+values ('ad0d0000-0000-0000-0000-0000000000e1', 'manuel', 'ad0d0000-0000-0000-0000-000000000002', 'ad0d0000-0000-0000-0000-000000000000', 'Décision de test.', true);
+select verifie('Le premier verdict compte comme lancement réel',
+  (select public.lancement_reel_tournoi('ad0d0000-0000-0000-0000-0000000000a5') > now() - interval '1 minute'));
+select verifie('Lancé dans les faits une heure après la publication : plus « publié à temps »',
+  (select not publie_a_temps from criteres_tournoi_classe('ad0d0000-0000-0000-0000-0000000000a5')));
+
+-- Une fois « en cours », le match démarre normalement.
+set role authenticated;
+select en_tant_que('ad0d0000-0000-0000-0000-000000000000');
+select essai('L''organisateur passe le tournoi « en cours »',
+  $q$update tournaments set statut = 'en_cours' where id = 'ad0d0000-0000-0000-0000-0000000000a5'$q$, 'passe');
+reset role;
+insert into matches (id, tournament_id, tour, position, match_suivant_id) values
+  ('ad0d0000-0000-0000-0000-0000000000e2', 'ad0d0000-0000-0000-0000-0000000000a5', 1, 2, 'ad0d0000-0000-0000-0000-0000000000e3');
+set role authenticated;
+select en_tant_que('ad0d0000-0000-0000-0000-000000000000');
+select essai('Tournoi « en cours » : un match démarre',
+  $q$update matches set statut = 'en_cours', demarre_le = now() where id = 'ad0d0000-0000-0000-0000-0000000000e2'$q$, 'passe');
+reset role;

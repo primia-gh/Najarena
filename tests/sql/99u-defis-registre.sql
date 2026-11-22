@@ -30,6 +30,12 @@ select essai('Le 20e défi du jour (lien d''invitation) passe',
 select refus('Le 21e est refusé, même si tous les autres ont été retirés',
   $q$select public.lancer_defi('b00b0002-0000-0000-0000-000000000000')$q$, 'DEFIS_DU_JOUR_ATTEINTS');
 reset role;
+set role authenticated;
+select en_tant_que('b00b0001-0000-0000-0000-000000000000');
+select essai('L''arène ne compte pas dans les défis du jour',
+  $q$select public.rejoindre_arene()$q$, 'passe');
+select essai('Il quitte la file', $q$select public.quitter_arene()$q$, 'passe');
+reset role;
 select verifie('20 défis lancés en tout, aucun 21e',
   (select count(*) = 20 from defis where lanceur_id = 'b00b0001-0000-0000-0000-000000000000'));
 -- Le lendemain, la limite repart.

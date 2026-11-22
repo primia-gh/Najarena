@@ -10,9 +10,13 @@ Cinq sections datées du 22/11/2026 à la fin de `docs/schema.sql`, à partir de
 jusqu'à la fin du fichier :
 
 1. **Lancement anticipé** : colonne `tournaments.lance_le` et déclencheur `tournaments_lancement`
-   (posée par la base au passage « en cours ») ; `criteres_tournoi_classe` redéfinie (la règle des
-   24 h compte jusqu'au lancement réel s'il est plus tôt) ; déclencheur
-   `registrations_absent_apres_checkin` (« absent » seulement une fois le check-in ouvert).
+   (posée par la base au passage « en cours ») ; `lancement_reel_tournoi` (le plus tôt du passage
+   « en cours », du premier match démarré et du premier verdict) ; `criteres_tournoi_classe`
+   redéfinie (la règle des 24 h compte jusqu'à ce lancement réel s'il est plus tôt) ; déclencheur
+   `registrations_absent_apres_checkin` (« absent » seulement une fois le check-in ouvert) ;
+   `controler_ecriture_match` (un match ne démarre qu'une fois le tournoi « en cours »,
+   `TOURNOI_PAS_LANCE`), `figer_inscriptions_lancees` et `engage_en_tournoi` (dès qu'un bracket
+   existe) redéfinies.
 2. **Suspension et niveau qui suivent le compte Riot** : `empreinte_puuid`, tables
    `comptes_riot_suspendus` et `niveaux_comptes_riot` (aucune policy : lues par la base seule),
    déclencheurs `suspensions_comptes_riot`, `game_accounts_verification_suspendu`,
@@ -21,8 +25,10 @@ jusqu'à la fin du fichier :
    `est_non_classe`, `mon_niveau_tournoi` redéfinies ; nouvelles `saisons_niveau`, `niveau_herite`,
    `mon_statut_non_classe`. Les suspensions déjà en cours sont reprises (comptes Riot vérifiés notés).
 3. **Saison close** : `cloturer_rating_joueur` refuse une saison qui n'est pas la saison en cours
-   (`SAISON_CLOSE`).
-4. **Défis : 20 par jour** : `consommer_limite` (action `defi`) et `controler_lanceur_defi` redéfinies.
+   (`SAISON_CLOSE`) ou pendant la bascule vers la suivante (`SAISON_EN_BASCULE`) ;
+   `appliquer_decroissance_rd` ne touche plus une saison archivée.
+4. **Défis : 20 par jour** : `consommer_limite` (action `defi`), `lancer_defi` et
+   `creer_invitation_defi` redéfinies (l'arène n'est pas comptée).
 5. **Registre** : table `verification_registre` (lisible par tous), fonction
    `garder_verification_registre` (serveur seul) ; `verifier_registre` n'est plus appelable par les
    visiteurs.
@@ -34,6 +40,10 @@ reste celle de la date annoncée pour eux.
 indisponible pour l'instant » (l'ancien code appelle `verifier_registre`, désormais réservée au
 serveur). Fusionner le code juste après la migration ; la tâche des tournois automatiques
 remplit la vérification gardée dans les 5 minutes qui suivent.
+
+`vercel.json` : la tâche de changement de saison passe de mensuelle à quotidienne (elle ne fait
+rien tant qu'aucune saison n'est due ; un échec n'attend plus un mois). Pris en compte par Vercel
+à la fusion.
 
 ## 1. Avant (lecture seule)
 

@@ -319,9 +319,12 @@ export async function appliquerDecroissanceInactivite(): Promise<{
 
   const seuil = new Date(Date.now() - SEUIL_INACTIVITE_JOURS * 24 * 60 * 60 * 1000).toISOString();
 
+  // Saison en cours seulement : le classement final d'une saison archivée
+  // ne bouge plus (refusé aussi par la base, contre-contrôle du 22/11/2026).
   const { data: candidats } = await supabase
     .from("ratings")
-    .select("profile_id, game_id, season_id, rating, rd, volatilite")
+    .select("profile_id, game_id, season_id, rating, rd, volatilite, season:seasons!inner(est_courante)")
+    .eq("season.est_courante", true)
     .lt("maj_le", seuil)
     .lt("rd", RD_MAX);
 

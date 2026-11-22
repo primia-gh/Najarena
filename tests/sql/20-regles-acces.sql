@@ -112,8 +112,10 @@ select essai('Génération du bracket : Alice place Gina (inscrite, pas confirm�
   $q$insert into match_participants (match_id, profile_id, slot) values ('50000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000010', 1)$q$, 'bloque');
 select essai('Génération du bracket : Alice place Eve (confirmée)',
   $q$insert into match_participants (match_id, profile_id, slot) values ('50000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-00000000000e', 1)$q$, 'passe');
-select essai('Génération du bracket : Alice lance le match maintenant',
-  $q$update matches set statut = 'en_cours', demarre_le = now() where id = '50000000-0000-0000-0000-000000000009'$q$, 'passe');
+-- Depuis le 22/11/2026, un match ne démarre qu'une fois le tournoi « en
+-- cours » (genererBracket passe le tournoi « en cours » avant le tour 1).
+select refus('Génération du bracket : Alice lance le match avant le tournoi',
+  $q$update matches set statut = 'en_cours', demarre_le = now() where id = '50000000-0000-0000-0000-000000000009'$q$, 'TOURNOI_PAS_LANCE');
 select essai('Alice passe un tournoi en check-in au statut « en cours »',
   $q$update tournaments set statut = 'en_cours' where id = '10000000-0000-0000-0000-000000000004'$q$, 'passe');
 reset role;

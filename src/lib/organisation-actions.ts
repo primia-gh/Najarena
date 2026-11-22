@@ -297,6 +297,17 @@ export async function genererBracket(formData: FormData) {
       });
       if (error) exemptionsRefusees += 1;
     },
+    // Le tournoi passe « en cours » avant le premier match (la base note
+    // l'heure du lancement et refuse un match démarré avant).
+    async () => {
+      const { data: lance } = await supabase
+        .from("tournaments")
+        .update({ statut: "en_cours" })
+        .eq("id", tournamentId)
+        .in("statut", ["ouvert", "checkin"])
+        .select("id");
+      return (lance ?? []).length > 0;
+    },
   );
 
   if (!ok) {
@@ -306,8 +317,6 @@ export async function genererBracket(formData: FormData) {
       )}`,
     );
   }
-
-  await supabase.from("tournaments").update({ statut: "en_cours" }).eq("id", tournamentId);
 
   // Les joueurs des matchs déjà ouverts sont prévenus (push et Discord, avec
   // le bouton « Je suis prêt ») — jusqu'ici, seuls les tours suivants

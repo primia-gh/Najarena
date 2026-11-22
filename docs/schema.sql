@@ -14729,6 +14729,29 @@ create trigger tournaments_lancement
   before insert or update on public.tournaments
   for each row execute function public.noter_lancement_tournoi();
 
+-- Heure réelle du lancement : la plus tôt du passage « en cours », du
+-- premier match démarré et du premier verdict du tournoi (contre-contrôle
+-- du 22/11/2026 : un organisateur pouvait jouer son bracket sans jamais
+-- passer le tournoi « en cours »). Ces heures sont posées par la base ou
+-- au moment même par l'organisateur (demarre_le à « maintenant », une
+-- fois) : aucune ne s'antidate. Nul tant que rien n'a commencé.
+create or replace function public.lancement_reel_tournoi(p_tournament_id uuid)
+returns timestamptz
+language sql
+stable
+security definer set search_path = public
+as $$
+  select least(
+    (select t.lance_le from public.tournaments t where t.id = p_tournament_id),
+    (select min(m.demarre_le) from public.matches m where m.tournament_id = p_tournament_id),
+    (select min(v.cree_le) from public.match_verdicts v
+     join public.matches m on m.id = v.match_id
+     where m.tournament_id = p_tournament_id)
+  );
+$$;
+revoke all on function public.lancement_reel_tournoi(uuid) from public;
+grant execute on function public.lancement_reel_tournoi(uuid) to anon, authenticated, service_role;
+
 create or replace function public.criteres_tournoi_classe(p_tournament_id uuid)
 returns table (
   officiel boolean,
@@ -14756,7 +14779,8 @@ as $$
       t.creneau_auto is not null and t.creneau_auto <> 'a-la-demande' as officiel,
       not t.compte_pour_classement as amical,
       -- Jusqu'au plus tôt de la date annoncée et du lancement réel (M1).
-      coalesce(t.publie_le <= least(t.debute_le, coalesce(t.lance_le, t.debute_le)) - interval '24 hours', false)
+      coalesce(t.publie_le <= least(t.debute_le, coalesce(public.lancement_reel_tournoi(t.id), t.debute_le))
+                              - interval '24 hours', false)
         as publie_a_temps,
       (select count(distinct mp.profile_id)::integer
          from public.matches m
@@ -14801,6 +14825,162 @@ drop trigger if exists registrations_absent_apres_checkin on public.registration
 create trigger registrations_absent_apres_checkin
   before update of statut on public.registrations
   for each row execute function public.refuser_absent_avant_checkin();
+
+-- Contre-contrôle du 22/11/2026 (élevé) : un organisateur pouvait écrire
+-- son bracket pendant les inscriptions et le faire jouer sans jamais passer
+-- le tournoi « en cours » : lance_le restait vide, et deux protections
+-- (inscriptions figées, joueur placé engagé) ne s'appliquaient pas. Le
+-- lancement réel compte aussi le premier match démarré et le premier
+-- verdict (lancement_reel_tournoi, plus haut) ; un match ne démarre plus
+-- avant le passage « en cours » ; dès qu'un bracket existe, les
+-- inscriptions sont figées et un joueur placé reste engagé.
+create or replace function public.controler_ecriture_match()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_tournoi record;
+  v_nb_tours integer;
+  v_suivant record;
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.statut <> 'en_attente' or new.demarre_le is not null or new.code_tournoi is not null
+       or new.defaite_reconnue_par is not null or new.defaite_reconnue_le is not null then
+      raise exception 'CHAMP_RESERVE';
+    end if;
+
+    select statut, capacite, nature into v_tournoi
+    from public.tournaments
+    where id = new.tournament_id;
+
+    if not found or v_tournoi.nature <> 'tournoi'
+       or v_tournoi.statut not in ('ouvert', 'checkin') then
+      raise exception 'BRACKET_FIGE';
+    end if;
+
+    v_nb_tours := round(log(2, v_tournoi.capacite))::integer;
+    if new.tour < 1 or new.tour > v_nb_tours
+       or new.position < 1 or new.position > v_tournoi.capacite / (2 ^ new.tour)::integer then
+      raise exception 'STRUCTURE_BRACKET_INVALIDE';
+    end if;
+
+    if new.tour = v_nb_tours then
+      if new.match_suivant_id is not null then
+        raise exception 'STRUCTURE_BRACKET_INVALIDE';
+      end if;
+    else
+      select tournament_id, tour, position into v_suivant
+      from public.matches
+      where id = new.match_suivant_id;
+      if not found or v_suivant.tournament_id <> new.tournament_id
+         or v_suivant.tour <> new.tour + 1
+         or v_suivant.position <> (new.position + 1) / 2 then
+        raise exception 'STRUCTURE_BRACKET_INVALIDE';
+      end if;
+    end if;
+
+    return new;
+  end if;
+
+  if (new.tournament_id, new.tour, new.position, new.match_suivant_id, new.code_tournoi,
+      new.defaite_reconnue_par, new.defaite_reconnue_le)
+     is distinct from
+     (old.tournament_id, old.tour, old.position, old.match_suivant_id, old.code_tournoi,
+      old.defaite_reconnue_par, old.defaite_reconnue_le) then
+    raise exception 'CHAMP_NON_MODIFIABLE';
+  end if;
+
+  if new.statut is distinct from old.statut
+     and not (old.statut = 'en_attente' and new.statut = 'en_cours') then
+    raise exception 'CHANGEMENT_DE_STATUT_INTERDIT';
+  end if;
+
+  -- Un match ne démarre qu'une fois le tournoi « en cours » (contre-contrôle
+  -- du 22/11/2026) : sinon un bracket se jouait sans lancement noté.
+  if ((new.statut = 'en_cours' and old.statut is distinct from 'en_cours')
+      or new.demarre_le is distinct from old.demarre_le)
+     and not exists (
+       select 1 from public.tournaments where id = new.tournament_id and statut = 'en_cours'
+     ) then
+    raise exception 'TOURNOI_PAS_LANCE';
+  end if;
+
+  if new.demarre_le is distinct from old.demarre_le and not (
+       old.demarre_le is null
+       and new.demarre_le between now() - interval '2 minutes' and now() + interval '2 minutes'
+  ) then
+    raise exception 'HEURE_DE_DEBUT_RESERVEE';
+  end if;
+
+  return new;
+end;
+$$;
+revoke execute on function public.controler_ecriture_match() from public, anon, authenticated;
+
+create or replace function public.figer_inscriptions_lancees()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user <> 'authenticated' then
+    return new;
+  end if;
+  if new.statut is distinct from old.statut
+     and (exists (
+       select 1 from public.tournaments
+       where id = new.tournament_id and statut not in ('brouillon', 'ouvert', 'checkin')
+     ) or exists (
+       -- Bracket déjà écrit : les inscriptions sont figées aussi.
+       select 1 from public.matches where tournament_id = new.tournament_id
+     )) then
+    raise exception 'INSCRIPTIONS_FIGEES';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.figer_inscriptions_lancees() from public, anon, authenticated;
+drop trigger if exists registrations_figees on public.registrations;
+create trigger registrations_figees
+  before update of statut on public.registrations
+  for each row execute function public.figer_inscriptions_lancees();
+
+create or replace function public.engage_en_tournoi(p_profile_id uuid, p_game_id smallint)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = p_profile_id and r.statut in ('inscrit', 'confirme')
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) or exists (
+    select 1 from public.alignements a
+    join public.registrations r on r.id = a.registration_id
+    join public.tournaments t on t.id = a.tournament_id
+    where a.profile_id = p_profile_id and r.statut in ('inscrit', 'confirme')
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin', 'en_cours')
+  ) or exists (
+    select 1 from public.agents_libres g
+    join public.tournaments t on t.id = g.tournament_id
+    where g.profile_id = p_profile_id and g.statut <> 'place'
+      and t.game_id = p_game_id and t.statut in ('ouvert', 'checkin')
+  ) or exists (
+    select 1 from public.match_participants mp
+    join public.matches m on m.id = mp.match_id
+    join public.tournaments t on t.id = m.tournament_id
+    where mp.profile_id = p_profile_id and t.game_id = p_game_id
+      and t.statut in ('ouvert', 'checkin', 'en_cours')
+  );
+$$;
+revoke all on function public.engage_en_tournoi(uuid, smallint) from public, anon, authenticated;
 
 -- ---------- Suspension et niveau qui suivent le compte Riot (2026-11-22) ----------
 -- À appliquer sur la base AVANT la mise en ligne du code du même commit
@@ -14858,6 +15038,9 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
+  -- Profil verrouillé : une vérification de compte Riot au même instant
+  -- attend, puis voit la suspension (ou l'inverse).
+  perform 1 from public.profiles where id = new.profile_id for update;
   if tg_op = 'INSERT' and new.levee_le is null then
     insert into public.comptes_riot_suspendus (suspension_id, profile_id, game_id, empreinte)
     select new.id, new.profile_id, g.game_id, public.empreinte_puuid(g.puuid)
@@ -14892,9 +15075,12 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  if new.verifie_le is not null and old.verifie_le is null
-     and exists (select 1 from public.suspensions where profile_id = new.profile_id and levee_le is null) then
-    raise exception 'COMPTE_SUSPENDU';
+  if new.verifie_le is not null and old.verifie_le is null then
+    -- Même verrou que la suspension (noter_comptes_riot_suspendus).
+    perform 1 from public.profiles where id = new.profile_id for update;
+    if exists (select 1 from public.suspensions where profile_id = new.profile_id and levee_le is null) then
+      raise exception 'COMPTE_SUSPENDU';
+    end if;
   end if;
   return new;
 end;
@@ -15352,10 +15538,24 @@ begin
   -- Jamais dans une saison terminée (M2) : son classement final est
   -- archivé. Un tournoi clos après le changement de saison écrit dans la
   -- saison en cours.
+  -- Ligne de la saison lue en partage : la bascule (activer_saison) attend
+  -- la fin de cette écriture, ou cette écriture attend la bascule.
+  perform 1 from seasons where id = p_season_id for share;
   if not exists (
     select 1 from seasons where id = p_season_id and game_id = p_game_id and est_courante
   ) then
     raise exception 'SAISON_CLOSE';
+  end if;
+  -- Saison suivante déjà commencée mais pas encore activée (bascule en
+  -- cours) : la clôture attend la bascule, sinon le soft reset déjà calculé
+  -- oublierait ces points. La reprise des clôtures (toutes les 5 minutes)
+  -- l'écrit ensuite dans la nouvelle saison.
+  if exists (
+    select 1 from seasons n
+    join seasons c on c.id = p_season_id
+    where n.game_id = p_game_id and n.numero > c.numero and n.debut_le <= now()
+  ) then
+    raise exception 'SAISON_EN_BASCULE';
   end if;
 
   insert into ratings (profile_id, game_id, season_id)
@@ -15392,6 +15592,62 @@ end;
 $$;
 revoke execute on function public.cloturer_rating_joueur from public, anon, authenticated;
 
+-- La décroissance mensuelle d'inactivité ne touche plus une saison
+-- archivée (contre-contrôle du 22/11/2026, moyen) : chaque mois, elle
+-- faisait remonter l'incertitude des joueurs de toutes les saisons passées,
+-- et certains sortaient du classement final publié.
+create or replace function public.appliquer_decroissance_rd(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_season_id uuid,
+  p_rating numeric,
+  p_rd_avant numeric,
+  p_rd_apres numeric,
+  p_volatilite numeric
+)
+returns boolean -- true si écrit, false si déjà appliqué aujourd'hui (idempotence)
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  -- Jamais une saison terminée (contre-contrôle du 22/11/2026) : son
+  -- classement final est archivé. Faux plutôt qu'une erreur, comme une
+  -- décroissance déjà appliquée.
+  if not exists (
+    select 1 from seasons where id = p_season_id and game_id = p_game_id and est_courante
+  ) then
+    return false;
+  end if;
+
+  if exists (
+    select 1 from rating_events
+    where profile_id = p_profile_id
+      and game_id = p_game_id
+      and season_id = p_season_id
+      and motif = 'inactivite'
+      and cree_le >= now() - interval '1 day'
+  ) then
+    return false;
+  end if;
+
+  insert into rating_events (
+    profile_id, game_id, season_id, tournament_id, match_id, motif,
+    rating_avant, rd_avant, rating_apres, rd_apres, adversaire_id
+  ) values (
+    p_profile_id, p_game_id, p_season_id, null, null, 'inactivite',
+    p_rating, p_rd_avant, p_rating, p_rd_apres, null
+  );
+
+  update ratings
+  set rd = p_rd_apres, volatilite = p_volatilite, maj_le = now()
+  where profile_id = p_profile_id and game_id = p_game_id and season_id = p_season_id;
+
+  return true;
+end;
+$$;
+revoke execute on function public.appliquer_decroissance_rd(uuid, smallint, uuid, numeric, numeric, numeric, numeric) from public, anon, authenticated;
+grant execute on function public.appliquer_decroissance_rd(uuid, smallint, uuid, numeric, numeric, numeric, numeric) to service_role;
+
 -- ---------- Défis : 20 par jour (2026-11-22) ----------
 -- À appliquer sur la base AVANT la mise en ligne du code du même commit.
 -- Contrôle de sécurité complet du 21/11/2026, M6 : 5 défis en attente au
@@ -15401,6 +15657,8 @@ revoke execute on function public.cloturer_rating_joueur from public, anon, auth
 -- canal des rappels). Désormais 20 défis lancés par 24 h et par joueur,
 -- invitations par lien comprises, retirés compris (le décompte n'est jamais
 -- rendu). Un défi refusé par la base avant d'être créé ne compte pas.
+-- L'arène n'est pas comptée (contre-contrôle du 22/11/2026) : l'adversaire
+-- y est choisi par la base, sans message privé ciblé.
 create or replace function public.consommer_limite(p_action text)
 returns boolean
 language plpgsql
@@ -15449,42 +15707,77 @@ $$;
 revoke execute on function public.consommer_limite(text) from public, anon;
 grant execute on function public.consommer_limite(text) to authenticated;
 
-create or replace function public.controler_lanceur_defi(p_joueur uuid, p_condition text)
-returns text -- région du lanceur
+create or replace function public.lancer_defi(p_adversaire_id uuid, p_condition text default 'nexus')
+returns uuid
 language plpgsql
 security definer set search_path = public
 as $$
 declare
+  v_joueur uuid := auth.uid();
   v_region text;
+  v_region_adversaire text;
+  v_id uuid;
 begin
-  if p_joueur is null then
-    raise exception 'NON_CONNECTE';
+  if p_adversaire_id = v_joueur then
+    raise exception 'DEFI_SOI_MEME';
   end if;
-  if p_condition not in ('nexus', 'classique') then
-    raise exception 'CONDITION_INVALIDE';
+  v_region := public.controler_lanceur_defi(v_joueur, p_condition);
+
+  if not exists (select 1 from public.profiles where id = p_adversaire_id and supprime_le is null) then
+    raise exception 'JOUEUR_INTROUVABLE';
   end if;
-  if exists (select 1 from public.suspensions where profile_id = p_joueur and levee_le is null) then
-    raise exception 'COMPTE_SUSPENDU';
+  v_region_adversaire := public.region_compte_verifie(p_adversaire_id);
+  if v_region_adversaire is null then
+    raise exception 'ADVERSAIRE_SANS_COMPTE_RIOT';
   end if;
-  v_region := public.region_compte_verifie(p_joueur);
-  if v_region is null then
-    raise exception 'COMPTE_RIOT_REQUIS';
+  if v_region_adversaire <> v_region then
+    raise exception 'REGION_DIFFERENTE';
   end if;
-  -- Un défi à la fois par joueur (verrou), 5 propositions ouvertes au plus.
-  perform 1 from public.profiles where id = p_joueur for update;
-  if (select count(*) from public.defis
-      where lanceur_id = p_joueur and statut = 'propose' and expire_le > now()) >= 5 then
-    raise exception 'LIMITE_DEFIS';
+
+  if exists (
+    select 1 from public.defis
+    where statut = 'propose' and expire_le > now()
+      and ((lanceur_id = v_joueur and adversaire_id = p_adversaire_id)
+        or (lanceur_id = p_adversaire_id and adversaire_id = v_joueur))
+  ) then
+    raise exception 'DEFI_DEJA_PROPOSE';
   end if;
-  -- 20 défis lancés par 24 h, retirés compris (M6) : chaque défi part en
-  -- message privé du bot Discord et en notification.
+
+  -- 20 défis lancés par 24 h, retirés compris (M6).
   if not public.consommer_limite('defi') then
     raise exception 'DEFIS_DU_JOUR_ATTEINTS';
   end if;
-  return v_region;
+
+  insert into public.defis (lanceur_id, adversaire_id, condition_victoire, expire_le)
+  values (v_joueur, p_adversaire_id, p_condition, now() + interval '24 hours')
+  returning id into v_id;
+  return v_id;
 end;
 $$;
-revoke all on function public.controler_lanceur_defi(uuid, text) from public, anon, authenticated;
+revoke execute on function public.lancer_defi(uuid, text) from public, anon;
+grant execute on function public.lancer_defi(uuid, text) to authenticated;
+
+create or replace function public.creer_invitation_defi(p_condition text default 'nexus')
+returns text -- code du lien
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_code text;
+begin
+  perform public.controler_lanceur_defi(v_joueur, p_condition);
+  if not public.consommer_limite('defi') then
+    raise exception 'DEFIS_DU_JOUR_ATTEINTS';
+  end if;
+  v_code := substr(replace(gen_random_uuid()::text, '-', ''), 1, 12);
+  insert into public.defis (lanceur_id, code_invitation, condition_victoire, expire_le)
+  values (v_joueur, v_code, p_condition, now() + interval '7 days');
+  return v_code;
+end;
+$$;
+revoke execute on function public.creer_invitation_defi(text) from public, anon;
+grant execute on function public.creer_invitation_defi(text) to authenticated;
 
 -- ---------- Registre : vérification gardée (2026-11-22) ----------
 -- À appliquer sur la base AVANT la mise en ligne du code du même commit
@@ -15513,7 +15806,9 @@ create policy "verification du registre lisible par tous" on public.verification
   for select using (true);
 revoke insert, update, delete on public.verification_registre from anon, authenticated;
 
-create or replace function public.garder_verification_registre()
+-- p_complete_permise faux : seulement les nouvelles lignes (repli de la
+-- tâche si la relecture complète a échoué, par exemple faute de temps).
+create or replace function public.garder_verification_registre(p_complete_permise boolean default true)
 returns table (lignes bigint, premiere_rupture bigint, complete boolean)
 language plpgsql
 security definer set search_path = public
@@ -15530,8 +15825,9 @@ begin
   insert into public.verification_registre (id) values (1) on conflict (id) do nothing;
   select * into v_etat from public.verification_registre where id = 1 for update;
 
-  v_complete := v_etat.verification_complete_le is null
-             or v_etat.verification_complete_le < now() - interval '24 hours';
+  v_complete := p_complete_permise and (
+                v_etat.verification_complete_le is null
+                or v_etat.verification_complete_le < now() - interval '24 hours');
 
   if v_complete then
     select v.lignes, v.derniere_empreinte, v.premiere_rupture
@@ -15573,8 +15869,8 @@ begin
   return query select v_attendu, v_rupture, v_complete;
 end;
 $$;
-revoke execute on function public.garder_verification_registre() from public, anon, authenticated;
-grant execute on function public.garder_verification_registre() to service_role;
+revoke execute on function public.garder_verification_registre(boolean) from public, anon, authenticated;
+grant execute on function public.garder_verification_registre(boolean) to service_role;
 
 -- La vérification complète n'est plus appelable par les visiteurs.
 revoke execute on function public.verifier_registre() from public, anon, authenticated;

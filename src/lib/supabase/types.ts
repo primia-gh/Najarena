@@ -3666,6 +3666,10 @@ export type Database = {
           region: string
         }[]
       }
+      lancement_reel_tournoi: {
+        Args: { p_tournament_id: string }
+        Returns: string | null
+      }
       mon_niveau_tournoi: {
         Args: Record<PropertyKey, never>
         Returns: { actuel: number; meilleur: number; a_joue: boolean }[]
@@ -3949,7 +3953,7 @@ export type Database = {
       se_desinscrire: { Args: { p_tournament_id: string }; Returns: boolean }
       supprimer_mon_compte: { Args: never; Returns: string }
       garder_verification_registre: {
-        Args: never
+        Args: { p_complete_permise?: boolean }
         Returns: { complete: boolean; lignes: number; premiere_rupture: number | null }[]
       }
       verifier_registre: {
