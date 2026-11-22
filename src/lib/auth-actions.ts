@@ -159,19 +159,6 @@ export async function sInscrire(formData: FormData) {
 
   const supabase = await createClient();
 
-  // Modération (audit N27) : un pseudo refusé serait remplacé en silence par
-  // un pseudo automatique à la création du compte — on le dit avant.
-  // Lue par le serveur (rôle service) : la fonction n'est plus ouverte aux
-  // visiteurs, qui pouvaient deviner la liste cachée des termes modérés
-  // (contrôle de sécurité du 21/11/2026, F4).
-  const adminModeration = creerClientAdmin();
-  const { data: acceptable } = adminModeration
-    ? await adminModeration.rpc("texte_acceptable", { p_texte: pseudo })
-    : { data: null };
-  if (acceptable === false) {
-    redirect(avecSuite(`/inscription?erreur=${encodeURIComponent(messageModeration("PSEUDO_INTERDIT") ?? "")}`, suite));
-  }
-
   // Pseudo déjà pris (majuscules près), ou ancienne adresse d'un joueur qui
   // a changé de pseudo (elle redirige vers son CV et ne se reprend pas).
   // La base refuse aussi ces cas, mais sans message lisible.
@@ -203,18 +190,46 @@ export async function sInscrire(formData: FormData) {
     redirect(avecSuite(`/inscription?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`, suite));
   }
 
+  // Modération (audit N27) : un pseudo refusé est remplacé par la base par
+  // un pseudo automatique à la création du compte ; on le dit après coup.
+  // Plus de contrôle avant la création (contrôle de sécurité du 22/11/2026,
+  // suite de F4) : sans compte ni CAPTCHA, un script pouvait s'en servir
+  // pour deviner la liste cachée des termes modérés. Chaque essai coûte
+  // désormais une création de compte, CAPTCHA compris.
+  const pseudoRemplace = await pseudoRemplaceParModeration(data.user?.id, pseudo);
+  const avertissementPseudo = pseudoRemplace
+    ? ` ${messageModeration("PSEUDO_INTERDIT") ?? "Ce pseudo n'est pas accepté."} Un pseudo provisoire t'a été donné : change-le dans ton profil.`
+    : "";
+
   if (!data.session) {
     redirect(
       avecSuite(
         `/connexion?message=${encodeURIComponent(
-          "Compte créé. Vérifie tes emails pour confirmer ton adresse avant de te connecter.",
+          `Compte créé. Vérifie tes emails pour confirmer ton adresse avant de te connecter.${avertissementPseudo}`,
         )}`,
         suite,
       ),
     );
   }
 
+  if (pseudoRemplace) {
+    redirect(`/moi/profil?erreur=${encodeURIComponent(avertissementPseudo.trim())}`);
+  }
+
   redirect(suite ?? "/moi");
+}
+
+// Vrai si le profil créé ne porte pas le pseudo demandé : la base l'a
+// refusé (modération) et remplacé par un pseudo « Joueur-… ». Lu par le
+// serveur, le compte n'étant pas encore confirmé. Adresse déjà inscrite
+// (Supabase renvoie un faux compte, sans profil) ou lecture impossible :
+// faux, rien à signaler.
+async function pseudoRemplaceParModeration(userId: string | undefined, pseudo: string): Promise<boolean> {
+  if (!userId) return false;
+  const admin = creerClientAdmin();
+  if (!admin) return false;
+  const { data } = await admin.from("profiles").select("pseudo").eq("id", userId).maybeSingle();
+  return Boolean(data && data.pseudo !== pseudo);
 }
 
 export async function seConnecter(formData: FormData) {

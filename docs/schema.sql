@@ -15889,15 +15889,16 @@ revoke execute on function public.verifier_registre() from public, anon, authent
 grant execute on function public.verifier_registre() to service_role;
 
 -- ---------- Petites failles du contrôle du 21/11 (2026-11-22) ----------
--- À appliquer sur la base AVANT la mise en ligne du code du même commit
--- (src/lib/auth-actions.ts appelle texte_acceptable avec le rôle service).
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
 -- F2 — adresse de notification push libre : le serveur envoyait une
 --   requête à toute adresse choisie par un joueur, sans limite de nombre.
 --   Désormais seulement les services de push des navigateurs, en https
 --   (même règle que src/lib/push.ts), et 10 appareils au plus par joueur
 --   (le plus ancien laisse sa place).
 -- F4 — texte_acceptable était appelable sans compte : un script pouvait
---   deviner la liste cachée des termes modérés. Réservée au serveur.
+--   deviner la liste cachée des termes modérés. Réservée au serveur ; le
+--   site ne s'en sert plus avant l'inscription (un pseudo refusé est
+--   signalé après la création du compte, CAPTCHA compris).
 -- F5 — la date d'une annonce « cherche une équipe » était écrite par son
 --   auteur : elle est désormais posée par la base (maintenant, à chaque
 --   publication).
@@ -15909,12 +15910,15 @@ security definer set search_path = public
 as $$
 begin
   if char_length(new.endpoint) > 1000
-     or new.endpoint !~ '^https://(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)/'
+     or new.endpoint !~ '^https://(fcm\.googleapis\.com|jmt17\.google\.com|updates\.push\.services\.mozilla\.com|([a-z0-9-]+\.)?push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)/'
      or char_length(new.p256dh) > 200 or char_length(new.auth) > 200 then
     raise exception 'ADRESSE_PUSH_INVALIDE';
   end if;
-  if tg_op = 'INSERT' then
-    -- 10 appareils au plus : les plus anciens laissent leur place.
+  -- 10 appareils au plus : les plus anciens laissent leur place. Rien
+  -- n'est retiré quand un appareil déjà enregistré se réabonne (même
+  -- adresse : la ligne existante est mise à jour, aucune n'est ajoutée).
+  if tg_op = 'INSERT'
+     and not exists (select 1 from public.push_subscriptions where endpoint = new.endpoint) then
     delete from public.push_subscriptions
     where id in (
       select id from public.push_subscriptions

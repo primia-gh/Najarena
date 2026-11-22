@@ -24,6 +24,32 @@ reset role;
 select verifie('Dix appareils au plus par joueur',
   (select count(*) = 10 from push_subscriptions where profile_id = 'b11b0001-0000-0000-0000-000000000000'));
 
+select en_tant_que('b11b0001-0000-0000-0000-000000000000');
+select essai('Un appareil déjà enregistré se réabonne (même adresse)',
+  $q$insert into push_subscriptions (profile_id, endpoint, p256dh, auth)
+     select profile_id, endpoint, 'k2', 'a2' from push_subscriptions
+     where profile_id = 'b11b0001-0000-0000-0000-000000000000' order by endpoint limit 1
+     on conflict (endpoint) do update set p256dh = excluded.p256dh, auth = excluded.auth$q$,
+  'passe');
+reset role;
+select verifie('Se réabonner ne retire aucun appareil',
+  (select count(*) = 10 and count(*) filter (where p256dh = 'k2') = 1
+   from push_subscriptions where profile_id = 'b11b0001-0000-0000-0000-000000000000'));
+
+select en_tant_que('b11b0001-0000-0000-0000-000000000000');
+select essai('Adresse Safari d''un autre serveur Apple',
+  $q$insert into push_subscriptions (profile_id, endpoint, p256dh, auth)
+     values ('b11b0001-0000-0000-0000-000000000000', 'https://api.push.apple.com/99v', 'k', 'a')$q$,
+  'passe');
+select refus('Faux serveur Apple',
+  $q$insert into push_subscriptions (profile_id, endpoint, p256dh, auth)
+     values ('b11b0001-0000-0000-0000-000000000000', 'https://push.apple.com.exemple.com/x', 'k', 'a')$q$,
+  'ADRESSE_PUSH_INVALIDE');
+reset role;
+select verifie('Un nouvel appareil prend la place du plus ancien',
+  (select count(*) = 10 and bool_or(endpoint = 'https://api.push.apple.com/99v')
+   from push_subscriptions where profile_id = 'b11b0001-0000-0000-0000-000000000000'));
+
 set role anon;
 select refus('Un visiteur ne teste plus un mot contre la liste de modération',
   $q$select public.texte_acceptable('test')$q$, 'permission denied for function texte_acceptable');
@@ -34,7 +60,7 @@ select refus('Un joueur non plus',
   $q$select public.texte_acceptable('test')$q$, 'permission denied for function texte_acceptable');
 reset role;
 set role service_role;
-select verifie('Le serveur, oui (contrôle du pseudo à l''inscription)', (select public.texte_acceptable('Joueur99v')));
+select verifie('Le serveur, oui', (select public.texte_acceptable('Joueur99v')));
 reset role;
 
 set role authenticated;

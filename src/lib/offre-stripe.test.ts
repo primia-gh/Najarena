@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listePrix, offreDepuisPrix, prixCourant } from "./offre-stripe";
+import { abonnementEnVie, joueurDeLAbonnement, listePrix, offreDepuisPrix, prixCourant } from "./offre-stripe";
 
 const PRIX = { verifie: "price_plus", elite: "price_pro, price_pro_ancien", organisateur: "price_orga" };
 
@@ -24,5 +24,36 @@ describe("listePrix et prixCourant", () => {
     expect(prixCourant("price_a, price_b")).toBe("price_a");
     expect(prixCourant(undefined)).toBeUndefined();
     expect(prixCourant(" , ")).toBeUndefined();
+  });
+});
+
+describe("joueurDeLAbonnement", () => {
+  it("sert le compte étiqueté par notre serveur", () => {
+    expect(joueurDeLAbonnement("profil-a", "profil-a")).toBe("profil-a");
+    expect(joueurDeLAbonnement("profil-a", null)).toBe("profil-a");
+    expect(joueurDeLAbonnement("profil-a")).toBe("profil-a");
+  });
+
+  it("n'accorde rien à un abonnement créé hors du site (sans étiquette)", () => {
+    expect(joueurDeLAbonnement(undefined, "profil-a")).toBeNull();
+    expect(joueurDeLAbonnement(null, "profil-a")).toBeNull();
+    expect(joueurDeLAbonnement("", "profil-a")).toBeNull();
+  });
+
+  it("refuse une référence de session qui désigne un autre compte", () => {
+    expect(joueurDeLAbonnement("profil-a", "profil-b")).toBeNull();
+  });
+});
+
+describe("abonnementEnVie", () => {
+  it("un abonnement terminé n'empêche pas d'en prendre un nouveau", () => {
+    expect(abonnementEnVie("canceled")).toBe(false);
+    expect(abonnementEnVie("incomplete_expired")).toBe(false);
+  });
+
+  it("un abonnement en cours, impayé ou en attente compte encore", () => {
+    for (const statut of ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"]) {
+      expect(abonnementEnVie(statut)).toBe(true);
+    }
   });
 });

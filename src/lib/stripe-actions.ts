@@ -14,7 +14,7 @@ import { URL_SITE } from "@/lib/notifications";
 import type { Offre } from "@/lib/offres";
 import { RETOURS_EXTERNES } from "@/lib/messages-adresse";
 import { DELAI_RETRACTATION_JOURS, paiementActif, VERSION_CGV } from "@/lib/cgv";
-import { prixCourant } from "@/lib/offre-stripe";
+import { abonnementEnVie, prixCourant } from "@/lib/offre-stripe";
 
 const cleSecrete = process.env.STRIPE_SECRET_KEY;
 const stripe = cleSecrete ? new Stripe(cleSecrete) : null;
@@ -68,6 +68,21 @@ export async function demarrerAbonnement(formData: FormData) {
   // factures et moyens de paiement restent au même endroit.
   const clientExistant = await clientStripe(userData.user.id);
 
+  // Un seul abonnement à la fois (contrôle de sécurité du 22/11/2026) : un
+  // second payait en double, et la fin de l'un pouvait retirer l'offre
+  // payée par l'autre. Changer de formule passe par le portail Stripe.
+  const dejaAbonne = clientExistant ? await abonnementDejaEnVie(clientExistant) : "non";
+  if (dejaAbonne === "oui") {
+    redirect(
+      `/tarifs?erreur=${encodeURIComponent(
+        "Tu as déjà un abonnement : change de formule ou résilie-le depuis « Gérer ou résilier mon abonnement », dans ton tableau de bord.",
+      )}#retour`,
+    );
+  }
+  if (dejaAbonne === "inconnu") {
+    redirect(`/tarifs?erreur=${encodeURIComponent("Impossible de démarrer le paiement pour l'instant.")}#retour`);
+  }
+
   const accord = { cgv_version: VERSION_CGV, cgv_acceptees_le: new Date().toISOString(), acces_immediat: "oui" };
 
   const session = await stripe.checkout.sessions.create({
@@ -96,6 +111,18 @@ export async function demarrerAbonnement(formData: FormData) {
   }
 
   redirect(session.url);
+}
+
+// Ce client Stripe a-t-il un abonnement qui n'a pas pris fin ? « inconnu »
+// si Stripe ne répond pas : on ne démarre pas de paiement à l'aveugle.
+async function abonnementDejaEnVie(clientId: string): Promise<"oui" | "non" | "inconnu"> {
+  if (!stripe) return "inconnu";
+  try {
+    const liste = await stripe.subscriptions.list({ customer: clientId, status: "all", limit: 20 });
+    return liste.data.some((a) => abonnementEnVie(a.status)) ? "oui" : "non";
+  } catch {
+    return "inconnu";
+  }
 }
 
 async function clientStripe(profileId: string): Promise<string | null> {

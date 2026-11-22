@@ -51,7 +51,8 @@ les liste.
   refuse). Contrôle et réparation à l'étape 4 ;
 - l'inscription ne prévient plus d'un pseudo refusé par la modération (l'ancien code appelle
   `texte_acceptable` avec le compte du visiteur, désormais refusé) : la base le remplace toujours
-  par un pseudo automatique à la création du compte, comme avant la vérification préalable.
+  par un pseudo automatique à la création du compte. Le nouveau code le signale après la
+  création du compte (« Un pseudo provisoire t'a été donné : change-le dans ton profil »).
 
 `vercel.json` : la tâche de changement de saison passe de mensuelle à quotidienne (elle ne fait
 rien tant qu'aucune saison n'est due ; un échec n'attend plus un mois). Pris en compte par Vercel
@@ -73,6 +74,12 @@ from public.tournaments t join public.matches m on m.tournament_id = t.id
 where t.statut = 'en_cours' and t.nature = 'tournoi' and t.creneau_auto is null
 group by t.id
 having t.publie_le > least(t.debute_le, min(m.demarre_le)) - interval '24 hours';
+-- Services de push des appareils déjà enregistrés : tous doivent être dans la liste acceptée
+-- (fcm.googleapis.com, jmt17.google.com, updates.push.services.mozilla.com, *.push.apple.com,
+-- *.notify.windows.com). Sinon, élargir la règle (src/lib/push.ts et controler_abonnement_push)
+-- AVANT la migration : le site efface une adresse refusée à son prochain envoi.
+select substring(endpoint from '^https://([^/]+)/') as service, count(*)
+from public.push_subscriptions group by 1 order by 2 desc;
 ```
 
 ## 2. Migration
@@ -94,10 +101,7 @@ select string_agg(tgname, ', ' order by tgname) from pg_trigger
 select has_function_privilege('anon', 'public.verifier_registre()', 'execute');            -- false
 select has_function_privilege('authenticated', 'public.mon_statut_non_classe()', 'execute'); -- true
 select has_function_privilege('anon', 'public.texte_acceptable(text, text)', 'execute');    -- false
--- Adresses push déjà enregistrées qui ne seraient plus acceptées (gardées telles quelles ; le
--- site les efface à leur prochain envoi) :
-select count(*) from public.push_subscriptions
- where endpoint !~ '^https://(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)/';
+
 select count(*) from public.comptes_riot_suspendus;                          -- comptes des suspendus en cours
 ```
 
@@ -111,7 +115,8 @@ select count(*) from public.comptes_riot_suspendus;                          -- 
 - Cockpit d'un tournoi d'organisateur publié depuis moins de 24 h et annoncé plus tard : la
   phrase « Lancé maintenant, ce tournoi ne sera pas classé… » apparaît au-dessus du bouton.
 - Cockpit d'un tournoi dont le check-in n'est pas ouvert : plus de bouton « Absent ».
-- `/inscription` avec un pseudo grossier : message « pseudo refusé » avant la création du compte.
+- `/inscription` avec un pseudo grossier : compte créé avec un pseudo « Joueur-… » et message
+  « Un pseudo provisoire t'a été donné : change-le dans ton profil ».
 - Une page de joueur, de tournoi et d'équipe qui n'existe pas : vraie page « Page introuvable »
   (code 404), plus une page vide en 200.
 - `/cgu` : version du 22 novembre 2026 ; `/confidentialite` : deux lignes de plus dans « Durée de
