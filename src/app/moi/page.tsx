@@ -142,6 +142,16 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
   ]);
   const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
+  // Pseudo choisi à l'inscription puis refusé par la modération : la base
+  // l'a remplacé par un pseudo automatique (rien n'est dit à l'inscription,
+  // contrôle de sécurité du 22/11/2026). Seul le joueur connecté le lit.
+  const pseudoDemande = utilisateur.user_metadata?.pseudo;
+  const pseudoInscriptionRefuse =
+    Boolean(profil && estPseudoAutomatique(profil.pseudo)) &&
+    typeof pseudoDemande === "string" &&
+    pseudoDemande.trim() !== "" &&
+    !estPseudoAutomatique(pseudoDemande.trim());
+
   // Les duels (défis) ont leur propre section, les scrims sont sur la page
   // de l'équipe (audit N22).
   const inscriptions = (inscriptionsData ?? []).filter((i) => i.tournament?.nature === "tournoi");
@@ -224,6 +234,8 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             <span className="flex min-w-0 flex-col gap-1.5">
               <span className="font-texte text-mini font-semibold text-text uppercase">Choisis ton pseudo</span>
               <span className="text-sm text-text-2">
+                {pseudoInscriptionRefuse &&
+                  "Le pseudo choisi à l'inscription n'a pas été accepté par la modération (terme refusé ou nom qui laisse croire à un compte officiel). "}
                 « {profil.pseudo} » est un pseudo automatique : c&apos;est lui qui s&apos;affiche sur ton CV et dans les
                 brackets.
               </span>
@@ -320,7 +332,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               <Icone nom="crayon" taille={15} />
               Modifier mon profil
             </Link>
-            {abonnement && (
+            {abonnement?.statut && (
               <form action={ouvrirPortailAbonnement}>
                 {/* « Résilier » écrit en toutes lettres (résiliation en ligne
                     obligatoire, Code de la consommation L215-1-1 ; audit E11). */}

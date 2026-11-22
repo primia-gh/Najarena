@@ -65,13 +65,21 @@ export async function demarrerAbonnement(formData: FormData) {
   }
 
   // Client Stripe déjà connu (ancien abonnement) : réutilisé, pour que
-  // factures et moyens de paiement restent au même endroit.
-  const clientExistant = await clientStripe(userData.user.id);
+  // factures et moyens de paiement restent au même endroit. Sinon créé
+  // ici, avant le premier paiement, et noté tout de suite (contrôle de
+  // sécurité du 22/11/2026) : deux paiements lancés coup sur coup ne
+  // créent plus deux clients, dont l'un serait introuvable depuis « Gérer
+  // ou résilier mon abonnement ».
+  const clientExistant =
+    (await clientStripe(userData.user.id)) ?? (await creerClientStripe(stripe, userData.user.id, userData.user.email));
+  if (!clientExistant) {
+    redirect(`/tarifs?erreur=${encodeURIComponent("Impossible de démarrer le paiement pour l'instant.")}#retour`);
+  }
 
   // Un seul abonnement à la fois (contrôle de sécurité du 22/11/2026) : un
   // second payait en double, et la fin de l'un pouvait retirer l'offre
   // payée par l'autre. Changer de formule passe par le portail Stripe.
-  const dejaAbonne = clientExistant ? await abonnementDejaEnVie(clientExistant) : "non";
+  const dejaAbonne = await abonnementDejaEnVie(clientExistant);
   if (dejaAbonne === "oui") {
     redirect(
       `/tarifs?erreur=${encodeURIComponent(
@@ -94,7 +102,7 @@ export async function demarrerAbonnement(formData: FormData) {
     // paiement initial ; sans ça, ces événements ne sauraient pas à quel
     // compte Najarena ils correspondent.
     client_reference_id: userData.user.id,
-    ...(clientExistant ? { customer: clientExistant } : { customer_email: userData.user.email ?? undefined }),
+    customer: clientExistant,
     success_url: `${URL_SITE}/moi?message=${encodeURIComponent(RETOURS_EXTERNES.abonnementEnCours)}`,
     cancel_url: `${URL_SITE}/tarifs`,
     metadata: { profile_id: userData.user.id, offre, ...accord },
@@ -122,6 +130,28 @@ async function abonnementDejaEnVie(clientId: string): Promise<"oui" | "non" | "i
     return liste.data.some((a) => abonnementEnVie(a.status)) ? "oui" : "non";
   } catch {
     return "inconnu";
+  }
+}
+
+// Client Stripe créé pour ce compte (une seule fois : la clé
+// d'idempotence rend le même client pendant 24 h, et il est noté dans
+// abonnements_stripe dès sa création). Nul si Stripe ou la base échoue.
+async function creerClientStripe(client: Stripe, profileId: string, email: string | undefined): Promise<string | null> {
+  const admin = creerClientAdmin();
+  if (!admin) return null;
+  try {
+    const cree = await client.customers.create(
+      { email, metadata: { profile_id: profileId } },
+      { idempotencyKey: `client-${profileId}` },
+    );
+    // Une ligne déjà écrite entre-temps (autre onglet, webhook) est gardée.
+    const { error } = await admin
+      .from("abonnements_stripe")
+      .upsert({ profile_id: profileId, client_stripe_id: cree.id }, { onConflict: "profile_id", ignoreDuplicates: true });
+    if (error) return null;
+    return (await clientStripe(profileId)) ?? null;
+  } catch {
+    return null;
   }
 }
 

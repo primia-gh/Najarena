@@ -66,6 +66,7 @@ async function relireAbonnement(client: Stripe, id: string): Promise<Stripe.Subs
 // retirée, quel que soit le prix — retirer est toujours sans risque.
 // Faux si une écriture a échoué (l'événement sera renvoyé par Stripe).
 async function appliquerAbonnement(
+  client: Stripe,
   admin: ClientAdmin,
   profileId: string,
   abonnement: Stripe.Subscription,
@@ -91,17 +92,29 @@ async function appliquerAbonnement(
   // changement de formule dans le portail Stripe ne les met pas à jour).
   const prixFacture = abonnement.items?.data?.[0]?.price?.id;
   const offre: Offre | null = offreDepuisPrix(prixFacture, prixParOffre());
-  if (offre) {
-    const { error } = await admin.from("comptes_offres").upsert({
-      profile_id: profileId,
-      offre,
-      attribue_le: new Date().toISOString(),
-    });
+  if (!offre) {
+    // Prix qui n'est celui d'aucune offre : réglage à revoir (variables
+    // STRIPE_PRICE_*, ancien prix compris). Rien n'est accordé, et une
+    // offre déjà accordée est retirée (contrôle de sécurité du 22/11/2026).
+    console.error(`Webhook Stripe : prix ${prixFacture ?? "absent"} sans offre correspondante.`);
+    const { error } = await admin.from("comptes_offres").delete().eq("profile_id", profileId);
     return !error;
   }
-  // Prix qui n'est celui d'aucune offre : réglage à revoir (variables
-  // STRIPE_PRICE_*, ancien prix compris) ; rien n'est accordé.
-  console.error(`Webhook Stripe : prix ${prixFacture ?? "absent"} sans offre correspondante.`);
+  const { error } = await admin.from("comptes_offres").upsert({
+    profile_id: profileId,
+    offre,
+    attribue_le: new Date().toISOString(),
+  });
+  if (error) return false;
+  // Seconde lecture après avoir accordé l'offre (contrôle de sécurité du
+  // 22/11/2026) : si une résiliation a été traitée entre la première
+  // lecture et l'écriture, l'offre écrite à l'instant ne doit pas rester.
+  const relu = await relireAbonnement(client, abonnement.id);
+  if (!relu) return false;
+  if (relu.status !== "active" && relu.status !== "trialing") {
+    const { error: erreurRetrait } = await admin.from("comptes_offres").delete().eq("profile_id", profileId);
+    return !erreurRetrait;
+  }
   return true;
 }
 
@@ -168,7 +181,7 @@ export async function POST(request: Request) {
       // créé hors du site n'accorde rien (joueurDeLAbonnement).
       const profileId = joueurDeLAbonnement(abonnement.metadata?.profile_id, session.client_reference_id);
       if (!profileId) break;
-      if (!(await appliquerAbonnement(admin, profileId, abonnement))) return A_RENVOYER();
+      if (!(await appliquerAbonnement(stripe, admin, profileId, abonnement))) return A_RENVOYER();
       break;
     }
 
@@ -178,7 +191,7 @@ export async function POST(request: Request) {
       const abonnement = await relireAbonnement(stripe, recu.id);
       if (!abonnement) return A_RENVOYER();
       const profileId = joueurDeLAbonnement(abonnement.metadata?.profile_id);
-      if (profileId && !(await appliquerAbonnement(admin, profileId, abonnement))) return A_RENVOYER();
+      if (profileId && !(await appliquerAbonnement(stripe, admin, profileId, abonnement))) return A_RENVOYER();
       break;
     }
 

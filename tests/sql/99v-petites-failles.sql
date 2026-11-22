@@ -24,6 +24,7 @@ reset role;
 select verifie('Dix appareils au plus par joueur',
   (select count(*) = 10 from push_subscriptions where profile_id = 'b11b0001-0000-0000-0000-000000000000'));
 
+set role authenticated;
 select en_tant_que('b11b0001-0000-0000-0000-000000000000');
 select essai('Un appareil déjà enregistré se réabonne (même adresse)',
   $q$insert into push_subscriptions (profile_id, endpoint, p256dh, auth)
@@ -36,6 +37,7 @@ select verifie('Se réabonner ne retire aucun appareil',
   (select count(*) = 10 and count(*) filter (where p256dh = 'k2') = 1
    from push_subscriptions where profile_id = 'b11b0001-0000-0000-0000-000000000000'));
 
+set role authenticated;
 select en_tant_que('b11b0001-0000-0000-0000-000000000000');
 select essai('Adresse Safari d''un autre serveur Apple',
   $q$insert into push_subscriptions (profile_id, endpoint, p256dh, auth)
