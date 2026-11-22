@@ -17,7 +17,7 @@ const MESSAGES_REFUS: Record<string, string> = {
   COMPTE_RIOT_REQUIS:
     "Il faut un compte Riot vérifié aux deux joueurs : c'est lui qui permet de lire le résultat chez Riot.",
   LIMITE_DEFIS: `Tu as déjà ${DEFIS_OUVERTS_MAX} défis en attente de réponse : attends une réponse ou retire-en un.`,
-  DEFIS_DU_JOUR_ATTEINTS: `Tu as lancé ${DEFIS_PAR_JOUR_MAX} défis en 24 heures, défis retirés compris : réessaie demain.`,
+  DEFIS_DU_JOUR_ATTEINTS: `Tu as lancé ${DEFIS_PAR_JOUR_MAX} défis en 24 heures, défis retirés compris : réessaie dans quelques heures.`,
   JOUEUR_INTROUVABLE: "Ce joueur n'existe pas.",
   ADVERSAIRE_SANS_COMPTE_RIOT: "Ce joueur n'a pas encore de compte Riot vérifié : il ne peut pas être défié pour l'instant.",
   REGION_DIFFERENTE: "Vous ne jouez pas dans la même région : un défi se joue sur un même serveur.",

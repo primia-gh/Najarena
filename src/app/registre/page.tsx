@@ -25,6 +25,13 @@ export const metadata: Metadata = {
 };
 
 const DERNIERES_LIGNES = 30;
+/** Au-delà, la vérification gardée est trop ancienne pour annoncer « Intacte » (la tâche passe toutes les 5 minutes). */
+const VERIFICATION_PERIMEE_MINUTES = 15;
+
+// Hors du composant (règle de pureté du rendu).
+function maintenantMs(): number {
+  return Date.now();
+}
 
 export default async function RegistrePage() {
   const supabase = await createClient();
@@ -60,6 +67,11 @@ export default async function RegistrePage() {
   const publicationConcorde = publication && lignePubliee ? lignePubliee.empreinte === publication.empreinte : null;
 
   const intacte = verification?.verifie_le ? verification.premiere_rupture === null : null;
+  // Une vérification trop ancienne n'est pas annoncée « Intacte » : la tâche
+  // automatique a pu s'arrêter (revue design du 22/11/2026).
+  const perimee =
+    verification?.verifie_le != null &&
+    maintenantMs() - new Date(verification.verifie_le).getTime() > VERIFICATION_PERIMEE_MINUTES * 60_000;
   const adresseExport = `${URL_SITE}/registre/export`;
   // Second témoin (idée en réserve n°3) : le dépôt GitHub public, s'il est configuré.
   const depotGithub = depotAncrage();
@@ -88,14 +100,32 @@ export default async function RegistrePage() {
               <LibelleSection as="h2">État de la chaîne</LibelleSection>
               {erreurVerification || intacte === null ? (
                 <p className="text-sm text-muted">Vérification indisponible pour l&apos;instant.</p>
-              ) : intacte ? (
-                <p className="text-sm text-text-2">
-                  <span className="font-semibold text-accent uppercase">Intacte</span> —{" "}
-                  <span className="tabular-nums">{verification?.lignes ?? 0}</span> ligne
-                  {(verification?.lignes ?? 0) > 1 ? "s" : ""} vérifiée{(verification?.lignes ?? 0) > 1 ? "s" : ""} le{" "}
-                  <span className="tabular-nums">{verification?.verifie_le ? formaterDate(verification.verifie_le) : ""}</span>
-                  . La base vérifie les nouvelles lignes toutes les 5&nbsp;minutes et relit toute la chaîne chaque jour.
+              ) : intacte && perimee ? (
+                <p className="text-sm text-muted">
+                  <span className="font-semibold uppercase">En attente</span> — dernière vérification le{" "}
+                  <span className="tabular-nums">{formaterDate(verification!.verifie_le!)}</span> (heure de Paris)&nbsp;: la
+                  vérification automatique est en retard.
                 </p>
+              ) : intacte ? (
+                <>
+                  <p className="text-sm text-text-2">
+                    <span className="font-semibold text-accent uppercase">Intacte</span> —{" "}
+                    <span className="tabular-nums">{verification?.lignes ?? 0}</span> ligne
+                    {(verification?.lignes ?? 0) > 1 ? "s" : ""} vérifiée{(verification?.lignes ?? 0) > 1 ? "s" : ""} le{" "}
+                    <span className="tabular-nums">{formaterDate(verification!.verifie_le!)}</span> (heure de Paris).
+                  </p>
+                  <p className="text-sm text-muted">
+                    La base vérifie les nouvelles lignes toutes les 5&nbsp;minutes et relit toute la chaîne chaque jour
+                    {verification?.verification_complete_le ? (
+                      <>
+                        {" "}
+                        (dernière relecture complète le{" "}
+                        <span className="tabular-nums">{formaterDate(verification.verification_complete_le)}</span>)
+                      </>
+                    ) : null}
+                    .
+                  </p>
+                </>
               ) : (
                 <p role="alert" className="text-sm text-danger">
                   Rupture détectée à la ligne <span className="tabular-nums">{verification?.premiere_rupture}</span>.

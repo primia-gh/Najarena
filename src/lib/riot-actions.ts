@@ -356,8 +356,14 @@ export async function delierCompteSecondaire(formData: FormData) {
   }
 
   const { data: retire, error } = await supabase.rpc("delier_compte_secondaire", { p_game_id: 1, p_puuid: puuid });
-  if (error?.message.includes("COMPTE_SUSPENDU")) {
-    redirect(`/lier-riot?erreur=${encodeURIComponent(MESSAGE_COMPTE_SUSPENDU)}`);
+  if (error) {
+    redirect(
+      `/lier-riot?erreur=${encodeURIComponent(
+        error.message.includes("COMPTE_SUSPENDU")
+          ? MESSAGE_COMPTE_SUSPENDU
+          : "Impossible de retirer ce compte pour l'instant. Réessaie dans un instant.",
+      )}`,
+    );
   }
   redirect(
     retire

@@ -65,8 +65,11 @@ select count(*) from public.comptes_riot_suspendus;                          -- 
 
 ## 4. Fusion du code, puis contrôles sur le site
 
-- `/registre` : « Intacte — N lignes vérifiées le JJ/MM HH:MM » (dans les 5 minutes après la
-  fusion), au lieu d'un calcul à chaque visite.
+- `/registre` : « Intacte — N lignes vérifiées le JJ/MM HH:MM (heure de Paris) » dans les
+  5 minutes après la fusion, au lieu d'un calcul à chaque visite. Il faut que la tâche planifiée
+  de la base (pg_cron) tourne ; contrôle : `select verifie_le, verification_complete_le from
+  public.verification_registre;` doit montrer une heure de moins de 5 minutes. Si la tâche
+  s'arrête, la page passe d'elle-même à « En attente » au bout de 15 minutes.
 - Cockpit d'un tournoi d'organisateur publié depuis moins de 24 h et annoncé plus tard : la
   phrase « Lancé maintenant, ce tournoi ne sera pas classé… » apparaît au-dessus du bouton.
 - Cockpit d'un tournoi dont le check-in n'est pas ouvert : plus de bouton « Absent ».

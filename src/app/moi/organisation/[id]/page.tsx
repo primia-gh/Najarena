@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 
 interface CockpitPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ erreur?: string; message?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; modifier?: string }>;
 }
 
 // Hors du composant (règle de pureté du rendu).
@@ -51,7 +51,7 @@ function maintenantMs(): number {
 
 export default async function CockpitPage({ params, searchParams }: CockpitPageProps) {
   const { id } = await params;
-  const { erreur, message } = await searchParams;
+  const { erreur, message, modifier } = await searchParams;
 
   const supabase = await createClient();
 
@@ -282,10 +282,13 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
             </p>
           )}
           {lancementDeclasse && classableAPartirDe && (
-            <p className="max-w-2xl text-sm text-text-2">
-              {typographie(
-                `Lancé maintenant, ce tournoi ne sera pas classé : il compterait comme publié moins de ${PREAVIS_TOURNOI_CLASSE_HEURES} h avant son début. Il peut l'être s'il est lancé à partir du ${formaterDate(classableAPartirDe)}.`,
-              )}
+            <p className="flex max-w-2xl items-start gap-2.5 text-sm font-medium text-text">
+              <Icone nom="alerte" taille={16} className="mt-0.5 shrink-0 text-muted" />
+              <span>
+                {typographie(
+                  `Si tu lances maintenant, ce tournoi ne comptera pas pour le classement : il a été publié il y a moins de ${PREAVIS_TOURNOI_CLASSE_HEURES} h. Attends le ${formaterDate(classableAPartirDe)} (heure de Paris) pour qu'il compte.`,
+                )}
+              </span>
             </p>
           )}
           <form action={genererBracket}>
@@ -373,6 +376,13 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
       <LibelleSection as="h2" id="cockpit-inscrits" className="border-b border-line-strong pb-4">
         Inscrits et check-in · {nbActifs}/{tournoi.capacite}
       </LibelleSection>
+      {inscriptionsModifiables && !absentPossible && inscriptions.length > 0 && (
+        <p className="text-sm text-muted">
+          {typographie(
+            `Tu pourras marquer un joueur absent à l'ouverture du check-in, le ${formaterDate(tournoi.checkin_ouvre_le)} (heure de Paris).`,
+          )}
+        </p>
+      )}
       {inscriptions.length === 0 ? (
         <p className="text-text-2">Aucune inscription pour l&apos;instant.</p>
       ) : (
@@ -578,7 +588,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
         )}
 
         {modifiable && (
-          <ModifierTournoi tournoi={tournoi} organisateurPremium={organisateurPremium} ouvert={Boolean(erreur)} />
+          <ModifierTournoi tournoi={tournoi} organisateurPremium={organisateurPremium} ouvert={Boolean(erreur) && modifier === "1"} />
         )}
 
         <Apparition delai={0.08} className="flex flex-col gap-14">

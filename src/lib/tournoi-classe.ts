@@ -122,7 +122,7 @@ export function criteresClassement(d: DonneesClassement): CritereClassement[] {
         aTemps === null
           ? "Pas encore publié."
           : lanceEnAvance(d.debuteLe, d.lanceLe)
-            ? "Lancé avant l'heure annoncée : compté jusqu'au lancement."
+            ? "Le tournoi a été lancé avant l'heure annoncée : les 24 h se comptent jusqu'à ce lancement."
             : null,
     },
     {

@@ -160,10 +160,10 @@ export default function CguPage() {
             à une fourchette de paliers (par exemple «&nbsp;Argent à Or&nbsp;»)&nbsp;:
             le rating Najarena de la saison du joueur (1500 s&apos;il n&apos;a pas
             encore joué) est vérifié à l&apos;inscription, puis de nouveau au
-            check-in. Ce niveau suit le compte Riot&nbsp;: relier à un nouveau
-            compte Najarena un compte Riot déjà utilisé ne fait pas repartir de
-            1500, ni redevenir «&nbsp;non classé&nbsp;» pour les tournois réservés
-            aux nouveaux. Pour la limite haute, c&apos;est le meilleur rating atteint
+            check-in. Ce niveau suit le compte Riot, pas le compte Najarena. Un
+            compte Riot déjà utilisé, relié à un nouveau compte Najarena, garde
+            son niveau&nbsp;: le joueur ne repart pas de 1500 et ne redevient pas
+            «&nbsp;non classé&nbsp;» pour les tournois réservés aux nouveaux. Pour la limite haute, c&apos;est le meilleur rating atteint
             dans la saison en cours ou la précédente qui compte&nbsp;: redescendre
             en perdant, même en fin de saison, ne rouvre pas un tournoi de
             niveau inférieur. Un joueur sorti de la fourchette

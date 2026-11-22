@@ -2,6 +2,7 @@ import Link from "next/link";
 import Panneau from "@/components/design/Panneau";
 import Icone from "@/components/design/Icone";
 import type { EvaluationClassement, StatutClassement } from "@/lib/tournoi-classe";
+import { typographie } from "@/lib/typographie";
 
 // Label « tournoi classé » (28/09/2026, audit E12 et N12) : la page du
 // tournoi dit, critère par critère, s'il compte au classement. Le vert est
@@ -64,7 +65,7 @@ export function CriteresClassement({ evaluation }: { evaluation: EvaluationClass
                 <span className={c.etat === "ko" ? "text-muted" : "text-text"}>
                   {c.libelle}
                   <span className="sr-only"> : {s.lecteur}</span>
-                  {c.detail && <span className="text-muted tabular-nums"> — {c.detail}</span>}
+                  {c.detail && <span className="text-muted tabular-nums"> — {typographie(c.detail)}</span>}
                 </span>
               </li>
             );

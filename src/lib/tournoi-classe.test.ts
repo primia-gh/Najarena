@@ -30,7 +30,7 @@ describe("tournoi classé", () => {
     expect(publieATemps("2026-10-01T18:00:00Z", "2026-10-02T19:00:00Z", "2026-10-02T19:20:00Z")).toBe(true);
     const e = evaluerClassement({ ...base, lanceLe: "2026-10-01T20:00:00Z" });
     expect(e.statut).toBe("non_classe");
-    expect(e.criteres[0]).toMatchObject({ etat: "ko", detail: "Lancé avant l'heure annoncée : compté jusqu'au lancement." });
+    expect(e.criteres[0]).toMatchObject({ etat: "ko", detail: "Le tournoi a été lancé avant l'heure annoncée : les 24 h se comptent jusqu'à ce lancement." });
   });
 
   it("ne classe pas un tournoi publié la veille au soir pour le lendemain midi", () => {

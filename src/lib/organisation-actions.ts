@@ -114,7 +114,7 @@ export async function marquerAbsent(formData: FormData) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
         "Le check-in n'est pas encore ouvert : ce joueur n'a pas pu confirmer sa présence. Tu pourras le marquer absent une fois le check-in ouvert.",
-      )}`,
+      )}#retour`,
     );
   }
 
@@ -537,12 +537,12 @@ export async function modifierTournoi(formData: FormData) {
   const debuteLe = instantDepuisSaisieParis(String(formData.get("debute_le") ?? ""));
   const checkinOuvreLe = instantDepuisSaisieParis(String(formData.get("checkin_ouvre_le") ?? ""));
   if (!debuteLe || !checkinOuvreLe) {
-    redirect(`${page}?erreur=${encodeURIComponent("Dates invalides.")}#retour`);
+    redirect(`${page}?erreur=${encodeURIComponent("Dates invalides.")}&modifier=1#retour`);
   }
 
   const niveau = lireNiveau(formData.get("niveau_min"), formData.get("niveau_max"), tournoi.format);
   if (!niveau.ok) {
-    redirect(`${page}?erreur=${encodeURIComponent(niveau.erreur)}#retour`);
+    redirect(`${page}?erreur=${encodeURIComponent(niveau.erreur)}&modifier=1#retour`);
   }
 
   const { error } = await supabase.rpc("modifier_tournoi", {
@@ -557,7 +557,7 @@ export async function modifierTournoi(formData: FormData) {
     p_rating_max: niveau.max,
   });
   if (error) {
-    redirect(`${page}?erreur=${encodeURIComponent(messageRefusModification(error.message))}#retour`);
+    redirect(`${page}?erreur=${encodeURIComponent(messageRefusModification(error.message))}&modifier=1#retour`);
   }
 
   redirect(`${page}?message=${encodeURIComponent("Tournoi modifié.")}#retour`);
