@@ -42,6 +42,50 @@ async function suivreAbonnement(admin: ClientAdmin, profileId: string, abonnemen
   });
 }
 
+// L'abonnement tel qu'il est maintenant chez Stripe (contrôle de sécurité
+// du 21/11/2026, F1) : les événements peuvent arriver en retard ou dans le
+// désordre (un « active » ancien après une résiliation), et un paiement
+// différé laisse l'abonnement « incomplete » après le paiement en ligne.
+// On n'écrit donc jamais d'après le contenu de l'événement, seulement
+// d'après l'état relu. Nul si Stripe ne répond pas : l'événement est
+// refusé et Stripe le renverra.
+async function relireAbonnement(client: Stripe, id: string): Promise<Stripe.Subscription | null> {
+  try {
+    return await client.subscriptions.retrieve(id);
+  } catch {
+    return null;
+  }
+}
+
+// Offre accordée d'après l'état relu : en cours (active, trialing) → offre
+// du prix facturé ; sinon (paiement échoué, en attente, résilié…) → offre
+// retirée, quel que soit le prix — retirer est toujours sans risque.
+async function appliquerAbonnement(admin: ClientAdmin, profileId: string, abonnement: Stripe.Subscription) {
+  await suivreAbonnement(admin, profileId, abonnement);
+  const enCours = abonnement.status === "active" || abonnement.status === "trialing";
+  if (!enCours) {
+    await admin.from("comptes_offres").delete().eq("profile_id", profileId);
+    return;
+  }
+  // Offre lue dans le prix facturé, pas dans les métadonnées (un
+  // changement de formule dans le portail Stripe ne les met pas à jour).
+  const prixFacture = abonnement.items?.data?.[0]?.price?.id;
+  const offre: Offre | null = offreDepuisPrix(prixFacture, prixParOffre());
+  if (offre) {
+    await admin.from("comptes_offres").upsert({
+      profile_id: profileId,
+      offre,
+      attribue_le: new Date().toISOString(),
+    });
+  } else {
+    // Prix qui n'est celui d'aucune offre : réglage à revoir (variables
+    // STRIPE_PRICE_*, ancien prix compris) ; rien n'est accordé.
+    console.error(`Webhook Stripe : prix ${prixFacture ?? "absent"} sans offre correspondante.`);
+  }
+}
+
+const A_RENVOYER = () => NextResponse.json({ erreur: "Stripe injoignable, à renvoyer." }, { status: 503 });
+
 export async function POST(request: Request) {
   if (!stripe || !secretWebhook) {
     return NextResponse.json({ erreur: "Stripe pas encore activé." }, { status: 503 });
@@ -92,66 +136,25 @@ export async function POST(request: Request) {
     case "checkout.session.completed": {
       const session = evenement.data.object as Stripe.Checkout.Session;
       const profileId = session.client_reference_id ?? session.metadata?.profile_id;
-      // Ici, les métadonnées sont sûres : posées par notre serveur en créant
-      // la session, avec le prix de cette offre (stripe-actions.ts).
-      const offre = session.metadata?.offre as Offre | undefined;
-      if (profileId && offre && offre !== "gratuit" && Object.hasOwn(prixParOffre(), offre)) {
-        await admin.from("comptes_offres").upsert({
-          profile_id: profileId,
-          offre,
-          attribue_le: new Date().toISOString(),
-        });
-      }
-      // Identifiant client : ouvre le portail Stripe (gérer, résilier) et
-      // évite un second client Stripe à un nouvel abonnement.
-      const clientId = identifiant(session.customer);
-      if (profileId && clientId) {
-        await admin.from("abonnements_stripe").upsert({
-          profile_id: profileId,
-          client_stripe_id: clientId,
-          abonnement_stripe_id: identifiant(session.subscription),
-          statut: "active",
-          maj_le: new Date().toISOString(),
-        });
-      }
+      const abonnementId = identifiant(session.subscription);
+      // Nos paiements sont toujours des abonnements : l'offre suit l'état
+      // relu de l'abonnement (un paiement différé ne l'accorde pas encore ;
+      // customer.subscription.updated le fera une fois payé).
+      if (!profileId || !abonnementId) break;
+      const abonnement = await relireAbonnement(stripe, abonnementId);
+      if (!abonnement) return A_RENVOYER();
+      await appliquerAbonnement(admin, profileId, abonnement);
       break;
     }
 
-    case "customer.subscription.updated": {
-      const abonnement = evenement.data.object as Stripe.Subscription;
-      const profileId = abonnement.metadata?.profile_id;
-      // Offre lue dans le prix facturé, pas dans les métadonnées (un
-      // changement de formule dans le portail Stripe ne les met pas à jour).
-      const prixFacture = abonnement.items?.data?.[0]?.price?.id;
-      const offre = offreDepuisPrix(prixFacture, prixParOffre());
-      if (profileId) {
-        await suivreAbonnement(admin, profileId, abonnement);
-      }
-      const enCours = abonnement.status === "active" || abonnement.status === "trialing";
-      if (profileId && !enCours) {
-        // Paiement échoué, abonnement en pause, etc. — on retire l'offre,
-        // quel que soit le prix : retirer est toujours sans risque.
-        await admin.from("comptes_offres").delete().eq("profile_id", profileId);
-      } else if (profileId && offre) {
-        await admin.from("comptes_offres").upsert({
-          profile_id: profileId,
-          offre,
-          attribue_le: new Date().toISOString(),
-        });
-      } else if (profileId) {
-        // Prix qui n'est celui d'aucune offre : réglage à revoir (variables
-        // STRIPE_PRICE_*, ancien prix compris) ; rien n'est accordé.
-        console.error(`Webhook Stripe : prix ${prixFacture ?? "absent"} sans offre correspondante.`);
-      }
-      break;
-    }
-
+    case "customer.subscription.updated":
     case "customer.subscription.deleted": {
-      const abonnement = evenement.data.object as Stripe.Subscription;
+      const recu = evenement.data.object as Stripe.Subscription;
+      const abonnement = await relireAbonnement(stripe, recu.id);
+      if (!abonnement) return A_RENVOYER();
       const profileId = abonnement.metadata?.profile_id;
       if (profileId) {
-        await admin.from("comptes_offres").delete().eq("profile_id", profileId);
-        await suivreAbonnement(admin, profileId, abonnement);
+        await appliquerAbonnement(admin, profileId, abonnement);
       }
       break;
     }

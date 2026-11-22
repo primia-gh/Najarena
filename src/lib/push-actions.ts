@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { estAdressePushValide } from "@/lib/push";
 
 interface AbonnementPush {
   endpoint: string;
@@ -14,6 +15,7 @@ export async function sAbonnerPush(abonnement: AbonnementPush): Promise<{ ok: bo
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { ok: false };
+  if (!estAdressePushValide(abonnement.endpoint)) return { ok: false };
 
   const { error } = await supabase.from("push_subscriptions").upsert(
     {

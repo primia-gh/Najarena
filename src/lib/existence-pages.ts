@@ -1,4 +1,4 @@
-// Vraies pages 404 (22/11/2026). Les pages joueur et tournoi ont un écran
+// Vraies pages 404 (22/11/2026). Les pages joueur, tournoi et équipe ont un écran
 // de chargement (loading.tsx) : dès qu'il s'affiche, la réponse part avec
 // le code 200 et un notFound() de la page ne peut plus le changer (Google
 // recevait « page trouvée » pour une adresse qui n'existe pas). Le layout
@@ -25,4 +25,12 @@ export const tournoiIntrouvable = cache(async (slug: string): Promise<boolean> =
   const { data, error } = await supabase.from("tournaments").select("statut").eq("slug", slug).maybeSingle();
   if (error) return false;
   return !data || !estVisiblePubliquement(data.statut);
+});
+
+/** Aucune équipe à cette adresse. */
+export const equipeIntrouvable = cache(async (slug: string): Promise<boolean> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("teams").select("id").eq("slug", slug).maybeSingle();
+  if (error) return false;
+  return !data;
 });

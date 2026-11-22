@@ -161,7 +161,13 @@ export async function sInscrire(formData: FormData) {
 
   // Modération (audit N27) : un pseudo refusé serait remplacé en silence par
   // un pseudo automatique à la création du compte — on le dit avant.
-  const { data: acceptable } = await supabase.rpc("texte_acceptable", { p_texte: pseudo });
+  // Lue par le serveur (rôle service) : la fonction n'est plus ouverte aux
+  // visiteurs, qui pouvaient deviner la liste cachée des termes modérés
+  // (contrôle de sécurité du 21/11/2026, F4).
+  const adminModeration = creerClientAdmin();
+  const { data: acceptable } = adminModeration
+    ? await adminModeration.rpc("texte_acceptable", { p_texte: pseudo })
+    : { data: null };
   if (acceptable === false) {
     redirect(avecSuite(`/inscription?erreur=${encodeURIComponent(messageModeration("PSEUDO_INTERDIT") ?? "")}`, suite));
   }

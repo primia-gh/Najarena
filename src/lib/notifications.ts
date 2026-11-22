@@ -5,9 +5,13 @@
 // résultat de match ou un litige doit s'enregistrer même si Resend est en
 // panne ou mal configuré.
 
+// Garde-fou (contrôle de sécurité du 21/11/2026, F3) : la compilation échoue si
+// un composant navigateur importe ce fichier par erreur.
+import "server-only";
 import { Resend } from "resend";
 import webpush, { WebPushError } from "web-push";
 import { creerClientAdmin } from "@/lib/supabase/admin";
+import { estAdressePushValide } from "@/lib/push";
 import { decoderEntites, echapperDiscord, echapperHtml, lienSur } from "@/lib/echappement";
 import { composantsDiscord, type BoutonDiscord, type LigneComposants } from "@/lib/boutons-discord";
 
@@ -87,6 +91,12 @@ async function envoyerPush(profileId: string, titre: string, corpsHtml: string):
 
   await Promise.all(
     abonnements.map(async (s) => {
+      // Adresse enregistrée avant la règle du 22/11/2026 et hors des
+      // services de push connus : jamais appelée, retirée.
+      if (!estAdressePushValide(s.endpoint)) {
+        await admin.from("push_subscriptions").delete().eq("id", s.id);
+        return;
+      }
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },

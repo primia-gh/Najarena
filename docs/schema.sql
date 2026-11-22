@@ -15887,3 +15887,68 @@ grant execute on function public.garder_verification_registre(boolean) to servic
 -- La vérification complète n'est plus appelable par les visiteurs.
 revoke execute on function public.verifier_registre() from public, anon, authenticated;
 grant execute on function public.verifier_registre() to service_role;
+
+-- ---------- Petites failles du contrôle du 21/11 (2026-11-22) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (src/lib/auth-actions.ts appelle texte_acceptable avec le rôle service).
+-- F2 — adresse de notification push libre : le serveur envoyait une
+--   requête à toute adresse choisie par un joueur, sans limite de nombre.
+--   Désormais seulement les services de push des navigateurs, en https
+--   (même règle que src/lib/push.ts), et 10 appareils au plus par joueur
+--   (le plus ancien laisse sa place).
+-- F4 — texte_acceptable était appelable sans compte : un script pouvait
+--   deviner la liste cachée des termes modérés. Réservée au serveur.
+-- F5 — la date d'une annonce « cherche une équipe » était écrite par son
+--   auteur : elle est désormais posée par la base (maintenant, à chaque
+--   publication).
+
+create or replace function public.controler_abonnement_push()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if char_length(new.endpoint) > 1000
+     or new.endpoint !~ '^https://(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)/'
+     or char_length(new.p256dh) > 200 or char_length(new.auth) > 200 then
+    raise exception 'ADRESSE_PUSH_INVALIDE';
+  end if;
+  if tg_op = 'INSERT' then
+    -- 10 appareils au plus : les plus anciens laissent leur place.
+    delete from public.push_subscriptions
+    where id in (
+      select id from public.push_subscriptions
+      where profile_id = new.profile_id
+      order by cree_le desc
+      offset 9
+    );
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_abonnement_push() from public, anon, authenticated;
+drop trigger if exists push_subscriptions_controle on public.push_subscriptions;
+create trigger push_subscriptions_controle
+  before insert or update of endpoint, p256dh, auth on public.push_subscriptions
+  for each row execute function public.controler_abonnement_push();
+
+revoke execute on function public.texte_acceptable(text, text) from public, anon, authenticated;
+grant execute on function public.texte_acceptable(text, text) to service_role;
+
+create or replace function public.dater_annonce_coequipier()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if current_user = 'authenticated' then
+    new.cree_le := now();
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.dater_annonce_coequipier() from public, anon, authenticated;
+drop trigger if exists recherches_coequipiers_date on public.recherches_coequipiers;
+create trigger recherches_coequipiers_date
+  before insert or update on public.recherches_coequipiers
+  for each row execute function public.dater_annonce_coequipier();
