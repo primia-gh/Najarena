@@ -99,7 +99,7 @@ function etatClassement(p: PreuveMatch): string {
   if (!p.verdict) return "Pas encore de résultat.";
   if (p.verdict.niveau === "manuel") return "Ne compte pas au classement : un verdict manuel n'écrit jamais de points.";
   if (!niveauCompteSuffisant(p.verdict.niveauCompteMin))
-    return `Ne compte pas au classement : un des deux comptes Riot était sous le niveau ${NIVEAU_COMPTE_RIOT_MIN} au moment de la partie. Le résultat, lui, est vérifié.`;
+    return `Ne compte pas au classement : un des deux comptes Riot était sous le niveau ${NIVEAU_COMPTE_RIOT_MIN} au moment de la partie. Le résultat, lui, est vérifié.`;
   if (p.tournoi.classe === false) return "Tournoi non classé : aucun point en jeu.";
   if (p.tournoi.classe === true) return "Compté au classement, à la clôture du tournoi.";
   return p.tournoi.nature === "defi"

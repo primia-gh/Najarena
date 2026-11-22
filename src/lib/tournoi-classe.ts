@@ -96,7 +96,7 @@ export function criteresClassement(d: DonneesClassement): CritereClassement[] {
       {
         // Plafond de 5 duels classés par joueur et par 24 h (22/11/2026,
         // DUELS_CLASSES_PAR_JOUR_MAX dans lib/defis.ts).
-        libelle: "Premier duel classé de ces deux joueurs en 24 h, 5 duels classés par jour au plus pour chacun",
+        libelle: "Premier duel classé de ces deux joueurs en 24 h, et 5 au plus par jour pour chacun",
         etat: d.amical ? "ko" : "ok",
         detail: d.amical ? "Au-delà, les duels se jouent en amical." : null,
       },

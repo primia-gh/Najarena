@@ -259,23 +259,33 @@ export async function verifierRiotId(formData: FormData) {
     redirect(`/lier-riot?message=${encodeURIComponent("Compte secondaire vérifié : il apparaît sur ton CV.")}`);
   }
 
+  // Compte sous le niveau 30 (22/11/2026) : ses matchs ne compteront pas au
+  // classement tant qu'il n'y est pas — le joueur le sait dès maintenant,
+  // y compris quand il revient vers un lien de défi (page de suite).
+  // Niveau lu dans la même réponse Riot que l'icône, sans appel de plus.
+  const avertissementNiveau =
+    invocateur.summonerLevel < NIVEAU_COMPTE_RIOT_MIN
+      ? `Compte Riot vérifié. Il est au niveau ${invocateur.summonerLevel} : tu peux t'inscrire aux tournois, mais tes matchs ne compteront au classement qu'à partir du niveau ${NIVEAU_COMPTE_RIOT_MIN}, celui que Riot exige pour ses parties classées.`
+      : null;
+
   const magasin = await cookies();
   const suite = destinationInterne(magasin.get(COOKIE_SUITE)?.value ?? null, "");
   if (suite) {
     magasin.delete(COOKIE_SUITE);
-    redirect(suite);
+    redirect(avertissementNiveau ? avecMessage(suite, avertissementNiveau) : suite);
   }
-  // Compte sous le niveau 30 (22/11/2026) : ses matchs ne compteront pas au
-  // classement tant qu'il n'y est pas — le joueur le sait dès maintenant.
-  // Niveau lu dans la même réponse Riot que l'icône, sans appel de plus.
-  if (invocateur.summonerLevel < NIVEAU_COMPTE_RIOT_MIN) {
-    redirect(
-      `/moi?message=${encodeURIComponent(
-        `Compte Riot vérifié. Il est au niveau ${invocateur.summonerLevel} : tu peux jouer tous les tournois, mais tes matchs ne compteront au classement qu'à partir du niveau ${NIVEAU_COMPTE_RIOT_MIN}, celui que Riot exige pour ses parties classées.`,
-      )}`,
-    );
+  if (avertissementNiveau) {
+    redirect(`/moi?message=${encodeURIComponent(avertissementNiveau)}`);
   }
   redirect("/moi");
+}
+
+// Ajoute ?message= à une adresse interne du site (sa partie après « # »
+// gardée). Une page qui ne l'affiche pas l'ignore.
+function avecMessage(chemin: string, message: string): string {
+  const url = new URL(chemin, "https://najarena.invalid");
+  url.searchParams.set("message", message);
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 // game_accounts n'a aucune policy client UPDATE — volontairement : des

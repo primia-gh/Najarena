@@ -738,9 +738,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                       >
                         <input type="hidden" name="adversaire_id" value={profil.id} />
                         <p className="text-sm leading-normal text-text-2">
-                          Un duel en une partie, résultat lu chez Riot. Il compte au classement si la partie est
-                          retrouvée — un défi classé par jour entre vous deux, {DUELS_CLASSES_PAR_JOUR_MAX} duels classés
-                          par jour au plus pour chacun, les suivants en amical.
+                          Un duel en une partie, résultat lu chez Riot. Classé si la partie est retrouvée&nbsp;: un par
+                          jour entre vous deux ({DUELS_CLASSES_PAR_JOUR_MAX}&nbsp;au plus par jour pour chacun)&nbsp;; les
+                          suivants, en amical.
                         </p>
                         <label className="flex flex-col gap-2">
                           <span className="text-mini text-muted uppercase">Comment on gagne</span>

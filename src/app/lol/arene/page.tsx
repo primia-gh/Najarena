@@ -236,8 +236,8 @@ export default async function ArenePage({ searchParams }: ArenePageProps) {
             </li>
             <li>
               <strong className="text-text">Classé, sans abus.</strong> Le duel compte au classement comme un défi : un
-              seul duel classé par jour entre deux mêmes joueurs, {DUELS_CLASSES_PAR_JOUR_MAX} duels classés par jour au
-              plus pour chacun, les suivants se jouent en amical.
+              seul duel classé par jour entre deux mêmes joueurs, et {DUELS_CLASSES_PAR_JOUR_MAX}&nbsp;au plus par jour pour
+              chacun&nbsp;; les suivants se jouent en amical.
             </li>
           </ul>
         </Apparition>

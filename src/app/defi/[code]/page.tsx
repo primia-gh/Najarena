@@ -13,6 +13,7 @@ import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import BoutonLien from "@/components/design/BoutonLien";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
+import Alerte from "@/components/design/Alerte";
 
 // « Invite ton rival » (28/09/2026, audit N18) : la page du lien de défi
 // envoyé à un ami. Pas encore inscrit, il crée son compte et lie son Riot
@@ -21,7 +22,7 @@ import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 
 interface DefiPageProps {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
 const chargerInvitation = cache(async (code: string) => {
@@ -60,7 +61,9 @@ export async function generateMetadata({ params }: DefiPageProps): Promise<Metad
 
 export default async function DefiPage({ params, searchParams }: DefiPageProps) {
   const { code } = await params;
-  const { erreur } = await searchParams;
+  // message : retour de la vérification du compte Riot (compte sous le
+  // niveau 30, src/lib/riot-actions.ts).
+  const { erreur, message } = await searchParams;
   const donnees = await chargerInvitation(code);
   if (!donnees) notFound();
 
@@ -93,6 +96,11 @@ export default async function DefiPage({ params, searchParams }: DefiPageProps) 
             <p role="alert" className="mt-6 rounded-bouton border border-danger/40 bg-danger/10 px-3 py-2.5 text-sm text-danger">
               {erreur}
             </p>
+          )}
+          {message && !erreur && (
+            <Alerte type="succes" className="mt-6">
+              {message}
+            </Alerte>
           )}
 
           <Panneau className="mt-6 flex flex-col gap-4 p-6">

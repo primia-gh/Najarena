@@ -235,7 +235,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               <span className="font-texte text-mini font-semibold text-text uppercase">Choisis ton pseudo</span>
               <span className="text-sm text-text-2">
                 {pseudoInscriptionRefuse &&
-                  "Le pseudo choisi à l'inscription n'a pas été accepté par la modération (terme refusé ou nom qui laisse croire à un compte officiel). "}
+                  "Le pseudo demandé à l'inscription a été refusé par la modération (terme interdit ou nom pouvant passer pour un compte officiel) : choisis-en un autre. "}
                 « {profil.pseudo} » est un pseudo automatique : c&apos;est lui qui s&apos;affiche sur ton CV et dans les
                 brackets.
               </span>

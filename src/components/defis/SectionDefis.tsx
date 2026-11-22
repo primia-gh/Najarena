@@ -38,8 +38,8 @@ export default function SectionDefis({ defis }: { defis: MesDefis }) {
       <SectionTitre>Défis</SectionTitre>
       <p className="mt-1 text-sm text-muted">
         Défie un joueur depuis son profil (bouton «&nbsp;Défier&nbsp;»), ou envoie un lien à un ami pas encore inscrit. Une
-        partie, résultat lu chez Riot&nbsp;: un défi classé par jour entre deux joueurs et {DUELS_CLASSES_PAR_JOUR_MAX}{" "}
-        duels classés par jour au plus pour chacun, les suivants en amical. Pas
+        partie, résultat lu chez Riot&nbsp;: un seul duel classé par jour entre deux mêmes joueurs, et{" "}
+        {DUELS_CLASSES_PAR_JOUR_MAX}&nbsp;au plus par jour pour chacun&nbsp;; les suivants se jouent en amical. Pas
         d&apos;adversaire en tête&nbsp;?{" "}
         <Link href="/lol/arene" className="text-accent underline underline-offset-3">
           L&apos;arène t&apos;en trouve un de ton niveau

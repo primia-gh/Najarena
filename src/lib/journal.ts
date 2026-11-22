@@ -11,9 +11,9 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "22 novembre",
-    titre: "Des points impossibles à fabriquer avec de faux comptes",
+    titre: "Un compte tout neuf ne rapporte plus de points",
     texte:
-      "Un match 1v1 ne compte plus au classement si l'un des deux comptes Riot est sous le niveau 30, celui que Riot exige pour ses parties classées : un compte créé pour l'occasion ne rapporte rien. Le niveau est lu dans la partie retrouvée chez Riot ; le résultat reste vérifié et affiché. Les duels (défis, arène, divisions) comptent au plus 5 fois par jour pour chaque joueur, les suivants se jouent en amical.",
+      "Un match 1v1 ne compte plus au classement si l'un des deux comptes Riot est sous le niveau 30, celui que Riot exige pour ses parties classées : un compte créé pour l'occasion ne rapporte rien. Le niveau est lu dans la partie retrouvée chez Riot ; le résultat reste vérifié et affiché. Un seul duel classé par jour entre deux mêmes joueurs, et 5 au plus par jour pour chacun (défis, arène, divisions) : les suivants se jouent en amical.",
     tags: ["Fiabilité"],
   },
   {

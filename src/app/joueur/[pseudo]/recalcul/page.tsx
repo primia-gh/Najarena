@@ -61,7 +61,7 @@ export default async function RecalculPage({ params }: { params: Promise<{ pseud
             </Link>
             , ses matchs et leur verdict, et le niveau de ses adversaires au début de chaque tournoi. Mêmes règles qu&apos;à
             la clôture : seuls les résultats lus chez Riot comptent, jamais un forfait, une décision manuelle ni un match
-            dont un compte Riot était sous le niveau 30, et au-delà de 3 victoires contre le même adversaire en 24 h les
+            dont un compte Riot était sous le niveau&nbsp;30, et au-delà de 3 victoires contre le même adversaire en 24 h les
             suivantes sont ignorées.
           </p>
           {!estClasse && (

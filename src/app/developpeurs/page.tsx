@@ -74,7 +74,7 @@ const POINTS_API = [
   {
     chemin: "/api/public/v1/joueurs/ADRESSE-DU-PROFIL/recalcul",
     texte:
-      "De quoi refaire le calcul de ses points : ses lignes du registre, ses matchs avec leur verdict (et, depuis le 22/11/2026, le plus bas niveau Riot des deux comptes : sous 30, le match ne compte pas), et le rating et le RD de départ de ses adversaires dans chaque tournoi (page /joueur/ADRESSE-DU-PROFIL/recalcul).",
+      "De quoi refaire le calcul de ses points : ses lignes du registre, ses matchs avec leur verdict (et, depuis le 22/11/2026, niveau_compte_min : le niveau Riot du moins avancé des deux comptes, sous 30 le match ne compte pas), et le rating et le RD de départ de ses adversaires dans chaque tournoi (page /joueur/ADRESSE-DU-PROFIL/recalcul).",
   },
   {
     chemin: "/api/public/v1/tournois/ADRESSE-DU-TOURNOI",
