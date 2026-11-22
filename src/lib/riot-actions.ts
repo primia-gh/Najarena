@@ -16,6 +16,7 @@ import { cookies } from "next/headers";
 import { destinationInterne } from "@/lib/redirection";
 import { COOKIE_SUITE, DUREE_COOKIE_SUITE_SECONDES } from "@/lib/suite";
 import { URL_SITE } from "@/lib/notifications";
+import { NIVEAU_COMPTE_RIOT_MIN } from "@/lib/niveau-compte-riot";
 
 // Compte suspendu (contrôle de sécurité M3, 22/11/2026) : ses comptes Riot
 // restent tels quels jusqu'à la levée de la suspension.
@@ -263,6 +264,16 @@ export async function verifierRiotId(formData: FormData) {
   if (suite) {
     magasin.delete(COOKIE_SUITE);
     redirect(suite);
+  }
+  // Compte sous le niveau 30 (22/11/2026) : ses matchs ne compteront pas au
+  // classement tant qu'il n'y est pas — le joueur le sait dès maintenant.
+  // Niveau lu dans la même réponse Riot que l'icône, sans appel de plus.
+  if (invocateur.summonerLevel < NIVEAU_COMPTE_RIOT_MIN) {
+    redirect(
+      `/moi?message=${encodeURIComponent(
+        `Compte Riot vérifié. Il est au niveau ${invocateur.summonerLevel} : tu peux jouer tous les tournois, mais tes matchs ne compteront au classement qu'à partir du niveau ${NIVEAU_COMPTE_RIOT_MIN}, celui que Riot exige pour ses parties classées.`,
+      )}`,
+    );
   }
   redirect("/moi");
 }

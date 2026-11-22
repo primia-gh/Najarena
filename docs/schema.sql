@@ -15956,3 +15956,342 @@ drop trigger if exists recherches_coequipiers_date on public.recherches_coequipi
 create trigger recherches_coequipiers_date
   before insert or update on public.recherches_coequipiers
   for each row execute function public.dater_annonce_coequipier();
+
+-- ---------- Comptes multiples : niveau Riot 30 et plafond de duels (2026-11-22) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Contrôle de sécurité du 21/11/2026 (M4), options choisies par le porteur
+-- du projet le 22/11/2026 : un joueur pouvait créer des comptes Riot
+-- gratuits, les lier à de faux comptes Najarena et se fabriquer des
+-- victoires contre eux.
+-- 1. Niveau Riot 30 : le niveau des deux comptes Riot d'un match 1v1 est
+--    lu dans la partie retrouvée chez Riot (le plus bas sur toute la série),
+--    sans appel de plus, et gardé avec le verdict. Un match dont un compte
+--    était sous le niveau 30 reste vérifié (le résultat est vrai) mais ne
+--    compte pas au classement (clôture : src/lib/classement-actions.ts ;
+--    recalcul public : src/lib/recalcul.ts ; seuil :
+--    src/lib/niveau-compte-riot.ts). Vide pour les verdicts d'avant ce
+--    jour et pour le 5v5 (hors classement individuel).
+-- 2. Plafond de duels classés : 5 au plus par joueur et par 24 h (défis,
+--    arène, divisions) ; au-delà, le duel se joue en amical. Les tournois
+--    ne sont pas touchés.
+
+alter table public.match_verdicts add column if not exists niveau_compte_min integer;
+comment on column public.match_verdicts.niveau_compte_min is
+  'Plus bas niveau Riot des deux comptes d''un match 1v1, lu dans la partie (verdict lu chez Riot). Sous 30 : ne compte pas au classement. Vide avant le 22/11/2026 et en 5v5.';
+
+drop function if exists public.enregistrer_verdict_historique(uuid, uuid, text);
+create or replace function public.enregistrer_verdict_historique(
+  p_match_id uuid,
+  p_gagnant_id uuid,
+  p_riot_match_id text,
+  p_niveau_compte_min integer default null
+)
+returns boolean -- true si écrit, false si déjà décidé (idempotence)
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_partie text;
+begin
+  if exists (
+    select 1 from match_verdicts where match_id = p_match_id and est_definitif
+  ) then
+    return false;
+  end if;
+
+  if not exists (
+    select 1 from match_participants
+    where match_id = p_match_id and profile_id = p_gagnant_id
+  ) then
+    raise exception 'GAGNANT_INVALIDE';
+  end if;
+
+  if p_niveau_compte_min is not null and (p_niveau_compte_min < 0 or p_niveau_compte_min > 100000) then
+    raise exception 'NIVEAU_COMPTE_INVALIDE';
+  end if;
+
+  -- Chaque partie de la série (« id1,id2,… ») est réservée à ce match. Une
+  -- exécution simultanée pour un autre match attend la fin de celle-ci,
+  -- puis voit la partie prise.
+  foreach v_partie in array coalesce(string_to_array(p_riot_match_id, ','), '{}'::text[]) loop
+    v_partie := btrim(v_partie);
+    continue when v_partie = '';
+    insert into parties_utilisees (riot_match_id, match_id) values (v_partie, p_match_id)
+    on conflict (riot_match_id) do nothing;
+    if (select match_id from parties_utilisees where riot_match_id = v_partie) <> p_match_id then
+      raise exception 'PARTIE_DEJA_UTILISEE';
+    end if;
+  end loop;
+
+  insert into match_verdicts (match_id, niveau, gagnant_id, riot_match_id, est_definitif, niveau_compte_min)
+  values (p_match_id, 'historique', p_gagnant_id, p_riot_match_id, true, p_niveau_compte_min);
+
+  perform avancer_vainqueur(p_match_id, p_gagnant_id);
+
+  return true;
+end;
+$$;
+revoke execute on function public.enregistrer_verdict_historique(uuid, uuid, text, integer) from public, anon, authenticated;
+
+-- Duels classés (défis, arène, divisions) créés pour ce joueur dans les
+-- 24 dernières heures, sans les duels annulés (aucune partie retrouvée).
+create or replace function public.duels_classes_du_jour(p_joueur uuid)
+returns integer
+language sql
+stable
+security definer set search_path = public
+as $$
+  select count(*)::integer
+  from public.tournaments t
+  join public.registrations r on r.tournament_id = t.id and r.profile_id = p_joueur
+  where t.nature = 'defi' and t.compte_pour_classement and t.statut <> 'annule'
+    and t.cree_le > now() - interval '24 hours';
+$$;
+revoke all on function public.duels_classes_du_jour(uuid) from public, anon, authenticated;
+
+-- Un duel entre ces deux joueurs peut-il être classé ? Premier duel classé
+-- de la paire en 24 h, et moins de 5 duels classés en 24 h pour chacun.
+create or replace function public.duel_classe_possible(p_a uuid, p_b uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select not exists (
+      select 1 from public.tournaments t
+      where t.nature = 'defi' and t.compte_pour_classement and t.cree_le > now() - interval '24 hours'
+        and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = p_a)
+        and exists (select 1 from public.registrations r where r.tournament_id = t.id and r.profile_id = p_b)
+    )
+    and public.duels_classes_du_jour(p_a) < 5
+    and public.duels_classes_du_jour(p_b) < 5;
+$$;
+revoke all on function public.duel_classe_possible(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.creer_duel(p_defi_id uuid)
+returns text -- adresse (slug) du duel
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_defi record;
+  v_region text;
+  v_arbitre uuid;
+  v_saison uuid;
+  v_classe boolean;
+  v_tournoi uuid;
+  v_match uuid;
+  v_slug text;
+  v_pseudo_a text;
+  v_pseudo_b text;
+begin
+  select * into v_defi from public.defis where id = p_defi_id for update;
+
+  v_region := public.region_compte_verifie(v_defi.lanceur_id);
+  if v_region is null or public.region_compte_verifie(v_defi.adversaire_id) is null then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  if public.region_compte_verifie(v_defi.adversaire_id) <> v_region then
+    raise exception 'REGION_DIFFERENTE';
+  end if;
+  -- Un match déjà ouvert entre eux (tournoi, autre duel) se joue d'abord :
+  -- une même partie Riot ne tranche jamais deux matchs (18/11/2026).
+  if public.match_ouvert_entre(v_defi.lanceur_id, v_defi.adversaire_id) then
+    raise exception 'MATCH_OUVERT_ENTRE_VOUS';
+  end if;
+
+  -- Trois défis en cours au plus par joueur.
+  if exists (
+    select 1 from (values (v_defi.lanceur_id), (v_defi.adversaire_id)) as j(id)
+    where (select count(*) from public.registrations r
+           join public.tournaments t on t.id = r.tournament_id
+           where r.profile_id = j.id and t.nature = 'defi' and t.statut = 'en_cours') >= 3
+  ) then
+    raise exception 'TROP_DE_DEFIS_EN_COURS';
+  end if;
+
+  select profile_id into v_arbitre from public.admins order by ajoute_le, profile_id limit 1;
+  if v_arbitre is null then
+    raise exception 'AUCUN_ARBITRE';
+  end if;
+
+  select id into v_saison from public.seasons where game_id = 1 and est_courante;
+
+  -- Un seul défi classé par paire et par 24 h, et 5 duels classés au plus
+  -- par joueur en 24 h (22/11/2026) : les suivants en amical.
+  v_classe := public.duel_classe_possible(v_defi.lanceur_id, v_defi.adversaire_id);
+
+  select pseudo into v_pseudo_a from public.profiles where id = v_defi.lanceur_id;
+  select pseudo into v_pseudo_b from public.profiles where id = v_defi.adversaire_id;
+  v_slug := 'defi-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
+
+  insert into public.tournaments (
+    game_id, season_id, organisateur_id, slug, nom, format, type_bracket, best_of, capacite,
+    region, compte_pour_classement, debute_le, checkin_ouvre_le, statut, condition_victoire, nature
+  ) values (
+    1, v_saison, v_arbitre, v_slug, 'Défi ' || v_pseudo_a || ' contre ' || v_pseudo_b, '1v1', 'elim_simple', 1, 2,
+    v_region, v_classe, now(), now(), 'en_cours', v_defi.condition_victoire, 'defi'
+  ) returning id into v_tournoi;
+
+  insert into public.registrations (tournament_id, profile_id, statut, confirme_le, seed) values
+    (v_tournoi, v_defi.lanceur_id, 'confirme', now(), 1),
+    (v_tournoi, v_defi.adversaire_id, 'confirme', now(), 2);
+
+  insert into public.matches (tournament_id, tour, position, statut, demarre_le)
+  values (v_tournoi, 1, 1, 'en_cours', now())
+  returning id into v_match;
+
+  insert into public.match_participants (match_id, profile_id, slot) values
+    (v_match, v_defi.lanceur_id, 1),
+    (v_match, v_defi.adversaire_id, 2);
+
+  update public.defis
+  set statut = 'accepte', repondu_le = now(), tournament_id = v_tournoi
+  where id = p_defi_id;
+
+  return v_slug;
+end;
+$$;
+revoke all on function public.creer_duel(uuid) from public, anon, authenticated;
+
+create or replace function public.je_suis_la_division(p_rencontre_id uuid)
+returns table (slug text, prevenir boolean)
+language plpgsql
+security definer set search_path = public
+as $$
+#variable_conflict use_column
+declare
+  v_joueur uuid := auth.uid();
+  v_r record;
+  v_ligue record;
+  v_statut_duel public.tournament_status;
+  v_autre_dispo timestamptz;
+  v_ma_dispo timestamptz;
+  v_region text;
+  v_arbitre uuid;
+  v_saison uuid;
+  v_classe boolean;
+  v_tournoi uuid;
+  v_match uuid;
+  v_slug text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  select r.* into v_r from public.rencontres_division r where r.id = p_rencontre_id for update;
+  if not found or v_joueur not in (v_r.joueur_a, v_r.joueur_b) then
+    raise exception 'RENCONTRE_INTROUVABLE';
+  end if;
+  select l.* into v_ligue from public.ligues_division l
+  join public.poules_division p on p.ligue_id = l.id where p.id = v_r.poule_id;
+  if v_ligue.statut <> 'en_cours' or now() >= v_ligue.fin_le
+     or now() < v_ligue.debut_le + make_interval(days => 7 * (v_r.semaine - 1)) then
+    raise exception 'RENCONTRE_HORS_DELAI';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  if v_r.tournament_id is not null then
+    select statut into v_statut_duel from public.tournaments where id = v_r.tournament_id;
+    if v_statut_duel = 'en_cours' then
+      raise exception 'MATCH_DEJA_LANCE';
+    elsif v_statut_duel = 'termine' then
+      raise exception 'RENCONTRE_JOUEE';
+    end if;
+  end if;
+
+  -- Contrôlé dès le premier clic : sinon le premier arrivé attendrait un
+  -- duel qui ne peut pas partir (contrôle du 17/10/2026).
+  -- Un match déjà ouvert entre eux (tournoi, défi) se joue d'abord : une
+  -- même partie Riot ne sert jamais à deux matchs (contrôle de sécurité du
+  -- 17/10/2026 ; voir aussi parties_utilisees). Seulement dans un tournoi
+  -- 1v1 en cours (un tournoi annulé laisse ses matchs tels quels ; une
+  -- partie 5v5, un scrim, ne tranche jamais un duel), et un litige
+  -- seulement tant que la recherche des résultats le suit encore (25 h,
+  -- RECHERCHE_APRES_LITIGE_HEURES + 1) : un vieux litige ne bloque pas la
+  -- division.
+  if exists (
+    select 1 from public.match_participants pa
+    join public.match_participants pb on pb.match_id = pa.match_id and pb.profile_id = v_r.joueur_b
+    join public.matches m on m.id = pa.match_id
+    join public.tournaments t on t.id = m.tournament_id and t.statut = 'en_cours' and t.format = '1v1'
+    where pa.profile_id = v_r.joueur_a
+      and (m.statut in ('en_attente', 'en_cours')
+           or (m.statut = 'litige' and m.demarre_le > now() - interval '25 hours'))
+  ) then
+    raise exception 'MATCH_OUVERT_ENTRE_VOUS';
+  end if;
+  -- Trois défis en cours au plus par joueur, comme creer_duel.
+  if exists (
+    select 1 from (values (v_r.joueur_a), (v_r.joueur_b)) as j(id)
+    where (select count(*) from public.registrations rg
+           join public.tournaments t on t.id = rg.tournament_id
+           where rg.profile_id = j.id and t.nature = 'defi' and t.statut = 'en_cours') >= 3
+  ) then
+    raise exception 'TROP_DE_DEFIS_EN_COURS';
+  end if;
+  if v_joueur = v_r.joueur_a then
+    update public.rencontres_division set dispo_a = now() where id = p_rencontre_id;
+    v_autre_dispo := v_r.dispo_b;
+    v_ma_dispo := v_r.dispo_a;
+  else
+    update public.rencontres_division set dispo_b = now() where id = p_rencontre_id;
+    v_autre_dispo := v_r.dispo_a;
+    v_ma_dispo := v_r.dispo_b;
+  end if;
+  if v_autre_dispo is null or v_autre_dispo < now() - interval '30 minutes' then
+    slug := null;
+    -- Prévenu quand la présence commence, et 3 fois par 24 h au plus.
+    prevenir := (v_ma_dispo is null or v_ma_dispo < now() - interval '30 minutes')
+      and (select count(*) from public.avertissements_division a
+           where a.rencontre_id = p_rencontre_id and a.profile_id = v_joueur
+             and a.envoye_le > now() - interval '24 hours') < 3;
+    if prevenir then
+      insert into public.avertissements_division (rencontre_id, profile_id) values (p_rencontre_id, v_joueur);
+    end if;
+    return next;
+    return;
+  end if;
+
+  -- Les deux sont là : duel ordinaire, mêmes règles que creer_duel.
+  v_region := public.region_compte_verifie(v_r.joueur_a);
+  if v_region is null or public.region_compte_verifie(v_r.joueur_b) is distinct from v_region then
+    raise exception 'COMPTE_RIOT_REQUIS';
+  end if;
+  select profile_id into v_arbitre from public.admins order by ajoute_le, profile_id limit 1;
+  if v_arbitre is null then
+    raise exception 'AUCUN_ARBITRE';
+  end if;
+  select id into v_saison from public.seasons where game_id = 1 and est_courante;
+  -- Même règle que creer_duel : premier duel classé de la paire en 24 h,
+  -- 5 duels classés au plus par joueur en 24 h (22/11/2026).
+  v_classe := public.duel_classe_possible(v_r.joueur_a, v_r.joueur_b);
+  v_slug := 'division-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
+
+  insert into public.tournaments (
+    game_id, season_id, organisateur_id, slug, nom, format, type_bracket, best_of, capacite,
+    region, compte_pour_classement, debute_le, checkin_ouvre_le, statut, condition_victoire, nature
+  ) values (
+    1, v_saison, v_arbitre, v_slug,
+    'Division ' || (select pseudo from public.profiles where id = v_r.joueur_a)
+      || ' contre ' || (select pseudo from public.profiles where id = v_r.joueur_b),
+    '1v1', 'elim_simple', 1, 2, v_region, v_classe, now(), now(), 'en_cours', 'nexus', 'defi'
+  ) returning id into v_tournoi;
+  insert into public.registrations (tournament_id, profile_id, statut, confirme_le, seed) values
+    (v_tournoi, v_r.joueur_a, 'confirme', now(), 1),
+    (v_tournoi, v_r.joueur_b, 'confirme', now(), 2);
+  insert into public.matches (tournament_id, tour, position, statut, demarre_le)
+  values (v_tournoi, 1, 1, 'en_cours', now()) returning id into v_match;
+  insert into public.match_participants (match_id, profile_id, slot) values
+    (v_match, v_r.joueur_a, 1), (v_match, v_r.joueur_b, 2);
+
+  update public.rencontres_division
+  set tournament_id = v_tournoi, dispo_a = null, dispo_b = null
+  where id = p_rencontre_id;
+  slug := v_slug;
+  prevenir := true;
+  return next;
+end;
+$$;
+revoke execute on function public.je_suis_la_division(uuid) from public, anon;
+grant execute on function public.je_suis_la_division(uuid) to authenticated;

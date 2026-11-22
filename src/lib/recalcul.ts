@@ -2,8 +2,10 @@
 // Glicko-2 d'un joueur refait dans le navigateur du visiteur, ligne par
 // ligne, à partir du registre public et des résultats publics. Mêmes règles
 // que la clôture d'un tournoi (lib/classement-actions.ts) : seuls les
-// verdicts lus chez Riot comptent, jamais un forfait, et au-delà de 3
-// victoires contre le même adversaire en 24 h les suivantes sont ignorées.
+// verdicts lus chez Riot comptent, jamais un forfait, au-delà de 3
+// victoires contre le même adversaire en 24 h les suivantes sont ignorées,
+// et un match dont un compte Riot était sous le niveau 30 ne compte pas
+// (22/11/2026).
 // Logique pure, testée dans recalcul.test.ts — le même moteur que le
 // serveur (lib/glicko2.ts), exécuté chez le visiteur.
 //
@@ -12,6 +14,7 @@
 // première ligne (0,06 au départ), arrondie comme en base (6 décimales).
 
 import { mettreAJourJoueur, softResetSaison, VOLATILITE_INITIALE, type ResultatMatch } from "@/lib/glicko2";
+import { niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
 
 export const NIVEAUX_COMPTES = ["code_tournoi", "historique"] as const;
 export const PLAFOND_VICTOIRES_24H = 3;
@@ -33,7 +36,13 @@ export interface MatchJoueur {
   tournament_id: string;
   statut: string;
   adversaire_id: string | null;
-  verdict: { niveau: string; gagnant_id: string | null; cree_le: string } | null;
+  verdict: {
+    niveau: string;
+    gagnant_id: string | null;
+    cree_le: string;
+    /** Plus bas niveau Riot des deux comptes (22/11/2026) ; absent ou nul avant. */
+    niveau_compte_min?: number | null;
+  } | null;
 }
 
 export interface DonneesRecalcul {
@@ -74,8 +83,17 @@ function compte(m: MatchJoueur): boolean {
 /** Résultats retenus d'un tournoi pour le joueur, dans l'ordre des verdicts. */
 export function resultatsDuTournoi(d: DonneesRecalcul, tournoiId: string): ResultatMatch[] | null {
   const departs = d.departs[tournoiId] ?? {};
+  // Le plafond des 3 victoires compte tous les verdicts lus chez Riot,
+  // niveau du compte compris (comme compterVictoiresRecentes à la clôture) ;
+  // seul le match lui-même est écarté sous le niveau 30.
   const candidats = d.matchs
-    .filter((m) => m.tournament_id === tournoiId && compte(m) && m.adversaire_id)
+    .filter(
+      (m) =>
+        m.tournament_id === tournoiId &&
+        compte(m) &&
+        niveauCompteSuffisant(m.verdict!.niveau_compte_min) &&
+        m.adversaire_id,
+    )
     .sort((a, b) => Date.parse(a.verdict!.cree_le) - Date.parse(b.verdict!.cree_le));
 
   const resultats: ResultatMatch[] = [];

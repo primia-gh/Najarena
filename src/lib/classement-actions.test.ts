@@ -104,8 +104,8 @@ interface Options {
 }
 
 const TOUS = ["u1", "u2", "u3", "u4"];
-const verdict = (niveau: string, gagnant: string, cree_le: string) => [
-  { niveau, gagnant_id: gagnant, cree_le, est_definitif: true },
+const verdict = (niveau: string, gagnant: string, cree_le: string, niveau_compte_min: number | null = null) => [
+  { niveau, gagnant_id: gagnant, cree_le, est_definitif: true, niveau_compte_min },
 ];
 const matchsNormaux = [
   { id: "m1", statut: "termine", match_participants: [{ profile_id: "u1" }, { profile_id: "u2" }], verdict: verdict("historique", "u1", "2026-09-19T10:00:00Z") },
@@ -333,6 +333,28 @@ describe("cloturerTournoi", () => {
       expect(rpcDe(j).p_matchs_comptes).toBe(0);
       expect(Number(rpcDe(j).p_rating_apres)).toBe(1500);
     }
+  });
+
+  it("compte Riot sous le niveau 30 : match vérifié mais sans points", async () => {
+    installer({
+      matchs: [
+        { id: "m1", statut: "termine", match_participants: [{ profile_id: "u1" }, { profile_id: "u2" }], verdict: verdict("historique", "u1", "2026-09-19T10:00:00Z", 12) },
+        { id: "m2", statut: "termine", match_participants: [{ profile_id: "u3" }, { profile_id: "u4" }], verdict: verdict("historique", "u3", "2026-09-19T10:05:00Z", 29) },
+      ],
+    });
+    await cloturerTournoi("T1");
+    for (const j of TOUS) expect(rpcDe(j).p_matchs_comptes).toBe(0);
+  });
+
+  it("compte Riot au niveau 30, ou verdict sans niveau (avant la règle) : le match compte", async () => {
+    installer({
+      matchs: [
+        { id: "m1", statut: "termine", match_participants: [{ profile_id: "u1" }, { profile_id: "u2" }], verdict: verdict("historique", "u1", "2026-09-19T10:00:00Z", 30) },
+        { id: "m2", statut: "termine", match_participants: [{ profile_id: "u3" }, { profile_id: "u4" }], verdict: verdict("historique", "u3", "2026-09-19T10:05:00Z", null) },
+      ],
+    });
+    await cloturerTournoi("T1");
+    for (const j of TOUS) expect(rpcDe(j).p_matchs_comptes).toBe(1);
   });
 
   it("plafond anti-abus : au-delà de 3 victoires récentes contre le même adversaire, la victoire est ignorée", async () => {

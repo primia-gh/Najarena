@@ -2012,6 +2012,7 @@ export type Database = {
           match_id: string
           motif: string | null
           niveau: Database["public"]["Enums"]["verdict_level"]
+          niveau_compte_min: number | null
           riot_match_id: string | null
         }
         Insert: {
@@ -2023,6 +2024,7 @@ export type Database = {
           match_id: string
           motif?: string | null
           niveau: Database["public"]["Enums"]["verdict_level"]
+          niveau_compte_min?: number | null
           riot_match_id?: string | null
         }
         Update: {
@@ -2034,6 +2036,7 @@ export type Database = {
           match_id?: string
           motif?: string | null
           niveau?: Database["public"]["Enums"]["verdict_level"]
+          niveau_compte_min?: number | null
           riot_match_id?: string | null
         }
         Relationships: [
@@ -3846,6 +3849,7 @@ export type Database = {
         Args: {
           p_gagnant_id: string
           p_match_id: string
+          p_niveau_compte_min?: number | null
           p_riot_match_id: string
         }
         Returns: boolean

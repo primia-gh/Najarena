@@ -137,6 +137,8 @@ export interface ParticipantMatchRiot {
   win: boolean;
   /** 100 ou 200 (conditions du 1v1 classique, src/lib/conditions-1v1.ts). */
   teamId?: number;
+  /** Niveau du compte Riot au moment de la partie (niveau 30 pour le classement, src/lib/niveau-compte-riot.ts). */
+  summonerLevel?: number;
   championName: string;
   kills: number;
   deaths: number;

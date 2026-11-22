@@ -94,9 +94,11 @@ export function criteresClassement(d: DonneesClassement): CritereClassement[] {
     return [
       { libelle: "Défi entre deux comptes Riot vérifiés, arbitré par Najarena", etat: "ok", detail: null },
       {
-        libelle: "Premier défi classé de ces deux joueurs en 24 h",
+        // Plafond de 5 duels classés par joueur et par 24 h (22/11/2026,
+        // DUELS_CLASSES_PAR_JOUR_MAX dans lib/defis.ts).
+        libelle: "Premier duel classé de ces deux joueurs en 24 h, 5 duels classés par jour au plus pour chacun",
         etat: d.amical ? "ko" : "ok",
-        detail: d.amical ? "Les suivants se jouent en amical." : null,
+        detail: d.amical ? "Au-delà, les duels se jouent en amical." : null,
       },
     ];
   }

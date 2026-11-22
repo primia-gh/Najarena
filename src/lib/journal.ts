@@ -11,6 +11,13 @@ export interface EntreeJournal {
 export const JOURNAL: EntreeJournal[] = [
   {
     date: "22 novembre",
+    titre: "Des points impossibles à fabriquer avec de faux comptes",
+    texte:
+      "Un match 1v1 ne compte plus au classement si l'un des deux comptes Riot est sous le niveau 30, celui que Riot exige pour ses parties classées : un compte créé pour l'occasion ne rapporte rien. Le niveau est lu dans la partie retrouvée chez Riot ; le résultat reste vérifié et affiché. Les duels (défis, arène, divisions) comptent au plus 5 fois par jour pour chaque joueur, les suivants se jouent en amical.",
+    tags: ["Fiabilité"],
+  },
+  {
+    date: "22 novembre",
     titre: "Ton niveau suit ton compte Riot",
     texte:
       "Supprimer son compte Najarena, ou délier son compte Riot pour le relier ailleurs, ne fait plus repartir « débutant » : le niveau de ce compte Riot le suit pour les tournois par niveau et les tournois réservés aux nouveaux (jamais pour le classement). Le compte Riot d'un joueur suspendu ne peut être relié nulle part tant que la suspension dure.",

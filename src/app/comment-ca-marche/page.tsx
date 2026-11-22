@@ -247,8 +247,11 @@ export default function CommentCaMarchePage() {
           </div>
           <div className="flex max-w-2xl flex-col gap-3 text-sm text-muted">
             <p>
-              Dans tous les cas, seuls les matchs vérifiés dans la donnée Riot comptent, et au-delà de 3 victoires contre
-              le même adversaire en 24 h, les suivantes sont ignorées.
+              Dans tous les cas, seuls les matchs vérifiés dans la donnée Riot comptent, entre deux comptes Riot d&apos;au
+              moins niveau 30 (le niveau que Riot exige pour ses parties classées : un compte créé pour l&apos;occasion ne
+              rapporte rien), et au-delà de 3 victoires contre le même adversaire en 24 h, les suivantes sont ignorées.
+              Les duels (défis, arène, divisions) comptent au plus 5 fois par jour pour chaque joueur, les suivants se
+              jouent en amical.
             </p>
             <p>
               Les tournois 5v5 ne comptent jamais au classement individuel : un résultat d&apos;équipe ne dit pas le niveau

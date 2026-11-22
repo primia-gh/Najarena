@@ -8,6 +8,13 @@ export const DEFIS_OUVERTS_MAX = 5;
 export const DEFIS_EN_COURS_MAX = 3;
 /** Défis lancés par 24 h, retirés compris (consommer_limite('defi'), contrôle M6 du 22/11/2026). */
 export const DEFIS_PAR_JOUR_MAX = 20;
+/**
+ * Duels classés (défis, arène, divisions) par joueur et par 24 h, au-delà
+ * en amical (22/11/2026, contrôle de sécurité M4 : limite les victoires
+ * qu'un joueur peut se fabriquer contre ses propres comptes). Même nombre
+ * en base (duel_classe_possible).
+ */
+export const DUELS_CLASSES_PAR_JOUR_MAX = 5;
 
 const MESSAGES_REFUS: Record<string, string> = {
   NON_CONNECTE: "Connecte-toi pour jouer un défi.",

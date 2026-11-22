@@ -72,6 +72,8 @@ export interface PreuveMatch {
     decideur: string | null;
     decideLe: string;
     gagnant: string | null;
+    /** Plus bas niveau Riot des deux comptes (1v1, depuis le 22/11/2026). */
+    niveauCompteMin: number | null;
   } | null;
   defaiteReconnue: { pseudo: string; le: string | null } | null;
   dureeSecondes: number | null;
@@ -85,7 +87,7 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
   const { data: m } = await supabase
     .from("matches")
     .select(
-      "id, tour, tableau, statut, demarre_le, defaite_reconnue_par, defaite_reconnue_le, tournament:tournaments(id, nom, slug, format, nature, classe, statut, capacite, type_bracket), match_participants(profile_id, est_gagnant, pret_le, profile:profiles(pseudo, slug)), match_verdicts(niveau, gagnant_id, riot_match_id, motif, est_definitif, cree_le, decideur:profiles!match_verdicts_decide_par_fkey(pseudo))",
+      "id, tour, tableau, statut, demarre_le, defaite_reconnue_par, defaite_reconnue_le, tournament:tournaments(id, nom, slug, format, nature, classe, statut, capacite, type_bracket), match_participants(profile_id, est_gagnant, pret_le, profile:profiles(pseudo, slug)), match_verdicts(niveau, gagnant_id, riot_match_id, motif, est_definitif, cree_le, niveau_compte_min, decideur:profiles!match_verdicts_decide_par_fkey(pseudo))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -209,6 +211,7 @@ export async function chargerPreuveMatch(id: string): Promise<PreuveMatch | null
           gagnant: verdict.gagnant_id
             ? (equipes?.find((e) => e.capitaineId === verdict.gagnant_id)?.libelle ?? pseudoDe(verdict.gagnant_id))
             : null,
+          niveauCompteMin: verdict.niveau_compte_min,
         }
       : null,
     defaiteReconnue: m.defaite_reconnue_par

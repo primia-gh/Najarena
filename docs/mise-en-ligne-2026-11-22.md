@@ -1,11 +1,11 @@
-# Mise en ligne du 22/11/2026 — contrôle de sécurité, suite (M1, M2, M3, M6, M7, F1-F5)
+# Mise en ligne du 22/11/2026 — contrôle de sécurité, suite (M1, M2, M3, M4, M6, M7, F1-F5)
 
 Le code de cette mise en ligne lit de nouvelles colonnes, tables et fonctions :
 **la base se met à jour d'abord, le code ensuite.**
 
 ## Ce que contient la migration
 
-Six sections datées du 22/11/2026 à la fin de `docs/schema.sql`, à partir de la ligne
+Sept sections datées du 22/11/2026 à la fin de `docs/schema.sql`, à partir de la ligne
 `-- ---------- Lancement anticipé d'un tournoi classé (2026-11-22) ----------`
 jusqu'à la fin du fichier :
 
@@ -36,6 +36,11 @@ jusqu'à la fin du fichier :
    seulement chez les services des navigateurs, en https, 10 appareils au plus par joueur, refus
    `ADRESSE_PUSH_INVALIDE`) ; `texte_acceptable` réservée au serveur ; déclencheur
    `recherches_coequipiers_date` (date d'une annonce « cherche une équipe » posée par la base).
+7. **Comptes multiples** : colonne `match_verdicts.niveau_compte_min` ;
+   `enregistrer_verdict_historique` prend un 4e paramètre facultatif (niveau Riot le plus bas des
+   deux comptes) — l'ancienne version à 3 paramètres est remplacée, l'appel de l'ancien code
+   passe toujours ; `duels_classes_du_jour` et `duel_classe_possible` (5 duels classés au plus par
+   joueur et par 24 h) ; `creer_duel` et `je_suis_la_division` redéfinies pour s'en servir.
 
 Aucune donnée existante n'est modifiée. Les tournois déjà lancés ont `lance_le` vide, mais le
 lancement réel compte aussi leur premier match démarré : un tournoi d'organisateur lancé en avance
@@ -84,7 +89,7 @@ from public.push_subscriptions group by 1 order by 2 desc;
 
 ## 2. Migration
 
-Appliquer les six sections, d'un seul tenant. Elles sont rejouables (`if not exists`,
+Appliquer les sept sections, d'un seul tenant. Elles sont rejouables (`if not exists`,
 `create or replace`, `drop … if exists`) : rejouées deux fois sur le schéma de `master`, sans
 erreur.
 
@@ -101,6 +106,10 @@ select string_agg(tgname, ', ' order by tgname) from pg_trigger
 select has_function_privilege('anon', 'public.verifier_registre()', 'execute');            -- false
 select has_function_privilege('authenticated', 'public.mon_statut_non_classe()', 'execute'); -- true
 select has_function_privilege('anon', 'public.texte_acceptable(text, text)', 'execute');    -- false
+select column_name from information_schema.columns
+ where table_name = 'match_verdicts' and column_name = 'niveau_compte_min';  -- 1 ligne
+select pg_get_function_identity_arguments('public.enregistrer_verdict_historique'::regproc);
+-- p_match_id uuid, p_gagnant_id uuid, p_riot_match_id text, p_niveau_compte_min integer
 
 select count(*) from public.comptes_riot_suspendus;                          -- comptes des suspendus en cours
 ```
@@ -119,6 +128,7 @@ select count(*) from public.comptes_riot_suspendus;                          -- 
   « Un pseudo provisoire t'a été donné : change-le dans ton profil ».
 - Une page de joueur, de tournoi et d'équipe qui n'existe pas : vraie page « Page introuvable »
   (code 404), plus une page vide en 200.
+- Un duel lancé après 5 duels classés dans la journée : « amical » sur sa page.
 - `/cgu` : version du 22 novembre 2026 ; `/confidentialite` : deux lignes de plus dans « Durée de
   conservation ».
 - Matchs bloqués par un lancement fait pendant la fenêtre (doit être vide) :

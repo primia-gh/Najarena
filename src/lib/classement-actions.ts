@@ -9,6 +9,7 @@ import {
   type EtatGlicko,
   type ResultatMatch,
 } from "@/lib/glicko2";
+import { niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
 
 const SEUIL_INACTIVITE_JOURS = 30;
 
@@ -140,7 +141,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
   const { data: matchsData } = await supabase
     .from("matches")
     .select(
-      "id, statut, match_participants(profile_id), verdict:match_verdicts(niveau, gagnant_id, cree_le, est_definitif)",
+      "id, statut, match_participants(profile_id), verdict:match_verdicts(niveau, gagnant_id, cree_le, est_definitif, niveau_compte_min)",
     )
     .eq("tournament_id", tournamentId);
 
@@ -155,7 +156,9 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
   }
 
   // Ne retenir que les verdicts définitifs de niveau 2/3, hors forfait —
-  // un verdict manuel (niveau 1) ou un match forfait ne compte jamais.
+  // un verdict manuel (niveau 1) ou un match forfait ne compte jamais —,
+  // et seulement si les deux comptes Riot avaient le niveau 30 (22/11/2026,
+  // src/lib/niveau-compte-riot.ts ; même règle dans recalcul.ts).
   interface Candidat {
     gagnantId: string;
     perdantId: string;
@@ -168,6 +171,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
       (v) => v.est_definitif && (NIVEAUX_COMPTES as readonly string[]).includes(v.niveau),
     );
     if (!verdict || !verdict.gagnant_id) continue;
+    if (!niveauCompteSuffisant(verdict.niveau_compte_min)) continue;
     const perdant = m.match_participants.find((p) => p.profile_id !== verdict.gagnant_id);
     if (!perdant) continue;
     candidats.push({

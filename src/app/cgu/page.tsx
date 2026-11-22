@@ -100,7 +100,9 @@ export default function CguPage() {
             Un joueur peut en défier un autre, en une partie : le défi
             accepté devient un duel arbitré par Najarena, dont le résultat
             est lu de la même façon. Entre deux mêmes joueurs, un seul défi
-            par période de 24 heures compte au classement ; un défi sans
+            par période de 24 heures compte au classement, et chaque joueur
+            compte au plus cinq duels classés (défis, arène, divisions) par
+            période de 24 heures, les suivants se jouant en amical ; un défi sans
             partie retrouvée dans les 24 heures est annulé. L&apos;arène
             ouvre le même duel avec un adversaire choisi par Najarena : même
             région, même règle de victoire, rating proche selon un écart
@@ -235,7 +237,10 @@ export default function CguPage() {
             pour le classement), ou décision manuelle de l&apos;organisateur
             avec son motif (ne compte pas pour le classement). Najarena
             n&apos;invente jamais un résultat ; en cas de doute, la décision
-            revient à l&apos;organisateur du tournoi.
+            revient à l&apos;organisateur du tournoi. Un match en 1v1 ne compte
+            au classement que si les deux comptes Riot ont au moins le niveau
+            30 au moment de la partie ; en dessous, son résultat reste vérifié
+            et affiché, sans points.
           </p>
           <p className="mt-2 text-muted">
             Le classement est calculé selon la méthode Glicko-2, à la

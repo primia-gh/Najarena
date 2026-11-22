@@ -62,7 +62,7 @@ export async function chargerDonneesRecalcul(supabase: Client, slug: string): Pr
       supabase
         .from("match_participants")
         .select(
-          "match_id, match:matches(id, tournament_id, statut, match_participants(profile_id), match_verdicts(niveau, gagnant_id, cree_le, est_definitif))",
+          "match_id, match:matches(id, tournament_id, statut, match_participants(profile_id), match_verdicts(niveau, gagnant_id, cree_le, est_definitif, niveau_compte_min))",
         )
         .eq("profile_id", profil.id)
         .order("match_id", { ascending: true })
@@ -90,7 +90,14 @@ export async function chargerDonneesRecalcul(supabase: Client, slug: string): Pr
         tournament_id: m.tournament_id,
         statut: m.statut,
         adversaire_id: m.match_participants.find((x) => x.profile_id !== profil.id)?.profile_id ?? null,
-        verdict: verdict ? { niveau: verdict.niveau, gagnant_id: verdict.gagnant_id, cree_le: verdict.cree_le } : null,
+        verdict: verdict
+          ? {
+              niveau: verdict.niveau,
+              gagnant_id: verdict.gagnant_id,
+              cree_le: verdict.cree_le,
+              niveau_compte_min: verdict.niveau_compte_min,
+            }
+          : null,
       },
     ];
   });

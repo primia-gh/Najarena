@@ -6,6 +6,7 @@ import { calibrationPct } from "@/lib/classement";
 import { ecartArene, EXPIRATION_ARENE_MINUTES, minutesEnFile } from "@/lib/arene";
 import { entrerDansArene, quitterArene } from "@/lib/arene-actions";
 import { CARTE_1V1, REGLE_FORFAIT } from "@/lib/reglement";
+import { DUELS_CLASSES_PAR_JOUR_MAX } from "@/lib/defis";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
@@ -235,7 +236,8 @@ export default async function ArenePage({ searchParams }: ArenePageProps) {
             </li>
             <li>
               <strong className="text-text">Classé, sans abus.</strong> Le duel compte au classement comme un défi : un
-              seul duel classé par jour entre deux mêmes joueurs, les suivants se jouent en amical.
+              seul duel classé par jour entre deux mêmes joueurs, {DUELS_CLASSES_PAR_JOUR_MAX} duels classés par jour au
+              plus pour chacun, les suivants se jouent en amical.
             </li>
           </ul>
         </Apparition>
