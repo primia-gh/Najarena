@@ -60,5 +60,7 @@ select refus('Pendant la bascule, la clôture est refusée (reprise après la ba
   format($q$select public.cloturer_rating_joueur('af0f0001-0000-0000-0000-000000000000'::uuid, 1::smallint, %L::uuid,
      'af0f0000-0000-0000-0000-0000000000a2'::uuid, 1600, 300, 0.06, 1650, 280, 0.06, 1, 'tournoi')$q$, :'courante'),
   'SAISON_EN_BASCULE');
+select verifie('Pendant la bascule, la décroissance d''inactivité attend aussi',
+  (select public.appliquer_decroissance_rd('af0f0001-0000-0000-0000-000000000000'::uuid, 1::smallint, :'courante'::uuid, 1600, 300, 310, 0.06)) = false);
 reset role;
 delete from seasons where id = 'af0f0000-0000-0000-0000-0000000000c2';

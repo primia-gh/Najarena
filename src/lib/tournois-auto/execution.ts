@@ -17,7 +17,7 @@ import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/
 import { boutonCheckin, boutonPret } from "@/lib/suites-joueur";
 import { configAncrage, deposerEmpreinte } from "@/lib/ancrage-github";
 import { annoncerPremierSuisse, matchsOuverts } from "@/lib/apres-verdict";
-import { cloturerTournoi } from "@/lib/classement-actions";
+import { appliquerRotationSaisons, cloturerTournoi } from "@/lib/classement-actions";
 import { verifierCleRiot } from "@/lib/riot";
 import {
   capaciteEffective,
@@ -81,6 +81,19 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     } catch (erreur) {
       resultats.push(`${action.type} : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
     }
+  }
+
+  // Changement de saison tenté à chaque passage (contre-contrôle du
+  // 22/11/2026) : il ne fait rien tant qu'aucune saison n'est due, et les
+  // clôtures refusées pendant la bascule (SAISON_EN_BASCULE) reprennent
+  // juste après, au lieu d'attendre la tâche quotidienne de Vercel.
+  try {
+    const rotation = await appliquerRotationSaisons();
+    if (rotation.saisonsActivees > 0) {
+      resultats.push(`nouvelle saison activée (${rotation.joueursTraites} joueurs remis à niveau)`);
+    }
+  } catch (erreur) {
+    resultats.push(`changement de saison : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
   }
 
   try {

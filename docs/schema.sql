@@ -15618,6 +15618,15 @@ begin
   ) then
     return false;
   end if;
+  -- Ni pendant la bascule : la saison suivante a commencé, celle-ci va
+  -- être archivée telle qu'elle est.
+  if exists (
+    select 1 from seasons n
+    join seasons c on c.id = p_season_id
+    where n.game_id = p_game_id and n.numero > c.numero and n.debut_le <= now()
+  ) then
+    return false;
+  end if;
 
   if exists (
     select 1 from rating_events
@@ -15808,6 +15817,9 @@ revoke insert, update, delete on public.verification_registre from anon, authent
 
 -- p_complete_permise faux : seulement les nouvelles lignes (repli de la
 -- tâche si la relecture complète a échoué, par exemple faute de temps).
+-- Une première version sans paramètre a pu être posée sur une base de
+-- recette : jamais deux versions (l'appel sans argument serait ambigu).
+drop function if exists public.garder_verification_registre();
 create or replace function public.garder_verification_registre(p_complete_permise boolean default true)
 returns table (lignes bigint, premiere_rupture bigint, complete boolean)
 language plpgsql

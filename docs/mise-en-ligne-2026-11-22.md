@@ -33,13 +33,18 @@ jusqu'à la fin du fichier :
    `garder_verification_registre` (serveur seul) ; `verifier_registre` n'est plus appelable par les
    visiteurs.
 
-Aucune donnée existante n'est modifiée. Les tournois déjà lancés ont `lance_le` vide : la règle
-reste celle de la date annoncée pour eux.
+Aucune donnée existante n'est modifiée. Les tournois déjà lancés ont `lance_le` vide, mais le
+lancement réel compte aussi leur premier match démarré : un tournoi d'organisateur lancé en avance
+avant la migration et clos après sera **non classé** (comportement voulu). La requête de l'étape 1
+les liste.
 
-**Entre la migration et la fusion du code**, la page `/registre` affiche « Vérification
-indisponible pour l'instant » (l'ancien code appelle `verifier_registre`, désormais réservée au
-serveur). Fusionner le code juste après la migration ; la tâche des tournois automatiques
-remplit la vérification gardée dans les 5 minutes qui suivent.
+**Entre la migration et la fusion du code** (quelques minutes, à réduire au plus court) :
+- la page `/registre` affiche « Vérification indisponible pour l'instant » (l'ancien code appelle
+  `verifier_registre`, désormais réservée au serveur) ; la tâche des tournois automatiques remplit
+  la vérification gardée dans les 5 minutes qui suivent la fusion ;
+- un tournoi lancé depuis le cockpit avec l'ancien code garde ses matchs du tour 1 « en attente »
+  (l'ancien code démarre le tour 1 avant de passer le tournoi « en cours », la nouvelle base le
+  refuse). Contrôle et réparation à l'étape 4.
 
 `vercel.json` : la tâche de changement de saison passe de mensuelle à quotidienne (elle ne fait
 rien tant qu'aucune saison n'est due ; un échec n'attend plus un mois). Pris en compte par Vercel
@@ -51,6 +56,16 @@ rien tant qu'aucune saison n'est due ; un échec n'attend plus un mois). Pris en
 select count(*) from public.suspensions where levee_le is null;             -- suspensions en cours
 select column_name from information_schema.columns
  where table_name = 'tournaments' and column_name = 'lance_le';              -- vide avant
+-- Aucune saison plus récente que la saison en cours ne doit avoir commencé : sinon toutes les
+-- clôtures classées seraient refusées (SAISON_EN_BASCULE) jusqu'au changement de saison.
+select numero, debut_le, est_courante from public.seasons where game_id = 1 order by numero;
+-- Tournois d'organisateur en cours qui deviendront non classés (lancés moins de 24 h après leur
+-- publication) : à connaître avant, pour pouvoir le dire aux organisateurs concernés.
+select t.slug, t.publie_le, t.debute_le, min(m.demarre_le) as premier_match
+from public.tournaments t join public.matches m on m.tournament_id = t.id
+where t.statut = 'en_cours' and t.nature = 'tournoi' and t.creneau_auto is null
+group by t.id
+having t.publie_le > least(t.debute_le, min(m.demarre_le)) - interval '24 hours';
 ```
 
 ## 2. Migration
@@ -85,4 +100,13 @@ select count(*) from public.comptes_riot_suspendus;                          -- 
 - Cockpit d'un tournoi dont le check-in n'est pas ouvert : plus de bouton « Absent ».
 - `/cgu` : version du 22 novembre 2026 ; `/confidentialite` : deux lignes de plus dans « Durée de
   conservation ».
+- Matchs bloqués par un lancement fait pendant la fenêtre (doit être vide) :
+  ```sql
+  select m.id, t.slug from public.matches m join public.tournaments t on t.id = m.tournament_id
+  where t.statut = 'en_cours' and m.tour = 1 and m.statut = 'en_attente' and m.demarre_le is null
+    and (select count(*) from public.match_participants p where p.match_id = m.id) = 2
+    and t.type_bracket = 'elim_simple';
+  ```
+  S'il y en a, les démarrer par le serveur :
+  `update public.matches set statut = 'en_cours', demarre_le = now() where id in (…);`
 - Erreurs d'exécution Vercel sur 24 h : aucune nouvelle.

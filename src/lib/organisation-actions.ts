@@ -313,8 +313,8 @@ export async function genererBracket(formData: FormData) {
   if (!ok) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
-        "Impossible de générer le bracket pour l'instant.",
-      )}`,
+        "Impossible de lancer le tournoi pour l'instant. Si le bracket apparaît sans que le tournoi démarre, annule le tournoi ou écris-nous (adresse dans les mentions légales).",
+      )}#retour`,
     );
   }
 
