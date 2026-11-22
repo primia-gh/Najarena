@@ -252,6 +252,23 @@ describe("cloturerTournoi", () => {
     expect(rpcs.every((r) => r.params.p_season_id === "SCOURANTE")).toBe(true);
   });
 
+  it("tournoi clos après le changement de saison : points dans la saison en cours, saison du tournoi inchangée", async () => {
+    installer({ tournoi: { season_id: "S1" }, saisonCourante: "S2" });
+    await cloturerTournoi("T1");
+
+    expect(rpcs).toHaveLength(4);
+    expect(rpcs.every((r) => r.params.p_season_id === "S2")).toBe(true);
+    expect(journalAdmin.some((a) => a.op === "update" && a.valeurs?.season_id !== undefined)).toBe(false);
+  });
+
+  it("sans saison courante, un tournoi d'une saison passée est clôturé sans écrire de points", async () => {
+    installer({ tournoi: { season_id: "S1" }, saisonCourante: null });
+    await cloturerTournoi("T1");
+
+    expect(misesAJourStatut(journalAdmin)).toHaveLength(1);
+    expect(rpcs).toHaveLength(0);
+  });
+
   it("sans saison courante ni season_id : tournoi clôturé, aucun rating écrit", async () => {
     installer({ tournoi: { season_id: null }, saisonCourante: null });
     await cloturerTournoi("T1");
@@ -269,7 +286,7 @@ describe("cloturerTournoi", () => {
       expect(r.nom).toBe("cloturer_rating_joueur");
       expect(r.params).toMatchObject({
         p_game_id: 1,
-        p_season_id: "S1",
+        p_season_id: "SCOURANTE",
         p_tournament_id: "T1",
         p_rating_avant: 1500,
         p_rd_avant: 350,

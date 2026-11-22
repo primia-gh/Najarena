@@ -93,21 +93,20 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
     return terminer();
   }
 
-  // Tournoi créé avant l'existence d'une saison courante (brouillon
-  // ancien) : on le rattache ici à la saison courante plutôt que de le
-  // laisser clôturé sans effet sur le classement.
-  let seasonId = tournoi.season_id;
-  if (!seasonId) {
-    const { data: saisonCourante } = await supabase
-      .from("seasons")
-      .select("id")
-      .eq("game_id", tournoi.game_id)
-      .eq("est_courante", true)
-      .maybeSingle();
-    seasonId = saisonCourante?.id ?? null;
-    if (seasonId) {
-      await ecriture.from("tournaments").update({ season_id: seasonId }).eq("id", tournamentId);
-    }
+  // Les points s'écrivent toujours dans la saison en cours (contrôle de
+  // sécurité M2 du 22/11/2026, refus SAISON_CLOSE en base) : un tournoi
+  // clos après le changement de saison ne touche jamais le classement final
+  // archivé de la saison précédente. Un tournoi créé avant l'existence
+  // d'une saison courante (brouillon ancien) y est rattaché.
+  const { data: saisonCourante } = await supabase
+    .from("seasons")
+    .select("id")
+    .eq("game_id", tournoi.game_id)
+    .eq("est_courante", true)
+    .maybeSingle();
+  const seasonId = saisonCourante?.id ?? null;
+  if (seasonId && !tournoi.season_id) {
+    await ecriture.from("tournaments").update({ season_id: seasonId }).eq("id", tournamentId);
   }
 
   // Aucune saison courante : pas de ligne à écrire dans ratings/rating_events

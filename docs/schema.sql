@@ -15303,3 +15303,91 @@ as $$
 $$;
 revoke execute on function public.mon_statut_non_classe() from public, anon;
 grant execute on function public.mon_statut_non_classe() to authenticated;
+
+-- ---------- Tournoi clos après le changement de saison (2026-11-22) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (src/lib/classement-actions.ts écrit dans la saison en cours).
+-- Contrôle de sécurité complet du 21/11/2026, M2 : la clôture écrivait les
+-- points dans la saison du tournoi. Un tournoi de la saison 1 clos après le
+-- passage à la saison 2 modifiait le classement final déjà archivé de la
+-- saison 1, et ses points ne passaient jamais dans la saison 2 (un
+-- organisateur pouvait le provoquer avec un tournoi à cheval sur la fin de
+-- saison). Désormais un rating ne s'écrit que dans la saison en cours
+-- (SAISON_CLOSE) ; la clôture lit la saison en cours au moment où elle
+-- écrit. Retarder le changement de saison jusqu'à la fin des tournois
+-- aurait laissé un organisateur bloquer la saison avec un tournoi qui
+-- traîne.
+create or replace function public.cloturer_rating_joueur(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_season_id uuid,
+  p_tournament_id uuid,
+  p_rating_avant numeric,
+  p_rd_avant numeric,
+  p_volatilite_avant numeric,
+  p_rating_apres numeric,
+  p_rd_apres numeric,
+  p_volatilite_apres numeric,
+  p_matchs_comptes int,
+  p_motif text
+)
+returns boolean -- true si écrit, false si déjà traité (idempotence)
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_actuel record;
+begin
+  if exists (
+    select 1 from rating_events
+    where profile_id = p_profile_id and tournament_id = p_tournament_id
+  ) then
+    return false;
+  end if;
+
+  if not coalesce((select classe from tournaments where id = p_tournament_id), false) then
+    raise exception 'TOURNOI_NON_CLASSE';
+  end if;
+
+  -- Jamais dans une saison terminée (M2) : son classement final est
+  -- archivé. Un tournoi clos après le changement de saison écrit dans la
+  -- saison en cours.
+  if not exists (
+    select 1 from seasons where id = p_season_id and game_id = p_game_id and est_courante
+  ) then
+    raise exception 'SAISON_CLOSE';
+  end if;
+
+  insert into ratings (profile_id, game_id, season_id)
+  values (p_profile_id, p_game_id, p_season_id)
+  on conflict (profile_id, game_id, season_id) do nothing;
+
+  select rating, rd into v_actuel
+  from ratings
+  where profile_id = p_profile_id and game_id = p_game_id and season_id = p_season_id
+  for update;
+
+  if v_actuel.rating <> p_rating_avant or v_actuel.rd <> p_rd_avant then
+    raise exception 'ETAT_DE_DEPART_PERIME';
+  end if;
+
+  insert into rating_events (
+    profile_id, game_id, season_id, tournament_id, match_id, motif,
+    rating_avant, rd_avant, rating_apres, rd_apres, adversaire_id
+  ) values (
+    p_profile_id, p_game_id, p_season_id, p_tournament_id, null, p_motif,
+    p_rating_avant, p_rd_avant, p_rating_apres, p_rd_apres, null
+  );
+
+  update ratings set
+    rating = p_rating_apres,
+    rd = p_rd_apres,
+    volatilite = p_volatilite_apres,
+    matchs_joues = matchs_joues + p_matchs_comptes,
+    maj_le = now()
+  where profile_id = p_profile_id and game_id = p_game_id and season_id = p_season_id;
+
+  return true;
+end;
+$$;
+revoke execute on function public.cloturer_rating_joueur from public, anon, authenticated;
