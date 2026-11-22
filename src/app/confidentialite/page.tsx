@@ -22,7 +22,7 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 19&nbsp;novembre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 22&nbsp;novembre 2026.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>
@@ -372,7 +372,8 @@ export default function ConfidentialitePage() {
               Modifier mon profil
             </Link>
             &nbsp;: tes données d&apos;identification (pseudo, e-mail, pays,
-            Discord, compte Riot) sont alors effacées&nbsp;; le journal public des
+            Discord, compte Riot) sont alors effacées, sauf l&apos;empreinte
+            décrite plus bas&nbsp;; le journal public des
             points et les résultats de matchs auxquels tu as participé
             restent conservés sous un pseudo anonyme, conformément au principe
             de classement incontestable et permanent décrit dans les CGU, de
@@ -385,6 +386,8 @@ export default function ConfidentialitePage() {
             <li><strong>Abonnements aux notifications</strong>&nbsp;: jusqu&apos;à leur désactivation, ou dès que ton navigateur les révoque.</li>
             <li><strong>Tentatives de connexion échouées</strong> (adresse e-mail et adresse IP, protection contre les essais de mots de passe)&nbsp;: 24&nbsp;heures.</li>
             <li><strong>Demandes à l&apos;assistant de création de tournoi</strong>&nbsp;: la date de chaque demande seulement, 7&nbsp;jours (limite de 10&nbsp;demandes par jour).</li>
+            <li><strong>Niveau d&apos;un compte Riot retiré</strong> (compte délié, ou compte Najarena supprimé)&nbsp;: l&apos;empreinte du compte Riot (un code qui ne permet pas de le retrouver) et son niveau de la saison en cours et de la précédente (meilleur et dernier rating, classé ou non), jusqu&apos;à la fin de la saison suivante. Ce niveau s&apos;applique aux tournois par niveau et aux tournois réservés aux nouveaux si ce compte Riot est relié à un autre compte Najarena&nbsp;; il ne compte jamais au classement.</li>
+            <li><strong>Comptes Riot d&apos;un joueur suspendu</strong>&nbsp;: leur empreinte, tant que la suspension dure, pour qu&apos;ils ne servent pas sur un autre compte.</li>
             <li><strong>Vérification d&apos;une adresse d&apos;école</strong>&nbsp;: la demande en attente (domaine, empreinte de l&apos;adresse et du code) est effacée dès la vérification, ou au plus tard 24&nbsp;heures après l&apos;expiration du code&nbsp;; une fois vérifié, le domaine et l&apos;empreinte restent tant que tu es membre de l&apos;école.</li>
           </ul>
         </section>

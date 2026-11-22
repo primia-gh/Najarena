@@ -14801,3 +14801,505 @@ drop trigger if exists registrations_absent_apres_checkin on public.registration
 create trigger registrations_absent_apres_checkin
   before update of statut on public.registrations
   for each row execute function public.refuser_absent_avant_checkin();
+
+-- ---------- Suspension et niveau qui suivent le compte Riot (2026-11-22) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (src/app/lol/tournois/[slug]/page.tsx appelle mon_statut_non_classe).
+-- Contrôle de sécurité complet du 21/11/2026, M3 :
+-- 1. Un joueur suspendu pouvait délier son compte Riot (ou supprimer son
+--    compte Najarena), en créer un autre et y relier le même compte Riot.
+--    Désormais les comptes Riot vérifiés d'un joueur suspendu sont notés
+--    (empreinte seulement) tant que la suspension dure : personne d'autre
+--    ne peut les lier, même après la suppression du compte suspendu. Un
+--    joueur suspendu ne lie, ne vérifie ni ne délie plus aucun compte.
+-- 2. Un joueur classé pouvait supprimer son compte (ou délier son compte
+--    Riot), se réinscrire avec le même compte Riot et repartir « débutant »
+--    (1500, non classé) : Coupe des nouveaux, tournois « Bronze à Argent ».
+--    Désormais, quand un compte Riot vérifié quitte un profil, son niveau
+--    de la saison en cours et de la précédente est gardé sous l'empreinte
+--    du compte Riot (jamais le compte lui-même ni le profil) ; un profil qui
+--    vérifie ce compte Riot hérite de ce niveau pour les règles d'accès aux
+--    tournois (plancher, plafond, réservé aux non-classés). Son rating
+--    officiel n'en est pas touché : rien n'est recopié au classement.
+-- Les deux tables n'ont aucune policy : seules les fonctions de la base
+-- les lisent.
+
+-- Empreinte d'un puuid (SHA-256). Le puuid est un identifiant aléatoire de
+-- 78 caractères : l'empreinte ne se retourne pas.
+create or replace function public.empreinte_puuid(p_puuid text)
+returns text
+language sql
+immutable
+set search_path = public
+as $$
+  select encode(sha256(convert_to(p_puuid, 'UTF8')), 'hex');
+$$;
+revoke execute on function public.empreinte_puuid(text) from public, anon, authenticated;
+
+create table if not exists public.comptes_riot_suspendus (
+  suspension_id uuid not null references public.suspensions(id) on delete cascade,
+  profile_id    uuid not null references public.profiles(id) on delete cascade,
+  game_id       smallint not null references public.games(id),
+  empreinte     text not null,
+  primary key (suspension_id, game_id, empreinte)
+);
+create index if not exists comptes_riot_suspendus_empreinte_idx
+  on public.comptes_riot_suspendus (game_id, empreinte);
+create index if not exists comptes_riot_suspendus_profile_idx
+  on public.comptes_riot_suspendus (profile_id);
+alter table public.comptes_riot_suspendus enable row level security;
+revoke all on public.comptes_riot_suspendus from anon, authenticated;
+
+-- Remplie à la suspension (comptes Riot vérifiés du joueur), vidée à la
+-- levée.
+create or replace function public.noter_comptes_riot_suspendus()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' and new.levee_le is null then
+    insert into public.comptes_riot_suspendus (suspension_id, profile_id, game_id, empreinte)
+    select new.id, new.profile_id, g.game_id, public.empreinte_puuid(g.puuid)
+    from public.game_accounts g
+    where g.profile_id = new.profile_id and g.verifie_le is not null
+    on conflict do nothing;
+  elsif tg_op = 'UPDATE' and new.levee_le is not null and old.levee_le is null then
+    delete from public.comptes_riot_suspendus where suspension_id = new.id;
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function public.noter_comptes_riot_suspendus() from public, anon, authenticated;
+drop trigger if exists suspensions_comptes_riot on public.suspensions;
+create trigger suspensions_comptes_riot
+  after insert or update of levee_le on public.suspensions
+  for each row execute function public.noter_comptes_riot_suspendus();
+
+-- Suspensions déjà en cours.
+insert into public.comptes_riot_suspendus (suspension_id, profile_id, game_id, empreinte)
+select s.id, s.profile_id, g.game_id, public.empreinte_puuid(g.puuid)
+from public.suspensions s
+join public.game_accounts g on g.profile_id = s.profile_id and g.verifie_le is not null
+where s.levee_le is null
+on conflict do nothing;
+
+-- Un joueur suspendu ne termine pas non plus une vérification commencée
+-- avant sa suspension (écrite par le serveur, verifierRiotId).
+create or replace function public.refuser_verification_suspendu()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.verifie_le is not null and old.verifie_le is null
+     and exists (select 1 from public.suspensions where profile_id = new.profile_id and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_verification_suspendu() from public, anon, authenticated;
+drop trigger if exists game_accounts_verification_suspendu on public.game_accounts;
+create trigger game_accounts_verification_suspendu
+  before update of verifie_le on public.game_accounts
+  for each row execute function public.refuser_verification_suspendu();
+
+create or replace function public.lier_compte_riot(
+  p_profile_id uuid,
+  p_game_id smallint,
+  p_puuid text,
+  p_riot_game_name text,
+  p_riot_tag_line text,
+  p_region text,
+  p_defi_icone_id smallint,
+  p_principal boolean default true
+)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_principal boolean := p_principal;
+  v_existant public.game_accounts%rowtype;
+begin
+  -- Compte suspendu : aucune liaison nouvelle (M3).
+  if exists (select 1 from public.suspensions where profile_id = p_profile_id and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  -- Compte Riot d'un joueur suspendu : il ne sert à personne d'autre tant
+  -- que la suspension dure, même si le compte Najarena a été supprimé (M3).
+  if exists (
+    select 1 from public.comptes_riot_suspendus b
+    where b.game_id = p_game_id
+      and b.empreinte = public.empreinte_puuid(p_puuid)
+      and b.profile_id <> p_profile_id
+  ) then
+    raise exception 'COMPTE_RIOT_SUSPENDU';
+  end if;
+
+  select * into v_existant
+  from public.game_accounts
+  where game_id = p_game_id and puuid = p_puuid
+  for update;
+
+  if found and v_existant.profile_id <> p_profile_id then
+    -- Vérifié par un autre profil : il lui appartient.
+    if v_existant.verifie_le is not null then
+      raise exception 'RIOT_ACCOUNT_TAKEN';
+    end if;
+    -- Jamais vérifié : la liaison en attente ne réserve rien (E1). Seul le
+    -- vrai propriétaire pourra la vérifier, en changeant son icône en jeu.
+    -- Une demande encore valable n'est jamais remplacée par la même icône :
+    -- sinon le remplaçant vérifierait le compte avec l'icône que le vrai
+    -- propriétaire est en train de mettre (le serveur en tire une autre).
+    if v_existant.defi_icone_id = p_defi_icone_id
+       and v_existant.defi_cree_le > now() - interval '1 hour' then
+      raise exception 'DEFI_IDENTIQUE';
+    end if;
+    delete from public.game_accounts where game_id = p_game_id and puuid = p_puuid;
+    v_existant := null;
+  end if;
+
+  -- Le premier compte est toujours le principal.
+  if not exists (
+    select 1 from public.game_accounts
+    where profile_id = p_profile_id and game_id = p_game_id and est_principal and puuid <> p_puuid
+  ) then
+    v_principal := true;
+  end if;
+
+  if v_principal
+     and exists (
+       select 1 from public.game_accounts
+       where profile_id = p_profile_id and game_id = p_game_id and est_principal and puuid <> p_puuid
+     )
+     and public.engage_en_tournoi(p_profile_id, p_game_id) then
+    raise exception 'INSCRIT_A_UN_TOURNOI';
+  end if;
+
+  if v_existant.puuid is null
+     and (select count(*) from public.game_accounts where profile_id = p_profile_id and game_id = p_game_id) >= 3 then
+    raise exception 'TROP_DE_COMPTES';
+  end if;
+
+  -- Son propre compte, déjà vérifié : il le reste (C1).
+  if v_existant.puuid is not null and v_existant.verifie_le is not null then
+    -- Compte principal d'un joueur engagé dans un tournoi : la région, qui
+    -- sert à lire ses résultats chez Riot, ne change pas.
+    if v_existant.est_principal
+       and p_region is distinct from v_existant.region
+       and public.engage_en_tournoi(p_profile_id, p_game_id) then
+      raise exception 'INSCRIT_A_UN_TOURNOI';
+    end if;
+    if v_principal and not v_existant.est_principal then
+      update public.game_accounts
+      set est_principal = false
+      where profile_id = p_profile_id and game_id = p_game_id and puuid <> p_puuid and est_principal;
+    end if;
+    update public.game_accounts
+    set riot_game_name = p_riot_game_name,
+        riot_tag_line = p_riot_tag_line,
+        region = p_region,
+        est_principal = est_principal or v_principal
+    where game_id = p_game_id and puuid = p_puuid;
+    return;
+  end if;
+
+  -- Nouveau principal : les autres comptes de ce joueur cessent de l'être
+  -- (annulé avec le reste si la liaison échoue plus bas).
+  if v_principal then
+    update public.game_accounts
+    set est_principal = false
+    where profile_id = p_profile_id
+      and game_id = p_game_id
+      and puuid <> p_puuid
+      and est_principal;
+  end if;
+
+  insert into public.game_accounts (
+    profile_id, game_id, puuid, riot_game_name, riot_tag_line, region,
+    est_principal, defi_icone_id, defi_cree_le, methode_verification
+  )
+  values (
+    p_profile_id, p_game_id, p_puuid, p_riot_game_name, p_riot_tag_line, p_region,
+    v_principal, p_defi_icone_id, now(), 'icone_profil'
+  )
+  on conflict (game_id, puuid) do update set
+    riot_game_name = excluded.riot_game_name,
+    riot_tag_line = excluded.riot_tag_line,
+    region = excluded.region,
+    est_principal = public.game_accounts.est_principal or excluded.est_principal,
+    defi_icone_id = excluded.defi_icone_id,
+    defi_cree_le = excluded.defi_cree_le,
+    methode_verification = 'icone_profil',
+    verifie_le = null
+  -- Seulement une liaison du même joueur encore en attente (le compte
+  -- vérifié du même joueur est traité plus haut, celui d'un autre refusé).
+  where public.game_accounts.profile_id = p_profile_id
+    and public.game_accounts.verifie_le is null;
+
+  if not found then
+    raise exception 'RIOT_ACCOUNT_TAKEN';
+  end if;
+end;
+$$;
+revoke execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint, boolean) from public, anon, authenticated;
+grant execute on function public.lier_compte_riot(uuid, smallint, text, text, text, text, smallint, boolean) to service_role;
+
+create or replace function public.delier_compte_riot(p_game_id smallint)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  -- Suspendu : ses comptes restent tels quels jusqu'à la levée (M3).
+  if exists (select 1 from public.suspensions where profile_id = v_joueur and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+
+  if public.engage_en_tournoi(v_joueur, p_game_id) then
+    raise exception 'INSCRIT_A_UN_TOURNOI';
+  end if;
+
+  delete from public.game_accounts where profile_id = v_joueur and game_id = p_game_id;
+  return found;
+end;
+$$;
+revoke execute on function public.delier_compte_riot(smallint) from public, anon;
+grant execute on function public.delier_compte_riot(smallint) to authenticated;
+
+create or replace function public.delier_compte_secondaire(p_game_id smallint, p_puuid text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+  if exists (select 1 from public.suspensions where profile_id = auth.uid() and levee_le is null) then
+    raise exception 'COMPTE_SUSPENDU';
+  end if;
+  delete from public.game_accounts
+  where profile_id = auth.uid() and game_id = p_game_id and puuid = p_puuid and not est_principal;
+  return found;
+end;
+$$;
+revoke execute on function public.delier_compte_secondaire(smallint, text) from public, anon;
+grant execute on function public.delier_compte_secondaire(smallint, text) to authenticated;
+
+-- Saisons dont le niveau compte pour l'accès aux tournois : la saison en
+-- cours et la précédente (comme rating_niveau_meilleur).
+create or replace function public.saisons_niveau(p_game_id smallint)
+returns setof uuid
+language sql
+stable
+security definer set search_path = public
+as $$
+  select s.id from public.seasons s where s.game_id = p_game_id and s.est_courante
+  union all
+  select p.id from public.seasons p
+  where p.game_id = p_game_id and p.numero = (
+    select max(x.numero) from public.seasons x
+    join public.seasons c on c.game_id = p_game_id and c.est_courante
+    where x.game_id = p_game_id and x.numero < c.numero
+  );
+$$;
+revoke execute on function public.saisons_niveau(smallint) from public, anon, authenticated;
+
+create table if not exists public.niveaux_comptes_riot (
+  empreinte        text not null,
+  game_id          smallint not null references public.games(id),
+  season_id        uuid not null references public.seasons(id) on delete cascade,
+  meilleur_rating  numeric(7,2),
+  dernier_rating   numeric(7,2),
+  est_classe       boolean not null default false,
+  garde_le         timestamptz not null default now(),
+  primary key (empreinte, game_id, season_id)
+);
+alter table public.niveaux_comptes_riot enable row level security;
+revoke all on public.niveaux_comptes_riot from anon, authenticated;
+
+-- Un compte Riot vérifié quitte un profil (délié, retiré, compte supprimé) :
+-- son niveau des saisons qui comptent est gardé sous son empreinte. Lu
+-- avant l'effacement des ratings (supprimer_mon_compte efface les comptes
+-- Riot d'abord).
+create or replace function public.garder_niveau_compte_riot()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if old.verifie_le is null then
+    return null;
+  end if;
+  insert into public.niveaux_comptes_riot as n
+    (empreinte, game_id, season_id, meilleur_rating, dernier_rating, est_classe)
+  select public.empreinte_puuid(old.puuid), old.game_id, s.id,
+         (select max(e.rating_apres) from public.rating_events e
+          where e.profile_id = old.profile_id and e.game_id = old.game_id and e.season_id = s.id),
+         r.rating,
+         coalesce(r.est_classe, false)
+  from public.saisons_niveau(old.game_id) s(id)
+  left join public.ratings r
+    on r.profile_id = old.profile_id and r.game_id = old.game_id and r.season_id = s.id
+  where r.profile_id is not null
+     or exists (select 1 from public.rating_events e
+                where e.profile_id = old.profile_id and e.game_id = old.game_id and e.season_id = s.id)
+  on conflict (empreinte, game_id, season_id) do update set
+    meilleur_rating = greatest(n.meilleur_rating, excluded.meilleur_rating),
+    dernier_rating = coalesce(excluded.dernier_rating, n.dernier_rating),
+    est_classe = n.est_classe or excluded.est_classe,
+    garde_le = now();
+  -- Ménage : seules la saison en cours et la précédente servent.
+  delete from public.niveaux_comptes_riot n
+  where n.game_id = old.game_id
+    and exists (select 1 from public.seasons c where c.game_id = old.game_id and c.est_courante)
+    and n.season_id not in (select x from public.saisons_niveau(old.game_id) x);
+  return null;
+end;
+$$;
+revoke execute on function public.garder_niveau_compte_riot() from public, anon, authenticated;
+drop trigger if exists game_accounts_garder_niveau on public.game_accounts;
+create trigger game_accounts_garder_niveau
+  after delete on public.game_accounts
+  for each row execute function public.garder_niveau_compte_riot();
+
+-- Ménage au changement de saison : un niveau gardé ne sert que pendant sa
+-- saison et la suivante (page de confidentialité).
+create or replace function public.purger_niveaux_comptes_riot()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.est_courante and not old.est_courante then
+    delete from public.niveaux_comptes_riot n
+    where n.game_id = new.game_id
+      and n.season_id not in (select x from public.saisons_niveau(new.game_id) x);
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function public.purger_niveaux_comptes_riot() from public, anon, authenticated;
+drop trigger if exists seasons_purger_niveaux on public.seasons;
+create trigger seasons_purger_niveaux
+  after update of est_courante on public.seasons
+  for each row execute function public.purger_niveaux_comptes_riot();
+
+-- Niveau hérité des comptes Riot vérifiés d'un profil, par saison.
+create or replace function public.niveau_herite(p_profile_id uuid, p_game_id smallint)
+returns table (season_id uuid, meilleur_rating numeric, dernier_rating numeric, est_classe boolean)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select n.season_id, max(n.meilleur_rating), max(n.dernier_rating), bool_or(n.est_classe)
+  from public.game_accounts g
+  join public.niveaux_comptes_riot n
+    on n.game_id = g.game_id and n.empreinte = public.empreinte_puuid(g.puuid)
+  where g.profile_id = p_profile_id and g.game_id = p_game_id and g.verifie_le is not null
+  group by n.season_id;
+$$;
+revoke execute on function public.niveau_herite(uuid, smallint) from public, anon, authenticated;
+
+-- Rating pour le plancher d'un tournoi par niveau : saison en cours, sinon
+-- le dernier rating de la saison hérité de son compte Riot, sinon 1500.
+create or replace function public.rating_niveau(p_profile_id uuid)
+returns numeric
+language sql
+stable
+security definer set search_path = public
+as $$
+  select coalesce(
+    (select r.rating from public.ratings r
+     join public.seasons s on s.id = r.season_id and s.est_courante
+     where r.profile_id = p_profile_id and r.game_id = 1),
+    (select h.dernier_rating from public.niveau_herite(p_profile_id, 1::smallint) h
+     join public.seasons s on s.id = h.season_id and s.est_courante),
+    1500);
+$$;
+revoke all on function public.rating_niveau(uuid) from public, anon, authenticated;
+
+-- Plafond : meilleur rating de la saison en cours ou de la précédente,
+-- hérité de son compte Riot compris.
+create or replace function public.rating_niveau_meilleur(p_profile_id uuid)
+returns numeric
+language sql
+stable
+security definer set search_path = public
+as $$
+  select greatest(
+    public.rating_niveau(p_profile_id),
+    coalesce((
+      select max(e.rating_apres) from public.rating_events e
+      where e.profile_id = p_profile_id and e.game_id = 1
+        and e.season_id in (select x from public.saisons_niveau(1::smallint) x)
+    ), 0),
+    coalesce((
+      select max(h.meilleur_rating) from public.niveau_herite(p_profile_id, 1::smallint) h
+      where h.season_id in (select x from public.saisons_niveau(1::smallint) x)
+    ), 0)
+  );
+$$;
+revoke all on function public.rating_niveau_meilleur(uuid) from public, anon, authenticated;
+
+-- Non classé dans la saison en cours, ni par son compte Riot d'avant.
+create or replace function public.est_non_classe(p_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select not exists (
+    select 1 from public.ratings r
+    join public.seasons s on s.id = r.season_id and s.est_courante
+    where r.profile_id = p_profile_id and r.game_id = 1 and r.est_classe
+  ) and not exists (
+    select 1 from public.niveau_herite(p_profile_id, 1::smallint) h
+    join public.seasons s on s.id = h.season_id and s.est_courante
+    where h.est_classe
+  );
+$$;
+revoke all on function public.est_non_classe(uuid) from public, anon, authenticated;
+
+create or replace function public.mon_niveau_tournoi()
+returns table (actuel numeric, meilleur numeric, a_joue boolean)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select public.rating_niveau(auth.uid()),
+         public.rating_niveau_meilleur(auth.uid()),
+         exists (
+           select 1 from public.ratings r
+           join public.seasons s on s.id = r.season_id and s.est_courante
+           where r.profile_id = auth.uid() and r.game_id = 1
+         ) or exists (
+           select 1 from public.niveau_herite(auth.uid(), 1::smallint) h
+           join public.seasons s on s.id = h.season_id and s.est_courante
+         )
+  where auth.uid() is not null;
+$$;
+revoke execute on function public.mon_niveau_tournoi() from public, anon;
+grant execute on function public.mon_niveau_tournoi() to authenticated;
+
+-- Pour la page d'un tournoi réservé aux nouveaux : le joueur connecté
+-- est-il encore « non classé » (même règle que l'inscription) ?
+create or replace function public.mon_statut_non_classe()
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select public.est_non_classe(auth.uid()) where auth.uid() is not null;
+$$;
+revoke execute on function public.mon_statut_non_classe() from public, anon;
+grant execute on function public.mon_statut_non_classe() to authenticated;

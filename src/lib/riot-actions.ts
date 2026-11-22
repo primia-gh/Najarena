@@ -17,6 +17,11 @@ import { destinationInterne } from "@/lib/redirection";
 import { COOKIE_SUITE, DUREE_COOKIE_SUITE_SECONDES } from "@/lib/suite";
 import { URL_SITE } from "@/lib/notifications";
 
+// Compte suspendu (contrôle de sécurité M3, 22/11/2026) : ses comptes Riot
+// restent tels quels jusqu'à la levée de la suspension.
+const MESSAGE_COMPTE_SUSPENDU =
+  "Ton compte est suspendu : tes comptes Riot ne peuvent être ni liés, ni vérifiés, ni retirés tant que la suspension dure.";
+
 const ICONE_MIN = 1;
 const ICONE_MAX = 28; // icônes de niveau classiques, stables sur tout patch/région
 /** Durée de validité d'un défi d'icône (même valeur que la base, section du 21/11/2026). */
@@ -134,7 +139,11 @@ export async function lierRiotId(formData: FormData) {
           ? "Trois comptes Riot au plus par joueur : retire un compte secondaire d'abord."
           : error.message.includes("DEFI_IDENTIQUE")
             ? "Une autre demande vient d'arriver sur ce compte Riot : réessaie dans un instant."
-            : "Impossible d'enregistrer ce compte pour l'instant.";
+            : error.message.includes("COMPTE_RIOT_SUSPENDU")
+              ? "Ce compte Riot appartient à un joueur suspendu : il ne peut pas être lié tant que la suspension dure."
+              : error.message.includes("COMPTE_SUSPENDU")
+                ? MESSAGE_COMPTE_SUSPENDU
+                : "Impossible d'enregistrer ce compte pour l'instant.";
     redirect(`/lier-riot?erreur=${encodeURIComponent(message)}`);
   }
 
@@ -225,7 +234,7 @@ export async function verifierRiotId(formData: FormData) {
   // Seulement la demande contrôlée ci-dessus : si elle a été remplacée entre
   // le contrôle et l'écriture, rien n'est vérifié et le joueur le sait
   // (contrôle de sécurité du 21/11/2026).
-  const { data: verifie } = await admin
+  const { data: verifie, error: erreurVerification } = await admin
     .from("game_accounts")
     .update({ verifie_le: maintenant, derniere_sync_le: maintenant, defi_icone_id: null, defi_cree_le: null })
     .eq("puuid", puuid)
@@ -233,6 +242,9 @@ export async function verifierRiotId(formData: FormData) {
     .eq("defi_icone_id", compte.defi_icone_id)
     .is("verifie_le", null)
     .select("puuid");
+  if (erreurVerification?.message.includes("COMPTE_SUSPENDU")) {
+    redirect(`/lier-riot?erreur=${encodeURIComponent(MESSAGE_COMPTE_SUSPENDU)}`);
+  }
   if (!verifie || verifie.length === 0) {
     redirect(
       `/lier-riot?erreur=${encodeURIComponent(
@@ -299,7 +311,9 @@ export async function delierCompteRiot() {
 
   const { error } = await supabase.rpc("delier_compte_riot", { p_game_id: 1 });
   if (error) {
-    const message = error.message.includes("INSCRIT_A_UN_TOURNOI")
+    const message = error.message.includes("COMPTE_SUSPENDU")
+      ? MESSAGE_COMPTE_SUSPENDU
+      : error.message.includes("INSCRIT_A_UN_TOURNOI")
       ? "Tu es engagé dans un tournoi pas encore terminé (inscrit, aligné dans une équipe ou agent libre) : ton compte Riot sert à lire tes résultats. Attends la fin du tournoi, ou retire-toi d'abord (désinscription, liste des agents libres, ou demande à ton capitaine)."
       : "Impossible de délier ton compte pour l'instant. Réessaie dans un instant.";
     redirect(`/lier-riot?erreur=${encodeURIComponent(message)}`);
@@ -341,7 +355,10 @@ export async function delierCompteSecondaire(formData: FormData) {
     redirect("/connexion");
   }
 
-  const { data: retire } = await supabase.rpc("delier_compte_secondaire", { p_game_id: 1, p_puuid: puuid });
+  const { data: retire, error } = await supabase.rpc("delier_compte_secondaire", { p_game_id: 1, p_puuid: puuid });
+  if (error?.message.includes("COMPTE_SUSPENDU")) {
+    redirect(`/lier-riot?erreur=${encodeURIComponent(MESSAGE_COMPTE_SUSPENDU)}`);
+  }
   redirect(
     retire
       ? `/lier-riot?message=${encodeURIComponent("Compte secondaire retiré.")}`

@@ -3643,6 +3643,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: { actuel: number; meilleur: number; a_joue: boolean }[]
       }
+      mon_statut_non_classe: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       face_a_face: {
         Args: { p_a: string; p_b: string }
         Returns: {

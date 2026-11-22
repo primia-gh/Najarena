@@ -160,7 +160,10 @@ export default function CguPage() {
             à une fourchette de paliers (par exemple «&nbsp;Argent à Or&nbsp;»)&nbsp;:
             le rating Najarena de la saison du joueur (1500 s&apos;il n&apos;a pas
             encore joué) est vérifié à l&apos;inscription, puis de nouveau au
-            check-in. Pour la limite haute, c&apos;est le meilleur rating atteint
+            check-in. Ce niveau suit le compte Riot&nbsp;: relier à un nouveau
+            compte Najarena un compte Riot déjà utilisé ne fait pas repartir de
+            1500, ni redevenir «&nbsp;non classé&nbsp;» pour les tournois réservés
+            aux nouveaux. Pour la limite haute, c&apos;est le meilleur rating atteint
             dans la saison en cours ou la précédente qui compte&nbsp;: redescendre
             en perdant, même en fin de saison, ne rouvre pas un tournoi de
             niveau inférieur. Un joueur sorti de la fourchette
@@ -263,7 +266,9 @@ export default function CguPage() {
             e-mail ; il peut contester la décision à l&apos;adresse indiquée
             dans les mentions légales. Un compte suspendu ne peut plus se
             connecter ni s&apos;inscrire aux tournois ; ses résultats déjà
-            enregistrés restent affichés.
+            enregistrés restent affichés. Tant que la suspension dure, ses
+            comptes Riot ne peuvent être ni retirés, ni liés à un autre compte
+            Najarena, même s&apos;il supprime le sien.
           </p>
         </section>
 
