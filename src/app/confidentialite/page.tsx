@@ -24,7 +24,7 @@ export default function ConfidentialitePage() {
       </h1>
       <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 22&nbsp;novembre 2026.</p>
 
-      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text [&_strong]:font-medium [&_strong]:text-text">
+      <div className="mt-8 flex flex-col gap-8 text-courant text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>
           <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             Responsable du traitement
@@ -376,7 +376,7 @@ export default function ConfidentialitePage() {
             décrite plus bas&nbsp;; le journal public des
             points et les résultats de matchs auxquels tu as participé
             restent conservés sous un pseudo anonyme, conformément au principe
-            de classement incontestable et permanent décrit dans les CGU, de
+            du registre public des points, qui ne se modifie jamais, décrit dans les CGU, de
             même que les messages déjà envoyés à d&apos;autres membres.
           </p>
           <ul className="mt-2 flex flex-col gap-1.5 text-muted">

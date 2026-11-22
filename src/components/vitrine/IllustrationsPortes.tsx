@@ -1,4 +1,5 @@
 import Image from "next/image";
+import EtiquetteExemple from "@/components/vitrine/EtiquetteExemple";
 import Panneau from "@/components/design/Panneau";
 
 // Visuels des deux portes « Équipes » / « Recruteurs » de l'accueil. La
@@ -56,8 +57,10 @@ export function IllustrationRecherche() {
   return (
     <Panneau
       reperes
-      className="flex h-[clamp(260px,29vw,420px)] items-center justify-center overflow-hidden px-6"
+      className="relative flex h-[clamp(260px,29vw,420px)] items-center justify-center overflow-hidden px-6"
     >
+      {/* Chiffres fictifs : étiquetés (revue design du 21/11/2026). */}
+      <EtiquetteExemple className="absolute top-4 left-4" />
       <div aria-hidden="true" className="flex w-full max-w-[460px] flex-col gap-4">
         <div className="flex flex-wrap gap-2">
           {["Rating ≥ 1800", "Classé", "Mid"].map((f) => (

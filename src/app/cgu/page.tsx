@@ -27,7 +27,7 @@ export default function CguPage() {
       </h1>
       <p className="mt-2 text-sm text-muted">Version du {DATE_CGU_LISIBLE}.</p>
 
-      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
+      <div className="mt-8 flex flex-col gap-8 text-courant text-text">
         <section>
           <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             1. Objet
@@ -295,8 +295,8 @@ export default function CguPage() {
               mentions légales
             </Link>
             . Le journal public des points reste conservé après suppression
-            d&apos;un compte, conformément au principe de classement
-            incontestable.
+            d&apos;un compte, conformément au principe du registre public des
+            points, qui ne se modifie jamais.
           </p>
           <p className="mt-2 text-muted">
             Les offres payantes (Plus, Pro, Organisateur) sont régies par les{" "}

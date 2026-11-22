@@ -7,9 +7,11 @@ import { COULEUR_PALIER } from "@/lib/paliers";
 // palier, rating, tendance. La colonne « rôle » de la maquette est remplacée
 // par le palier (le rôle d'un match n'est pas enregistré) ; la tendance est
 // réelle : sens de la dernière variation de points (rating_events).
-// Toujours 10 lignes : tant que le classement n'est pas rempli, les places
-// restantes s'affichent « à prendre » — jamais de section vide sur la
-// vitrine (décision du 23/09/2026), jamais de joueur inventé non plus.
+// Tant que le classement n'est pas rempli, jusqu'à 3 places s'affichent
+// « à prendre » — jamais de section vide sur la vitrine (décision du
+// 23/09/2026), jamais de joueur inventé non plus. Trois plutôt que dix
+// (revue design du 22/11/2026) : dix lignes vides donnaient l'impression
+// d'un classement mort ; la règle d'entrée est rappelée sous le tableau.
 // Le n°1 est mis en valeur (rang vert, dégradé sur la ligne).
 
 export type Tendance = "monte" | "baisse" | "stable";
@@ -30,6 +32,8 @@ const AFFICHAGE_TENDANCE: Record<Tendance, { texte: string; couleur: string }> =
 };
 
 const TAILLE_TOP = 10;
+/** Places « à prendre » montrées au plus, sous les joueurs classés. */
+const PLACES_LIBRES_MAX = 3;
 
 interface ApercuClassementProps {
   lignes: LigneClassement[];
@@ -39,7 +43,7 @@ interface ApercuClassementProps {
 }
 
 export default function ApercuClassement({ lignes, legende, lienPremierePlace }: ApercuClassementProps) {
-  const placesLibres = Math.max(0, TAILLE_TOP - lignes.length);
+  const placesLibres = Math.min(PLACES_LIBRES_MAX, Math.max(0, TAILLE_TOP - lignes.length));
   return (
     <Tableau legende={legende}>
       <thead>

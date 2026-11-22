@@ -49,7 +49,7 @@ export default function CgvPage() {
         </p>
       )}
 
-      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
+      <div className="mt-8 flex flex-col gap-8 text-courant text-text">
         <Section numero={1} titre="Objet et vendeur">
           <p className="mt-2 text-muted">
             Ces conditions s&apos;appliquent aux abonnements payants de Najarena&nbsp;: Plus, Pro et Organisateur. Le

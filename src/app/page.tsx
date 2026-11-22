@@ -219,8 +219,8 @@ export default async function Home() {
               ton <span className="text-accent">niveau.</span>
             </h1>
             <p className="max-w-[520px] text-courant text-text-2">
-              Joue des tournois, grimpe au classement et construis un CV e-sport que personne ne peut
-              contester.
+              Joue des tournois, grimpe au classement et construis un CV e-sport dont chaque point est
+              inscrit au registre public.
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-x-9 gap-y-4">
               <BoutonLien href="/inscription" taille="grande">
@@ -403,6 +403,12 @@ export default async function Home() {
                 tendance: tendances.get(c.profile_id) ?? null,
               }))}
             />
+            {classement.length < 10 && (
+              <p className="mt-4 text-sm text-muted">
+                On entre au classement après une dizaine de matchs vérifiés&nbsp;: chaque tournoi classé t&apos;en
+                rapproche.
+              </p>
+            )}
           </Apparition>
         </div>
       </section>

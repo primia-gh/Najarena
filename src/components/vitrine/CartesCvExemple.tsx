@@ -1,6 +1,7 @@
 import Image from "next/image";
 import ChiffreRating from "@/components/design/ChiffreRating";
 import { BadgeChercheEquipe, BadgeVerdict, BadgeVerifie } from "@/components/design/Badges";
+import EtiquetteExemple from "@/components/vitrine/EtiquetteExemple";
 import styles from "./vitrine.module.css";
 
 // Cartes « CV e-sport » de l'accueil (maquette accueil, ouverture et
@@ -13,16 +14,6 @@ import styles from "./vitrine.module.css";
 
 const DERNIERS_RESULTATS: ("V" | "D")[] = ["V", "V", "D", "V", "V"];
 
-// Étiquette « Exemple » visible (contrôle design du 21/11/2026) : les
-// chiffres de ces cartes sont fictifs, aucun visiteur ne doit les prendre
-// pour un vrai joueur classé. Grise, jamais verte.
-function EtiquetteExemple() {
-  return (
-    <span className="rounded-bouton border border-line-strong px-2 py-0.5 text-mini font-semibold tracking-[1px] text-text-2 uppercase">
-      Exemple
-    </span>
-  );
-}
 
 /** Carte flottante de l'ouverture. */
 export function CarteCvFlottante({ className = "" }: { className?: string }) {

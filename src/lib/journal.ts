@@ -307,7 +307,7 @@ export const JOURNAL: EntreeJournal[] = [
     date: "13 septembre",
     titre: "Design system documenté",
     texte:
-      "Boutons, badges, états de chargement — tous les composants réutilisables du site sont maintenant catalogués, avec leurs règles de contraste vérifiées.",
+      "Boutons, badges, états de chargement : tous les éléments réutilisables du site suivent les mêmes règles, avec un contraste vérifié pour rester lisibles.",
     tags: ["Accessibilité"],
   },
   {
