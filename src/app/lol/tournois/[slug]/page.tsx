@@ -685,6 +685,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     amical: !complements.comptePourClassement,
     publieLe: complements.publieLe,
     debuteLe: tournoi.debute_le,
+    lanceLe: complements.lanceLe,
     joueursAuDepart: matchs.length > 0 ? joueursDuBracket.size : null,
     inscrits: inscriptionsActives.length,
     organisateurJoue:

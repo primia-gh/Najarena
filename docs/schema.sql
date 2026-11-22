@@ -14690,3 +14690,114 @@ drop trigger if exists moderation_resolution_litige on public.disputes;
 create trigger moderation_resolution_litige
   before update of resolution on public.disputes
   for each row execute function public.moderer_resolution_litige();
+
+-- ---------- Lancement anticipé d'un tournoi classé (2026-11-22) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (src/lib/tournoi-vitrine.ts lit lance_le).
+-- Contrôle de sécurité complet du 21/11/2026, M1 : la règle « publié au
+-- moins 24 h avant son début » comparait la publication à la date
+-- annoncée ; un organisateur pouvait publier un tournoi annoncé dans
+-- 24 h 05, le remplir de complices et le lancer une heure plus tard — il
+-- restait classé. Désormais la base note l'heure réelle du lancement
+-- (lance_le, posée par elle seule au passage « en cours ») et la règle
+-- compte jusqu'au plus tôt des deux. Et un joueur ne peut plus être marqué
+-- « absent » avant l'ouverture du check-in (il ne pouvait plus se confirmer
+-- lui-même, et son bloc « Fiabilité » en souffrait).
+
+alter table public.tournaments add column if not exists lance_le timestamptz;
+
+create or replace function public.noter_lancement_tournoi()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.lance_le := null;
+  elsif new.statut = 'en_cours' and old.statut is distinct from 'en_cours' then
+    new.lance_le := coalesce(old.lance_le, now());
+  else
+    -- Personne ne l'écrit à la main, pas même le serveur.
+    new.lance_le := old.lance_le;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.noter_lancement_tournoi() from public, anon, authenticated;
+drop trigger if exists tournaments_lancement on public.tournaments;
+create trigger tournaments_lancement
+  before insert or update on public.tournaments
+  for each row execute function public.noter_lancement_tournoi();
+
+create or replace function public.criteres_tournoi_classe(p_tournament_id uuid)
+returns table (
+  officiel boolean,
+  amical boolean,
+  publie_a_temps boolean,
+  joueurs_au_depart integer,
+  organisateur_joue boolean,
+  classe boolean,
+  defi boolean
+)
+language sql
+stable
+set search_path = public
+as $$
+  select
+    c.officiel,
+    c.amical,
+    c.publie_a_temps,
+    c.joueurs,
+    c.orga,
+    not c.amical and (c.officiel or c.defi or (c.publie_a_temps and c.joueurs >= 8 and not c.orga)),
+    c.defi
+  from (
+    select
+      t.creneau_auto is not null and t.creneau_auto <> 'a-la-demande' as officiel,
+      not t.compte_pour_classement as amical,
+      -- Jusqu'au plus tôt de la date annoncée et du lancement réel (M1).
+      coalesce(t.publie_le <= least(t.debute_le, coalesce(t.lance_le, t.debute_le)) - interval '24 hours', false)
+        as publie_a_temps,
+      (select count(distinct mp.profile_id)::integer
+         from public.matches m
+         join public.match_participants mp on mp.match_id = m.id
+        where m.tournament_id = t.id) as joueurs,
+      exists (
+        select 1 from public.matches m
+        join public.match_participants mp on mp.match_id = m.id
+        where m.tournament_id = t.id and mp.profile_id = t.organisateur_id
+      ) or exists (
+        select 1 from public.registrations r
+        where r.tournament_id = t.id and r.profile_id = t.organisateur_id
+          and r.statut in ('inscrit', 'confirme')
+      ) as orga,
+      t.nature = 'defi' as defi
+    from public.tournaments t
+    where t.id = p_tournament_id
+  ) c;
+$$;
+revoke execute on function public.criteres_tournoi_classe(uuid) from public;
+grant execute on function public.criteres_tournoi_classe(uuid) to anon, authenticated, service_role;
+
+create or replace function public.refuser_absent_avant_checkin()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.statut = 'absent' and old.statut is distinct from 'absent' and exists (
+    select 1 from public.tournaments t
+    where t.id = new.tournament_id
+      and t.statut = 'ouvert'
+      and t.checkin_ouvre_le > now()
+  ) then
+    raise exception 'CHECKIN_PAS_OUVERT';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.refuser_absent_avant_checkin() from public, anon, authenticated;
+drop trigger if exists registrations_absent_apres_checkin on public.registrations;
+create trigger registrations_absent_apres_checkin
+  before update of statut on public.registrations
+  for each row execute function public.refuser_absent_avant_checkin();

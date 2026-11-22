@@ -23,6 +23,16 @@ describe("tournoi classé", () => {
     expect(publieATemps(null, "2026-10-02T19:00:00Z")).toBeNull();
   });
 
+  it("compte jusqu'au lancement réel s'il a eu lieu avant la date annoncée", () => {
+    // Publié 25 h avant la date annoncée, mais lancé 2 h après la publication.
+    expect(publieATemps("2026-10-01T18:00:00Z", "2026-10-02T19:00:00Z", "2026-10-01T20:00:00Z")).toBe(false);
+    // Lancé en retard : la date annoncée fait foi.
+    expect(publieATemps("2026-10-01T18:00:00Z", "2026-10-02T19:00:00Z", "2026-10-02T19:20:00Z")).toBe(true);
+    const e = evaluerClassement({ ...base, lanceLe: "2026-10-01T20:00:00Z" });
+    expect(e.statut).toBe("non_classe");
+    expect(e.criteres[0]).toMatchObject({ etat: "ko", detail: "Lancé avant l'heure annoncée : compté jusqu'au lancement." });
+  });
+
   it("ne classe pas un tournoi publié la veille au soir pour le lendemain midi", () => {
     const e = evaluerClassement({ ...base, publieLe: "2026-10-01T22:00:00Z" });
     expect(e.statut).toBe("non_classe");

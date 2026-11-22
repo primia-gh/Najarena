@@ -15,6 +15,7 @@ import {
 } from "@/lib/organisation-actions";
 import { LABEL_STATUT, estStatutPublic, formaterDate, partiesDate, type NiveauVerdict } from "@/lib/tournois";
 import { libelleTour } from "@/lib/bracket-image";
+import { PREAVIS_TOURNOI_CLASSE_HEURES, publieATemps } from "@/lib/tournoi-classe";
 import { classeChamp } from "@/lib/design";
 import { SuiviTempsReel } from "@/components/SuiviTempsReel";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
@@ -43,6 +44,11 @@ interface CockpitPageProps {
   searchParams: Promise<{ erreur?: string; message?: string }>;
 }
 
+// Hors du composant (règle de pureté du rendu).
+function maintenantMs(): number {
+  return Date.now();
+}
+
 export default async function CockpitPage({ params, searchParams }: CockpitPageProps) {
   const { id } = await params;
   const { erreur, message } = await searchParams;
@@ -56,7 +62,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
     supabase.auth.getUser(),
     supabase
       .from("tournaments")
-      .select("id, slug, nom, statut, capacite, best_of, region, debute_le, checkin_ouvre_le, organisateur_id, format, nature, creneau_auto, rating_min, rating_max, type_bracket, rondes")
+      .select("id, slug, nom, statut, capacite, best_of, region, debute_le, checkin_ouvre_le, organisateur_id, format, nature, creneau_auto, rating_min, rating_max, type_bracket, rondes, publie_le, compte_pour_classement")
       .eq("id", id)
       .maybeSingle(),
   ]);
@@ -150,6 +156,21 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   }
   const toursOrdonnes = Array.from(rounds.keys()).sort((a, b) => a - b);
   const bracketGenere = matchs.length > 0;
+  // Lancé avant la date annoncée, un tournoi compte jusqu'à son lancement
+  // pour la règle des 24 h (M1, 22/11/2026) : l'organisateur le sait avant
+  // de cliquer.
+  const maintenant = maintenantMs();
+  const lancementDeclasse =
+    tournoi.nature === "tournoi" &&
+    tournoi.format === "1v1" &&
+    !tournoi.creneau_auto &&
+    tournoi.compte_pour_classement &&
+    publieATemps(tournoi.publie_le, tournoi.debute_le) === true &&
+    publieATemps(tournoi.publie_le, tournoi.debute_le, new Date(maintenant).toISOString()) === false;
+  const classableAPartirDe =
+    tournoi.publie_le !== null
+      ? new Date(new Date(tournoi.publie_le).getTime() + PREAVIS_TOURNOI_CLASSE_HEURES * 3_600_000).toISOString()
+      : null;
   const nbConfirmes = inscriptions.filter((i) => i.statut === "confirme").length;
   const nbActifs = inscriptions.filter((i) => i.statut === "inscrit" || i.statut === "confirme").length;
   const equipesAgents = Math.floor((nbAgentsConfirmes ?? 0) / 5);
@@ -260,6 +281,13 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
               {equipesAgents > 1 ? "s" : ""} par rating et par rôle.
             </p>
           )}
+          {lancementDeclasse && classableAPartirDe && (
+            <p className="max-w-2xl text-sm text-text-2">
+              {typographie(
+                `Lancé maintenant, ce tournoi ne sera pas classé : il compterait comme publié moins de ${PREAVIS_TOURNOI_CLASSE_HEURES} h avant son début. Il peut l'être s'il est lancé à partir du ${formaterDate(classableAPartirDe)}.`,
+              )}
+            </p>
+          )}
           <form action={genererBracket}>
             <input type="hidden" name="tournament_id" value={tournoi.id} />
             <BoutonEnvoi
@@ -333,6 +361,12 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
   // Une fois le tournoi lancé, les inscriptions sont figées par la base
   // (contrôle de sécurité du 19/11/2026) : plus de boutons.
   const inscriptionsModifiables = ["brouillon", "ouvert", "checkin"].includes(tournoi.statut);
+  // « Absent » seulement une fois le check-in ouvert (contrôle de sécurité
+  // M1 du 22/11/2026, refusé aussi par la base) : avant, un joueur n'a pas
+  // encore pu confirmer sa présence.
+  const absentPossible =
+    inscriptionsModifiables &&
+    !(tournoi.statut === "ouvert" && new Date(tournoi.checkin_ouvre_le).getTime() > maintenant);
 
   const sectionInscrits = (
     <section aria-labelledby="cockpit-inscrits" className="flex flex-col gap-4">
@@ -393,7 +427,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                           </button>
                         </form>
                       )}
-                      {inscriptionsModifiables && i.statut !== "absent" && i.statut !== "retire" && (
+                      {absentPossible && i.statut !== "absent" && i.statut !== "retire" && (
                         <form action={marquerAbsent}>
                           <input type="hidden" name="registration_id" value={i.id} />
                           <input type="hidden" name="tournament_id" value={tournoi.id} />

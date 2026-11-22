@@ -103,12 +103,20 @@ export async function marquerAbsent(formData: FormData) {
   const supabase = await createClient();
   await verifierOrganisateur(supabase, tournamentId);
 
-  await supabase
+  const { error } = await supabase
     .from("registrations")
     .update({ statut: "absent" })
     .eq("id", registrationId)
     .eq("tournament_id", tournamentId)
     .neq("statut", "retire");
+
+  if (error?.message.includes("CHECKIN_PAS_OUVERT")) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+        "Le check-in n'est pas encore ouvert : ce joueur n'a pas pu confirmer sa présence. Tu pourras le marquer absent une fois le check-in ouvert.",
+      )}`,
+    );
+  }
 
   redirect(`/moi/organisation/${tournamentId}`);
 }

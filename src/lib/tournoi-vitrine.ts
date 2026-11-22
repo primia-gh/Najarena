@@ -19,7 +19,9 @@ export async function chargerComplementsTournoi(tournoiId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("tournaments")
-    .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, classe, reserve_non_classes")
+    .select(
+      "type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, lance_le, classe, reserve_non_classes",
+    )
     .eq("id", tournoiId)
     .maybeSingle();
 
@@ -39,6 +41,9 @@ export async function chargerComplementsTournoi(tournoiId: string) {
     // Tournoi classé (audit N12) : date de publication et décision figée
     // à la clôture (lib/tournoi-classe.ts).
     publieLe: data?.publie_le ?? null,
+    // Lancement réel (22/11/2026) : la règle des 24 h compte jusqu'à lui
+    // s'il a eu lieu avant la date annoncée.
+    lanceLe: data?.lance_le ?? null,
     classe: data?.classe ?? null,
   };
 }

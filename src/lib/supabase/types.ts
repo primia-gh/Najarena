@@ -3044,6 +3044,7 @@ export type Database = {
           format: string
           game_id: number
           id: string
+          lance_le: string | null
           logo_url: string | null
           nature: string
           nom: string
@@ -3077,6 +3078,7 @@ export type Database = {
           format: string
           game_id: number
           id?: string
+          lance_le?: string | null
           logo_url?: string | null
           nature?: string
           nom: string
@@ -3110,6 +3112,7 @@ export type Database = {
           format?: string
           game_id?: number
           id?: string
+          lance_le?: string | null
           logo_url?: string | null
           nature?: string
           nom?: string

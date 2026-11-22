@@ -15,6 +15,8 @@ export interface DonneesClassement {
   /** Ouverture des inscriptions ; nul pour un brouillon. */
   publieLe: string | null;
   debuteLe: string;
+  /** Lancement réel du bracket (posé par la base) ; nul avant. */
+  lanceLe?: string | null;
   /** Joueurs placés dans le bracket ; nul tant qu'il n'est pas généré. */
   joueursAuDepart: number | null;
   /** Inscriptions actives, pour l'estimation avant le bracket. */
@@ -50,9 +52,21 @@ export interface EvaluationClassement {
 
 const HEURE_MS = 60 * 60 * 1000;
 
-export function publieATemps(publieLe: string | null, debuteLe: string): boolean | null {
+/**
+ * Publié au moins 24 h avant le début — le début étant le plus tôt de la
+ * date annoncée et du lancement réel (22/11/2026, contrôle de sécurité M1 :
+ * lancer un tournoi en avance ne contourne plus la règle). Même calcul que
+ * criteres_tournoi_classe en base.
+ */
+export function publieATemps(publieLe: string | null, debuteLe: string, lanceLe?: string | null): boolean | null {
   if (!publieLe) return null;
-  return new Date(debuteLe).getTime() - new Date(publieLe).getTime() >= PREAVIS_TOURNOI_CLASSE_HEURES * HEURE_MS;
+  const debut = Math.min(new Date(debuteLe).getTime(), lanceLe ? new Date(lanceLe).getTime() : Infinity);
+  return debut - new Date(publieLe).getTime() >= PREAVIS_TOURNOI_CLASSE_HEURES * HEURE_MS;
+}
+
+/** Lancé avant la date annoncée. */
+function lanceEnAvance(debuteLe: string, lanceLe?: string | null): boolean {
+  return Boolean(lanceLe) && new Date(lanceLe as string).getTime() < new Date(debuteLe).getTime();
 }
 
 export function criteresClassement(d: DonneesClassement): CritereClassement[] {
@@ -99,12 +113,17 @@ export function criteresClassement(d: DonneesClassement): CritereClassement[] {
     ];
   }
 
-  const aTemps = publieATemps(d.publieLe, d.debuteLe);
+  const aTemps = publieATemps(d.publieLe, d.debuteLe, d.lanceLe);
   return [
     {
       libelle: `Publié au moins ${PREAVIS_TOURNOI_CLASSE_HEURES} h avant le début`,
       etat: aTemps === null ? "attente" : aTemps ? "ok" : "ko",
-      detail: aTemps === null ? "Pas encore publié." : null,
+      detail:
+        aTemps === null
+          ? "Pas encore publié."
+          : lanceEnAvance(d.debuteLe, d.lanceLe)
+            ? "Lancé avant l'heure annoncée : compté jusqu'au lancement."
+            : null,
     },
     {
       libelle: `Au moins ${JOUEURS_MIN_TOURNOI_CLASSE} joueurs au départ`,
