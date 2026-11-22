@@ -10,6 +10,13 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "22 novembre",
+    titre: "Ton niveau suit ton compte Riot",
+    texte:
+      "Supprimer son compte Najarena, ou délier son compte Riot pour le relier ailleurs, ne fait plus repartir « débutant » : le niveau de ce compte Riot le suit pour les tournois par niveau et les tournois réservés aux nouveaux (jamais pour le classement). Le compte Riot d'un joueur suspendu ne peut être relié nulle part tant que la suspension dure. Aussi : un tournoi lancé avant son heure compte comme publié jusqu'à son lancement, un tournoi clos après le changement de saison donne ses points à la nouvelle saison, et le registre des points est vérifié par la base toutes les 5 minutes.",
+    tags: ["Fiabilité"],
+  },
+  {
     date: "21 novembre",
     titre: "Ton match sur ton stream",
     texte:
