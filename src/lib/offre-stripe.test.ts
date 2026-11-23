@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  abonnementCourant,
   abonnementEnVie,
   decisionVerification,
   joueurDeLAbonnement,
@@ -98,5 +99,28 @@ describe("decisionVerification (vérification quotidienne)", () => {
   it("prixConfigures : au moins un prix réglé", () => {
     expect(prixConfigures({ verifie: undefined, elite: " , ", organisateur: "" })).toBe(false);
     expect(prixConfigures({ verifie: undefined, elite: "price_pro", organisateur: "" })).toBe(true);
+  });
+});
+
+describe("abonnementCourant", () => {
+  const J = "joueur";
+  const ab = (id: string, status: string, created: number, profil: string | null = J) => ({
+    id,
+    status,
+    created,
+    metadata: (profil ? { profile_id: profil } : {}) as Record<string, string>,
+  });
+
+  it("un abonnement en cours l'emporte, le plus récent d'abord", () => {
+    const liste = [ab("a", "canceled", 3), ab("b", "active", 1), ab("c", "trialing", 2)];
+    expect(abonnementCourant(liste, J, "a")?.id).toBe("c");
+  });
+  it("sinon celui déjà suivi, sinon le plus récent", () => {
+    const liste = [ab("a", "canceled", 1), ab("b", "past_due", 2)];
+    expect(abonnementCourant(liste, J, "a")?.id).toBe("a");
+    expect(abonnementCourant(liste, J, null)?.id).toBe("b");
+  });
+  it("ignore les abonnements sans étiquette ou étiquetés pour un autre compte", () => {
+    expect(abonnementCourant([ab("a", "active", 1, null), ab("b", "active", 2, "autre")], J, null)).toBeNull();
   });
 });

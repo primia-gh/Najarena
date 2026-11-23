@@ -1,7 +1,7 @@
 // Fausse base en mémoire pour les tests des abonnements Stripe (webhook et
 // vérification quotidienne) : imite les seuls appels Supabase qu'ils font
-// (select / upsert / delete avec eq, is, in, not, order, limit, maybeSingle,
-// rpc). Une table peut être mise en échec pour simuler une panne d'écriture.
+// (select / upsert / update / delete avec eq, is, in, not, order, limit,
+// maybeSingle, rpc). Une table peut être mise en échec pour simuler une panne d'écriture.
 
 type Ligne = Record<string, unknown>;
 type Filtre = (ligne: Ligne) => boolean;
@@ -20,7 +20,8 @@ class Requete implements PromiseLike<Resultat> {
   private filtres: Filtre[] = [];
   private tri: { colonne: string; croissant: boolean } | null = null;
   private limite: number | null = null;
-  private mode: "select" | "delete" = "select";
+  private mode: "select" | "delete" | "update" = "select";
+  private valeurs: Ligne = {};
   private unique = false;
 
   constructor(
@@ -34,6 +35,11 @@ class Requete implements PromiseLike<Resultat> {
   }
   delete(): this {
     this.mode = "delete";
+    return this;
+  }
+  update(valeurs: Ligne): this {
+    this.mode = "update";
+    this.valeurs = valeurs;
     return this;
   }
   eq(colonne: string, valeur: unknown): this {
@@ -76,6 +82,11 @@ class Requete implements PromiseLike<Resultat> {
 
   private executer(): Resultat {
     const lignes = (this.base.tables[this.table] ??= []);
+    if (this.mode === "update") {
+      if (this.base.enEchec.has(this.table)) return { data: null, error: { message: "panne" } };
+      for (const l of lignes) if (this.filtres.every((f) => f(l))) Object.assign(l, this.valeurs);
+      return { data: null, error: null };
+    }
     if (this.mode === "delete") {
       if (this.base.enEchec.has(this.table)) return { data: null, error: { message: "panne" } };
       this.base.tables[this.table] = lignes.filter((l) => !this.filtres.every((f) => f(l)));
@@ -120,11 +131,14 @@ export function abonnementStripe(options: {
   prix?: string;
   profileId?: string;
   client?: string;
+  /** Date de création (secondes) : la plus récente passe d'abord. */
+  cree?: number;
 }) {
   return {
     id: options.id,
     object: "subscription",
     status: options.statut,
+    created: options.cree ?? 1_700_000_000,
     customer: options.client ?? "cus_1",
     metadata: options.profileId ? { profile_id: options.profileId } : {},
     items: { data: options.prix ? [{ price: { id: options.prix } }] : [] },

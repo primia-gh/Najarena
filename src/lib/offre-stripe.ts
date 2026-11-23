@@ -115,3 +115,25 @@ export function decisionVerification(entree: {
 export function prixConfigures(prix: Record<OffrePayante, string | undefined>): boolean {
   return Object.values(prix).some((valeur) => listePrix(valeur).length > 0);
 }
+
+type AbonnementResume = { id: string; status: string; created: number; metadata?: Record<string, string> | null };
+
+/**
+ * Parmi les abonnements d'un client Stripe, celui qui compte pour ce compte
+ * Najarena (vérification quotidienne, 23/11/2026) : seulement ceux que notre
+ * serveur a étiquetés pour lui (joueurDeLAbonnement) ; d'abord un abonnement
+ * en cours (le plus récent), sinon celui déjà suivi, sinon le plus récent.
+ * Un premier abonnement ou un réabonnement dont le message de paiement s'est
+ * perdu est ainsi retrouvé, même si la base ne connaît pas encore son
+ * identifiant.
+ */
+export function abonnementCourant<T extends AbonnementResume>(
+  abonnements: T[],
+  profileId: string,
+  suiviId: string | null,
+): T | null {
+  const siens = abonnements
+    .filter((a) => joueurDeLAbonnement(a.metadata?.profile_id) === profileId)
+    .sort((a, b) => b.created - a.created);
+  return siens.find((a) => abonnementEnCours(a.status)) ?? siens.find((a) => a.id === suiviId) ?? siens[0] ?? null;
+}

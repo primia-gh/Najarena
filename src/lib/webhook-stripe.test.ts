@@ -110,6 +110,15 @@ describe("paiement d'un abonnement", () => {
     expect(suiviDe(JOUEUR)).toMatchObject({ abonnement_stripe_id: "sub_1", statut: "active", client_stripe_id: "cus_1" });
   });
 
+  it("une session de paiement sans abonnement n'écrit rien", async () => {
+    const reponse = await POST(
+      requete(evenementAbonnement("checkout.session.completed", { subscription: null, client_reference_id: JOUEUR })),
+    );
+    expect(reponse.status).toBe(200);
+    expect(base.tables.comptes_offres).toHaveLength(0);
+    expect(base.tables.abonnements_stripe).toHaveLength(0);
+  });
+
   it("un paiement différé (incomplete) n'accorde rien encore", async () => {
     stripeDira(abonnementStripe({ id: "sub_1", statut: "incomplete", prix: "price_plus", profileId: JOUEUR }));
     await POST(requete(evenementAbonnement("checkout.session.completed", { subscription: "sub_1", client_reference_id: JOUEUR })));
