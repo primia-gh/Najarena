@@ -2,6 +2,9 @@
 // fichier depuis un composant client : la clé ne doit jamais atteindre
 // le navigateur (règle de sécurité non négociable, cf. CLAUDE.md §6).
 
+// Garde-fou (contrôle de sécurité du 21/11/2026, F3) : la compilation échoue si
+// un composant navigateur importe ce fichier par erreur.
+import "server-only";
 import { REGIONS as REGIONS_LOL } from "./regions";
 import type { ChronologieRiot } from "./conditions-1v1";
 
@@ -134,6 +137,8 @@ export interface ParticipantMatchRiot {
   win: boolean;
   /** 100 ou 200 (conditions du 1v1 classique, src/lib/conditions-1v1.ts). */
   teamId?: number;
+  /** Niveau du compte Riot au moment de la partie (niveau 30 pour le classement, src/lib/niveau-compte-riot.ts). */
+  summonerLevel?: number;
   championName: string;
   kills: number;
   deaths: number;

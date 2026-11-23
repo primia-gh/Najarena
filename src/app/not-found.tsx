@@ -27,6 +27,9 @@ export default function PageIntrouvable() {
           <BoutonLien href="/lol/classement" variante="contour">
             Voir le classement
           </BoutonLien>
+          <BoutonLien href="/" variante="contour">
+            Retour à l&apos;accueil
+          </BoutonLien>
         </div>
       </div>
     </main>

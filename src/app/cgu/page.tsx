@@ -27,7 +27,7 @@ export default function CguPage() {
       </h1>
       <p className="mt-2 text-sm text-muted">Version du {DATE_CGU_LISIBLE}.</p>
 
-      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
+      <div className="mt-8 flex flex-col gap-8 text-courant text-text">
         <section>
           <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             1. Objet
@@ -100,7 +100,9 @@ export default function CguPage() {
             Un joueur peut en défier un autre, en une partie : le défi
             accepté devient un duel arbitré par Najarena, dont le résultat
             est lu de la même façon. Entre deux mêmes joueurs, un seul défi
-            par période de 24 heures compte au classement ; un défi sans
+            par période de 24 heures compte au classement, et cinq duels
+            classés au plus par joueur (défis, arène, divisions) sur la même
+            période ; les suivants se jouent en amical. Un défi sans
             partie retrouvée dans les 24 heures est annulé. L&apos;arène
             ouvre le même duel avec un adversaire choisi par Najarena : même
             région, même règle de victoire, rating proche selon un écart
@@ -160,7 +162,10 @@ export default function CguPage() {
             à une fourchette de paliers (par exemple «&nbsp;Argent à Or&nbsp;»)&nbsp;:
             le rating Najarena de la saison du joueur (1500 s&apos;il n&apos;a pas
             encore joué) est vérifié à l&apos;inscription, puis de nouveau au
-            check-in. Pour la limite haute, c&apos;est le meilleur rating atteint
+            check-in. Ce niveau suit le compte Riot, pas le compte Najarena. Un
+            compte Riot déjà utilisé, relié à un nouveau compte Najarena, garde
+            son niveau&nbsp;: le joueur ne repart pas de 1500 et ne redevient pas
+            «&nbsp;non classé&nbsp;» pour les tournois réservés aux nouveaux. Pour la limite haute, c&apos;est le meilleur rating atteint
             dans la saison en cours ou la précédente qui compte&nbsp;: redescendre
             en perdant, même en fin de saison, ne rouvre pas un tournoi de
             niveau inférieur. Un joueur sorti de la fourchette
@@ -232,7 +237,10 @@ export default function CguPage() {
             pour le classement), ou décision manuelle de l&apos;organisateur
             avec son motif (ne compte pas pour le classement). Najarena
             n&apos;invente jamais un résultat ; en cas de doute, la décision
-            revient à l&apos;organisateur du tournoi.
+            revient à l&apos;organisateur du tournoi. Un match en 1v1 ne compte
+            au classement que si les deux comptes Riot ont au moins le
+            niveau&nbsp;30 au moment de la partie&nbsp;; en dessous, son résultat
+            reste vérifié et affiché, sans points.
           </p>
           <p className="mt-2 text-muted">
             Le classement est calculé selon la méthode Glicko-2, à la
@@ -263,7 +271,9 @@ export default function CguPage() {
             e-mail ; il peut contester la décision à l&apos;adresse indiquée
             dans les mentions légales. Un compte suspendu ne peut plus se
             connecter ni s&apos;inscrire aux tournois ; ses résultats déjà
-            enregistrés restent affichés.
+            enregistrés restent affichés. Tant que la suspension dure, ses
+            comptes Riot ne peuvent être ni retirés, ni liés à un autre compte
+            Najarena, même s&apos;il supprime le sien.
           </p>
         </section>
 
@@ -290,8 +300,8 @@ export default function CguPage() {
               mentions légales
             </Link>
             . Le journal public des points reste conservé après suppression
-            d&apos;un compte, conformément au principe de classement
-            incontestable.
+            d&apos;un compte, conformément au principe du registre public des
+            points, qui ne se modifie jamais.
           </p>
           <p className="mt-2 text-muted">
             Les offres payantes (Plus, Pro, Organisateur) sont régies par les{" "}

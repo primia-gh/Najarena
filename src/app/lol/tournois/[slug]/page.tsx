@@ -224,7 +224,7 @@ const chargerTournoi = cache(async (slug: string) => {
     { data: comptesDuMatchData },
     mesEquipes,
     { data: monAdhesion },
-    { data: monClassement },
+    { data: monStatutNonClasse },
     { data: partiesAdversaire },
     { data: monRatingNiveau },
   ] = await Promise.all([
@@ -303,18 +303,11 @@ const chargerTournoi = cache(async (slug: string) => {
           .eq("profile_id", userData.user.id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    // Coupe des nouveaux (idée en réserve n°12) : le visiteur est-il déjà
-    // classé dans la saison en cours ? (même règle que est_non_classe)
+    // Coupe des nouveaux (idée en réserve n°12) : le visiteur est-il encore
+    // non classé dans la saison en cours ? Lu par la base (est_non_classe,
+    // niveau de son compte Riot d'avant compris, contrôle M3 du 22/11/2026).
     userData.user && tournoi.reserve_non_classes
-      ? supabase
-          .from("ratings")
-          .select("est_classe, season:seasons!inner(est_courante)")
-          .eq("profile_id", userData.user.id)
-          .eq("game_id", tournoi.game_id)
-          .eq("season.est_courante", true)
-          .eq("est_classe", true)
-          .limit(1)
-          .maybeSingle()
+      ? supabase.rpc("mon_statut_non_classe")
       : Promise.resolve({ data: null }),
     // Fiche de l'adversaire (idée en réserve n°9) : ses parties lues chez
     // Riot (stats_match_joueur n'existe que pour elles), en 1v1.
@@ -398,7 +391,7 @@ const chargerTournoi = cache(async (slug: string) => {
       (!tournoi.reserve_membres ||
         (monAdhesion !== null &&
           (typeCommunaute(tournoi.communaute?.type) !== "ecole" || monAdhesion.verifie_le !== null))) &&
-      (!tournoi.reserve_non_classes || monClassement === null),
+      (!tournoi.reserve_non_classes || monStatutNonClasse !== false),
     // Même règle que controler_inscription_niveau, revérifiée au check-in.
     eligibleNiveau: ratingDansNiveau(
       niveauVisiteur(monRatingNiveau).actuel,
@@ -685,6 +678,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
     amical: !complements.comptePourClassement,
     publieLe: complements.publieLe,
     debuteLe: tournoi.debute_le,
+    lanceLe: complements.lanceLe,
     joueursAuDepart: matchs.length > 0 ? joueursDuBracket.size : null,
     inscrits: inscriptionsActives.length,
     organisateurJoue:

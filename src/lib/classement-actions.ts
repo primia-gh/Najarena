@@ -9,6 +9,7 @@ import {
   type EtatGlicko,
   type ResultatMatch,
 } from "@/lib/glicko2";
+import { niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
 
 const SEUIL_INACTIVITE_JOURS = 30;
 
@@ -24,7 +25,7 @@ async function compterVictoiresRecentes(
 ): Promise<number> {
   const depuis = new Date(avant.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("match_verdicts")
     .select("match_id, cree_le, match:matches(statut, match_participants(profile_id))")
     .eq("gagnant_id", gagnantId)
@@ -32,6 +33,9 @@ async function compterVictoiresRecentes(
     .in("niveau", NIVEAUX_COMPTES)
     .gte("cree_le", depuis)
     .lt("cree_le", avant.toISOString());
+  // Lecture ratée : jamais « 0 victoire » (le plafond sauterait) — la
+  // clôture est reportée (contrôle de sécurité du 22/11/2026).
+  if (error) throw new Error(`victoires récentes illisibles (${error.message})`);
 
   return (data ?? []).filter((v) => {
     const m = v.match;
@@ -93,21 +97,26 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
     return terminer();
   }
 
-  // Tournoi créé avant l'existence d'une saison courante (brouillon
-  // ancien) : on le rattache ici à la saison courante plutôt que de le
-  // laisser clôturé sans effet sur le classement.
-  let seasonId = tournoi.season_id;
-  if (!seasonId) {
-    const { data: saisonCourante } = await supabase
-      .from("seasons")
-      .select("id")
-      .eq("game_id", tournoi.game_id)
-      .eq("est_courante", true)
-      .maybeSingle();
-    seasonId = saisonCourante?.id ?? null;
-    if (seasonId) {
-      await ecriture.from("tournaments").update({ season_id: seasonId }).eq("id", tournamentId);
-    }
+  // Les points s'écrivent toujours dans la saison en cours (contrôle de
+  // sécurité M2 du 22/11/2026, refus SAISON_CLOSE en base) : un tournoi
+  // clos après le changement de saison ne touche jamais le classement final
+  // archivé de la saison précédente. Un tournoi créé avant l'existence
+  // d'une saison courante (brouillon ancien) y est rattaché.
+  const { data: saisonCourante, error: erreurSaison } = await supabase
+    .from("seasons")
+    .select("id")
+    .eq("game_id", tournoi.game_id)
+    .eq("est_courante", true)
+    .maybeSingle();
+  // Lecture ratée : ce n'est pas « aucune saison » (qui clôt sans points) —
+  // la clôture est reportée au passage suivant (contrôle du 22/11/2026).
+  if (erreurSaison) {
+    console.error(`cloturerTournoi : saison illisible pour le tournoi ${tournamentId} (${erreurSaison.message}) — clôture reportée.`);
+    return false;
+  }
+  const seasonId = saisonCourante?.id ?? null;
+  if (seasonId && !tournoi.season_id) {
+    await ecriture.from("tournaments").update({ season_id: seasonId }).eq("id", tournamentId);
   }
 
   // Aucune saison courante : pas de ligne à écrire dans ratings/rating_events
@@ -138,12 +147,18 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
     }
   }
 
-  const { data: matchsData } = await supabase
+  const { data: matchsData, error: erreurMatchs } = await supabase
     .from("matches")
     .select(
-      "id, statut, match_participants(profile_id), verdict:match_verdicts(niveau, gagnant_id, cree_le, est_definitif)",
+      "id, statut, match_participants(profile_id), verdict:match_verdicts(niveau, gagnant_id, cree_le, est_definitif, niveau_compte_min)",
     )
     .eq("tournament_id", tournamentId);
+  // Lecture ratée : jamais « aucun match » (le tournoi serait clos pour
+  // toujours sans points) — clôture reportée (contrôle du 22/11/2026).
+  if (erreurMatchs) {
+    console.error(`cloturerTournoi : matchs illisibles pour le tournoi ${tournamentId} (${erreurMatchs.message}) — clôture reportée.`);
+    return false;
+  }
 
   const matchs = matchsData ?? [];
 
@@ -156,7 +171,9 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
   }
 
   // Ne retenir que les verdicts définitifs de niveau 2/3, hors forfait —
-  // un verdict manuel (niveau 1) ou un match forfait ne compte jamais.
+  // un verdict manuel (niveau 1) ou un match forfait ne compte jamais —,
+  // et seulement si les deux comptes Riot avaient le niveau 30 (22/11/2026,
+  // src/lib/niveau-compte-riot.ts ; même règle dans recalcul.ts).
   interface Candidat {
     gagnantId: string;
     perdantId: string;
@@ -169,6 +186,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
       (v) => v.est_definitif && (NIVEAUX_COMPTES as readonly string[]).includes(v.niveau),
     );
     if (!verdict || !verdict.gagnant_id) continue;
+    if (!niveauCompteSuffisant(verdict.niveau_compte_min)) continue;
     const perdant = m.match_participants.find((p) => p.profile_id !== verdict.gagnant_id);
     if (!perdant) continue;
     candidats.push({
@@ -185,9 +203,15 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
   // par match, avant la clôture) — indépendant des autres candidats de
   // cette même clôture, donc sans risque à lancer en parallèle plutôt
   // qu'en série (correctif du 13/09/2026, même logique que sur l'accueil).
-  const compteursPrealables = await Promise.all(
-    candidats.map((c) => compterVictoiresRecentes(supabase, c.gagnantId, c.perdantId, c.creeLe)),
-  );
+  let compteursPrealables: number[];
+  try {
+    compteursPrealables = await Promise.all(
+      candidats.map((c) => compterVictoiresRecentes(supabase, c.gagnantId, c.perdantId, c.creeLe)),
+    );
+  } catch (e) {
+    console.error(`cloturerTournoi : ${e instanceof Error ? e.message : "lecture impossible"} pour le tournoi ${tournamentId} — clôture reportée.`);
+    return false;
+  }
   const candidatsRetenus = candidats.filter((_, i) => compteursPrealables[i] < 3);
 
   // État de départ de chaque joueur du bracket : son rating actuel, sauf
@@ -196,7 +220,7 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
   // ce tournoi, son état d'avant tournoi est dans le journal. C'est lui qui
   // sert d'adversaire aux joueurs restants (Glicko-2 ne lit que le rating et
   // le RD de l'adversaire).
-  const [{ data: ratingsData }, { data: dejaCreditesData }] = await Promise.all([
+  const [{ data: ratingsData, error: erreurRatings }, { data: dejaCreditesData, error: erreurDejaCredites }] = await Promise.all([
     supabase
       .from("ratings")
       .select("profile_id, rating, rd, volatilite, matchs_joues")
@@ -209,6 +233,13 @@ export async function cloturerTournoi(tournamentId: string): Promise<boolean> {
       .eq("tournament_id", tournamentId)
       .eq("motif", "tournoi"),
   ]);
+  // Lecture ratée : un joueur lu « sans rating » repartirait de 1500, un
+  // joueur déjà crédité servirait d'adversaire avec son rating d'après —
+  // clôture reportée (contrôle de sécurité du 22/11/2026).
+  if (erreurRatings || erreurDejaCredites) {
+    console.error(`cloturerTournoi : ratings illisibles pour le tournoi ${tournamentId} — clôture reportée.`);
+    return false;
+  }
   const dejaCredites = new Map((dejaCreditesData ?? []).map((e) => [e.profile_id, e]));
 
   const etatDepart = new Map<string, EtatGlicko>();
@@ -320,9 +351,12 @@ export async function appliquerDecroissanceInactivite(): Promise<{
 
   const seuil = new Date(Date.now() - SEUIL_INACTIVITE_JOURS * 24 * 60 * 60 * 1000).toISOString();
 
+  // Saison en cours seulement : le classement final d'une saison archivée
+  // ne bouge plus (refusé aussi par la base, contre-contrôle du 22/11/2026).
   const { data: candidats } = await supabase
     .from("ratings")
-    .select("profile_id, game_id, season_id, rating, rd, volatilite")
+    .select("profile_id, game_id, season_id, rating, rd, volatilite, season:seasons!inner(est_courante)")
+    .eq("season.est_courante", true)
     .lt("maj_le", seuil)
     .lt("rd", RD_MAX);
 

@@ -22,9 +22,9 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 19&nbsp;novembre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 23&nbsp;novembre 2026.</p>
 
-      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text [&_strong]:font-medium [&_strong]:text-text">
+      <div className="mt-8 flex flex-col gap-8 text-courant text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>
           <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             Responsable du traitement
@@ -192,8 +192,9 @@ export default function ConfidentialitePage() {
               30&nbsp;jours. Visibles de toi seul&nbsp;; les couper efface ton réglage, supprimer ton compte efface aussi la liste.
             </li>
             <li>
-              <strong>Offre payante</strong>&nbsp;: si tu en souscris une, ton identifiant client et l&apos;état de ton
-              abonnement chez Stripe (jamais tes coordonnées bancaires).
+              <strong>Offre payante</strong>&nbsp;: dès que tu ouvres le paiement d&apos;une offre, le numéro de ta fiche
+              client chez Stripe, puis l&apos;état de ton abonnement si tu en souscris un (jamais tes coordonnées
+              bancaires).
             </li>
           </ul>
         </section>
@@ -280,10 +281,11 @@ export default function ConfidentialitePage() {
               pseudo, résultat), jamais ton e-mail ni tes données de compte.
             </li>
             <li>
-              <strong>Stripe</strong> — uniquement si tu souscris à un
-              palier payant&nbsp;: ton identifiant Najarena et ton e-mail lui sont transmis. Tes
-              coordonnées bancaires sont saisies directement chez Stripe et ne passent jamais
-              par Najarena.
+              <strong>Stripe</strong> — uniquement si tu ouvres le paiement d&apos;un palier payant,
+              même sans aller jusqu&apos;au bout&nbsp;: ton identifiant Najarena et ton e-mail sont
+              transmis à Stripe, qui en fait ta fiche client et la garde selon sa propre politique de
+              confidentialité. Tes coordonnées bancaires sont saisies directement chez Stripe et ne
+              passent jamais par Najarena.
             </li>
             {/* Cash prizes (audit N32) : seulement une fois activés. */}
             {cashPrizesActifs() && (
@@ -372,11 +374,12 @@ export default function ConfidentialitePage() {
               Modifier mon profil
             </Link>
             &nbsp;: tes données d&apos;identification (pseudo, e-mail, pays,
-            Discord, compte Riot) sont alors effacées&nbsp;; le journal public des
+            Discord, compte Riot) sont alors effacées, sauf l&apos;empreinte
+            décrite plus bas&nbsp;; le journal public des
             points et les résultats de matchs auxquels tu as participé
             restent conservés sous un pseudo anonyme, conformément au principe
-            de classement incontestable et permanent décrit dans les CGU, de
-            même que les messages déjà envoyés à d&apos;autres membres.
+            du registre public des points, qui ne se modifie jamais (voir les
+            CGU), de même que les messages déjà envoyés à d&apos;autres membres.
           </p>
           <ul className="mt-2 flex flex-col gap-1.5 text-muted">
             <li><strong>Visites de profil</strong>&nbsp;: jusqu&apos;à ce que tu passes en visites anonymes, ou jusqu&apos;à la suppression de ton compte.</li>
@@ -385,6 +388,8 @@ export default function ConfidentialitePage() {
             <li><strong>Abonnements aux notifications</strong>&nbsp;: jusqu&apos;à leur désactivation, ou dès que ton navigateur les révoque.</li>
             <li><strong>Tentatives de connexion échouées</strong> (adresse e-mail et adresse IP, protection contre les essais de mots de passe)&nbsp;: 24&nbsp;heures.</li>
             <li><strong>Demandes à l&apos;assistant de création de tournoi</strong>&nbsp;: la date de chaque demande seulement, 7&nbsp;jours (limite de 10&nbsp;demandes par jour).</li>
+            <li><strong>Niveau d&apos;un compte Riot retiré</strong> (compte délié, ou compte Najarena supprimé)&nbsp;: l&apos;empreinte du compte Riot (un code qui ne contient pas ton compte Riot et ne sert qu&apos;à le reconnaître s&apos;il est relié de nouveau) et son niveau de la saison en cours et de la précédente (meilleur et dernier rating, classé ou non), jusqu&apos;à la fin de la saison qui suit celle de ce niveau. Ce niveau s&apos;applique aux tournois par niveau et aux tournois réservés aux nouveaux si ce compte Riot est relié à un autre compte Najarena&nbsp;; il ne compte jamais au classement.</li>
+            <li><strong>Comptes Riot d&apos;un joueur suspendu</strong>&nbsp;: leur empreinte, tant que la suspension dure, pour qu&apos;ils ne servent pas sur un autre compte (même si le compte suspendu est supprimé)&nbsp;; elle est effacée à la levée de la suspension.</li>
             <li><strong>Vérification d&apos;une adresse d&apos;école</strong>&nbsp;: la demande en attente (domaine, empreinte de l&apos;adresse et du code) est effacée dès la vérification, ou au plus tard 24&nbsp;heures après l&apos;expiration du code&nbsp;; une fois vérifié, le domaine et l&apos;empreinte restent tant que tu es membre de l&apos;école.</li>
           </ul>
         </section>

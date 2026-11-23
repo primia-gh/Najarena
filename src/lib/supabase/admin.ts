@@ -1,3 +1,6 @@
+// Garde-fou (contrôle de sécurité du 21/11/2026, F3) : la compilation échoue si
+// un composant navigateur importe ce fichier par erreur.
+import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 

@@ -53,6 +53,11 @@ export async function construireBracket(
   // Dans l'ordre des seeds : joueurs[0] = seed 1.
   joueurs: string[],
   resoudreBye: (matchId: string, gagnantId: string) => Promise<void>,
+  // Appelé une fois les matchs et les joueurs écrits, avant de démarrer le
+  // tour 1 : passe le tournoi « en cours » (organisateur). La base refuse
+  // de démarrer un match avant (TOURNOI_PAS_LANCE, contre-contrôle du
+  // 22/11/2026). Faux : rien ne démarre.
+  avantDemarrage?: () => Promise<boolean>,
 ): Promise<{ ok: boolean }> {
   const nbTours = Math.log2(capacite);
 
@@ -96,6 +101,10 @@ export async function construireBracket(
       profile_id: joueurs[numeroSeed - 1],
       slot,
     });
+  }
+
+  if (avantDemarrage && !(await avantDemarrage())) {
+    return { ok: false };
   }
 
   // Un match du tour 1 dont les deux places sont occupées par de vrais

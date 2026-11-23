@@ -17,11 +17,16 @@ const LABEL_BRACKET: Record<string, string> = {
 
 export async function chargerComplementsTournoi(tournoiId: string) {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("tournaments")
-    .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, classe, reserve_non_classes")
-    .eq("id", tournoiId)
-    .maybeSingle();
+  const [{ data }, { data: lancementReel }] = await Promise.all([
+    supabase
+      .from("tournaments")
+      .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, classe, reserve_non_classes")
+      .eq("id", tournoiId)
+      .maybeSingle(),
+    // Lancement réel : passage « en cours », premier match démarré ou
+    // premier verdict, le plus tôt (même calcul que criteres_tournoi_classe).
+    supabase.rpc("lancement_reel_tournoi", { p_tournament_id: tournoiId }),
+  ]);
 
   const min = data?.rating_min ?? null;
   const max = data?.rating_max ?? null;
@@ -39,6 +44,9 @@ export async function chargerComplementsTournoi(tournoiId: string) {
     // Tournoi classé (audit N12) : date de publication et décision figée
     // à la clôture (lib/tournoi-classe.ts).
     publieLe: data?.publie_le ?? null,
+    // Lancement réel (22/11/2026) : la règle des 24 h compte jusqu'à lui
+    // s'il a eu lieu avant la date annoncée.
+    lanceLe: lancementReel ?? null,
     classe: data?.classe ?? null,
   };
 }

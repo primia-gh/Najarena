@@ -1,4 +1,5 @@
 import Image from "next/image";
+import EtiquetteExemple from "@/components/vitrine/EtiquetteExemple";
 import Panneau from "@/components/design/Panneau";
 
 // Visuels des deux portes « Équipes » / « Recruteurs » de l'accueil. La
@@ -56,30 +57,35 @@ export function IllustrationRecherche() {
   return (
     <Panneau
       reperes
-      className="flex h-[clamp(260px,29vw,420px)] items-center justify-center overflow-hidden px-6"
+      className="relative flex h-[clamp(260px,29vw,420px)] items-center justify-center overflow-hidden px-6"
     >
-      <div aria-hidden="true" className="flex w-full max-w-[460px] flex-col gap-4">
-        <div className="flex flex-wrap gap-2">
-          {["Rating ≥ 1800", "Classé", "Mid"].map((f) => (
-            <span
-              key={f}
-              className="rounded-bouton border border-line-strong px-2.5 py-1 text-mini whitespace-nowrap text-text-2 uppercase"
-            >
-              {f}
-            </span>
-          ))}
-        </div>
-        <ul className="flex flex-col">
-          {RESULTATS.map((r) => (
-            <li key={r.rating} className="flex items-center gap-3 border-b border-[rgba(245,245,244,0.06)] py-3 last:border-b-0">
-              <Image src={r.avatar} alt="" width={34} height={34} unoptimized className="rounded-avatar" />
-              <span className="h-0.5 flex-1 bg-[rgba(245,245,244,0.1)]">
-                <span className="block h-0.5 bg-accent" style={{ width: r.largeur }} />
+      {/* Chiffres fictifs : étiquetés (revue design du 21/11/2026), dans le
+          flux pour ne jamais chevaucher les filtres sur un petit écran. */}
+      <div className="flex w-full max-w-[460px] flex-col gap-3">
+        <EtiquetteExemple className="self-start" />
+        <div aria-hidden="true" className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            {["Rating ≥ 1800", "Classé", "Mid"].map((f) => (
+              <span
+                key={f}
+                className="rounded-bouton border border-line-strong px-2.5 py-1 text-mini whitespace-nowrap text-text-2 uppercase"
+              >
+                {f}
               </span>
-              <span className="w-12 text-right text-sm font-semibold tabular-nums">{r.rating}</span>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+          <ul className="flex flex-col">
+            {RESULTATS.map((r) => (
+              <li key={r.rating} className="flex items-center gap-3 border-b border-[rgba(245,245,244,0.06)] py-2.5 last:border-b-0 md:py-3">
+                <Image src={r.avatar} alt="" width={34} height={34} unoptimized className="rounded-avatar" />
+                <span className="h-0.5 flex-1 bg-[rgba(245,245,244,0.1)]">
+                  <span className="block h-0.5 bg-accent" style={{ width: r.largeur }} />
+                </span>
+                <span className="w-12 text-right text-sm font-semibold tabular-nums">{r.rating}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </Panneau>
   );

@@ -101,11 +101,13 @@ interface Options {
   classe?: boolean;
   /** La base ne répond pas à figer_classement_tournoi. */
   erreurClassement?: boolean;
+  /** Tables dont la lecture échoue (contrôle de sécurité du 22/11/2026). */
+  lecturesEnEchec?: string[];
 }
 
 const TOUS = ["u1", "u2", "u3", "u4"];
-const verdict = (niveau: string, gagnant: string, cree_le: string) => [
-  { niveau, gagnant_id: gagnant, cree_le, est_definitif: true },
+const verdict = (niveau: string, gagnant: string, cree_le: string, niveau_compte_min: number | null = null) => [
+  { niveau, gagnant_id: gagnant, cree_le, est_definitif: true, niveau_compte_min },
 ];
 const matchsNormaux = [
   { id: "m1", statut: "termine", match_participants: [{ profile_id: "u1" }, { profile_id: "u2" }], verdict: verdict("historique", "u1", "2026-09-19T10:00:00Z") },
@@ -115,6 +117,9 @@ const matchsNormaux = [
 
 function installer(o: Options = {}, avecAdmin = true) {
   const repondre: Repondeur = (a) => {
+    if (a.op === "select" && (o.lecturesEnEchec ?? []).includes(a.table)) {
+      return { data: null, error: { message: "boum" } };
+    }
     if (a.table === "tournaments" && a.op === "select") {
       return ok({ id: "T1", game_id: 1, season_id: "S1", statut: "en_cours", compte_pour_classement: true, ...o.tournoi });
     }
@@ -252,6 +257,23 @@ describe("cloturerTournoi", () => {
     expect(rpcs.every((r) => r.params.p_season_id === "SCOURANTE")).toBe(true);
   });
 
+  it("tournoi clos après le changement de saison : points dans la saison en cours, saison du tournoi inchangée", async () => {
+    installer({ tournoi: { season_id: "S1" }, saisonCourante: "S2" });
+    await cloturerTournoi("T1");
+
+    expect(rpcs).toHaveLength(4);
+    expect(rpcs.every((r) => r.params.p_season_id === "S2")).toBe(true);
+    expect(journalAdmin.some((a) => a.op === "update" && a.valeurs?.season_id !== undefined)).toBe(false);
+  });
+
+  it("sans saison courante, un tournoi d'une saison passée est clôturé sans écrire de points", async () => {
+    installer({ tournoi: { season_id: "S1" }, saisonCourante: null });
+    await cloturerTournoi("T1");
+
+    expect(misesAJourStatut(journalAdmin)).toHaveLength(1);
+    expect(rpcs).toHaveLength(0);
+  });
+
   it("sans saison courante ni season_id : tournoi clôturé, aucun rating écrit", async () => {
     installer({ tournoi: { season_id: null }, saisonCourante: null });
     await cloturerTournoi("T1");
@@ -269,7 +291,7 @@ describe("cloturerTournoi", () => {
       expect(r.nom).toBe("cloturer_rating_joueur");
       expect(r.params).toMatchObject({
         p_game_id: 1,
-        p_season_id: "S1",
+        p_season_id: "SCOURANTE",
         p_tournament_id: "T1",
         p_rating_avant: 1500,
         p_rd_avant: 350,
@@ -317,6 +339,38 @@ describe("cloturerTournoi", () => {
       expect(Number(rpcDe(j).p_rating_apres)).toBe(1500);
     }
   });
+
+  it("compte Riot sous le niveau 30 : match vérifié mais sans points", async () => {
+    installer({
+      matchs: [
+        { id: "m1", statut: "termine", match_participants: [{ profile_id: "u1" }, { profile_id: "u2" }], verdict: verdict("historique", "u1", "2026-09-19T10:00:00Z", 12) },
+        { id: "m2", statut: "termine", match_participants: [{ profile_id: "u3" }, { profile_id: "u4" }], verdict: verdict("historique", "u3", "2026-09-19T10:05:00Z", 29) },
+      ],
+    });
+    await cloturerTournoi("T1");
+    for (const j of TOUS) expect(rpcDe(j).p_matchs_comptes).toBe(0);
+  });
+
+  it("compte Riot au niveau 30, ou verdict sans niveau (avant la règle) : le match compte", async () => {
+    installer({
+      matchs: [
+        { id: "m1", statut: "termine", match_participants: [{ profile_id: "u1" }, { profile_id: "u2" }], verdict: verdict("historique", "u1", "2026-09-19T10:00:00Z", 30) },
+        { id: "m2", statut: "termine", match_participants: [{ profile_id: "u3" }, { profile_id: "u4" }], verdict: verdict("historique", "u3", "2026-09-19T10:05:00Z", null) },
+      ],
+    });
+    await cloturerTournoi("T1");
+    for (const j of TOUS) expect(rpcDe(j).p_matchs_comptes).toBe(1);
+  });
+
+  for (const table of ["seasons", "matches", "match_verdicts", "ratings", "rating_events"]) {
+    it(`lecture ratée (${table}) : clôture reportée, jamais « terminé » sans points`, async () => {
+      installer({ lecturesEnEchec: [table] });
+      expect(await cloturerTournoi("T1")).toBe(false);
+      expect(misesAJourStatut(journalAdmin)).toHaveLength(0);
+      expect(misesAJourStatut(journalSession)).toHaveLength(0);
+      expect(rpcs).toHaveLength(0);
+    });
+  }
 
   it("plafond anti-abus : au-delà de 3 victoires récentes contre le même adversaire, la victoire est ignorée", async () => {
     installer({ victoiresRecentes: 3 });

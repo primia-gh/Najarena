@@ -17,7 +17,7 @@ import { envoyerRappel, notifierDiscord, notifierJoueur, URL_SITE } from "@/lib/
 import { boutonCheckin, boutonPret } from "@/lib/suites-joueur";
 import { configAncrage, deposerEmpreinte } from "@/lib/ancrage-github";
 import { annoncerPremierSuisse, matchsOuverts } from "@/lib/apres-verdict";
-import { cloturerTournoi } from "@/lib/classement-actions";
+import { appliquerRotationSaisons, cloturerTournoi } from "@/lib/classement-actions";
 import { verifierCleRiot } from "@/lib/riot";
 import {
   capaciteEffective,
@@ -83,6 +83,19 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     }
   }
 
+  // Changement de saison tenté à chaque passage (contre-contrôle du
+  // 22/11/2026) : il ne fait rien tant qu'aucune saison n'est due, et les
+  // clôtures refusées pendant la bascule (SAISON_EN_BASCULE) reprennent
+  // juste après, au lieu d'attendre la tâche quotidienne de Vercel.
+  try {
+    const rotation = await appliquerRotationSaisons();
+    if (rotation.saisonsActivees > 0) {
+      resultats.push(`nouvelle saison activée (${rotation.joueursTraites} joueurs remis à niveau)`);
+    }
+  } catch (erreur) {
+    resultats.push(`changement de saison : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
   try {
     resultats.push(...(await reprendreCloturesEnAttente(admin)));
   } catch (erreur) {
@@ -93,6 +106,29 @@ export async function executerTournoisAuto(simulation: boolean): Promise<BilanTo
     resultats.push(...(await surveillerCleRiot(admin, tournois, maintenant)));
   } catch (erreur) {
     resultats.push(`contrôle de la clé Riot : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
+  }
+
+  // Vérification du registre gardée pour la page /registre (contrôle de
+  // sécurité M7 du 22/11/2026) : nouvelles lignes à chaque passage, toute la
+  // chaîne une fois par 24 h. La page ne recalcule plus rien.
+  try {
+    let { data: verification, error } = await admin.rpc("garder_verification_registre").maybeSingle();
+    if (error) {
+      // Relecture complète en échec (temps dépassé quand le registre sera
+      // très grand) : au moins les nouvelles lignes.
+      resultats.push(`registre : relecture complète en échec (${error.message}), nouvelles lignes seulement`);
+      ({ data: verification, error } = await admin
+        .rpc("garder_verification_registre", { p_complete_permise: false })
+        .maybeSingle());
+    }
+    if (error) throw new Error(error.message);
+    if (verification?.premiere_rupture != null) {
+      resultats.push(`registre : RUPTURE à la ligne ${verification.premiere_rupture}`);
+    } else if (verification?.complete) {
+      resultats.push(`registre : chaîne complète vérifiée (${verification.lignes} lignes)`);
+    }
+  } catch (erreur) {
+    resultats.push(`vérification du registre : échec (${erreur instanceof Error ? erreur.message : "erreur inconnue"})`);
   }
 
   try {

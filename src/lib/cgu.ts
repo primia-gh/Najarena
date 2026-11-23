@@ -7,9 +7,10 @@
 // cash prizes (CASH_PRIZES_ACTIFS) ajoute un paragraphe aux CGU : changer
 // alors cette version. 19/11/2026 : suppression du compte en libre-service,
 // renvoi aux conditions générales de vente des offres payantes, tournois
-// par niveau.
-export const VERSION_CGU = "2026-11-19";
-export const DATE_CGU_LISIBLE = "19 novembre 2026";
+// par niveau. 22/11/2026 : le niveau d'accès aux tournois suit le compte
+// Riot, comptes Riot d'un joueur suspendu bloqués.
+export const VERSION_CGU = "2026-11-22";
+export const DATE_CGU_LISIBLE = "22 novembre 2026";
 
 // Connexion via Discord : le consentement coché avant de partir chez
 // Discord est gardé le temps de l'aller-retour (10 minutes au plus), puis

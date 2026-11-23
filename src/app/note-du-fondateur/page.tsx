@@ -31,14 +31,15 @@ export default function NoteDuFondateurPage() {
             </p>
             <p className="text-text-2">
               Najarena part d&apos;une seule règle : un résultat n&apos;est vrai que s&apos;il peut être
-              vérifié dans la donnée du jeu lui-même. Pas déclaré. Pas arbitré à l&apos;amiable. Vérifié.
-              C&apos;est plus lent à construire que de simplement laisser les joueurs entrer un score — mais
-              c&apos;est la seule version qui donne un classement en lequel on peut vraiment croire.
+              vérifié dans la donnée du jeu lui-même. Pas déclaré par les joueurs. Vérifié. Et quand la
+              donnée ne suffit pas, la décision prise à la main est affichée comme telle, avec son motif,
+              et ne compte jamais au classement. C&apos;est plus lent à construire que de simplement
+              laisser les joueurs entrer un score — mais c&apos;est la seule version qui donne un
+              classement en lequel on peut vraiment croire.
             </p>
             <p className="text-text-2">
-              Le site est encore jeune. Il n&apos;a pas encore accueilli de vrai tournoi public. Mais tout ce
-              qui y est construit l&apos;est déjà avec cette contrainte en tête, dès la première ligne de code
-              — pas ajoutée après coup.
+              Le site est encore jeune. Mais tout ce qui y est construit l&apos;est avec cette contrainte
+              en tête, dès la première ligne de code — pas ajoutée après coup.
             </p>
           </div>
 

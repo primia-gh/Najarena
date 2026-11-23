@@ -20,9 +20,15 @@ select verifie('Texte public : mot « modo » accepté hors nom', public.analyse
 
 set role anon;
 select essai('Visiteur : lit la liste des termes', $q$select 1 from moderation_termes$q$, 'bloque');
-select essai('Visiteur : vérifie un pseudo avant de s''inscrire',
-  $q$select 1 where not public.texte_acceptable('Najarena_Admin')$q$, 'passe');
+-- Depuis le 22/11/2026 (F4), le pseudo est vérifié par le serveur avant
+-- l'inscription : un visiteur ne teste plus un mot contre la liste.
+select essai('Visiteur : teste un mot contre la liste',
+  $q$select public.texte_acceptable('Najarena_Admin')$q$, 'bloque');
 select essai('Visiteur : appelle directement l''analyse', $q$select public.analyser_texte('x', 'nom')$q$, 'bloque');
+reset role;
+set role service_role;
+select essai('Serveur : vérifie un pseudo avant l''inscription',
+  $q$select 1 where not public.texte_acceptable('Najarena_Admin')$q$, 'passe');
 reset role;
 
 -- Pseudos : remplacé à l'inscription, refusé à la modification.

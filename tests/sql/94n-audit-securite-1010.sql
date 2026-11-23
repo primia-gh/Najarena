@@ -146,14 +146,14 @@ select verifie('Le compte Riot de Kim est toujours lié', exists (select 1 from 
 
 \echo '===== M5 / M6 / M7 — Création de tournoi ====='
 insert into seasons (game_id, numero, nom, debut_le, fin_le, est_courante)
-values (1, 90, 'Saison archivée 9410', now() - interval '200 days', now() - interval '100 days', false);
+values (1, -90, 'Saison archivée 9410', now() - interval '200 days', now() - interval '100 days', false);
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000001a0');
 select refus('Hugo crée un tournoi dont la région est un lien',
   $q$insert into tournaments (game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut) values (1, '00000000-0000-0000-0000-0000000001a0', 'region-9410', 'Région 9410', '1v1', 8, '[Nitro](https://arnaque.example)', now() + interval '3 days', now() + interval '3 days', 'brouillon')$q$,
   'new row for relation "tournaments" violates check constraint "tournaments_region_check"');
 select essai('Hugo crée un tournoi rattaché à une saison archivée',
-  $q$insert into tournaments (game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut) values (1, (select id from seasons where numero = 90), '00000000-0000-0000-0000-0000000001a0', 'saison-9410', 'Saison 9410', '1v1', 8, 'EUW', now() + interval '3 days', now() + interval '3 days', 'brouillon')$q$, 'passe');
+  $q$insert into tournaments (game_id, season_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut) values (1, (select id from seasons where numero = -90), '00000000-0000-0000-0000-0000000001a0', 'saison-9410', 'Saison 9410', '1v1', 8, 'EUW', now() + interval '3 days', now() + interval '3 days', 'brouillon')$q$, 'passe');
 reset role;
 select verifie('Le tournoi est rattaché à la saison courante, pas à l''archive',
   (select season_id = (select id from seasons where est_courante) from tournaments where slug = 'saison-9410'));

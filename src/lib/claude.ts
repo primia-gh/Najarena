@@ -11,6 +11,9 @@
 //   (fallbacks « default ») ;
 // - aucune décision : ces textes aident un humain, ils ne tranchent rien.
 
+// Garde-fou (contrôle de sécurité du 21/11/2026, F3) : la compilation échoue si
+// un composant navigateur importe ce fichier par erreur.
+import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 
 export const MODELE_IA = "claude-opus-5-5";

@@ -47,3 +47,27 @@ export function offreDepuisPrix(
   );
   return trouvee ? trouvee[0] : null;
 }
+
+/**
+ * Compte Najarena servi par un abonnement (contrôle de sécurité du
+ * 22/11/2026) : seulement l'étiquette `profile_id` que notre serveur pose
+ * sur l'abonnement à sa création (`demarrerAbonnement`), la même qui sert
+ * à retirer l'offre à la résiliation. Un abonnement créé hors du site (lien
+ * de paiement, grille de tarifs du tableau de bord Stripe) n'en a pas : il
+ * n'accorde rien, sinon sa résiliation ne retirerait jamais l'offre. La
+ * référence de la session de paiement, si elle est donnée, doit désigner
+ * le même compte.
+ */
+export function joueurDeLAbonnement(
+  profileIdAbonnement: string | null | undefined,
+  referenceSession?: string | null,
+): string | null {
+  if (!profileIdAbonnement) return null;
+  if (referenceSession && referenceSession !== profileIdAbonnement) return null;
+  return profileIdAbonnement;
+}
+
+/** Un abonnement qui compte encore (il n'a pas pris fin) : un nouveau serait un doublon. */
+export function abonnementEnVie(statut: string): boolean {
+  return statut !== "canceled" && statut !== "incomplete_expired";
+}

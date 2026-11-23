@@ -1188,6 +1188,33 @@ export type Database = {
           },
         ]
       }
+      verification_registre: {
+        Row: {
+          derniere_empreinte: string | null
+          id: number
+          lignes: number
+          premiere_rupture: number | null
+          verification_complete_le: string | null
+          verifie_le: string | null
+        }
+        Insert: {
+          derniere_empreinte?: string | null
+          id?: number
+          lignes?: number
+          premiere_rupture?: number | null
+          verification_complete_le?: string | null
+          verifie_le?: string | null
+        }
+        Update: {
+          derniere_empreinte?: string | null
+          id?: number
+          lignes?: number
+          premiere_rupture?: number | null
+          verification_complete_le?: string | null
+          verifie_le?: string | null
+        }
+        Relationships: []
+      }
       versements_dotation: {
         Row: {
           a_verifier: boolean
@@ -1985,6 +2012,7 @@ export type Database = {
           match_id: string
           motif: string | null
           niveau: Database["public"]["Enums"]["verdict_level"]
+          niveau_compte_min: number | null
           riot_match_id: string | null
         }
         Insert: {
@@ -1996,6 +2024,7 @@ export type Database = {
           match_id: string
           motif?: string | null
           niveau: Database["public"]["Enums"]["verdict_level"]
+          niveau_compte_min?: number | null
           riot_match_id?: string | null
         }
         Update: {
@@ -2007,6 +2036,7 @@ export type Database = {
           match_id?: string
           motif?: string | null
           niveau?: Database["public"]["Enums"]["verdict_level"]
+          niveau_compte_min?: number | null
           riot_match_id?: string | null
         }
         Relationships: [
@@ -3044,6 +3074,7 @@ export type Database = {
           format: string
           game_id: number
           id: string
+          lance_le: string | null
           logo_url: string | null
           nature: string
           nom: string
@@ -3077,6 +3108,7 @@ export type Database = {
           format: string
           game_id: number
           id?: string
+          lance_le?: string | null
           logo_url?: string | null
           nature?: string
           nom: string
@@ -3110,6 +3142,7 @@ export type Database = {
           format?: string
           game_id?: number
           id?: string
+          lance_le?: string | null
           logo_url?: string | null
           nature?: string
           nom?: string
@@ -3636,9 +3669,17 @@ export type Database = {
           region: string
         }[]
       }
+      lancement_reel_tournoi: {
+        Args: { p_tournament_id: string }
+        Returns: string | null
+      }
       mon_niveau_tournoi: {
         Args: Record<PropertyKey, never>
         Returns: { actuel: number; meilleur: number; a_joue: boolean }[]
+      }
+      mon_statut_non_classe: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       face_a_face: {
         Args: { p_a: string; p_b: string }
@@ -3808,6 +3849,7 @@ export type Database = {
         Args: {
           p_gagnant_id: string
           p_match_id: string
+          p_niveau_compte_min?: number | null
           p_riot_match_id: string
         }
         Returns: boolean
@@ -3914,6 +3956,10 @@ export type Database = {
       s_inscrire_tournoi: { Args: { p_tournament_id: string }; Returns: string }
       se_desinscrire: { Args: { p_tournament_id: string }; Returns: boolean }
       supprimer_mon_compte: { Args: never; Returns: string }
+      garder_verification_registre: {
+        Args: { p_complete_permise?: boolean }
+        Returns: { complete: boolean; lignes: number; premiere_rupture: number | null }[]
+      }
       verifier_registre: {
         Args: never
         Returns: { derniere_empreinte: string | null; lignes: number; premiere_rupture: number | null }[]

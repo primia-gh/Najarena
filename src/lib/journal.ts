@@ -10,6 +10,27 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "22 novembre",
+    titre: "Un compte tout neuf ne rapporte plus de points",
+    texte:
+      "Un match 1v1 ne compte plus au classement si l'un des deux comptes Riot est sous le niveau 30, celui que Riot exige pour ses parties classées : un compte créé pour l'occasion ne rapporte rien. Le niveau est lu dans la partie retrouvée chez Riot ; le résultat reste vérifié et affiché. Un seul duel classé par jour entre deux mêmes joueurs, et 5 au plus par jour pour chacun (défis, arène, divisions) : les suivants se jouent en amical.",
+    tags: ["Fiabilité"],
+  },
+  {
+    date: "22 novembre",
+    titre: "Ton niveau suit ton compte Riot",
+    texte:
+      "Supprimer son compte Najarena, ou délier son compte Riot pour le relier ailleurs, ne fait plus repartir « débutant » : le niveau de ce compte Riot le suit pour les tournois par niveau et les tournois réservés aux nouveaux (jamais pour le classement). Le compte Riot d'un joueur suspendu ne peut être relié nulle part tant que la suspension dure.",
+    tags: ["Fiabilité"],
+  },
+  {
+    date: "22 novembre",
+    titre: "Classement et registre : trois corrections",
+    texte:
+      "Un tournoi lancé avant son heure doit avoir été publié 24 h avant ce lancement pour compter au classement. Un tournoi terminé après le changement de saison donne ses points à la nouvelle saison : le classement final de l'ancienne ne bouge plus. Le registre des points est vérifié par la base toutes les 5 minutes, et en entier chaque jour.",
+    tags: ["Fiabilité"],
+  },
+  {
     date: "21 novembre",
     titre: "Ton match sur ton stream",
     texte:
@@ -293,7 +314,7 @@ export const JOURNAL: EntreeJournal[] = [
     date: "13 septembre",
     titre: "Design system documenté",
     texte:
-      "Boutons, badges, états de chargement — tous les composants réutilisables du site sont maintenant catalogués, avec leurs règles de contraste vérifiées.",
+      "Boutons, badges, états de chargement : tous les éléments réutilisables du site suivent les mêmes règles, avec un contraste vérifié pour rester lisibles.",
     tags: ["Accessibilité"],
   },
   {

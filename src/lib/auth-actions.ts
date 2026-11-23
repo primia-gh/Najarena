@@ -9,7 +9,6 @@ import { estPseudoAutomatique, MESSAGE_PSEUDO_INVALIDE, PSEUDO_REGEX } from "@/l
 import { COOKIE_CONSENTEMENT, VERSION_CGU } from "@/lib/cgu";
 import { cookies, headers } from "next/headers";
 import { destinationInterne } from "@/lib/redirection";
-import { messageModeration } from "@/lib/moderation";
 import { jetonCaptcha } from "@/lib/captcha";
 
 // 8 caractères au moins (audit du 27/09/2026, F1 : Supabase en accepte 6
@@ -159,13 +158,6 @@ export async function sInscrire(formData: FormData) {
 
   const supabase = await createClient();
 
-  // Modération (audit N27) : un pseudo refusé serait remplacé en silence par
-  // un pseudo automatique à la création du compte — on le dit avant.
-  const { data: acceptable } = await supabase.rpc("texte_acceptable", { p_texte: pseudo });
-  if (acceptable === false) {
-    redirect(avecSuite(`/inscription?erreur=${encodeURIComponent(messageModeration("PSEUDO_INTERDIT") ?? "")}`, suite));
-  }
-
   // Pseudo déjà pris (majuscules près), ou ancienne adresse d'un joueur qui
   // a changé de pseudo (elle redirige vers son CV et ne se reprend pas).
   // La base refuse aussi ces cas, mais sans message lisible.
@@ -196,6 +188,14 @@ export async function sInscrire(formData: FormData) {
   if (error) {
     redirect(avecSuite(`/inscription?erreur=${encodeURIComponent(traduireErreurAuth(error.message))}`, suite));
   }
+
+  // Modération (audit N27) : un pseudo refusé est remplacé par la base par
+  // un pseudo automatique à la création du compte. Rien n'est dit ici
+  // (contrôle de sécurité du 22/11/2026, suite de F4) : un contrôle avant la
+  // création laissait un script deviner, sans compte ni CAPTCHA, la liste
+  // cachée des termes modérés, et un message après coup révélait si une
+  // adresse e-mail avait déjà un compte. Le joueur l'apprend à sa première
+  // connexion, dans son tableau de bord (/moi).
 
   if (!data.session) {
     redirect(

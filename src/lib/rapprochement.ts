@@ -41,6 +41,7 @@ import {
   type PartieSerie,
   type StatutRecherche,
 } from "@/lib/serie";
+import { niveauMinimumSerie } from "@/lib/niveau-compte-riot";
 
 interface PartieTrouvee extends PartieSerie {
   // Stats des deux participants et durée — déjà présentes dans la réponse
@@ -215,6 +216,12 @@ async function enregistrerSerie(
     p_gagnant_id: gagnantId,
     // Toutes les manches de la série, dans l'ordre (une seule en Bo1).
     p_riot_match_id: serie.parties.map((p) => p.riotMatchId).join(","),
+    // 1v1 : plus bas niveau Riot des deux comptes sur la série, lu dans les
+    // parties déjà récupérées (sous 30, le match ne compte pas au
+    // classement, src/lib/niveau-compte-riot.ts). Le 5v5 n'est pas classé.
+    p_niveau_compte_min: equipes
+      ? null
+      : niveauMinimumSerie(serie.parties.flatMap((p) => [p.participantA.summonerLevel, p.participantB.summonerLevel])),
   });
   if (!ecrit) return false;
 

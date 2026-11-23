@@ -22,7 +22,7 @@ export default function MentionsLegalesPage() {
         Mentions légales
       </h1>
 
-      <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-text">
+      <div className="mt-8 flex flex-col gap-8 text-courant text-text">
         <section>
           <h2 className="font-titre uppercase text-lg font-extrabold tracking-tight text-text">
             Éditeur du site

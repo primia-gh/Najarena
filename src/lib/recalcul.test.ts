@@ -67,6 +67,26 @@ describe("recalculer", () => {
     expect(recalculer(d)[1].detail).toBe("0 match compté");
   });
 
+  it("ignore un match dont un compte Riot était sous le niveau 30, comme la clôture", () => {
+    const d = historique();
+    d.matchs = d.matchs.map((m) => (m.id === "m3" ? { ...m, verdict: { ...m.verdict!, niveau_compte_min: 12 } } : m));
+    expect(recalculer(d)[1].detail).toBe("0 match compté");
+
+    const d30 = historique();
+    d30.matchs = d30.matchs.map((m) => (m.id === "m3" ? { ...m, verdict: { ...m.verdict!, niveau_compte_min: 30 } } : m));
+    expect(recalculer(d30).map((l) => l.etat)).toEqual(["concorde", "concorde"]);
+  });
+
+  it("un match sous le niveau 30 compte quand même dans le plafond des 3 victoires (comme la clôture)", () => {
+    const d = historique();
+    d.matchs.push(
+      { ...match("p1", "X", "d", MOI, "2026-10-02T10:00:00Z"), verdict: { niveau: "historique", gagnant_id: MOI, cree_le: "2026-10-02T10:00:00Z", niveau_compte_min: 5 } },
+      match("p2", "X", "d", MOI, "2026-10-02T12:00:00Z"),
+      match("p3", "X", "d", MOI, "2026-10-02T14:00:00Z"),
+    );
+    expect(recalculer(d)[1].detail).toBe("0 match compté");
+  });
+
   it("une correction ou un tournoi non précisé ne sont pas recalculables, sans fausse alerte", () => {
     const d = historique();
     d.lignes.push({ numero: 12, motif: "correction", tournament_id: null, rating_avant: 1, rd_avant: 1, rating_apres: 2, rd_apres: 2 });

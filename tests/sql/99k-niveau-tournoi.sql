@@ -63,6 +63,8 @@ select refus('Bea, passée au-dessus du niveau, ne confirme pas sa présence',
 select essai('Ana confirme',
   $q$update registrations set statut = 'confirme' where tournament_id = '9b0b0000-0000-0000-0000-0000000000a1' and profile_id = '9b0b0000-0000-0000-0000-000000000002'$q$,
   'passe');
+-- « Absent » seulement une fois le check-in ouvert (22/11/2026).
+update tournaments set checkin_ouvre_le = now() - interval '1 minute' where id = '9b0b0000-0000-0000-0000-0000000000a1';
 select essai('Bea peut être déclarée absente (le niveau ne bloque que l''entrée)',
   $q$update registrations set statut = 'absent' where tournament_id = '9b0b0000-0000-0000-0000-0000000000a1' and profile_id = '9b0b0000-0000-0000-0000-000000000003'$q$,
   'passe');

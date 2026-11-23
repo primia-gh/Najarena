@@ -49,7 +49,7 @@ export default function Footer() {
             </ul>
           </nav>
         </div>
-        <p className="max-w-[900px] text-xs leading-[1.6] text-faint">
+        <p className="max-w-[900px] text-[13px] leading-[1.6] text-faint">
           League of Legends et Riot Games sont des marques déposées de Riot Games, Inc. Najarena
           n&apos;est ni produit, ni approuvé, ni sponsorisé par Riot Games.
         </p>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import { typographie } from "@/lib/typographie";
 import { JOURNAL } from "@/lib/journal";
 
 export const metadata: Metadata = {
@@ -40,7 +41,7 @@ export default function JournalPage() {
                 <div className="pt-0.5 font-texte tabular-nums text-[0.72rem] text-muted">{entree.date}</div>
                 <div>
                   <h2 className="font-titre uppercase text-base font-extrabold text-text">{entree.titre}</h2>
-                  <p className="mt-1.5 text-sm text-muted">{entree.texte}</p>
+                  <p className="mt-1.5 text-sm text-muted">{typographie(entree.texte)}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {entree.tags.map((tag) => (
                       <span

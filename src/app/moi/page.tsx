@@ -44,11 +44,11 @@ function debutDemandesDuo(): string {
 }
 
 interface MoiPageProps {
-  searchParams: Promise<{ message?: string; erreur?: string; bloc?: string }>;
+  searchParams: Promise<{ message?: string; erreur?: string; bloc?: string; avertissement?: string }>;
 }
 
 export default async function MoiPage({ searchParams }: MoiPageProps) {
-  const { message, erreur, bloc } = await searchParams;
+  const { message, erreur, bloc, avertissement } = await searchParams;
   // Retour d'une action du bloc « Tournois pour toi » : affiché dans le bloc.
   const retourAlertes = bloc === "alertes";
 
@@ -142,6 +142,16 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
   ]);
   const matchsEnCours = (matchsEnCoursData ?? []).filter((p) => p.match?.tournament);
 
+  // Pseudo choisi à l'inscription puis refusé par la modération : la base
+  // l'a remplacé par un pseudo automatique (rien n'est dit à l'inscription,
+  // contrôle de sécurité du 22/11/2026). Seul le joueur connecté le lit.
+  const pseudoDemande = utilisateur.user_metadata?.pseudo;
+  const pseudoInscriptionRefuse =
+    Boolean(profil && estPseudoAutomatique(profil.pseudo)) &&
+    typeof pseudoDemande === "string" &&
+    pseudoDemande.trim() !== "" &&
+    !estPseudoAutomatique(pseudoDemande.trim());
+
   // Les duels (défis) ont leur propre section, les scrims sont sur la page
   // de l'équipe (audit N22).
   const inscriptions = (inscriptionsData ?? []).filter((i) => i.tournament?.nature === "tournoi");
@@ -198,10 +208,11 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille">
-        {!retourAlertes && (erreur || message) && (
+        {!retourAlertes && (erreur || message || avertissement) && (
           <div className="flex max-w-2xl flex-col gap-3">
             {erreur && <Alerte type="erreur">{erreur}</Alerte>}
             {message && <Alerte type="succes">{message}</Alerte>}
+            {avertissement && <Alerte type="info">{avertissement}</Alerte>}
           </div>
         )}
 
@@ -224,6 +235,8 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
             <span className="flex min-w-0 flex-col gap-1.5">
               <span className="font-texte text-mini font-semibold text-text uppercase">Choisis ton pseudo</span>
               <span className="text-sm text-text-2">
+                {pseudoInscriptionRefuse &&
+                  "Le pseudo demandé à l'inscription a été refusé par la modération (terme interdit ou nom pouvant passer pour un compte officiel) : choisis-en un autre. "}
                 « {profil.pseudo} » est un pseudo automatique : c&apos;est lui qui s&apos;affiche sur ton CV et dans les
                 brackets.
               </span>
@@ -320,7 +333,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               <Icone nom="crayon" taille={15} />
               Modifier mon profil
             </Link>
-            {abonnement && (
+            {abonnement?.statut && (
               <form action={ouvrirPortailAbonnement}>
                 {/* « Résilier » écrit en toutes lettres (résiliation en ligne
                     obligatoire, Code de la consommation L215-1-1 ; audit E11). */}

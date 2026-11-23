@@ -103,12 +103,20 @@ export async function marquerAbsent(formData: FormData) {
   const supabase = await createClient();
   await verifierOrganisateur(supabase, tournamentId);
 
-  await supabase
+  const { error } = await supabase
     .from("registrations")
     .update({ statut: "absent" })
     .eq("id", registrationId)
     .eq("tournament_id", tournamentId)
     .neq("statut", "retire");
+
+  if (error?.message.includes("CHECKIN_PAS_OUVERT")) {
+    redirect(
+      `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
+        "Le check-in n'est pas encore ouvert : ce joueur n'a pas pu confirmer sa présence. Tu pourras le marquer absent une fois le check-in ouvert.",
+      )}#retour`,
+    );
+  }
 
   redirect(`/moi/organisation/${tournamentId}`);
 }
@@ -289,17 +297,26 @@ export async function genererBracket(formData: FormData) {
       });
       if (error) exemptionsRefusees += 1;
     },
+    // Le tournoi passe « en cours » avant le premier match (la base note
+    // l'heure du lancement et refuse un match démarré avant).
+    async () => {
+      const { data: lance } = await supabase
+        .from("tournaments")
+        .update({ statut: "en_cours" })
+        .eq("id", tournamentId)
+        .in("statut", ["ouvert", "checkin"])
+        .select("id");
+      return (lance ?? []).length > 0;
+    },
   );
 
   if (!ok) {
     redirect(
       `/moi/organisation/${tournamentId}?erreur=${encodeURIComponent(
-        "Impossible de générer le bracket pour l'instant.",
-      )}`,
+        "Impossible de lancer le tournoi pour l'instant. Si le bracket apparaît sans que le tournoi démarre, annule le tournoi ou écris-nous (adresse dans les mentions légales).",
+      )}#retour`,
     );
   }
-
-  await supabase.from("tournaments").update({ statut: "en_cours" }).eq("id", tournamentId);
 
   // Les joueurs des matchs déjà ouverts sont prévenus (push et Discord, avec
   // le bouton « Je suis prêt ») — jusqu'ici, seuls les tours suivants
@@ -529,12 +546,12 @@ export async function modifierTournoi(formData: FormData) {
   const debuteLe = instantDepuisSaisieParis(String(formData.get("debute_le") ?? ""));
   const checkinOuvreLe = instantDepuisSaisieParis(String(formData.get("checkin_ouvre_le") ?? ""));
   if (!debuteLe || !checkinOuvreLe) {
-    redirect(`${page}?erreur=${encodeURIComponent("Dates invalides.")}#retour`);
+    redirect(`${page}?erreur=${encodeURIComponent("Dates invalides.")}&modifier=1#retour`);
   }
 
   const niveau = lireNiveau(formData.get("niveau_min"), formData.get("niveau_max"), tournoi.format);
   if (!niveau.ok) {
-    redirect(`${page}?erreur=${encodeURIComponent(niveau.erreur)}#retour`);
+    redirect(`${page}?erreur=${encodeURIComponent(niveau.erreur)}&modifier=1#retour`);
   }
 
   const { error } = await supabase.rpc("modifier_tournoi", {
@@ -549,7 +566,7 @@ export async function modifierTournoi(formData: FormData) {
     p_rating_max: niveau.max,
   });
   if (error) {
-    redirect(`${page}?erreur=${encodeURIComponent(messageRefusModification(error.message))}#retour`);
+    redirect(`${page}?erreur=${encodeURIComponent(messageRefusModification(error.message))}&modifier=1#retour`);
   }
 
   redirect(`${page}?message=${encodeURIComponent("Tournoi modifié.")}#retour`);

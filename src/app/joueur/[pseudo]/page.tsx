@@ -40,6 +40,7 @@ import BlocCoach from "@/components/profil/BlocCoach";
 import BlocRecommandations from "@/components/profil/BlocRecommandations";
 import CourbeProgression from "@/components/profil/CourbeProgression";
 import BoutonPartager from "@/components/profil/BoutonPartager";
+import { DUELS_CLASSES_PAR_JOUR_MAX } from "@/lib/defis";
 
 // Refonte « Venin » du 23/09/2026 (design-system/najarena/pages/profil.md,
 // maquette najarena-design/maquettes/profil.dc.html) : seule l'apparence a
@@ -737,8 +738,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                       >
                         <input type="hidden" name="adversaire_id" value={profil.id} />
                         <p className="text-sm leading-normal text-text-2">
-                          Un duel en une partie, résultat lu chez Riot. Il compte au classement si la partie est
-                          retrouvée — un défi classé par jour entre vous deux, les suivants en amical.
+                          Un duel en une partie, résultat lu chez Riot. Classé si la partie est retrouvée&nbsp;: un par
+                          jour entre vous deux ({DUELS_CLASSES_PAR_JOUR_MAX}&nbsp;au plus par jour pour chacun)&nbsp;; les
+                          suivants, en amical.
                         </p>
                         <label className="flex flex-col gap-2">
                           <span className="text-mini text-muted uppercase">Comment on gagne</span>

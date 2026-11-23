@@ -1,3 +1,7 @@
+// Écran de chargement de la liste seulement (groupe « (liste) », 22/11/2026) :
+// placé au-dessus de /lol/tournois, il enveloppait aussi les pages de tournoi,
+// dont la réponse partait alors avec le code 200 même pour un tournoi
+// inexistant (voir lib/existence-pages.ts).
 import Squelette from "@/components/ui/Squelette";
 
 export default function Chargement() {

@@ -14,6 +14,8 @@
 export const PARAMETRES_MESSAGE = [
   "message",
   "erreur",
+  // Réserve affichée à côté d'un message (Alerte « info », 22/11/2026).
+  "avertissement",
   "coach",
   "coachErreur",
   "reco",

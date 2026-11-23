@@ -240,7 +240,7 @@ export function EssentielReglement({
         `Le vainqueur est lu dans l'historique de partie Riot. Sans résultat retrouvé, ${organisateur ?? "l'organisateur"} tranche et affiche son motif — jamais un résultat supposé.`,
         "Check-in obligatoire : sans confirmation de présence, l'organisateur peut t'exclure du bracket.",
         "Tu as perdu ? Reconnais ta défaite depuis le bracket : ton adversaire avance tout de suite. Le résultat ne compte au classement que si la partie est retrouvée chez Riot.",
-        "Un forfait ne rapporte aucun point, à aucun des deux joueurs. Au-delà de 3 victoires contre le même adversaire en 24 h, les suivantes ne comptent pas.",
+        "Un forfait ne rapporte aucun point, à aucun des deux joueurs. Au-delà de 3 victoires contre le même adversaire en 24 h, les suivantes ne comptent pas. Un match 1v1 ne compte au classement que si les deux comptes Riot ont au moins le niveau 30.",
         `Seul un tournoi classé compte au classement : tournoi officiel, ou au moins ${JOUEURS_MIN_TOURNOI_CLASSE} joueurs au départ, publié ${PREAVIS_TOURNOI_CLASSE_HEURES} h avant son début, sans son organisateur dans le bracket.`,
         "Les règles (capacité, format, dates) sont figées dès la première inscription. Toute tentative de manipulation peut entraîner la suspension du compte.",
       ];
