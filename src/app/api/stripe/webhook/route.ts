@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       // créé hors du site n'accorde rien (joueurDeLAbonnement).
       const profileId = joueurDeLAbonnement(abonnement.metadata?.profile_id, session.client_reference_id);
       if (!profileId) break;
-      if (!(await appliquerAbonnement(stripe, admin, profileId, abonnement))) return A_RENVOYER();
+      if ((await appliquerAbonnement(stripe, admin, profileId, abonnement)) === "echec") return A_RENVOYER();
       break;
     }
 
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       const abonnement = await relireAbonnement(stripe, recu.id);
       if (!abonnement) return A_RENVOYER();
       const profileId = joueurDeLAbonnement(abonnement.metadata?.profile_id);
-      if (profileId && !(await appliquerAbonnement(stripe, admin, profileId, abonnement))) return A_RENVOYER();
+      if (profileId && (await appliquerAbonnement(stripe, admin, profileId, abonnement)) === "echec") return A_RENVOYER();
       break;
     }
 

@@ -1,4 +1,4 @@
-import type { Offre } from "@/lib/offres";
+import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
 
 // Offre accordée par un abonnement Stripe (contrôle de sécurité du
 // 19/11/2026) : déduite du prix réellement facturé, jamais des
@@ -90,7 +90,9 @@ export function abonnementPaye(abonnement: { status: string; pause_collection?: 
  * Vérification quotidienne des abonnements (23/11/2026) : ce qu'il faut
  * faire de l'offre d'un abonné d'après l'état de son abonnement relu chez
  * Stripe, au cas où un message de Stripe (webhook) se serait perdu.
- * - Une offre donnée à la main par un administrateur n'est jamais touchée.
+ * - Une offre donnée à la main par un administrateur n'est jamais retirée ;
+ *   elle n'est remplacée que par une offre payée plus haute (comme le fait
+ *   le webhook).
  * - Abonnement qui n'est plus en cours (impayé, résilié…) → offre retirée.
  * - Abonnement en cours → offre du prix facturé, accordée si elle manque
  *   ou diffère. Un prix qui n'est celui d'aucune offre est seulement
@@ -113,8 +115,14 @@ export function decisionVerification(entree: {
   offreActuelle: { offre: string; manuelle: boolean } | null;
 }): DecisionVerification {
   const { statutStripe, enPause, prixFacture, prix, offreActuelle } = entree;
-  if (offreActuelle?.manuelle) return { action: "aucune" };
-  if (!abonnementPaye({ status: statutStripe, pause_collection: enPause ? true : null })) {
+  const paye = abonnementPaye({ status: statutStripe, pause_collection: enPause ? true : null });
+  if (offreActuelle?.manuelle) {
+    const offrePayee = paye ? offreDepuisPrix(prixFacture, prix) : null;
+    return offrePayee && ORDRE_OFFRE[offrePayee] > ORDRE_OFFRE[offreActuelle.offre as Offre]
+      ? { action: "accorder", offre: offrePayee }
+      : { action: "aucune" };
+  }
+  if (!paye) {
     return offreActuelle ? { action: "retirer" } : { action: "aucune" };
   }
   const offre = offreDepuisPrix(prixFacture, prix);

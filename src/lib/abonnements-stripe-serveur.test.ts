@@ -130,6 +130,26 @@ describe("vérification quotidienne : offres à retirer", () => {
     expect(relus).toHaveLength(0);
   });
 
+  it("résiliation perdue puis nouvel abonnement pas encore payé : l'offre est retirée, le nouveau est suivi", async () => {
+    suivi(JOUEUR, "sub_A", "active");
+    offre(JOUEUR, "elite");
+    chezStripe(JOUEUR, "sub_A", "canceled", "price_pro", { cree: 1_700_000_000 });
+    chezStripe(JOUEUR, "sub_B", "past_due", "price_pro", { cree: 1_710_000_000 });
+    expect(await verifier()).toMatchObject({ retirees: 1 });
+    expect(offreDe(JOUEUR)).toBeUndefined();
+    expect(suiviDe(JOUEUR)).toMatchObject({ abonnement_stripe_id: "sub_B", statut: "past_due" });
+  });
+
+  it("un abonnement suivi encore en vie n'est pas défait par un autre qui se termine", async () => {
+    suivi(JOUEUR, "sub_A", "active");
+    offre(JOUEUR, "elite");
+    chezStripe(JOUEUR, "sub_A", "active", "price_pro", { cree: 1_700_000_000 });
+    chezStripe(JOUEUR, "sub_B", "incomplete", "price_plus", { cree: 1_710_000_000 });
+    expect(await verifier()).toMatchObject({ retirees: 0, accordees: 0 });
+    expect(offreDe(JOUEUR)?.offre).toBe("elite");
+    expect(suiviDe(JOUEUR)?.abonnement_stripe_id).toBe("sub_A");
+  });
+
   it("prix inconnu : signalé, l'offre reste (un mauvais réglage ne vide pas tous les abonnés)", async () => {
     suivi(JOUEUR, "sub_1", "active");
     offre(JOUEUR, "verifie");
@@ -188,6 +208,22 @@ describe("vérification quotidienne : offres à accorder", () => {
     chezStripe(JOUEUR, "sub_1", "active", "price_pro");
     expect(await verifier()).toMatchObject({ accordees: 1 });
     expect(offreDe(JOUEUR)?.offre).toBe("elite");
+  });
+
+  it("offre offerte plus basse que l'offre payée : remplacée, comme par le webhook", async () => {
+    suivi(JOUEUR, "sub_1", "active");
+    offre(JOUEUR, "verifie", ADMIN);
+    chezStripe(JOUEUR, "sub_1", "active", "price_pro");
+    expect(await verifier()).toMatchObject({ accordees: 1 });
+    expect(offreDe(JOUEUR)).toMatchObject({ offre: "elite", attribue_par: null });
+  });
+
+  it("offre offerte au moins aussi haute sur un abonné : gardée, mais signalée", async () => {
+    suivi(JOUEUR, "sub_1", "active");
+    offre(JOUEUR, "organisateur", ADMIN);
+    chezStripe(JOUEUR, "sub_1", "active", "price_plus");
+    expect(await verifier()).toMatchObject({ accordees: 0, signales: 1 });
+    expect(offreDe(JOUEUR)).toMatchObject({ offre: "organisateur", attribue_par: ADMIN });
   });
 
   it("abonnement créé hors du site (sans étiquette) : rien n'est accordé", async () => {

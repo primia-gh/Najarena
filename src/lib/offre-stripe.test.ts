@@ -71,8 +71,15 @@ describe("decisionVerification (vérification quotidienne)", () => {
   const prix = { verifie: "price_plus", elite: "price_pro", organisateur: undefined };
   const stripe = (statutStripe: string, prixFacture = "price_plus") => ({ statutStripe, prixFacture, prix });
 
-  it("ne touche jamais une offre donnée à la main", () => {
+  it("ne retire jamais une offre donnée à la main", () => {
     expect(decisionVerification({ ...stripe("canceled"), offreActuelle: { offre: "elite", manuelle: true } })).toEqual({ action: "aucune" });
+    expect(decisionVerification({ ...stripe("active"), offreActuelle: { offre: "elite", manuelle: true } })).toEqual({ action: "aucune" });
+  });
+  it("une offre payée plus haute remplace une offre donnée à la main", () => {
+    expect(decisionVerification({ ...stripe("active", "price_pro"), offreActuelle: { offre: "verifie", manuelle: true } })).toEqual({
+      action: "accorder",
+      offre: "elite",
+    });
   });
   it("retire l'offre d'un abonnement qui n'est plus en cours", () => {
     for (const statut of ["canceled", "past_due", "unpaid", "incomplete", "incomplete_expired", "paused"]) {

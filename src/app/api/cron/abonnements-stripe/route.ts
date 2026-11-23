@@ -29,13 +29,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ erreur: "Client serveur Supabase indisponible." }, { status: 503 });
   }
 
-  // Aucun joueur commencé au-delà de 45 s (limite de la fonction : 60 s).
+  // Aucun travail commencé au-delà de 30 s (limite de la fonction : 60 s ;
+  // un joueur peut encore demander deux appels de 10 s à Stripe).
   // Un appel bloqué chez Stripe ne doit pas dépasser la limite de la
   // fonction : 10 s par appel, une seule nouvelle tentative.
   const client = new Stripe(cleSecrete, { timeout: 10_000, maxNetworkRetries: 1 });
-  const bilan = await verifierAbonnementsStripe(client, admin, { finAu: debut + 45_000 });
+  const bilan = await verifierAbonnementsStripe(client, admin, { finAu: debut + 30_000 });
   // Toute correction ou anomalie apparaît dans le journal d'erreurs de
   // Vercel (jamais sur le salon Discord public des annonces).
+  // Une vérification qui ne tourne plus doit se voir (sauf avant le réglage
+  // des prix, quand il n'y a rien à vérifier).
+  if (!bilan.actif && !bilan.raison.startsWith("Aucun prix")) {
+    console.error(`Vérification des abonnements Stripe impossible : ${bilan.raison}`);
+  }
+  if (bilan.actif && bilan.restants) {
+    console.error("Vérification des abonnements Stripe : heure limite atteinte, la suite au prochain passage.");
+  }
   if (bilan.actif && bilan.accordees + bilan.retirees + bilan.signales + bilan.erreurs > 0) {
     console.error(
       `Vérification des abonnements Stripe : ${bilan.examines} relus, ${bilan.retirees} offre(s) retirée(s), ` +

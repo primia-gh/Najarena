@@ -134,6 +134,24 @@ select verifie('Fiche sans compte Riot noté (avant le 03/10/2026) : compte comm
   (select contre = 1
    from public.matchs_communs('b33b0004-0000-0000-0000-000000000000', 'b33b0005-0000-0000-0000-000000000000')));
 
+-- ---- Le compte Riot doit être lié pour le jeu de la partie ----
+insert into games (id, slug, nom) values (2, 'jeu-99x', 'Autre jeu 99x') on conflict do nothing;
+-- Le compte P99X-5 quitte le profil 5 pour LoL et n'y reste lié que pour l'autre jeu.
+delete from game_accounts where puuid = 'P99X-5';
+insert into game_accounts (profile_id, game_id, puuid, riot_game_name, riot_tag_line, region, est_principal, verifie_le, methode_verification)
+values ('b33b0005-0000-0000-0000-000000000000', 2, 'P99X-5', 'Jetable5', 'EUW', 'EUW', true, now(), 'icone_profil');
+select pg_temp.duel_99x(4, 5, 90, 90, 'EUW1_99X5');
+select verifie('Compte Riot lié seulement pour un autre jeu : la partie LoL ne compte pas',
+  (select contre = 1
+   from public.matchs_communs('b33b0004-0000-0000-0000-000000000000', 'b33b0005-0000-0000-0000-000000000000')));
+
+-- ---- Un verdict ne se modifie pas, mais part avec son tournoi supprimé ----
+select essai('Supprimer un tournoi emporte ses verdicts (suppression en cascade permise)',
+  $q$delete from tournaments where id = 'b33b5555-0000-0000-0000-000000000001'$q$,
+  'passe');
+select verifie('… le verdict du match 5v5 est parti avec lui',
+  not exists (select 1 from match_verdicts where match_id = 'b33b5555-0000-0000-0000-000000000011'));
+
 -- ---- Un joueur n'écrit jamais son niveau ----
 set role authenticated;
 select en_tant_que('b33b0003-0000-0000-0000-000000000000');

@@ -64,10 +64,15 @@ async function suivreAbonnement(admin: ClientAdmin, profileId: string, abonnemen
   return !error;
 }
 
+// Ce que le traitement d'un abonnement a réellement fait : « echec » si une
+// lecture ou une écriture a échoué (le webhook répond alors 503 et Stripe
+// renverra l'événement).
+export type ResultatAbonnement = "accordee" | "retiree" | "rien" | "echec";
+
 // Retire l'offre accordée par Stripe, jamais une offre donnée à la main.
-async function retirerOffreStripe(admin: ClientAdmin, profileId: string): Promise<boolean> {
+async function retirerOffreStripe(admin: ClientAdmin, profileId: string): Promise<ResultatAbonnement> {
   const { error } = await admin.from("comptes_offres").delete().eq("profile_id", profileId).is("attribue_par", null);
-  return !error;
+  return error ? "echec" : "retiree";
 }
 
 // Offre accordée d'après l'état relu : payé (active, trialing, sans pause
@@ -75,28 +80,33 @@ async function retirerOffreStripe(admin: ClientAdmin, profileId: string): Promis
 // attente, en pause, résilié…) → offre retirée, quel que soit le prix —
 // retirer est toujours sans risque. Une offre donnée à la main par un
 // administrateur qui vaut au moins l'offre payée n'est pas remplacée.
-// Faux si une écriture a échoué (l'événement sera renvoyé par Stripe).
 export async function appliquerAbonnement(
   client: Stripe,
   admin: ClientAdmin,
   profileId: string,
   abonnement: Stripe.Subscription,
-): Promise<boolean> {
+): Promise<ResultatAbonnement> {
   if (!abonnementPaye(abonnement)) {
     // Un ancien abonnement qui se termine (renvoi tardif, doublon) ne touche
     // ni l'offre ni le suivi de l'abonnement actuel du joueur, s'il en a un
-    // autre (contrôle de sécurité du 22/11/2026).
+    // autre encore en vie (contrôles de sécurité des 22 et 23/11/2026 : on
+    // relit l'abonnement suivi ; s'il est terminé lui aussi, c'est celui-ci
+    // qui compte désormais, et l'offre est retirée).
     const { data: suivi, error: erreurSuivi } = await admin
       .from("abonnements_stripe")
       .select("abonnement_stripe_id")
       .eq("profile_id", profileId)
       .maybeSingle();
-    if (erreurSuivi) return false;
-    if (suivi?.abonnement_stripe_id && suivi.abonnement_stripe_id !== abonnement.id) return true;
-    if (!(await suivreAbonnement(admin, profileId, abonnement))) return false;
+    if (erreurSuivi) return "echec";
+    if (suivi?.abonnement_stripe_id && suivi.abonnement_stripe_id !== abonnement.id) {
+      const actuel = await relireAbonnement(client, suivi.abonnement_stripe_id);
+      if (!actuel) return "echec";
+      if (abonnementEnVie(actuel.status)) return "rien";
+    }
+    if (!(await suivreAbonnement(admin, profileId, abonnement))) return "echec";
     return retirerOffreStripe(admin, profileId);
   }
-  if (!(await suivreAbonnement(admin, profileId, abonnement))) return false;
+  if (!(await suivreAbonnement(admin, profileId, abonnement))) return "echec";
   // Offre lue dans le prix facturé, pas dans les métadonnées (un
   // changement de formule dans le portail Stripe ne les met pas à jour).
   const prixFacture = abonnement.items?.data?.[0]?.price?.id;
@@ -116,8 +126,8 @@ export async function appliquerAbonnement(
     .select("offre, attribue_par")
     .eq("profile_id", profileId)
     .maybeSingle();
-  if (erreurEnPlace) return false;
-  if (enPlace?.attribue_par && ORDRE_OFFRE[enPlace.offre as Offre] >= ORDRE_OFFRE[offre]) return true;
+  if (erreurEnPlace) return "echec";
+  if (enPlace?.attribue_par && ORDRE_OFFRE[enPlace.offre as Offre] >= ORDRE_OFFRE[offre]) return "rien";
   const { error } = await admin.from("comptes_offres").upsert({
     profile_id: profileId,
     offre,
@@ -125,14 +135,14 @@ export async function appliquerAbonnement(
     // Désormais accordée par Stripe : retirée à la fin de l'abonnement.
     attribue_par: null,
   });
-  if (error) return false;
+  if (error) return "echec";
   // Seconde lecture après avoir accordé l'offre (contrôle de sécurité du
   // 22/11/2026) : si une résiliation a été traitée entre la première
   // lecture et l'écriture, l'offre écrite à l'instant ne doit pas rester.
   const relu = await relireAbonnement(client, abonnement.id);
-  if (!relu) return false;
+  if (!relu) return "echec";
   if (!abonnementPaye(relu)) return retirerOffreStripe(admin, profileId);
-  return true;
+  return "accordee";
 }
 
 export type BilanVerificationAbonnements =
@@ -272,6 +282,13 @@ export async function verifierAbonnementsStripe(
       }
       continue;
     }
+    if (offreActuelle?.manuelle && abonnementEnVie(abonnement.status)) {
+      // Cadeau posé sur un abonné (paiement survenu pendant que
+      // l'administrateur l'offrait) : à regarder, il ne serait pas retiré à
+      // la fin de l'abonnement.
+      console.error(`Vérification Stripe : offre donnée à la main à un joueur abonné (joueur ${suivi.profile_id}).`);
+      bilan.signales += 1;
+    }
     const decision = decisionVerification({
       statutStripe: abonnement.status,
       enPause: Boolean(abonnement.pause_collection),
@@ -281,7 +298,9 @@ export async function verifierAbonnementsStripe(
     });
     const suiviChange = abonnement.id !== suivi.abonnement_stripe_id || abonnement.status !== suivi.statut;
     if (decision.action === "signaler") {
-      console.error(`Vérification Stripe : prix de l'abonnement ${abonnement.id} sans offre correspondante.`);
+      console.error(
+        `Vérification Stripe : prix de l'abonnement ${abonnement.id} sans offre correspondante (joueur ${suivi.profile_id}).`,
+      );
       bilan.signales += 1;
     }
     if (decision.action === "aucune" && !suiviChange) continue;
@@ -289,12 +308,16 @@ export async function verifierAbonnementsStripe(
     if (!(await suiviInchange(admin, suivi))) continue;
 
     if (decision.action === "accorder" || decision.action === "retirer") {
-      if (await appliquerAbonnement(client, admin, suivi.profile_id, abonnement)) {
-        if (decision.action === "accorder") bilan.accordees += 1;
-        else bilan.retirees += 1;
-      } else {
-        bilan.erreurs += 1;
+      // Pas de travail commencé au-delà de l'heure limite (la fonction
+      // serait coupée entre l'octroi et la seconde lecture).
+      if (options.finAu !== undefined && Date.now() > options.finAu) {
+        restants = true;
+        break;
       }
+      const resultat = await appliquerAbonnement(client, admin, suivi.profile_id, abonnement);
+      if (resultat === "accordee") bilan.accordees += 1;
+      else if (resultat === "retiree") bilan.retirees += 1;
+      else if (resultat === "echec") bilan.erreurs += 1;
       continue;
     }
     // Seul le suivi (statut, abonnement courant) est à mettre à jour.

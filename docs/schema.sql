@@ -16586,11 +16586,11 @@ grant execute on function public.face_a_face(uuid, uuid) to anon, authenticated;
 notify pgrst, 'reload schema';
 
 -- ---------- Niveau Riot obligatoire pour un résultat 1v1 lu chez Riot (2026-11-23) ----------
--- À appliquer sur la base APRÈS la mise en ligne du code du 22/11/2026
--- (src/lib/rapprochement.ts transmet déjà le niveau des comptes : vérifier
--- dans Vercel que la production contient la fusion de la PR #9, commit
--- 26aef5d, ou plus récent), et seulement si cette requête rend 0 (aucun
--- résultat 1v1 récent sans niveau) :
+-- Exception à la règle habituelle : à appliquer sur la base APRÈS la mise
+-- en ligne du code du même commit (une fois le déploiement de production
+-- prêt : ce code transmet le niveau des comptes et ne laisse pas un forfait
+-- contredire une partie retrouvée mais refusée), et seulement si cette
+-- requête rend 0 (aucun résultat 1v1 récent sans niveau) :
 --   select count(*) from public.match_verdicts v
 --   join public.matches m on m.id = v.match_id
 --   join public.tournaments t on t.id = m.tournament_id and t.format = '1v1'

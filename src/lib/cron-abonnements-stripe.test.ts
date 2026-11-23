@@ -57,9 +57,21 @@ describe("route de la vérification quotidienne des abonnements", () => {
     const reponse = await appel("secret-cron");
     expect(await reponse.json()).toEqual(bilan);
     const options = verifierAbonnementsStripe.mock.calls[0][2];
-    expect(options.finAu).toBeGreaterThanOrEqual(avant + 45_000);
-    expect(options.finAu).toBeLessThan(avant + 60_000);
+    expect(options.finAu).toBeGreaterThanOrEqual(avant + 30_000);
+    expect(options.finAu).toBeLessThan(avant + 45_000);
     expect(console.error).toHaveBeenCalledTimes(1);
+  });
+
+  it("vérification impossible ou incomplète : écrite au journal", async () => {
+    verifierAbonnementsStripe.mockResolvedValue({ actif: false, raison: "Stripe ne répond pas." });
+    await appel("secret-cron");
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining("Stripe ne répond pas"));
+  });
+
+  it("prix pas encore réglés : rien au journal", async () => {
+    verifierAbonnementsStripe.mockResolvedValue({ actif: false, raison: "Aucun prix d'offre réglé (STRIPE_PRICE_*)." });
+    await appel("secret-cron");
+    expect(console.error).not.toHaveBeenCalled();
   });
 
   it("rien à corriger : rien au journal d'erreurs", async () => {
