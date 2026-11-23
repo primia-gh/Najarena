@@ -41,7 +41,7 @@ import BlocRecommandations from "@/components/profil/BlocRecommandations";
 import CourbeProgression from "@/components/profil/CourbeProgression";
 import BoutonPartager from "@/components/profil/BoutonPartager";
 import { DUELS_CLASSES_PAR_JOUR_MAX } from "@/lib/defis";
-import { chiffresCV, resumeMatchsVerifies, sousMatchsVerifies, sousVictoires } from "@/lib/chiffres-cv";
+import { chiffresCV, plusSansPoints, resumeMatchsVerifies, sousMatchsVerifies, sousVictoires } from "@/lib/chiffres-cv";
 import { MENTION_SANS_POINTS, matchsSansPoints, NIVEAU_COMPTE_RIOT_MIN, niveauCompteSuffisant, REGLE_NIVEAU_COMPTE_CV } from "@/lib/niveau-compte-riot";
 import { typographie } from "@/lib/typographie";
 
@@ -1274,6 +1274,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                         {formaterDate(c.verifieLe)}
                         {c.matchsVerifies > 0 &&
                           ` · ${c.matchsVerifies} match${c.matchsVerifies > 1 ? "s" : ""} vérifié${c.matchsVerifies > 1 ? "s" : ""}`}
+                        {c.matchsSansPoints > 0 && typographie(` · ${plusSansPoints(c.matchsSansPoints)}`)}
                       </span>
                     </li>
                   ))}

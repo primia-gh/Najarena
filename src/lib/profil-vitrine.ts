@@ -5,6 +5,7 @@ import { LABEL_ROLE, type Role } from "@/lib/roles";
 import { libelleEquipe, parcoursDansTournoi } from "@/lib/cinq-contre-cinq";
 import { lignesFiche } from "@/lib/fiche-organisateur";
 import { lignesFiabilite } from "@/lib/fiabilite";
+import { verdictCompteAuCV } from "@/lib/niveau-compte-riot";
 
 // Données d'affichage ajoutées par la refonte « Venin » du profil
 // (design-system/najarena/pages/profil.md) : rang général (tous pays et
@@ -46,8 +47,10 @@ export interface CompteRiotDeclare {
   region: string;
   principal: boolean;
   verifieLe: string;
-  /** Matchs vérifiés joués sur ce compte (suivi depuis le 03/10/2026). */
+  /** Matchs 1v1 vérifiés joués sur ce compte (suivi depuis le 03/10/2026), comme la tête du CV. */
   matchsVerifies: number;
+  /** Matchs 1v1 lus chez Riot sur ce compte, mais avec un compte sous le niveau 30. */
+  matchsSansPoints: number;
 }
 
 export interface EquipeJoueur {
@@ -229,20 +232,32 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     (comptesData ?? []).length > 1
       ? await supabase
           .from("stats_match_joueur")
-          .select("puuid")
+          .select(
+            "puuid, niveau_compte, match:matches(tournament:tournaments(format), match_verdicts(niveau, niveau_compte_min, est_definitif))",
+          )
           .eq("profile_id", profilId)
           .in(
             "puuid",
             (comptesData ?? []).map((c) => c.puuid),
           )
       : { data: [] };
+  // Mêmes règles que la tête du CV (chiffres-cv.ts) : matchs 1v1 lus chez
+  // Riot ; ceux joués avec un compte sous le niveau 30 (niveau gardé avec le
+  // verdict, ou celui du compte dans la fiche de partie) sont comptés à part.
+  const fichesLues = (statsComptes ?? []).flatMap((s) => {
+    if (s.match?.tournament?.format !== "1v1") return [];
+    const verdict = (s.match.match_verdicts ?? []).find((v) => v.est_definitif && v.niveau !== "manuel");
+    if (!verdict) return [];
+    return [{ puuid: s.puuid, compte: verdictCompteAuCV(verdict, s.niveau_compte) }];
+  });
   const comptesRiot: CompteRiotDeclare[] = (comptesData ?? [])
     .map((c) => ({
       riotId: `${c.riot_game_name}#${c.riot_tag_line}`,
       region: c.region,
       principal: c.est_principal,
       verifieLe: c.verifie_le as string,
-      matchsVerifies: (statsComptes ?? []).filter((s) => s.puuid === c.puuid).length,
+      matchsVerifies: fichesLues.filter((f) => f.puuid === c.puuid && f.compte).length,
+      matchsSansPoints: fichesLues.filter((f) => f.puuid === c.puuid && !f.compte).length,
     }))
     .sort((a, b) => Number(b.principal) - Number(a.principal));
 

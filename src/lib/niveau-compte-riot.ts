@@ -26,6 +26,24 @@ export function niveauCompteSuffisant(niveauCompteMin: number | null | undefined
 }
 
 /**
+ * Un verdict qui entre dans les chiffres « matchs vérifiés » (CV, widget,
+ * API, image de partage, bloc « Comptes Riot ») : définitif, lu chez Riot
+ * (pas manuel), comptes de niveau suffisant. `niveauCompte` = niveau du
+ * compte du joueur dans la fiche de partie, quand on l'a.
+ */
+export function verdictCompteAuCV(
+  v: { est_definitif?: boolean; niveau: string; niveau_compte_min: number | null },
+  niveauCompte?: number | null,
+): boolean {
+  return (
+    v.est_definitif !== false &&
+    v.niveau !== "manuel" &&
+    niveauCompteSuffisant(v.niveau_compte_min) &&
+    niveauCompteSuffisant(niveauCompte)
+  );
+}
+
+/**
  * Plus bas niveau Riot des comptes donnés sur toutes les parties d'une
  * série. Nul si Riot ne l'a pas fourni pour l'un d'eux : la base refuse
  * alors le verdict 1v1 (NIVEAU_COMPTE_REQUIS, 23/11/2026), rien n'est
