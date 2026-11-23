@@ -44,11 +44,11 @@ function debutDemandesDuo(): string {
 }
 
 interface MoiPageProps {
-  searchParams: Promise<{ message?: string; erreur?: string; bloc?: string }>;
+  searchParams: Promise<{ message?: string; erreur?: string; bloc?: string; avertissement?: string }>;
 }
 
 export default async function MoiPage({ searchParams }: MoiPageProps) {
-  const { message, erreur, bloc } = await searchParams;
+  const { message, erreur, bloc, avertissement } = await searchParams;
   // Retour d'une action du bloc « Tournois pour toi » : affiché dans le bloc.
   const retourAlertes = bloc === "alertes";
 
@@ -208,10 +208,11 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille">
-        {!retourAlertes && (erreur || message) && (
+        {!retourAlertes && (erreur || message || avertissement) && (
           <div className="flex max-w-2xl flex-col gap-3">
             {erreur && <Alerte type="erreur">{erreur}</Alerte>}
             {message && <Alerte type="succes">{message}</Alerte>}
+            {avertissement && <Alerte type="info">{avertissement}</Alerte>}
           </div>
         )}
 

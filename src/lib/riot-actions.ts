@@ -265,19 +265,17 @@ export async function verifierRiotId(formData: FormData) {
   // Niveau lu dans la même réponse Riot que l'icône, sans appel de plus.
   const avertissementNiveau =
     invocateur.summonerLevel < NIVEAU_COMPTE_RIOT_MIN
-      ? `Compte Riot vérifié. Il est au niveau ${invocateur.summonerLevel} : tu peux t'inscrire aux tournois, mais tes matchs ne compteront au classement qu'à partir du niveau ${NIVEAU_COMPTE_RIOT_MIN}, celui que Riot exige pour ses parties classées.`
+      ? `Ton compte est au niveau ${invocateur.summonerLevel} : tu peux jouer les tournois, mais tes matchs ne compteront au classement qu'à partir du niveau ${NIVEAU_COMPTE_RIOT_MIN} (le minimum que Riot exige pour ses parties classées).`
       : null;
+  const textes = avertissementNiveau ? { message: "Compte Riot vérifié.", avertissement: avertissementNiveau } : null;
 
   const magasin = await cookies();
   const suite = destinationInterne(magasin.get(COOKIE_SUITE)?.value ?? null, "");
   if (suite) {
     magasin.delete(COOKIE_SUITE);
-    redirect(avertissementNiveau ? avecMessage(suite, avertissementNiveau) : suite);
+    redirect(textes ? avecMessage(suite, textes) : suite);
   }
-  if (avertissementNiveau) {
-    redirect(`/moi?message=${encodeURIComponent(avertissementNiveau)}`);
-  }
-  redirect("/moi");
+  redirect(textes ? avecMessage("/moi", textes) : "/moi");
 }
 
 // game_accounts n'a aucune policy client UPDATE — volontairement : des

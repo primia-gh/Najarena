@@ -22,7 +22,7 @@ import Alerte from "@/components/design/Alerte";
 
 interface DefiPageProps {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ erreur?: string; message?: string }>;
+  searchParams: Promise<{ erreur?: string; message?: string; avertissement?: string }>;
 }
 
 const chargerInvitation = cache(async (code: string) => {
@@ -63,7 +63,7 @@ export default async function DefiPage({ params, searchParams }: DefiPageProps) 
   const { code } = await params;
   // message : retour de la vérification du compte Riot (compte sous le
   // niveau 30, src/lib/riot-actions.ts).
-  const { erreur, message } = await searchParams;
+  const { erreur, message, avertissement } = await searchParams;
   const donnees = await chargerInvitation(code);
   if (!donnees) notFound();
 
@@ -92,15 +92,12 @@ export default async function DefiPage({ params, searchParams }: DefiPageProps) 
             parole. S&apos;il est retrouvé chez Riot, le duel compte à votre classement Najarena.
           </p>
 
-          {erreur && (
-            <p role="alert" className="mt-6 rounded-bouton border border-danger/40 bg-danger/10 px-3 py-2.5 text-sm text-danger">
-              {erreur}
-            </p>
-          )}
-          {message && !erreur && (
-            <Alerte type="succes" className="mt-6">
-              {message}
-            </Alerte>
+          {(erreur || message || avertissement) && (
+            <div className="mt-6 flex flex-col gap-3">
+              {erreur && <Alerte type="erreur">{erreur}</Alerte>}
+              {message && !erreur && <Alerte type="succes">{message}</Alerte>}
+              {avertissement && !erreur && <Alerte type="info">{avertissement}</Alerte>}
+            </div>
           )}
 
           <Panneau className="mt-6 flex flex-col gap-4 p-6">

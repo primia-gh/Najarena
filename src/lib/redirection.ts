@@ -25,12 +25,17 @@ export function destinationInterne(demande: string | null, parDefaut = "/moi"): 
  * site, sinon la page par défaut. Une page qui n'affiche pas ce message
  * l'ignore ; le proxy le retire d'un lien venu d'ailleurs.
  */
-export function avecMessage(chemin: string, message: string, parDefaut = "/moi"): string {
+export function avecMessage(
+  chemin: string,
+  textes: { message?: string; avertissement?: string },
+  parDefaut = "/moi",
+): string {
   const interne = destinationInterne(chemin, "");
   if (!interne) return parDefaut;
   const url = new URL(interne, "https://najarena.invalid");
   if (url.origin !== "https://najarena.invalid") return parDefaut;
-  url.searchParams.set("message", message);
+  if (textes.message) url.searchParams.set("message", textes.message);
+  if (textes.avertissement) url.searchParams.set("avertissement", textes.avertissement);
   const resultat = `${url.pathname}${url.search}${url.hash}`;
   return CHEMIN_DU_SITE.test(resultat.split("?")[0]) && !SEGMENT_POINT.test(url.pathname) ? resultat : parDefaut;
 }

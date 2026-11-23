@@ -22,7 +22,7 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 22&nbsp;novembre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 23&nbsp;novembre 2026.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-courant text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>
@@ -192,8 +192,9 @@ export default function ConfidentialitePage() {
               30&nbsp;jours. Visibles de toi seul&nbsp;; les couper efface ton réglage, supprimer ton compte efface aussi la liste.
             </li>
             <li>
-              <strong>Offre payante</strong>&nbsp;: dès que tu ouvres le paiement d&apos;une offre, ton identifiant client
-              chez Stripe, puis l&apos;état de ton abonnement si tu en souscris un (jamais tes coordonnées bancaires).
+              <strong>Offre payante</strong>&nbsp;: dès que tu ouvres le paiement d&apos;une offre, le numéro de ta fiche
+              client chez Stripe, puis l&apos;état de ton abonnement si tu en souscris un (jamais tes coordonnées
+              bancaires).
             </li>
           </ul>
         </section>
@@ -281,9 +282,10 @@ export default function ConfidentialitePage() {
             </li>
             <li>
               <strong>Stripe</strong> — uniquement si tu ouvres le paiement d&apos;un palier payant,
-              même sans aller jusqu&apos;au bout&nbsp;: ton identifiant Najarena et ton e-mail lui sont
-              transmis, et Stripe garde cette fiche client selon ses propres règles. Tes coordonnées
-              bancaires sont saisies directement chez Stripe et ne passent jamais par Najarena.
+              même sans aller jusqu&apos;au bout&nbsp;: ton identifiant Najarena et ton e-mail sont
+              transmis à Stripe, qui en fait ta fiche client et la garde selon sa propre politique de
+              confidentialité. Tes coordonnées bancaires sont saisies directement chez Stripe et ne
+              passent jamais par Najarena.
             </li>
             {/* Cash prizes (audit N32) : seulement une fois activés. */}
             {cashPrizesActifs() && (
