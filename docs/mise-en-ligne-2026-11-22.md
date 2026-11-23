@@ -41,7 +41,8 @@ jusqu'à la fin du fichier :
    deux comptes) — l'ancienne version à 3 paramètres est remplacée, l'appel de l'ancien code
    passe toujours ; `duels_classes_du_jour` et `duel_classe_possible` (5 duels classés au plus par
    joueur et par 24 h) ; `creer_duel` et `je_suis_la_division` redéfinies pour s'en servir, avec
-   un verrou unique de création de duel (deux acceptations simultanées se suivent) ; en fin de
+   un verrou unique de création de duel (deux acceptations simultanées se suivent), pris aussi en
+   premier par `rejoindre_arene`, `apparier_joueur_arene` et `apparier_arene` ; en fin de
    section, `notify pgrst, 'reload schema'` (l'API Supabase relit la liste des fonctions).
 
 Aucune donnée existante n'est modifiée. Les tournois déjà lancés ont `lance_le` vide, mais le

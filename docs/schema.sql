@@ -16309,6 +16309,164 @@ $$;
 revoke execute on function public.je_suis_la_division(uuid) from public, anon;
 grant execute on function public.je_suis_la_division(uuid) to authenticated;
 
+-- Arène : même verrou de création de duel, pris avant tout le reste.
+create or replace function public.apparier_joueur_arene(p_joueur uuid)
+returns text
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_moi record;
+  v_lui record;
+  v_defi uuid;
+  v_slug text;
+begin
+  -- Verrou de création de duel pris EN PREMIER, avant la ligne du profil,
+  -- le verrou de région et les lignes de la file (contrôle de sécurité du
+  -- 22/11/2026) : sinon l'arène et une acceptation de défi pouvaient
+  -- s'attendre l'une l'autre et l'une des deux échouait.
+  perform pg_advisory_xact_lock(hashtext('najarena:creation-duel'));
+  select * into v_moi from public.file_arene where profile_id = p_joueur;
+  if not found then
+    return null;
+  end if;
+  -- Un appariement à la fois par région : deux joueurs ne prennent pas le
+  -- même adversaire.
+  perform pg_advisory_xact_lock(hashtext('arene:' || v_moi.region));
+  -- Un défi accepté pendant l'attente : le joueur patiente jusqu'à la fin
+  -- de ce duel (ou l'expiration de sa place).
+  if exists (
+    select 1 from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = p_joueur and t.nature = 'defi' and t.statut = 'en_cours'
+  ) then
+    return null;
+  end if;
+
+  select f.* into v_lui
+  from public.file_arene f
+  where f.profile_id <> p_joueur
+    and f.region = v_moi.region
+    and f.condition_victoire = v_moi.condition_victoire
+    and abs(f.rating - v_moi.rating) <= public.ecart_arene(
+      v_moi.rd, f.rd, extract(epoch from now() - least(f.entree_le, v_moi.entree_le)) / 60
+    )
+    -- Toujours apte au duel : compte vérifié dans la région, pas suspendu,
+    -- pas déjà en duel (un défi accepté pendant l'attente).
+    and public.region_compte_verifie(f.profile_id) = v_moi.region
+    and not exists (select 1 from public.suspensions s where s.profile_id = f.profile_id and s.levee_le is null)
+    and not exists (
+      select 1 from public.registrations r
+      join public.tournaments t on t.id = r.tournament_id
+      where r.profile_id = f.profile_id and t.nature = 'defi' and t.statut = 'en_cours'
+    )
+    -- Pas un adversaire contre qui un match est encore ouvert (18/11/2026).
+    and not public.match_ouvert_entre(p_joueur, f.profile_id)
+    -- Ni un joueur bloqué, dans un sens ou l'autre (blocages, 19/11/2026).
+    and not public.blocage_entre(p_joueur, f.profile_id)
+  order by abs(f.rating - v_moi.rating), f.entree_le
+  limit 1
+  for update;
+  if not found then
+    return null;
+  end if;
+
+  delete from public.file_arene where profile_id in (p_joueur, v_lui.profile_id);
+  -- Le plus ancien en file « lance » le défi, accepté d'office.
+  insert into public.defis (lanceur_id, adversaire_id, condition_victoire, expire_le)
+  values (
+    case when v_lui.entree_le <= v_moi.entree_le then v_lui.profile_id else p_joueur end,
+    case when v_lui.entree_le <= v_moi.entree_le then p_joueur else v_lui.profile_id end,
+    v_moi.condition_victoire,
+    now() + interval '1 hour'
+  )
+  returning id into v_defi;
+  v_slug := public.creer_duel(v_defi);
+  -- « Arène X contre Y » plutôt que « Défi X contre Y ».
+  update public.tournaments set nom = 'Arène ' || substr(nom, length('Défi ') + 1) where slug = v_slug;
+  return v_slug;
+end;
+$$;
+revoke all on function public.apparier_joueur_arene(uuid) from public, anon, authenticated;
+
+create or replace function public.rejoindre_arene(p_condition text default 'nexus')
+returns text -- adresse du duel si un adversaire attendait déjà, sinon nul
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_region text;
+  v_rating record;
+begin
+  -- Verrou de création de duel pris EN PREMIER, avant la ligne du profil,
+  -- le verrou de région et les lignes de la file (contrôle de sécurité du
+  -- 22/11/2026) : sinon l'arène et une acceptation de défi pouvaient
+  -- s'attendre l'une l'autre et l'une des deux échouait.
+  perform pg_advisory_xact_lock(hashtext('najarena:creation-duel'));
+  v_region := public.controler_lanceur_defi(v_joueur, p_condition);
+  if not exists (select 1 from public.admins) then
+    raise exception 'AUCUN_ARBITRE';
+  end if;
+  if exists (select 1 from public.file_arene where profile_id = v_joueur) then
+    raise exception 'DEJA_EN_FILE';
+  end if;
+  if exists (
+    select 1 from public.registrations r
+    join public.tournaments t on t.id = r.tournament_id
+    where r.profile_id = v_joueur and t.nature = 'defi' and t.statut = 'en_cours'
+  ) then
+    raise exception 'DUEL_EN_COURS';
+  end if;
+
+  select r.rating, r.rd into v_rating
+  from public.ratings r
+  join public.seasons s on s.id = r.season_id and s.est_courante
+  where r.profile_id = v_joueur and r.game_id = 1;
+
+  insert into public.file_arene (profile_id, region, rating, rd, condition_victoire)
+  values (v_joueur, v_region, coalesce(v_rating.rating, 1500), coalesce(v_rating.rd, 350), p_condition);
+
+  return public.apparier_joueur_arene(v_joueur);
+end;
+$$;
+revoke execute on function public.rejoindre_arene(text) from public, anon;
+grant execute on function public.rejoindre_arene(text) to authenticated;
+
+create or replace function public.apparier_arene()
+returns table (slug text)
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid;
+  v_slug text;
+begin
+  -- Verrou de création de duel pris EN PREMIER, avant la ligne du profil,
+  -- le verrou de région et les lignes de la file (contrôle de sécurité du
+  -- 22/11/2026) : sinon l'arène et une acceptation de défi pouvaient
+  -- s'attendre l'une l'autre et l'une des deux échouait.
+  perform pg_advisory_xact_lock(hashtext('najarena:creation-duel'));
+  delete from public.file_arene where entree_le < now() - interval '30 minutes';
+  for v_joueur in select profile_id from public.file_arene order by entree_le loop
+    begin
+      v_slug := public.apparier_joueur_arene(v_joueur);
+    exception when others then
+      -- Duel impossible pour ce joueur (plafond de duels, suspension…) :
+      -- il quitte la file plutôt que de bloquer les autres.
+      delete from public.file_arene where profile_id = v_joueur;
+      v_slug := null;
+    end;
+    if v_slug is not null then
+      slug := v_slug;
+      return next;
+    end if;
+  end loop;
+end;
+$$;
+revoke all on function public.apparier_arene() from public, anon, authenticated;
+grant execute on function public.apparier_arene() to service_role;
+
 -- L'API Supabase relit la liste des fonctions (signature de
 -- enregistrer_verdict_historique changée).
 notify pgrst, 'reload schema';

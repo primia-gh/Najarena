@@ -113,6 +113,14 @@ select verifie('creer_duel prend le verrou de création de duel',
   (select pg_get_functiondef('public.creer_duel(uuid)'::regprocedure) like '%pg_advisory_xact_lock(hashtext(''najarena:creation-duel''))%'));
 select verifie('je_suis_la_division prend le même verrou',
   (select pg_get_functiondef('public.je_suis_la_division(uuid)'::regprocedure) like '%pg_advisory_xact_lock(hashtext(''najarena:creation-duel''))%'));
+select verifie('L''arène aussi, avant tout le reste (rejoindre, apparier, passage périodique)',
+  (select bool_and(position('pg_advisory_xact_lock(hashtext(''najarena:creation-duel''))' in d)
+                   < least(coalesce(nullif(position('controler_lanceur_defi' in d), 0), 1000000),
+                           coalesce(nullif(position('arene:' in d), 0), 1000000),
+                           coalesce(nullif(position('delete from public.file_arene' in d), 0), 1000000))
+                   and position('pg_advisory_xact_lock(hashtext(''najarena:creation-duel''))' in d) > 0)
+   from (select pg_get_functiondef(f::regprocedure) as d
+         from unnest(array['public.rejoindre_arene(text)', 'public.apparier_joueur_arene(uuid)', 'public.apparier_arene()']) f) x));
 
 -- Preuve par l'exemple, quand dblink est disponible : pendant qu'une
 -- session tient le verrou, une acceptation venue d'une autre session
@@ -147,7 +155,36 @@ begin
   end;
 end;
 $$;
-select case pg_temp.acceptation_concurrente()
-  when 'attend' then verifie('Une acceptation simultanée attend la fin de la première', true)
-  when 'passe' then verifie('Une acceptation simultanée attend la fin de la première', false)
-  else null end;
+-- dblink est requis (image postgres:16 de la CI, base locale) : un test
+-- sauté en silence ne protégerait plus rien.
+select verifie('Une acceptation simultanée attend la fin de la première',
+  pg_temp.acceptation_concurrente() = 'attend');
+
+-- Même preuve pour l'arène : un joueur qui la rejoint pendant une création
+-- de duel attend dès le début (avant de verrouiller son profil).
+create or replace function pg_temp.arene_concurrente()
+returns text
+language plpgsql
+as $$
+declare
+  v_connexion text;
+begin
+  v_connexion := format('host=%s port=%s dbname=%s user=%s',
+    split_part(current_setting('unix_socket_directories'), ',', 1), current_setting('port'), current_database(), current_user);
+  perform pg_advisory_xact_lock(hashtext('najarena:creation-duel'));
+  begin
+    perform * from dblink(v_connexion,
+      'set statement_timeout = 500; set role authenticated; '
+      || 'select set_config(''request.jwt.claim.sub'', ''b22b0007-0000-0000-0000-000000000000'', false); '
+      || 'select public.rejoindre_arene()') as t(slug text);
+    return 'passe';
+  exception
+    when query_canceled then
+      return 'attend';
+    when others then
+      return 'erreur : ' || sqlerrm;
+  end;
+end;
+$$;
+select verifie('Rejoindre l''arène pendant une création de duel attend son tour',
+  pg_temp.arene_concurrente() = 'attend');
