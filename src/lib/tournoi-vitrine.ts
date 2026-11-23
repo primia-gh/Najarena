@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { CRENEAU_A_LA_DEMANDE, estOfficiel } from "@/lib/a-la-demande";
 import { libelleNiveau } from "@/lib/niveau-tournoi";
+import { NIVEAU_COMPTE_RIOT_MIN } from "@/lib/niveau-compte-riot";
 
 // Données d'affichage ajoutées par la refonte « Venin » de la page tournoi
 // (design-system/najarena/pages/tournoi.md) : type de bracket, niveau
@@ -17,7 +18,7 @@ const LABEL_BRACKET: Record<string, string> = {
 
 export async function chargerComplementsTournoi(tournoiId: string) {
   const supabase = await createClient();
-  const [{ data }, { data: lancementReel }] = await Promise.all([
+  const [{ data }, { data: lancementReel }, { count: matchsHorsNiveau }] = await Promise.all([
     supabase
       .from("tournaments")
       .select("type_bracket, rating_min, rating_max, compte_pour_classement, creneau_auto, publie_le, classe, reserve_non_classes")
@@ -26,6 +27,14 @@ export async function chargerComplementsTournoi(tournoiId: string) {
     // Lancement réel : passage « en cours », premier match démarré ou
     // premier verdict, le plus tôt (même calcul que criteres_tournoi_classe).
     supabase.rpc("lancement_reel_tournoi", { p_tournament_id: tournoiId }),
+    // Matchs lus chez Riot dont un compte était sous le niveau 30
+    // (22/11/2026) : vérifiés, mais hors classement.
+    supabase
+      .from("match_verdicts")
+      .select("match_id, match:matches!inner(tournament_id)", { count: "exact", head: true })
+      .eq("match.tournament_id", tournoiId)
+      .eq("est_definitif", true)
+      .lt("niveau_compte_min", NIVEAU_COMPTE_RIOT_MIN),
   ]);
 
   const min = data?.rating_min ?? null;
@@ -48,5 +57,6 @@ export async function chargerComplementsTournoi(tournoiId: string) {
     // s'il a eu lieu avant la date annoncée.
     lanceLe: lancementReel ?? null,
     classe: data?.classe ?? null,
+    matchsHorsNiveau: matchsHorsNiveau ?? 0,
   };
 }

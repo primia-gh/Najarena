@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { adresseCanonique, bilanFaceAFace, type MatchFaceAFace } from "./face-a-face";
 
-function match(id: string, gagnant: string | null, niveau: MatchFaceAFace["niveau"] = "historique", forfait = false): MatchFaceAFace {
-  return { matchId: id, joueLe: "2026-11-01T20:00:00Z", tournoiSlug: "t", tournoiNom: "T", nature: "tournoi", gagnantId: gagnant, niveau, forfait };
+function match(
+  id: string,
+  gagnant: string | null,
+  niveau: MatchFaceAFace["niveau"] = "historique",
+  forfait = false,
+  niveauCompteMin: number | null = null,
+): MatchFaceAFace {
+  return { matchId: id, joueLe: "2026-11-01T20:00:00Z", tournoiSlug: "t", tournoiNom: "T", nature: "tournoi", gagnantId: gagnant, niveau, forfait, niveauCompteMin };
 }
 
 describe("bilanFaceAFace", () => {
@@ -14,6 +20,16 @@ describe("bilanFaceAFace", () => {
     );
     expect(b).toMatchObject({ victoiresA: 1, victoiresB: 1, verifies: 2, manuels: 1, forfaits: 1 });
     expect(b.dernier?.matchId).toBe("1");
+  });
+
+  it("un match avec un compte Riot sous le niveau 30 est listé, jamais compté (23/11/2026)", () => {
+    const b = bilanFaceAFace(
+      [match("1", "a", "historique", false, 12), match("2", "a", "historique", false, 30), match("3", "b", "historique", false, null)],
+      "a",
+      "b",
+    );
+    expect(b).toMatchObject({ victoiresA: 1, victoiresB: 1, verifies: 2, horsClassement: 1 });
+    expect(b.dernier?.matchId).toBe("2");
   });
 
   it("série en cours du dernier vainqueur", () => {

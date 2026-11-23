@@ -16470,3 +16470,92 @@ grant execute on function public.apparier_arene() to service_role;
 -- L'API Supabase relit la liste des fonctions (signature de
 -- enregistrer_verdict_historique changée).
 notify pgrst, 'reload schema';
+
+-- ---------- Comptes jetables sur le CV (2026-11-23) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (src/lib/rapprochement.ts écrit stats_match_joueur.niveau_compte ; la
+-- page face-à-face lit face_a_face.niveau_compte_min).
+-- Suite du contrôle de sécurité M4, décision du porteur du projet du
+-- 23/11/2026 : un compte Riot sous le niveau 30 ne rapporte plus de points
+-- (22/11/2026), mais permettait encore de se fabriquer des recommandations
+-- « vérifiées » et un bilan de face-à-face flatteur.
+-- 1. Niveau de chaque compte, partie par partie : stats_match_joueur garde
+--    le niveau Riot du compte qui a joué (lu dans la même fiche de partie,
+--    sans appel de plus). Vide avant le 23/11/2026.
+-- 2. Recommandations : une partie ne compte comme « jouée ensemble » ou
+--    « l'un contre l'autre » que si les deux comptes avaient le niveau 30
+--    (un niveau vide, d'avant la règle, compte comme avant).
+-- 3. Face-à-face : le niveau des comptes de chaque match est rendu ; la
+--    page liste ces matchs sans les compter au bilan.
+
+alter table public.stats_match_joueur add column if not exists niveau_compte integer
+  check (niveau_compte is null or niveau_compte between 0 and 100000);
+comment on column public.stats_match_joueur.niveau_compte is
+  'Niveau Riot du compte qui a joué cette partie (lu dans la fiche de partie). Sous 30 : la partie ne compte ni au classement ni pour une recommandation. Vide avant le 23/11/2026.';
+
+create or replace function public.matchs_communs(p_a uuid, p_b uuid)
+returns table (ensemble integer, contre integer)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select
+    count(*) filter (where sa.gagne = sb.gagne)::integer,
+    count(*) filter (where sa.gagne <> sb.gagne)::integer
+  from public.stats_match_joueur sa
+  join public.stats_match_joueur sb on sb.match_id = sa.match_id and sb.profile_id = p_b
+  where sa.profile_id = p_a
+    and p_a <> p_b
+    -- Deux comptes Riot d'au moins niveau 30 (23/11/2026) : une partie
+    -- contre un compte jetable ne fait pas une recommandation « vérifiée ».
+    and coalesce(sa.niveau_compte, 30) >= 30
+    and coalesce(sb.niveau_compte, 30) >= 30
+    and exists (
+      select 1 from public.match_verdicts v
+      where v.match_id = sa.match_id and v.est_definitif and v.niveau in ('code_tournoi', 'historique')
+    );
+$$;
+revoke execute on function public.matchs_communs(uuid, uuid) from public;
+grant execute on function public.matchs_communs(uuid, uuid) to anon, authenticated, service_role;
+
+-- Colonne ajoutée au résultat : la fonction est recréée (ses droits avec).
+drop function if exists public.face_a_face(uuid, uuid);
+create or replace function public.face_a_face(p_a uuid, p_b uuid)
+returns table (
+  match_id uuid,
+  joue_le timestamptz,
+  tournoi_slug text,
+  tournoi_nom text,
+  nature text,
+  gagnant_id uuid,
+  niveau public.verdict_level,
+  forfait boolean,
+  niveau_compte_min integer
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select m.id,
+         coalesce(m.demarre_le, v.cree_le),
+         t.slug,
+         t.nom,
+         t.nature,
+         v.gagnant_id,
+         v.niveau,
+         m.statut = 'forfait',
+         v.niveau_compte_min
+  from public.match_participants pa
+  join public.match_participants pb on pb.match_id = pa.match_id and pb.profile_id = p_b
+  join public.matches m on m.id = pa.match_id
+  join public.tournaments t on t.id = m.tournament_id and t.format = '1v1'
+  join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+  where pa.profile_id = p_a and p_a <> p_b
+  order by coalesce(m.demarre_le, v.cree_le) desc
+  limit 200;
+$$;
+revoke execute on function public.face_a_face(uuid, uuid) from public;
+grant execute on function public.face_a_face(uuid, uuid) to anon, authenticated;
+
+notify pgrst, 'reload schema';

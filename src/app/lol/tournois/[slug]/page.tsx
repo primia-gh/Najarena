@@ -1969,7 +1969,9 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
         <div className="mx-auto grid max-w-contenu gap-8 md:grid-cols-2">
           <div className="flex flex-col gap-8">
             <Deroulement etapes={etapes} />
-            {statut !== "annule" && <CriteresClassement evaluation={classement} />}
+            {statut !== "annule" && (
+              <CriteresClassement evaluation={classement} matchsHorsNiveau={complements.matchsHorsNiveau} />
+            )}
           </div>
           <EssentielReglement
             organisateur={estDefi || estScrim || organisateurPlateforme ? "Najarena" : organisateur?.pseudo}

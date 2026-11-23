@@ -2818,6 +2818,7 @@ export type Database = {
           duree_secondes: number
           gagne: boolean
           kills: number
+          niveau_compte: number | null
           match_id: string
           or_gagne: number
           profile_id: string
@@ -2864,6 +2865,7 @@ export type Database = {
           duree_secondes: number
           gagne: boolean
           kills: number
+          niveau_compte?: number | null
           match_id: string
           or_gagne: number
           profile_id: string
@@ -2910,6 +2912,7 @@ export type Database = {
           duree_secondes?: number
           gagne?: boolean
           kills?: number
+          niveau_compte?: number | null
           match_id?: string
           or_gagne?: number
           profile_id?: string
@@ -3692,6 +3695,7 @@ export type Database = {
           gagnant_id: string | null
           niveau: Database["public"]["Enums"]["verdict_level"]
           forfait: boolean
+          niveau_compte_min: number | null
         }[]
       }
       bloquer_joueur: { Args: { p_joueur: string }; Returns: undefined }

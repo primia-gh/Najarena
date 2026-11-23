@@ -236,6 +236,9 @@ async function enregistrerSerie(
     profile_id: profileId,
     // Compte qui a joué ce match (comptes secondaires déclarés, audit N15).
     puuid: stat.puuid,
+    // Son niveau Riot dans cette partie (23/11/2026) : sous 30, la partie ne
+    // compte pas pour une recommandation (matchs_communs).
+    niveau_compte: typeof stat.summonerLevel === "number" ? Math.floor(stat.summonerLevel) : null,
     champion: stat.championName,
     kills: stat.kills,
     deaths: stat.deaths,

@@ -10,6 +10,13 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "23 novembre",
+    titre: "Recommandations et face-à-face : les comptes neufs ne comptent plus",
+    texte:
+      "Une recommandation « vérifiée » demande d'avoir joué ensemble, ou l'un contre l'autre, avec deux comptes Riot d'au moins niveau\u00a030. Le bilan d'un face-à-face ne compte plus les matchs joués avec un compte plus bas : ils restent listés, marqués « hors classement ». La page de chaque tournoi indique combien de ses matchs sont dans ce cas.",
+    tags: ["Fiabilité"],
+  },
+  {
     date: "22 novembre",
     titre: "Un compte tout neuf ne rapporte plus de points",
     texte:

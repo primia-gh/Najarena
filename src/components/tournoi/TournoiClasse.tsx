@@ -3,6 +3,7 @@ import Panneau from "@/components/design/Panneau";
 import Icone from "@/components/design/Icone";
 import type { EvaluationClassement, StatutClassement } from "@/lib/tournoi-classe";
 import { typographie } from "@/lib/typographie";
+import { NIVEAU_COMPTE_RIOT_MIN } from "@/lib/niveau-compte-riot";
 
 // Label « tournoi classé » (28/09/2026, audit E12 et N12) : la page du
 // tournoi dit, critère par critère, s'il compte au classement. Le vert est
@@ -38,7 +39,14 @@ const SYMBOLE: Record<"ok" | "ko" | "attente", { texte: string; lecteur: string;
 };
 
 /** Encart détaillé : critères publics, un par ligne. */
-export function CriteresClassement({ evaluation }: { evaluation: EvaluationClassement }) {
+export function CriteresClassement({
+  evaluation,
+  matchsHorsNiveau = 0,
+}: {
+  evaluation: EvaluationClassement;
+  /** Matchs lus chez Riot avec un compte sous le niveau 30 (22/11/2026). */
+  matchsHorsNiveau?: number;
+}) {
   return (
     <section aria-labelledby="titre-classement">
       <Panneau className="flex flex-col gap-4 p-6 sm:p-8">
@@ -71,6 +79,13 @@ export function CriteresClassement({ evaluation }: { evaluation: EvaluationClass
             );
           })}
         </ul>
+        {matchsHorsNiveau > 0 && (
+          <p className="text-sm leading-normal text-muted">
+            {typographie(
+              `${matchsHorsNiveau} match${matchsHorsNiveau > 1 ? "s" : ""} joué${matchsHorsNiveau > 1 ? "s" : ""} avec un compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN} : résultat vérifié, mais sans points.`,
+            )}
+          </p>
+        )}
         <Link
           href="/comment-ca-marche#tournois-classes"
           className="inline-flex min-h-11 items-center self-start text-[13px] text-muted underline underline-offset-3 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
