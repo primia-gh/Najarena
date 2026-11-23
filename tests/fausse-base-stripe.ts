@@ -1,7 +1,7 @@
 // Fausse base en mémoire pour les tests des abonnements Stripe (webhook et
 // vérification quotidienne) : imite les seuls appels Supabase qu'ils font
 // (select / upsert / update / delete avec eq, is, in, not, order, limit,
-// maybeSingle, rpc). Une table peut être mise en échec pour simuler une panne d'écriture.
+// range, maybeSingle, rpc). Une table peut être mise en échec pour simuler une panne d'écriture.
 
 type Ligne = Record<string, unknown>;
 type Filtre = (ligne: Ligne) => boolean;
@@ -20,6 +20,7 @@ class Requete implements PromiseLike<Resultat> {
   private filtres: Filtre[] = [];
   private tri: { colonne: string; croissant: boolean } | null = null;
   private limite: number | null = null;
+  private debutPage = 0;
   private mode: "select" | "delete" | "update" = "select";
   private valeurs: Ligne = {};
   private unique = false;
@@ -66,6 +67,11 @@ class Requete implements PromiseLike<Resultat> {
     this.limite = n;
     return this;
   }
+  range(debut: number, fin: number): this {
+    this.debutPage = debut;
+    this.limite = fin - debut + 1;
+    return this;
+  }
   maybeSingle(): this {
     this.unique = true;
     return this;
@@ -97,7 +103,7 @@ class Requete implements PromiseLike<Resultat> {
       const { colonne, croissant } = this.tri;
       trouvees.sort((a, b) => String(a[colonne]).localeCompare(String(b[colonne])) * (croissant ? 1 : -1));
     }
-    if (this.limite !== null) trouvees = trouvees.slice(0, this.limite);
+    if (this.limite !== null) trouvees = trouvees.slice(this.debutPage, this.debutPage + this.limite);
     if (this.unique) return { data: trouvees[0] ?? null, error: null };
     return { data: trouvees, error: null };
   }

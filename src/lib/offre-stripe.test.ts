@@ -115,8 +115,12 @@ describe("abonnementCourant", () => {
     const liste = [ab("a", "canceled", 3), ab("b", "active", 1), ab("c", "trialing", 2)];
     expect(abonnementCourant(liste, J, "a")?.id).toBe("c");
   });
-  it("sinon celui déjà suivi, sinon le plus récent", () => {
+  it("sinon un abonnement encore en vie (il facture encore), avant celui déjà suivi", () => {
     const liste = [ab("a", "canceled", 1), ab("b", "past_due", 2)];
+    expect(abonnementCourant(liste, J, "a")?.id).toBe("b");
+  });
+  it("sinon celui déjà suivi, sinon le plus récent", () => {
+    const liste = [ab("a", "canceled", 1), ab("b", "incomplete_expired", 2)];
     expect(abonnementCourant(liste, J, "a")?.id).toBe("a");
     expect(abonnementCourant(liste, J, null)?.id).toBe("b");
   });

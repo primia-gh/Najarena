@@ -9,6 +9,19 @@ import { fausseBase, type FausseBase } from "../../tests/fausse-base-stripe";
 const ADMIN = "99999999-9999-9999-9999-999999999999";
 const JOUEUR = "11111111-1111-1111-1111-111111111111";
 let base: FausseBase;
+let abonnementsChezStripe: { status: string; metadata: Record<string, string> }[] = [];
+let stripeEnPanne = false;
+
+vi.mock("stripe", () => ({
+  default: class {
+    subscriptions = {
+      list: async () => {
+        if (stripeEnPanne) throw new Error("Stripe ne répond pas");
+        return { data: abonnementsChezStripe };
+      },
+    };
+  },
+}));
 
 vi.mock("next/navigation", () => ({
   redirect: (adresse: string) => {
@@ -42,6 +55,9 @@ async function redirection(offre: string): Promise<string> {
 
 beforeEach(() => {
   base = fausseBase();
+  abonnementsChezStripe = [];
+  stripeEnPanne = false;
+  vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_faux");
   base.tables.admins = [{ profile_id: ADMIN }];
   base.tables.profiles = [{ id: JOUEUR, pseudo: "Joueur" }];
 });
@@ -52,8 +68,29 @@ describe("attribuerOffreAdmin", () => {
     expect(base.tables.comptes_offres[0]).toMatchObject({ profile_id: JOUEUR, offre: "organisateur", attribue_par: ADMIN });
   });
 
-  it("joueur dont l'abonnement est terminé : l'offre peut être offerte", async () => {
+  it("joueur dont l'abonnement est terminé, chez Stripe aussi : l'offre peut être offerte", async () => {
     base.tables.abonnements_stripe.push({ profile_id: JOUEUR, client_stripe_id: "cus_1", statut: "canceled" });
+    abonnementsChezStripe = [{ status: "canceled", metadata: { profile_id: JOUEUR } }];
+    expect(await redirection("verifie")).toContain("/admin?message=");
+  });
+
+  it("abonnement inconnu de la base (message de paiement perdu) mais en vie chez Stripe : refusé", async () => {
+    base.tables.abonnements_stripe.push({ profile_id: JOUEUR, client_stripe_id: "cus_1", statut: null });
+    abonnementsChezStripe = [{ status: "active", metadata: { profile_id: JOUEUR } }];
+    expect(await redirection("organisateur")).toContain("abonnement Stripe en cours");
+    expect(base.tables.comptes_offres).toHaveLength(0);
+  });
+
+  it("Stripe ne répond pas : refusé, rien n'est écrit", async () => {
+    base.tables.abonnements_stripe.push({ profile_id: JOUEUR, client_stripe_id: "cus_1", statut: null });
+    stripeEnPanne = true;
+    expect(await redirection("organisateur")).toContain("Impossible de vérifier");
+    expect(base.tables.comptes_offres).toHaveLength(0);
+  });
+
+  it("un abonnement créé hors du site (sans étiquette) ne bloque pas", async () => {
+    base.tables.abonnements_stripe.push({ profile_id: JOUEUR, client_stripe_id: "cus_1", statut: null });
+    abonnementsChezStripe = [{ status: "active", metadata: {} }];
     expect(await redirection("verifie")).toContain("/admin?message=");
   });
 

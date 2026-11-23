@@ -16587,8 +16587,10 @@ notify pgrst, 'reload schema';
 
 -- ---------- Niveau Riot obligatoire pour un résultat 1v1 lu chez Riot (2026-11-23) ----------
 -- À appliquer sur la base APRÈS la mise en ligne du code du 22/11/2026
--- (src/lib/rapprochement.ts transmet déjà le niveau des comptes), et
--- seulement si cette requête rend 0 (aucun résultat 1v1 récent sans niveau) :
+-- (src/lib/rapprochement.ts transmet déjà le niveau des comptes : vérifier
+-- dans Vercel que la production contient la fusion de la PR #9, commit
+-- 26aef5d, ou plus récent), et seulement si cette requête rend 0 (aucun
+-- résultat 1v1 récent sans niveau) :
 --   select count(*) from public.match_verdicts v
 --   join public.matches m on m.id = v.match_id
 --   join public.tournaments t on t.id = m.tournament_id and t.format = '1v1'
@@ -16624,5 +16626,26 @@ revoke execute on function public.controler_niveau_compte_verdict() from public,
 
 drop trigger if exists niveau_compte_verdict on public.match_verdicts;
 create trigger niveau_compte_verdict
-  before insert or update of niveau, niveau_compte_min on public.match_verdicts
+  before insert on public.match_verdicts
   for each row execute function public.controler_niveau_compte_verdict();
+
+-- Un verdict écrit ne se modifie plus jamais (contrôle de sécurité du
+-- 23/11/2026) : aucun code ne le fait, et une modification pouvait faire
+-- passer un verdict sans niveau sur un match 1v1, ou un niveau de 15 à 40.
+-- La suppression en cascade (match supprimé avec son tournoi brouillon)
+-- reste possible.
+create or replace function public.refuser_modification_verdict()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  raise exception 'VERDICT_IMMUABLE';
+end;
+$$;
+revoke execute on function public.refuser_modification_verdict() from public, anon, authenticated;
+
+drop trigger if exists verdict_immuable on public.match_verdicts;
+create trigger verdict_immuable
+  before update on public.match_verdicts
+  for each row execute function public.refuser_modification_verdict();

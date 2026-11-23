@@ -139,7 +139,9 @@ type AbonnementResume = {
  * Parmi les abonnements d'un client Stripe, celui qui compte pour ce compte
  * Najarena (vérification quotidienne, 23/11/2026) : seulement ceux que notre
  * serveur a étiquetés pour lui (joueurDeLAbonnement) ; d'abord un abonnement
- * payé (le plus récent), sinon celui déjà suivi, sinon le plus récent.
+ * payé, puis un abonnement encore en vie (impayé, en attente : il facture
+ * encore), puis celui déjà suivi, puis le plus récent — à chaque fois le
+ * plus récent d'abord.
  * Un premier abonnement ou un réabonnement dont le message de paiement s'est
  * perdu est ainsi retrouvé, même si la base ne connaît pas encore son
  * identifiant.
@@ -152,5 +154,11 @@ export function abonnementCourant<T extends AbonnementResume>(
   const siens = abonnements
     .filter((a) => joueurDeLAbonnement(a.metadata?.profile_id) === profileId)
     .sort((a, b) => b.created - a.created);
-  return siens.find((a) => abonnementPaye(a)) ?? siens.find((a) => a.id === suiviId) ?? siens[0] ?? null;
+  return (
+    siens.find((a) => abonnementPaye(a)) ??
+    siens.find((a) => abonnementEnVie(a.status)) ??
+    siens.find((a) => a.id === suiviId) ??
+    siens[0] ??
+    null
+  );
 }

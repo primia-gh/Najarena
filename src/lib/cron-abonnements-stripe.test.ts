@@ -57,7 +57,6 @@ describe("route de la vérification quotidienne des abonnements", () => {
     const reponse = await appel("secret-cron");
     expect(await reponse.json()).toEqual(bilan);
     const options = verifierAbonnementsStripe.mock.calls[0][2];
-    expect(options.max).toBe(100);
     expect(options.finAu).toBeGreaterThanOrEqual(avant + 45_000);
     expect(options.finAu).toBeLessThan(avant + 60_000);
     expect(console.error).toHaveBeenCalledTimes(1);

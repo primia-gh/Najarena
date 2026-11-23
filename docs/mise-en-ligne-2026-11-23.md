@@ -20,8 +20,10 @@ jusqu'à la fin du fichier :
    - en fin de section, `notify pgrst, 'reload schema'`.
 2. **Niveau Riot obligatoire** : fonction `controler_niveau_compte_verdict` et déclencheur
    `niveau_compte_verdict` sur `match_verdicts`. Tout nouveau verdict 1v1 de niveau 2 ou 3 sans
-   niveau de compte est refusé (`NIVEAU_COMPTE_REQUIS`). À n'appliquer que si la requête de
-   l'étape 1 rend 0.
+   niveau de compte est refusé (`NIVEAU_COMPTE_REQUIS`). Fonction `refuser_modification_verdict`
+   et déclencheur `verdict_immuable` : un verdict écrit ne se modifie plus (`VERDICT_IMMUABLE`,
+   aucun code ne le faisait ; la suppression en cascade reste possible). À n'appliquer que si les
+   deux contrôles de l'étape 1 sont bons.
 
 Aucune donnée existante n'est modifiée. Les recommandations sont recomptées à chaque affichage :
 celles qui ne reposent que sur des parties contre un compte sous le niveau 30, ou jouées avec un
@@ -37,7 +39,14 @@ contre un compte jetable. Aucune page ne casse.
 utilise `CRON_SECRET`, déjà réglé. Tant que la clé Stripe n'est pas posée, elle répond
 `{ actif: false }` sans rien faire.
 
+Administration : offrir ou retirer une offre à un joueur abonné chez Stripe est refusé (son offre
+suit son abonnement) ; le site interroge Stripe en direct pour le savoir.
+
 ## 1. Avant (lecture seule)
+
+Dans Vercel : le déploiement de production contient la fusion de la PR #9 (commit `26aef5d`) ou
+plus récent. Sinon le code en ligne n'envoie pas le niveau des comptes et la règle refuserait tous
+les résultats 1v1 lus chez Riot : ne pas appliquer la section 2.
 
 ```sql
 -- Doit rendre 0 : aucun verdict 1v1 lu chez Riot récent sans niveau de compte. Sinon, ne pas
@@ -62,7 +71,8 @@ Elles sont rejouables (`if not exists`, `create or replace`, `drop … if exists
 ```sql
 select column_name from information_schema.columns
  where table_name = 'stats_match_joueur' and column_name = 'niveau_compte';   -- 1 ligne
-select tgname from pg_trigger where tgname = 'niveau_compte_verdict';         -- 1 ligne
+select string_agg(tgname, ', ' order by tgname) from pg_trigger
+ where tgname in ('niveau_compte_verdict', 'verdict_immuable');               -- les 2
 select pg_get_functiondef('public.matchs_communs(uuid,uuid)'::regprocedure) like '%game_accounts%'; -- true
 select has_function_privilege('anon', 'public.face_a_face(uuid,uuid)', 'execute'),
        has_function_privilege('authenticated', 'public.face_a_face(uuid,uuid)', 'execute');      -- true, true

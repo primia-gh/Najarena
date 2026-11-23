@@ -18,7 +18,8 @@ export const NIVEAU_COMPTE_RIOT_MIN = 30;
 
 /**
  * Le niveau gardé avec le verdict permet-il de compter ce match ? Vide
- * (verdict d'avant le 22/11/2026, 5v5) : rien à reprocher, il compte.
+ * (verdict d'avant le 22/11/2026, 5v5 ; la base n'accepte plus de verdict
+ * 1v1 lu chez Riot sans niveau) : rien à reprocher, il compte.
  */
 export function niveauCompteSuffisant(niveauCompteMin: number | null | undefined): boolean {
   return niveauCompteMin === null || niveauCompteMin === undefined || niveauCompteMin >= NIVEAU_COMPTE_RIOT_MIN;
@@ -26,8 +27,9 @@ export function niveauCompteSuffisant(niveauCompteMin: number | null | undefined
 
 /**
  * Plus bas niveau Riot des comptes donnés sur toutes les parties d'une
- * série. Nul si Riot ne l'a pas fourni pour l'un d'eux (le match compte
- * alors comme avant).
+ * série. Nul si Riot ne l'a pas fourni pour l'un d'eux : la base refuse
+ * alors le verdict 1v1 (NIVEAU_COMPTE_REQUIS, 23/11/2026), rien n'est
+ * enregistré et l'organisateur tranche après le délai.
  */
 export function niveauMinimumSerie(niveaux: (number | undefined)[]): number | null {
   if (niveaux.length === 0) return null;

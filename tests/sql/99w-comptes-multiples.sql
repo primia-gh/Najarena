@@ -99,9 +99,14 @@ select refus('Un verdict 1v1 lu chez Riot sans niveau de compte est refusé (23/
 select verifie('Sans niveau : rien n''est écrit, ni verdict ni partie réservée (le match attend l''organisateur)',
   not exists (select 1 from match_verdicts where riot_match_id = 'EUW1_99W3')
   and not exists (select 1 from parties_utilisees where riot_match_id = 'EUW1_99W3'));
-select refus('Un verdict 1v1 lu chez Riot ne perd pas son niveau après coup',
-  $q$update match_verdicts set niveau_compte_min = null where riot_match_id = 'EUW1_99W1'$q$,
-  'NIVEAU_COMPTE_REQUIS');
+select refus('Un verdict écrit ne se modifie plus : ni son niveau de compte…',
+  $q$update match_verdicts set niveau_compte_min = 40 where riot_match_id = 'EUW1_99W1'$q$,
+  'VERDICT_IMMUABLE');
+select refus('… ni son match',
+  $q$update match_verdicts set match_id = gen_random_uuid() where riot_match_id = 'EUW1_99W1'$q$,
+  'VERDICT_IMMUABLE');
+select verifie('Le verdict est resté tel quel',
+  (select niveau_compte_min = 12 from match_verdicts where riot_match_id = 'EUW1_99W1'));
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-00000000000d');
 select essai('Une décision manuelle n''a pas besoin de niveau',

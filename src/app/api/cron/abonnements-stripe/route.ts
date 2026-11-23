@@ -29,11 +29,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ erreur: "Client serveur Supabase indisponible." }, { status: 503 });
   }
 
-  // Aucun client commencé au-delà de 45 s (limite de la fonction : 60 s).
+  // Aucun joueur commencé au-delà de 45 s (limite de la fonction : 60 s).
   // Un appel bloqué chez Stripe ne doit pas dépasser la limite de la
   // fonction : 10 s par appel, une seule nouvelle tentative.
   const client = new Stripe(cleSecrete, { timeout: 10_000, maxNetworkRetries: 1 });
-  const bilan = await verifierAbonnementsStripe(client, admin, { max: 100, finAu: debut + 45_000 });
+  const bilan = await verifierAbonnementsStripe(client, admin, { finAu: debut + 45_000 });
   // Toute correction ou anomalie apparaît dans le journal d'erreurs de
   // Vercel (jamais sur le salon Discord public des annonces).
   if (bilan.actif && bilan.accordees + bilan.retirees + bilan.signales + bilan.erreurs > 0) {

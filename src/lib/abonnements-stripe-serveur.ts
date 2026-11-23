@@ -4,6 +4,7 @@ import type { creerClientAdmin } from "@/lib/supabase/admin";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
 import {
   abonnementCourant,
+  abonnementEnVie,
   abonnementPaye,
   decisionVerification,
   offreDepuisPrix,
@@ -138,7 +139,9 @@ export type BilanVerificationAbonnements =
   | { actif: false; raison: string }
   | {
       actif: true;
-      /** Clients relus chez Stripe pendant ce passage. */
+      /** Abonnements non résiliés lus chez Stripe. */
+      abonnementsLus: number;
+      /** Joueurs suivis en base, passés en revue. */
       examines: number;
       accordees: number;
       retirees: number;
@@ -146,62 +149,80 @@ export type BilanVerificationAbonnements =
       signales: number;
       /** Stripe ou la base n'a pas répondu : réessayé au prochain passage. */
       erreurs: number;
-      /** D'autres clients restent à relire (au prochain passage). */
+      /** Heure limite atteinte : la suite au prochain passage. */
       restants: boolean;
     };
 
-// Taille des paquets d'identifiants passés à la base (adresse de requête
-// de taille raisonnable).
+// Taille des paquets passés à la base (adresse de requête de taille
+// raisonnable, et au plus ce que l'API de la base rend en une fois).
 const PAQUET = 100;
+const PAGE_BASE = 1000;
+// Au-delà, la liste des abonnements n'est pas lue en entier : la tâche ne
+// fait rien plutôt que de croire résilié un abonnement qu'elle n'a pas lu.
+const ABONNEMENTS_MAX = 10_000;
 
-// Abonnements d'un client chez Stripe (résiliés compris). Nul si Stripe ne
-// répond pas, ou ne connaît pas ce client (clé de test contre clé réelle…) :
-// on ne retire rien sur une absence de réponse.
-async function abonnementsDuClient(client: Stripe, clientId: string): Promise<Stripe.Subscription[] | null> {
-  try {
-    const liste = await client.subscriptions.list({ customer: clientId, status: "all", limit: 20 });
-    return liste.data;
-  } catch {
-    return null;
-  }
-}
+type Suivi = { profile_id: string; abonnement_stripe_id: string | null; statut: string | null; maj_le: string };
 
-// Date de relecture seule (rotation de la vérification quotidienne).
-async function noterRelu(admin: ClientAdmin, profileId: string): Promise<boolean> {
-  const { error } = await admin
+// Le suivi n'a pas bougé depuis la lecture du début : sinon le webhook vient
+// de passer, et c'est lui qui a raison (contrôle de sécurité du 23/11/2026).
+async function suiviInchange(admin: ClientAdmin, suivi: Suivi): Promise<boolean> {
+  const { data, error } = await admin
     .from("abonnements_stripe")
-    .update({ maj_le: new Date().toISOString() })
-    .eq("profile_id", profileId);
-  return !error;
+    .select("maj_le")
+    .eq("profile_id", suivi.profile_id)
+    .maybeSingle();
+  return !error && data?.maj_le === suivi.maj_le;
 }
 
 /**
- * Vérification quotidienne (23/11/2026) : relit chez Stripe les abonnements
- * de chaque client et corrige l'offre si un message du webhook s'est perdu —
- * offre retirée à un abonnement impayé ou résilié, accordée à un abonnement
- * payé (premier abonnement et réabonnement compris : on relit le client, pas
- * seulement l'abonnement déjà connu). Simple rotation : passent d'abord les
- * clients relus le moins récemment, chaque client relu est daté, personne
- * n'est oublié (tous relus chaque jour jusqu'à `max` clients). `max` borne
- * les clients relus, `finAu` l'heure à laquelle on n'en commence plus.
+ * Vérification quotidienne (23/11/2026) : corrige l'offre d'un abonné si un
+ * message du webhook s'est perdu — offre retirée à un abonnement impayé,
+ * en pause ou résilié, accordée à un abonnement payé (premier abonnement et
+ * réabonnement compris).
+ * 1. Tous les abonnements non résiliés du compte Stripe, cent par appel,
+ *    rangés par joueur d'après l'étiquette posée par notre serveur.
+ * 2. Pour chaque joueur suivi en base, l'abonnement qui compte
+ *    (abonnementCourant). Seuls les cas suspects coûtent un appel de plus :
+ *    offre accordée par Stripe ou abonnement que la base croit en vie, sans
+ *    abonnement non résilié chez Stripe — on relit alors l'abonnement connu.
+ * 3. Écriture seulement si quelque chose change, et si le webhook n'est pas
+ *    passé entre-temps.
  */
 export async function verifierAbonnementsStripe(
   client: Stripe,
   admin: ClientAdmin,
-  options: { max?: number; finAu?: number } = {},
+  options: { finAu?: number } = {},
 ): Promise<BilanVerificationAbonnements> {
   const prix = prixParOffre();
   if (!prixConfigures(prix)) return { actif: false, raison: "Aucun prix d'offre réglé (STRIPE_PRICE_*)." };
-  const max = options.max ?? 100;
 
-  const { data: suivis, error: erreurSuivis } = await admin
-    .from("abonnements_stripe")
-    .select("profile_id, client_stripe_id, abonnement_stripe_id, statut, maj_le")
-    .order("maj_le", { ascending: true })
-    // Au plus ce que l'API de la base rend en une fois ; la rotation fait
-    // passer les suivants les jours d'après.
-    .limit(1000);
-  if (erreurSuivis || !suivis) return { actif: false, raison: "Lecture des abonnements impossible." };
+  let vivants: Stripe.Subscription[];
+  try {
+    vivants = await client.subscriptions.list({ limit: 100 }).autoPagingToArray({ limit: ABONNEMENTS_MAX });
+  } catch {
+    return { actif: false, raison: "Stripe ne répond pas." };
+  }
+  if (vivants.length >= ABONNEMENTS_MAX) {
+    console.error("Vérification Stripe : trop d'abonnements pour une lecture complète, rien n'est corrigé.");
+    return { actif: false, raison: "Trop d'abonnements pour une lecture complète." };
+  }
+  const parJoueur = new Map<string, Stripe.Subscription[]>();
+  for (const abonnement of vivants) {
+    const joueur = abonnement.metadata?.profile_id;
+    if (joueur) parJoueur.set(joueur, [...(parJoueur.get(joueur) ?? []), abonnement]);
+  }
+
+  const suivis: Suivi[] = [];
+  for (let page = 0; ; page += 1) {
+    const { data, error } = await admin
+      .from("abonnements_stripe")
+      .select("profile_id, abonnement_stripe_id, statut, maj_le")
+      .order("profile_id", { ascending: true })
+      .range(page * PAGE_BASE, (page + 1) * PAGE_BASE - 1);
+    if (error || !data) return { actif: false, raison: "Lecture des abonnements impossible." };
+    suivis.push(...data);
+    if (data.length < PAGE_BASE) break;
+  }
 
   const offres = new Map<string, { offre: string; manuelle: boolean }>();
   for (let i = 0; i < suivis.length; i += PAQUET) {
@@ -212,28 +233,43 @@ export async function verifierAbonnementsStripe(
   }
 
   const bilan = { examines: 0, accordees: 0, retirees: 0, signales: 0, erreurs: 0 };
+  let restants = false;
   for (const suivi of suivis) {
-    if (bilan.examines >= max || (options.finAu !== undefined && Date.now() > options.finAu)) break;
-    bilan.examines += 1;
-    const abonnements = await abonnementsDuClient(client, suivi.client_stripe_id);
-    if (!abonnements) {
-      // Daté quand même : un client que Stripe ne connaît pas (créé avec
-      // l'autre clé) ne repasse pas en tête chaque jour devant les autres.
-      bilan.erreurs += 1;
-      await noterRelu(admin, suivi.profile_id);
-      continue;
+    if (options.finAu !== undefined && Date.now() > options.finAu) {
+      restants = true;
+      break;
     }
+    bilan.examines += 1;
     const offreActuelle = offres.get(suivi.profile_id) ?? null;
-    const abonnement = abonnementCourant(abonnements, suivi.profile_id, suivi.abonnement_stripe_id);
+    const offreStripe = offreActuelle !== null && !offreActuelle.manuelle;
+
+    let candidats = parJoueur.get(suivi.profile_id) ?? [];
+    if (candidats.length === 0) {
+      // Aucun abonnement non résilié chez Stripe. Rien à faire, sauf si la
+      // base croit encore à une offre Stripe ou à un abonnement en vie : on
+      // relit alors l'abonnement connu (résilié, sans doute).
+      if (!offreStripe && !(suivi.statut && abonnementEnVie(suivi.statut))) continue;
+      const connu = suivi.abonnement_stripe_id ? await relireAbonnement(client, suivi.abonnement_stripe_id) : null;
+      if (!connu) {
+        if (offreStripe) {
+          // Jamais retirée d'office : un abonnement que Stripe ne connaît
+          // pas (autre clé, supprimé) se regarde à la main.
+          console.error(`Vérification Stripe : offre accordée par Stripe sans abonnement retrouvé (joueur ${suivi.profile_id}).`);
+          bilan.signales += 1;
+        } else {
+          bilan.erreurs += 1;
+        }
+        continue;
+      }
+      candidats = [connu];
+    }
+
+    const abonnement = abonnementCourant(candidats, suivi.profile_id, suivi.abonnement_stripe_id);
     if (!abonnement) {
-      // Aucun abonnement étiqueté pour ce compte chez ce client. Une offre
-      // accordée par Stripe sans abonnement est signalée, jamais retirée
-      // d'office (un client lu avec la mauvaise clé n'a aucun abonnement).
-      if (offreActuelle && !offreActuelle.manuelle) {
-        console.error("Vérification Stripe : offre accordée par Stripe sans abonnement chez ce client.");
+      if (offreStripe) {
+        console.error(`Vérification Stripe : offre accordée par Stripe sans abonnement étiqueté (joueur ${suivi.profile_id}).`);
         bilan.signales += 1;
       }
-      if (!(await noterRelu(admin, suivi.profile_id))) bilan.erreurs += 1;
       continue;
     }
     const decision = decisionVerification({
@@ -243,6 +279,15 @@ export async function verifierAbonnementsStripe(
       prix,
       offreActuelle,
     });
+    const suiviChange = abonnement.id !== suivi.abonnement_stripe_id || abonnement.status !== suivi.statut;
+    if (decision.action === "signaler") {
+      console.error(`Vérification Stripe : prix de l'abonnement ${abonnement.id} sans offre correspondante.`);
+      bilan.signales += 1;
+    }
+    if (decision.action === "aucune" && !suiviChange) continue;
+    if (decision.action === "signaler" && !suiviChange) continue;
+    if (!(await suiviInchange(admin, suivi))) continue;
+
     if (decision.action === "accorder" || decision.action === "retirer") {
       if (await appliquerAbonnement(client, admin, suivi.profile_id, abonnement)) {
         if (decision.action === "accorder") bilan.accordees += 1;
@@ -252,14 +297,9 @@ export async function verifierAbonnementsStripe(
       }
       continue;
     }
-    if (decision.action === "signaler") {
-      console.error(`Vérification Stripe : prix de l'abonnement ${abonnement.id} sans offre correspondante.`);
-      bilan.signales += 1;
-    }
-    // Statut à jour, et date de relecture : les clients relus le moins
-    // récemment passent en premier au prochain passage.
+    // Seul le suivi (statut, abonnement courant) est à mettre à jour.
     if (!(await suivreAbonnement(admin, suivi.profile_id, abonnement))) bilan.erreurs += 1;
   }
 
-  return { actif: true, ...bilan, restants: bilan.examines < suivis.length };
+  return { actif: true, abonnementsLus: vivants.length, ...bilan, restants };
 }
