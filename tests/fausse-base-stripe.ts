@@ -133,12 +133,15 @@ export function abonnementStripe(options: {
   client?: string;
   /** Date de création (secondes) : la plus récente passe d'abord. */
   cree?: number;
+  /** Paiements mis en pause chez Stripe (le statut reste « active »). */
+  enPause?: boolean;
 }) {
   return {
     id: options.id,
     object: "subscription",
     status: options.statut,
     created: options.cree ?? 1_700_000_000,
+    pause_collection: options.enPause ? { behavior: "void" } : null,
     customer: options.client ?? "cus_1",
     metadata: options.profileId ? { profile_id: options.profileId } : {},
     items: { data: options.prix ? [{ price: { id: options.prix } }] : [] },

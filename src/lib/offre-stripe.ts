@@ -72,9 +72,18 @@ export function abonnementEnVie(statut: string): boolean {
   return statut !== "canceled" && statut !== "incomplete_expired";
 }
 
-/** Abonnement qui donne droit à son offre : payé ou en période d'essai. */
+/** Abonnement payé ou en période d'essai (d'après son seul statut). */
 export function abonnementEnCours(statut: string): boolean {
   return statut === "active" || statut === "trialing";
+}
+
+/**
+ * Abonnement qui donne droit à son offre : payé ou en essai, et pas mis en
+ * pause (contrôle de sécurité du 23/11/2026 : une pause des paiements garde
+ * le statut « active » sans rien encaisser).
+ */
+export function abonnementPaye(abonnement: { status: string; pause_collection?: unknown }): boolean {
+  return abonnementEnCours(abonnement.status) && !abonnement.pause_collection;
 }
 
 /**
@@ -97,13 +106,15 @@ export type DecisionVerification =
 
 export function decisionVerification(entree: {
   statutStripe: string;
+  /** Paiements mis en pause chez Stripe (le statut reste « active »). */
+  enPause?: boolean;
   prixFacture: string | null | undefined;
   prix: Record<OffrePayante, string | undefined>;
   offreActuelle: { offre: string; manuelle: boolean } | null;
 }): DecisionVerification {
-  const { statutStripe, prixFacture, prix, offreActuelle } = entree;
+  const { statutStripe, enPause, prixFacture, prix, offreActuelle } = entree;
   if (offreActuelle?.manuelle) return { action: "aucune" };
-  if (!abonnementEnCours(statutStripe)) {
+  if (!abonnementPaye({ status: statutStripe, pause_collection: enPause ? true : null })) {
     return offreActuelle ? { action: "retirer" } : { action: "aucune" };
   }
   const offre = offreDepuisPrix(prixFacture, prix);
@@ -116,13 +127,19 @@ export function prixConfigures(prix: Record<OffrePayante, string | undefined>): 
   return Object.values(prix).some((valeur) => listePrix(valeur).length > 0);
 }
 
-type AbonnementResume = { id: string; status: string; created: number; metadata?: Record<string, string> | null };
+type AbonnementResume = {
+  id: string;
+  status: string;
+  created: number;
+  metadata?: Record<string, string> | null;
+  pause_collection?: unknown;
+};
 
 /**
  * Parmi les abonnements d'un client Stripe, celui qui compte pour ce compte
  * Najarena (vérification quotidienne, 23/11/2026) : seulement ceux que notre
  * serveur a étiquetés pour lui (joueurDeLAbonnement) ; d'abord un abonnement
- * en cours (le plus récent), sinon celui déjà suivi, sinon le plus récent.
+ * payé (le plus récent), sinon celui déjà suivi, sinon le plus récent.
  * Un premier abonnement ou un réabonnement dont le message de paiement s'est
  * perdu est ainsi retrouvé, même si la base ne connaît pas encore son
  * identifiant.
@@ -135,5 +152,5 @@ export function abonnementCourant<T extends AbonnementResume>(
   const siens = abonnements
     .filter((a) => joueurDeLAbonnement(a.metadata?.profile_id) === profileId)
     .sort((a, b) => b.created - a.created);
-  return siens.find((a) => abonnementEnCours(a.status)) ?? siens.find((a) => a.id === suiviId) ?? siens[0] ?? null;
+  return siens.find((a) => abonnementPaye(a)) ?? siens.find((a) => a.id === suiviId) ?? siens[0] ?? null;
 }

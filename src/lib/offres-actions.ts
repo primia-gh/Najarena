@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
 import { lienExterneSur, MESSAGE_LIEN_INVALIDE } from "@/lib/lien-externe";
+import { abonnementEnVie } from "@/lib/offre-stripe";
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -56,6 +57,27 @@ export async function attribuerOffreAdmin(formData: FormData) {
   if (!admin) {
     redirect(
       `/admin?erreur=${encodeURIComponent("Attribution indisponible (SUPABASE_SERVICE_ROLE_KEY manquante).")}`,
+    );
+  }
+
+  // Joueur abonné chez Stripe (contrôle de sécurité du 23/11/2026) : son
+  // offre suit son abonnement. Une offre donnée ici n'est jamais retirée par
+  // la fin d'un abonnement (elle resterait à vie après un remboursement), et
+  // une révocation serait défaite par la vérification quotidienne. On passe
+  // donc par Stripe, ou par la suspension du compte.
+  const { data: abonnement, error: erreurAbonnement } = await admin
+    .from("abonnements_stripe")
+    .select("statut")
+    .eq("profile_id", profil.id)
+    .maybeSingle();
+  if (erreurAbonnement) {
+    redirect(`/admin?erreur=${encodeURIComponent("Lecture de l'abonnement impossible pour l'instant : réessaie.")}`);
+  }
+  if (abonnement?.statut && abonnementEnVie(abonnement.statut)) {
+    redirect(
+      `/admin?erreur=${encodeURIComponent(
+        `${pseudo} a un abonnement Stripe en cours : change sa formule, rembourse-le ou résilie-le chez Stripe (l'offre suivra), ou suspends le compte.`,
+      )}`,
     );
   }
 

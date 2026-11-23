@@ -107,21 +107,32 @@ select verifie('Compte Riot relié mais pas vérifié : ne compte pas',
    from public.matchs_communs('b33b0001-0000-0000-0000-000000000000', 'b33b0002-0000-0000-0000-000000000000')));
 update game_accounts set verifie_le = now() where puuid = 'P99X-1';
 
--- ---- Coéquipiers d'une partie 5v5 (niveau lu joueur par joueur) ----
-do $$
-declare v_match uuid;
-begin
-  v_match := pg_temp.duel_99x(4, 2, 80, 60, 'EUW1_99X4');
-  insert into stats_match_joueur (match_id, profile_id, puuid, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne, niveau_compte) values
-    (v_match, 'b33b0003-0000-0000-0000-000000000000', 'P99X-3', 'Lux', 0, 1, 9, 30, 6000, 1500, true, 50),
-    (v_match, 'b33b0006-0000-0000-0000-000000000000', 'P99X-6', 'Leona', 0, 2, 7, 20, 5000, 1500, true, 5);
-end $$;
+-- ---- Coéquipiers d'une vraie partie 5v5 (verdict sans niveau, niveau lu joueur par joueur) ----
+insert into tournaments (id, game_id, organisateur_id, slug, nom, format, capacite, region, debute_le, checkin_ouvre_le, statut, compte_pour_classement) values
+  ('b33b5555-0000-0000-0000-000000000001', 1, 'b33b0002-0000-0000-0000-000000000000', 'equipe-99x', 'Equipe 99x', '5v5', 4, 'EUW', now() - interval '1 day', now() - interval '1 day', 'termine', false);
+insert into matches (id, tournament_id, tour, position, statut) values
+  ('b33b5555-0000-0000-0000-000000000011', 'b33b5555-0000-0000-0000-000000000001', 1, 1, 'termine');
+select essai('Un verdict 5v5 lu chez Riot sans niveau de compte est accepté (le niveau se lit joueur par joueur)',
+  $q$insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif)
+     values ('b33b5555-0000-0000-0000-000000000011', 'historique', 'b33b0004-0000-0000-0000-000000000000', true)$q$,
+  'passe');
+insert into stats_match_joueur (match_id, profile_id, puuid, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne, niveau_compte) values
+  ('b33b5555-0000-0000-0000-000000000011', 'b33b0004-0000-0000-0000-000000000000', 'P99X-4', 'Ahri', 4, 1, 6, 180, 9000, 1800, true, 80),
+  ('b33b5555-0000-0000-0000-000000000011', 'b33b0003-0000-0000-0000-000000000000', 'P99X-3', 'Lux', 0, 1, 9, 30, 6000, 1800, true, 50),
+  ('b33b5555-0000-0000-0000-000000000011', 'b33b0006-0000-0000-0000-000000000000', 'P99X-6', 'Leona', 0, 2, 7, 20, 5000, 1800, true, 5);
 select verifie('5v5 : deux coéquipiers de niveau 30 ou plus, la partie compte « ensemble »',
   (select ensemble = 1
    from public.matchs_communs('b33b0004-0000-0000-0000-000000000000', 'b33b0003-0000-0000-0000-000000000000')));
 select verifie('5v5 : un coéquipier sous le niveau 30 ne compte pas',
   (select ensemble = 0
    from public.matchs_communs('b33b0004-0000-0000-0000-000000000000', 'b33b0006-0000-0000-0000-000000000000')));
+
+-- ---- Fiche d'avant le 03/10/2026 : aucun compte Riot noté ----
+update stats_match_joueur set puuid = null
+where match_id = (select match_id from match_verdicts where riot_match_id = 'EUW1_99X3');
+select verifie('Fiche sans compte Riot noté (avant le 03/10/2026) : compte comme avant',
+  (select contre = 1
+   from public.matchs_communs('b33b0004-0000-0000-0000-000000000000', 'b33b0005-0000-0000-0000-000000000000')));
 
 -- ---- Un joueur n'écrit jamais son niveau ----
 set role authenticated;

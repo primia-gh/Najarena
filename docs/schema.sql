@@ -16519,14 +16519,19 @@ as $$
     -- Seuil : NIVEAU_COMPTE_RIOT_MIN (src/lib/niveau-compte-riot.ts).
     and coalesce(sa.niveau_compte, 30) >= 30
     and coalesce(sb.niveau_compte, 30) >= 30
-    -- Le compte Riot qui a joué est toujours lié et vérifié sur ce profil
-    -- (une fiche d'avant le 03/10/2026, sans compte noté, compte comme avant).
+    -- Le compte Riot qui a joué est toujours lié et vérifié sur ce profil,
+    -- pour le jeu de la partie (une fiche d'avant le 03/10/2026, sans compte
+    -- noté, compte comme avant).
     and (sa.puuid is null or exists (
       select 1 from public.game_accounts g
-      where g.profile_id = p_a and g.puuid = sa.puuid and g.verifie_le is not null))
+      join public.matches m on m.id = sa.match_id
+      join public.tournaments t on t.id = m.tournament_id
+      where g.profile_id = p_a and g.game_id = t.game_id and g.puuid = sa.puuid and g.verifie_le is not null))
     and (sb.puuid is null or exists (
       select 1 from public.game_accounts g
-      where g.profile_id = p_b and g.puuid = sb.puuid and g.verifie_le is not null))
+      join public.matches m on m.id = sb.match_id
+      join public.tournaments t on t.id = m.tournament_id
+      where g.profile_id = p_b and g.game_id = t.game_id and g.puuid = sb.puuid and g.verifie_le is not null))
     and exists (
       select 1 from public.match_verdicts v
       where v.match_id = sa.match_id and v.est_definitif and v.niveau in ('code_tournoi', 'historique')

@@ -206,14 +206,33 @@ describe("vie de l'abonnement", () => {
     expect(offreDe(JOUEUR)).toMatchObject({ offre: "organisateur", attribue_par: ADMIN });
   });
 
-  it("un abonnement payé remplace une offre donnée à la main, puis la retire à sa fin", async () => {
-    base.tables.comptes_offres.push({ profile_id: JOUEUR, offre: "organisateur", attribue_par: ADMIN, bio: "Ma bio" });
-    await abonne();
-    expect(offreDe(JOUEUR)).toMatchObject({ offre: "verifie", attribue_par: null, bio: "Ma bio" });
+  it("un abonnement plus haut remplace une offre donnée à la main, puis la retire à sa fin", async () => {
+    base.tables.comptes_offres.push({ profile_id: JOUEUR, offre: "verifie", attribue_par: ADMIN, bio: "Ma bio" });
+    await abonne("price_pro_nouveau");
+    expect(offreDe(JOUEUR)).toMatchObject({ offre: "elite", attribue_par: null, bio: "Ma bio" });
     const resilie = abonnementStripe({ id: "sub_1", statut: "canceled", prix: "price_plus", profileId: JOUEUR });
     stripeDira(resilie);
     await POST(requete(evenementAbonnement("customer.subscription.deleted", resilie)));
     expect(offreDe(JOUEUR)).toBeUndefined();
+  });
+});
+
+describe("pause et cadeaux", () => {
+  it("un abonnement dont les paiements sont en pause (statut « active ») perd son offre", async () => {
+    base.tables.comptes_offres.push({ profile_id: JOUEUR, offre: "verifie", attribue_par: null });
+    const enPause = abonnementStripe({ id: "sub_1", statut: "active", prix: "price_plus", profileId: JOUEUR, enPause: true });
+    stripeDira(enPause);
+    await POST(requete(evenementAbonnement("customer.subscription.updated", enPause)));
+    expect(offreDe(JOUEUR)).toBeUndefined();
+  });
+
+  it("le renouvellement ne défait pas une offre offerte au moins aussi haute", async () => {
+    base.tables.comptes_offres.push({ profile_id: JOUEUR, offre: "organisateur", attribue_par: ADMIN });
+    const renouvele = abonnementStripe({ id: "sub_1", statut: "active", prix: "price_plus", profileId: JOUEUR });
+    stripeDira(renouvele);
+    await POST(requete(evenementAbonnement("customer.subscription.updated", renouvele)));
+    expect(offreDe(JOUEUR)).toMatchObject({ offre: "organisateur", attribue_par: ADMIN });
+    expect(suiviDe(JOUEUR)?.statut).toBe("active");
   });
 });
 

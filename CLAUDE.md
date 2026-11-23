@@ -98,6 +98,8 @@ Ordre imposé, non négociable :
 
 Conséquence sur l'architecture : **la couche d'identité doit être interchangeable.** En V1, le joueur saisit son Riot ID et prouve qu'il le possède en changeant son icône de profil. RSO se branchera ensuite derrière la même interface, sans réécriture.
 
+*À ne pas oublier au passage à la clé production (contrôle de sécurité du 23/11/2026)* : les identifiants de compte chiffrés (PUUID) changent d'une clé de projet à l'autre. Les traduire **partout où ils sont gardés, dans la même opération** : `game_accounts.puuid`, `stats_match_joueur.puuid` (sinon les recommandations fondées sur les parties d'après le 03/10/2026 disparaissent du CV, `matchs_communs`), `parties_classees`, et les empreintes `comptes_riot_suspendus` / `niveaux_comptes_riot` (`empreinte_puuid`). Ne jamais toucher au registre scellé.
+
 ---
 
 ## 3. Le système de verdict

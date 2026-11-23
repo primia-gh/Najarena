@@ -96,6 +96,17 @@ describe("vérification quotidienne : offres à retirer", () => {
     expect(offreDe(JOUEUR)).toBeUndefined();
   });
 
+  it("paiements mis en pause (statut « active ») : l'offre est retirée", async () => {
+    suivi(JOUEUR, "sub_1", "active");
+    offre(JOUEUR, "verifie");
+    abonnementsStripe.set(
+      "sub_1",
+      abonnementStripe({ id: "sub_1", statut: "active", prix: "price_plus", client: CLIENT[JOUEUR], profileId: JOUEUR, enPause: true }),
+    );
+    expect(await verifier()).toMatchObject({ retirees: 1 });
+    expect(offreDe(JOUEUR)).toBeUndefined();
+  });
+
   it("une offre donnée à la main par un administrateur n'est jamais retirée", async () => {
     suivi(JOUEUR, "sub_1", "canceled");
     offre(JOUEUR, "organisateur", ADMIN);
@@ -191,12 +202,13 @@ describe("vérification quotidienne : offres à accorder", () => {
 });
 
 describe("vérification quotidienne : pannes et limites", () => {
-  it("Stripe ne répond pas : rien n'est retiré, réessayé au prochain passage", async () => {
+  it("Stripe ne répond pas : rien n'est retiré, le client est daté et repris à son tour", async () => {
     suivi(JOUEUR, "sub_1", "active");
     offre(JOUEUR, "verifie");
     stripeEnPanne = true;
     expect(await verifier()).toMatchObject({ erreurs: 1, retirees: 0 });
     expect(offreDe(JOUEUR)?.offre).toBe("verifie");
+    expect(suiviDe(JOUEUR)?.maj_le).not.toBe("2026-11-01T00:00:00Z");
   });
 
   it("écriture impossible : comptée en erreur, sans plantage", async () => {
