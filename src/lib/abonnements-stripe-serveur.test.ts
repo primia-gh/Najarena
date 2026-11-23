@@ -318,6 +318,9 @@ describe("vérification quotidienne : pannes, coût et course avec le webhook", 
       });
     }
     expect(await verifier()).toMatchObject({ examines: 1200 });
+    // Même si l'API de la base rend moins de lignes par appel que demandé.
+    base.lignesMax = 500;
+    expect(await verifier()).toMatchObject({ examines: 1200 });
   });
 
   it("heure limite dépassée : la suite au prochain passage", async () => {

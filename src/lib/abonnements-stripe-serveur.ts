@@ -222,16 +222,18 @@ export async function verifierAbonnementsStripe(
     if (joueur) parJoueur.set(joueur, [...(parJoueur.get(joueur) ?? []), abonnement]);
   }
 
+  // Lecture par pages qui avance du nombre de lignes reçues : juste même si
+  // l'API de la base rend moins de lignes par appel que demandé.
   const suivis: Suivi[] = [];
-  for (let page = 0; ; page += 1) {
+  for (;;) {
     const { data, error } = await admin
       .from("abonnements_stripe")
       .select("profile_id, abonnement_stripe_id, statut, maj_le")
       .order("profile_id", { ascending: true })
-      .range(page * PAGE_BASE, (page + 1) * PAGE_BASE - 1);
+      .range(suivis.length, suivis.length + PAGE_BASE - 1);
     if (error || !data) return { actif: false, raison: "Lecture des abonnements impossible." };
+    if (data.length === 0) break;
     suivis.push(...data);
-    if (data.length < PAGE_BASE) break;
   }
 
   const offres = new Map<string, { offre: string; manuelle: boolean }>();

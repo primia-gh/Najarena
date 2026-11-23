@@ -8,6 +8,8 @@ type Filtre = (ligne: Ligne) => boolean;
 
 export type FausseBase = {
   tables: Record<string, Ligne[]>;
+  /** Nombre maximal de lignes rendues par lecture (réglage de l'API Supabase). */
+  lignesMax: number;
   enEchec: Set<string>;
   appelsRpc: { nom: string; args: unknown }[];
   from: (table: string) => Requete;
@@ -104,6 +106,7 @@ class Requete implements PromiseLike<Resultat> {
       trouvees.sort((a, b) => String(a[colonne]).localeCompare(String(b[colonne])) * (croissant ? 1 : -1));
     }
     if (this.limite !== null) trouvees = trouvees.slice(this.debutPage, this.debutPage + this.limite);
+    trouvees = trouvees.slice(0, this.base.lignesMax);
     if (this.unique) return { data: trouvees[0] ?? null, error: null };
     return { data: trouvees, error: null };
   }
@@ -119,6 +122,7 @@ class Requete implements PromiseLike<Resultat> {
 export function fausseBase(): FausseBase {
   const base: FausseBase = {
     tables: { comptes_offres: [], abonnements_stripe: [] },
+    lignesMax: 1000,
     enEchec: new Set(),
     appelsRpc: [],
     from: (table) => new Requete(base, table),
