@@ -57,6 +57,9 @@ export function matchsSansPoints(n: number): string {
 /** La règle en une phrase, avec ce qu'il faut faire. */
 export const REGLE_NIVEAU_COMPTE = `Un match joué avec un compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN} reste vérifié, mais ne rapporte aucun point. Atteins le niveau ${NIVEAU_COMPTE_RIOT_MIN} pour que tes matchs comptent.`;
 
+/** La règle à la troisième personne, pour un CV lu par d'autres. */
+export const REGLE_NIVEAU_COMPTE_CV = `Un match joué avec un compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN} reste vérifié, mais ne rapporte aucun point : il n'entre ni dans le taux de victoire ni dans le nombre de matchs vérifiés.`;
+
 /** « A », « A et B », « A, B et C ». */
 export function listeFrancaise(elements: string[]): string {
   if (elements.length <= 1) return elements[0] ?? "";

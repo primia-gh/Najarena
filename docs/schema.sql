@@ -16649,3 +16649,300 @@ drop trigger if exists verdict_immuable on public.match_verdicts;
 create trigger verdict_immuable
   before update on public.match_verdicts
   for each row execute function public.refuser_modification_verdict();
+
+-- ---------- Comptes sous le niveau 30 : activité et fiabilité (2026-11-23) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit
+-- (le code n'en dépend pas : la base peut passer seule).
+-- Décision du porteur du projet du 23/11/2026, même règle que le classement
+-- et le face-à-face : un match lu chez Riot dont le verdict garde un compte
+-- sous le niveau 30 (match_verdicts.niveau_compte_min) ne compte plus
+-- - dans « activité » de la recherche recruteurs (parties sur 90 jours, la
+--   dernière, filtre « actif depuis », tri par activité) ;
+-- - dans « matchs joués » de fiabilite_joueur, donc dans le bloc
+--   « Fiabilité » du CV et dans le critère « fiable » (3 matchs au moins).
+-- - dans le certificat de niveau (« N matchs vérifiés », victoires) émis à
+--   partir de maintenant ; les certificats déjà émis restent figés.
+-- Un verdict sans niveau (avant le 22/11/2026) compte comme avant ; en 5v5
+-- (verdict sans niveau), activité et certificat regardent le niveau du
+-- compte du joueur dans la fiche de partie (stats_match_joueur).
+-- Les forfaits restent comptés (un forfait n'a pas de partie Riot).
+-- Seuil 30 : NIVEAU_COMPTE_RIOT_MIN (src/lib/niveau-compte-riot.ts).
+create or replace function public.fiabilite_joueur(p_profile_id uuid)
+returns table (
+  tournois integer,
+  checkins integer,
+  matchs_prets integer,
+  delai_pret_median_secondes integer,
+  matchs_joues integer,
+  forfaits integer,
+  defaites_reconnues integer
+)
+language sql
+stable
+security definer set search_path = public
+as $$
+  select
+    (select count(*)::integer
+       from public.registrations r
+       join public.tournaments t on t.id = r.tournament_id
+      where r.profile_id = p_profile_id and t.nature = 'tournoi' and t.format = '1v1'
+        and t.statut in ('en_cours', 'termine') and r.statut in ('confirme', 'absent', 'inscrit')),
+    (select count(*)::integer
+       from public.registrations r
+       join public.tournaments t on t.id = r.tournament_id
+      where r.profile_id = p_profile_id and t.nature = 'tournoi' and t.format = '1v1'
+        and t.statut in ('en_cours', 'termine') and r.statut = 'confirme'),
+    (select count(*)::integer
+       from public.match_participants mp
+       join public.matches m on m.id = mp.match_id
+       join public.tournaments t on t.id = m.tournament_id
+      where mp.profile_id = p_profile_id and t.format = '1v1'
+        and mp.pret_le is not null and m.demarre_le is not null and mp.pret_le >= m.demarre_le),
+    (select round(percentile_cont(0.5) within group (order by extract(epoch from mp.pret_le - m.demarre_le)))::integer
+       from public.match_participants mp
+       join public.matches m on m.id = mp.match_id
+       join public.tournaments t on t.id = m.tournament_id
+      where mp.profile_id = p_profile_id and t.format = '1v1'
+        and mp.pret_le is not null and m.demarre_le is not null and mp.pret_le >= m.demarre_le),
+    (select count(*)::integer
+       from public.match_participants mp
+       join public.matches m on m.id = mp.match_id
+       join public.tournaments t on t.id = m.tournament_id
+      where mp.profile_id = p_profile_id and t.format = '1v1'
+        and m.statut in ('termine', 'forfait')
+        and (select count(*) from public.match_participants autre where autre.match_id = m.id) = 2
+        -- Lu chez Riot avec un compte sous le niveau 30 (23/11/2026) : ne
+        -- compte pas. Seuil : NIVEAU_COMPTE_RIOT_MIN.
+        and not exists (
+          select 1 from public.match_verdicts vn
+          where vn.match_id = m.id and vn.est_definitif and vn.niveau <> 'manuel'
+            and coalesce(vn.niveau_compte_min, 30) < 30)),
+    (select count(*)::integer
+       from public.match_participants mp
+       join public.matches m on m.id = mp.match_id
+       join public.tournaments t on t.id = m.tournament_id
+       join public.match_verdicts v on v.match_id = m.id and v.est_definitif
+      where mp.profile_id = p_profile_id and t.format = '1v1'
+        and m.statut = 'forfait' and mp.pret_le is null and v.gagnant_id <> p_profile_id),
+    (select count(*)::integer
+       from public.matches m
+       join public.tournaments t on t.id = m.tournament_id
+      where m.defaite_reconnue_par = p_profile_id and t.format = '1v1');
+$$;
+revoke execute on function public.fiabilite_joueur(uuid) from public;
+grant execute on function public.fiabilite_joueur(uuid) to anon, authenticated, service_role;
+
+create or replace function public.rechercher_joueurs(
+  p_role text default null,
+  p_region text default null,
+  p_rating_min numeric default null,
+  p_classes_seulement boolean default false,
+  p_disponible boolean default false,
+  p_sans_equipe boolean default false,
+  p_actif_jours integer default null,
+  p_en_progression boolean default false,
+  p_fiable boolean default false,
+  p_tri text default 'rating',
+  p_limite integer default 50
+)
+returns table (
+  profile_id uuid,
+  pseudo text,
+  slug text,
+  avatar_url text,
+  region text,
+  role_prefere text,
+  rating numeric,
+  rd numeric,
+  progression_30j numeric,
+  tournois_30j integer,
+  parties_90j integer,
+  derniere_partie timestamptz,
+  cherche_equipe boolean,
+  cherche_duo boolean,
+  en_equipe boolean,
+  tournois_1v1 integer,
+  checkins integer,
+  matchs_joues integer,
+  forfaits integer
+)
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.comptes_offres where comptes_offres.profile_id = auth.uid() and offre = 'organisateur'
+  ) then
+    raise exception 'OFFRE_ORGANISATEUR_REQUISE';
+  end if;
+  if p_tri not in ('rating', 'progression', 'activite') then
+    raise exception 'TRI_INVALIDE';
+  end if;
+  -- Une recherche parcourt tous les comptes vérifiés : 120 par heure au
+  -- plus (contrôle du 19/11/2026, saturation de la base).
+  if not public.consommer_limite('recherche_joueurs') then
+    raise exception 'LIMITE_ATTEINTE';
+  end if;
+
+  return query
+  with candidats as (
+    select g.profile_id, p.pseudo, p.slug, p.avatar_url, g.region, g.role_prefere,
+           case when r.est_classe then r.rating end as rating,
+           case when r.est_classe then r.rd end as rd
+    from public.game_accounts g
+    join public.profiles p on p.id = g.profile_id and p.supprime_le is null
+    left join public.seasons s on s.game_id = 1 and s.est_courante
+    left join public.ratings r on r.profile_id = g.profile_id and r.game_id = 1 and r.season_id = s.id
+    where g.game_id = 1 and g.est_principal and g.verifie_le is not null
+      and not exists (select 1 from public.suspensions su where su.profile_id = g.profile_id and su.levee_le is null)
+      and (p_role is null or g.role_prefere = p_role)
+      and (p_region is null or g.region = p_region)
+      and (not p_classes_seulement or r.est_classe)
+      and (p_rating_min is null or (r.est_classe and r.rating >= p_rating_min))
+  ),
+  enrichis as (
+    select c.*,
+           prog.variation as progression_30j,
+           prog.tournois as tournois_30j,
+           act.parties as parties_90j,
+           act.derniere as derniere_partie,
+           exists (select 1 from public.recherches_coequipiers rc where rc.profile_id = c.profile_id) as cherche_equipe,
+           exists (select 1 from public.annonces_duo ad where ad.profile_id = c.profile_id and ad.expire_le > now()) as cherche_duo,
+           exists (select 1 from public.team_members tm where tm.profile_id = c.profile_id and tm.accepte_le is not null) as en_equipe
+    from candidats c
+    left join lateral (
+      select case when c.rating is not null then sum(e.rating_apres - e.rating_avant) end as variation,
+             count(distinct e.tournament_id)::integer as tournois
+      from public.rating_events e
+      where e.profile_id = c.profile_id and e.motif = 'tournoi' and e.cree_le > now() - interval '30 days'
+    ) prog on true
+    left join lateral (
+      select count(*)::integer as parties, max(m.demarre_le) as derniere
+      from public.stats_match_joueur sm
+      join public.matches m on m.id = sm.match_id
+      join public.match_verdicts v on v.match_id = m.id and v.est_definitif and v.niveau <> 'manuel'
+        -- Pas un match joué avec un compte sous le niveau 30 (23/11/2026).
+        and coalesce(v.niveau_compte_min, 30) >= 30
+      where sm.profile_id = c.profile_id and m.demarre_le > now() - interval '90 days'
+        -- Ni avec son propre compte sous le niveau 30 (5v5 : le verdict n'a
+        -- pas de niveau, celui de la fiche de partie suffit).
+        and coalesce(sm.niveau_compte, 30) >= 30
+    ) act on true
+  ),
+  filtres as (
+    select e.* from enrichis e
+    where (not p_disponible or e.cherche_equipe)
+      and (not p_sans_equipe or not e.en_equipe)
+      and (p_actif_jours is null or e.derniere_partie > now() - make_interval(days => least(greatest(p_actif_jours, 1), 365)))
+      and (not p_en_progression or e.progression_30j > 0)
+  ),
+  -- La fiabilité (plusieurs sous-requêtes par joueur) n'est calculée pour
+  -- tous que si elle filtre ; sinon, seulement pour les joueurs gardés.
+  avec_fiabilite as (
+    select f.*, fj.tournois, fj.checkins, fj.matchs_joues, fj.forfaits
+    from (
+      select x.* from filtres x
+      order by
+        case when p_tri = 'progression' then x.progression_30j end desc nulls last,
+        case when p_tri = 'activite' then x.parties_90j end desc nulls last,
+        case when p_tri = 'activite' then x.derniere_partie end desc nulls last,
+        x.rating desc nulls last,
+        x.pseudo
+      limit case when p_fiable then null else least(greatest(coalesce(p_limite, 50), 1), 100) end
+    ) f
+    cross join lateral public.fiabilite_joueur(f.profile_id) fj
+  )
+  select a.profile_id, a.pseudo, a.slug, a.avatar_url, a.region, a.role_prefere, a.rating, a.rd,
+         a.progression_30j, a.tournois_30j, a.parties_90j, a.derniere_partie,
+         a.cherche_equipe, a.cherche_duo, a.en_equipe,
+         a.tournois, a.checkins, a.matchs_joues, a.forfaits
+  from avec_fiabilite a
+  where not p_fiable
+     or (a.matchs_joues >= 3 and a.forfaits = 0
+         and (a.tournois < 5 or a.checkins * 100 >= 80 * a.tournois))
+  order by
+    case when p_tri = 'progression' then a.progression_30j end desc nulls last,
+    case when p_tri = 'activite' then a.parties_90j end desc nulls last,
+    case when p_tri = 'activite' then a.derniere_partie end desc nulls last,
+    a.rating desc nulls last,
+    a.pseudo
+  limit least(greatest(coalesce(p_limite, 50), 1), 100);
+end;
+$$;
+revoke execute on function public.rechercher_joueurs(text, text, numeric, boolean, boolean, boolean, integer, boolean, boolean, text, integer) from public, anon;
+grant execute on function public.rechercher_joueurs(text, text, numeric, boolean, boolean, boolean, integer, boolean, boolean, text, integer) to authenticated;
+
+create or replace function public.emettre_certificat(p_game_id smallint default 1)
+returns text -- code du certificat
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_joueur uuid := auth.uid();
+  v_saison record;
+  v_rating record;
+  v_palier text;
+  v_matchs integer;
+  v_victoires integer;
+  v_registre record;
+  v_code text;
+begin
+  if v_joueur is null then
+    raise exception 'NON_CONNECTE';
+  end if;
+
+  -- Une émission à la fois par joueur, et 5 par jour au plus.
+  perform 1 from public.profiles where id = v_joueur for update;
+  if (select count(*) from public.certificats
+      where profile_id = v_joueur and cree_le > now() - interval '24 hours') >= 5 then
+    raise exception 'LIMITE_CERTIFICATS';
+  end if;
+
+  select id, coalesce(nom, 'Saison ' || numero) as nom into v_saison
+  from public.seasons where game_id = p_game_id and est_courante;
+
+  select rating, rd, est_classe into v_rating
+  from public.ratings
+  where profile_id = v_joueur and game_id = p_game_id and season_id = v_saison.id;
+  if v_rating is null then
+    raise exception 'AUCUN_RATING';
+  end if;
+
+  if v_rating.est_classe then
+    select nom into v_palier from public.tiers
+    where game_id = p_game_id and rating_min <= v_rating.rating
+    order by rating_min desc limit 1;
+  end if;
+
+  -- Matchs vérifiés dans la donnée Riot (niveaux 2 et 3), jamais les verdicts manuels.
+  select count(*), count(*) filter (where mp.est_gagnant)
+  into v_matchs, v_victoires
+  from public.match_participants mp
+  join public.matches m on m.id = mp.match_id
+  join public.tournaments t on t.id = m.tournament_id
+  join public.match_verdicts v on v.match_id = mp.match_id and v.est_definitif
+  where mp.profile_id = v_joueur and t.game_id = p_game_id and v.niveau <> 'manuel'
+    -- Ni un match joué avec un compte Riot sous le niveau 30 (23/11/2026) :
+    -- niveau gardé avec le verdict 1v1, ou celui du compte du joueur dans la
+    -- fiche de partie (5v5). Seuil : NIVEAU_COMPTE_RIOT_MIN.
+    and coalesce(v.niveau_compte_min, 30) >= 30
+    and not exists (
+      select 1 from public.stats_match_joueur sm
+      where sm.match_id = mp.match_id and sm.profile_id = v_joueur and sm.niveau_compte < 30);
+
+  select numero, empreinte into v_registre
+  from public.rating_events order by numero desc limit 1;
+
+  v_code := substr(replace(gen_random_uuid()::text, '-', ''), 1, 12);
+  insert into public.certificats (
+    code, profile_id, game_id, saison, rating, rd, est_classe, palier,
+    matchs_verifies, victoires, registre_numero, registre_empreinte
+  ) values (
+    v_code, v_joueur, p_game_id, v_saison.nom, v_rating.rating, v_rating.rd, v_rating.est_classe, v_palier,
+    v_matchs, v_victoires, v_registre.numero, v_registre.empreinte
+  );
+  return v_code;
+end;
+$$;
+revoke execute on function public.emettre_certificat(smallint) from public, anon;
+grant execute on function public.emettre_certificat(smallint) to authenticated;

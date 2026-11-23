@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { creerClientPublic } from "@/lib/supabase/public";
 import { arrondir, calibrationPct, progressionPalier, RD_INITIAL } from "@/lib/classement";
 import { ContenuCarteProfil, ContenuIntrouvable, ressourcesImage, type CarteProfil } from "@/lib/image-partage";
+import { niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
 
 // Carte CV partageable (28/09/2026, audit N7) : ce qui s'affiche quand on
 // colle le lien d'un profil sur Discord, X, WhatsApp ou LinkedIn. Mêmes
@@ -59,9 +60,14 @@ async function chargerCarte(slug: string): Promise<CarteProfil | null> {
   const ids = (participations ?? []).map((p) => p.match_id);
   const { data: verdicts } =
     ids.length > 0
-      ? await supabase.from("match_verdicts").select("match_id, niveau").in("match_id", ids).eq("est_definitif", true)
+      ? await supabase.from("match_verdicts").select("match_id, niveau, niveau_compte_min").in("match_id", ids).eq("est_definitif", true)
       : { data: [] };
-  const verifies = new Set((verdicts ?? []).filter((v) => v.niveau !== "manuel").map((v) => v.match_id));
+  // Lus chez Riot, sans les comptes sous le niveau 30 (23/11/2026).
+  const verifies = new Set(
+    (verdicts ?? [])
+      .filter((v) => v.niveau !== "manuel" && niveauCompteSuffisant(v.niveau_compte_min))
+      .map((v) => v.match_id),
+  );
   const joues = (participations ?? []).filter((p) => verifies.has(p.match_id));
 
   const paliers = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));

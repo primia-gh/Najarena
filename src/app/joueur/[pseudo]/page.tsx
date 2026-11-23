@@ -41,7 +41,8 @@ import BlocRecommandations from "@/components/profil/BlocRecommandations";
 import CourbeProgression from "@/components/profil/CourbeProgression";
 import BoutonPartager from "@/components/profil/BoutonPartager";
 import { DUELS_CLASSES_PAR_JOUR_MAX } from "@/lib/defis";
-import { MENTION_SANS_POINTS, matchsSansPoints, NIVEAU_COMPTE_RIOT_MIN, niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
+import { chiffresCV, resumeMatchsVerifies, sousMatchsVerifies, sousVictoires } from "@/lib/chiffres-cv";
+import { MENTION_SANS_POINTS, matchsSansPoints, NIVEAU_COMPTE_RIOT_MIN, niveauCompteSuffisant, REGLE_NIVEAU_COMPTE_CV } from "@/lib/niveau-compte-riot";
 import { typographie } from "@/lib/typographie";
 
 // Refonte « Venin » du 23/09/2026 (design-system/najarena/pages/profil.md,
@@ -325,11 +326,14 @@ export async function generateMetadata({ params }: JoueurPageProps): Promise<Met
   // matchs vérifiés, plutôt qu'une phrase identique pour tous.
   const { profil, compteRiot, rating, historique } = donnees;
   const complements = await chargerComplementsProfil(profil.id);
-  const matchsVerifies = historique.filter((h) => h.niveau !== "manuel").length;
+  // Sans les matchs joués avec un compte Riot sous le niveau 30 (23/11/2026).
+  // Comme les manuels, ils ne sont pas cités : un internaute n'en tirerait rien.
+  const nbVerifies = chiffresCV(historique).matchsVerifies;
+  const resumeMatchs = `${nbVerifies} match${nbVerifies > 1 ? "s" : ""} vérifié${nbVerifies > 1 ? "s" : ""}`;
   const chiffres = rating
     ? `rating ${arrondir(rating.rating)}${complements.palier ? ` (${complements.palier.nom})` : ""}, ${
         rating.est_classe ? "classé" : `provisoire, confiance ${calibrationPct(rating.rd)} %`
-      }, ${matchsVerifies} match${matchsVerifies > 1 ? "s" : ""} vérifié${matchsVerifies > 1 ? "s" : ""}`
+      }, ${resumeMatchs}`
     : "pas encore de match vérifié";
 
   return {
@@ -415,9 +419,10 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
     );
   const visiteurEstOrganisateur = offreVisiteur === "organisateur";
   const pct = rating ? calibrationPct(rating.rd) : 0;
-  const matchsCalibres = historique.length;
-  const victoires = historique.filter((h) => h.estGagnant).length;
-  const tauxVictoire = matchsCalibres > 0 ? Math.round((victoires / matchsCalibres) * 100) : null;
+  // Chiffres de tête : sans les matchs joués avec un compte Riot sous le
+  // niveau 30, dits à part (« + N sans points »), décision du 23/11/2026.
+  const chiffresTete = chiffresCV(historique);
+  const { tauxVictoire, matchsVerifies, matchsSansPoints: nbSansPoints } = chiffresTete;
 
   // Face-à-face : uniquement les adversaires affrontés au moins deux fois —
   // une seule rencontre n'est pas une rivalité, juste un match. Comme la
@@ -452,9 +457,6 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
   ).length;
 
   const complements = await chargerComplementsProfil(profil.id);
-  const matchsVerifies = historique.filter((h) => h.niveau !== "manuel").length;
-  const matchsManuels = historique.length - matchsVerifies;
-  const defaites = matchsCalibres - victoires;
   // historique est trié du plus récent au plus ancien.
   const premierMatch = historique.length > 0 ? historique[historique.length - 1] : null;
   const courbe = complements.courbe;
@@ -489,15 +491,14 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
     {
       libelle: "Victoires",
       valeur: tauxVictoire !== null ? `${tauxVictoire}%` : "—",
-      sous: matchsCalibres > 0 ? `${victoires} V · ${defaites} D` : "Aucun match joué",
+      sous: sousVictoires(chiffresTete),
+      renvoi: nbSansPoints > 0,
     },
     {
       libelle: "Matchs vérifiés",
       valeur: String(matchsVerifies),
-      sous:
-        matchsManuels > 0
-          ? `+ ${matchsManuels} manuel${matchsManuels > 1 ? "s" : ""}, hors classement`
-          : "Données officielles",
+      sous: sousMatchsVerifies(chiffresTete),
+      renvoi: nbSansPoints > 0,
     },
   ];
 
@@ -866,7 +867,18 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 )}
                 {k.valeur}
               </span>
-              <span className="text-xs text-muted">{k.sous}</span>
+              {"renvoi" in k && k.renvoi ? (
+                // Renvoi vers la règle, dite sous l'en-tête de l'historique.
+                <a
+                  href="#historique"
+                  title={REGLE_NIVEAU_COMPTE_CV}
+                  className="inline-flex min-h-11 items-center self-start text-xs text-muted tabular-nums underline decoration-text/30 underline-offset-3 hover:text-text"
+                >
+                  {typographie(k.sous)}
+                </a>
+              ) : (
+                <span className="text-xs text-muted tabular-nums">{typographie(k.sous)}</span>
+              )}
             </div>
           ))}
         </div>
@@ -913,10 +925,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
             <Panneau className="flex flex-col gap-6 p-6 sm:p-8">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <LibelleSection as="h2">Historique des matchs</LibelleSection>
-                <span className="text-xs text-muted tabular-nums">
-                  {matchsVerifies} match{matchsVerifies > 1 ? "s" : ""} vérifié{matchsVerifies > 1 ? "s" : ""}
-                </span>
+                <span className="text-xs text-muted tabular-nums">{typographie(resumeMatchsVerifies(chiffresTete))}</span>
               </div>
+              {nbSansPoints > 0 && <p className="-mt-3 text-xs text-muted">{typographie(REGLE_NIVEAU_COMPTE_CV)}</p>}
               {messageRevue && (
                 <p role={messageRevue.erreur ? "alert" : "status"} className={`text-sm ${messageRevue.erreur ? "text-danger" : "text-accent"}`}>
                   {messageRevue.texte}
