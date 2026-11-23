@@ -13,7 +13,7 @@ export const JOURNAL: EntreeJournal[] = [
     date: "23 novembre",
     titre: "Recommandations et face-à-face : seuls les comptes de niveau 30 comptent",
     texte:
-      "Une recommandation « vérifiée » demande d'avoir joué ensemble, ou l'un contre l'autre, avec deux comptes Riot d'au moins niveau\u00a030. Le bilan d'un face-à-face ne compte plus les matchs joués avec un compte plus bas : ils restent listés, vérifiés, marqués « sans points ». La page de chaque tournoi indique combien de ses matchs sont dans ce cas.",
+      "Une recommandation « vérifiée » demande d'avoir joué ensemble, ou l'un contre l'autre, avec deux comptes Riot d'au moins niveau\u00a030, encore liés à vos profils : un même compte passé de profil en profil ne fabrique pas plusieurs recommandations. Le bilan d'un face-à-face ne compte plus les matchs joués avec un compte plus bas : ils restent listés, vérifiés, marqués « sans points ». La page de chaque tournoi indique combien de ses matchs sont dans ce cas.",
     tags: ["Fiabilité"],
   },
   {
