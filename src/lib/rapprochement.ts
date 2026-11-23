@@ -351,9 +351,12 @@ async function passerEnLitige(
   const tournoi = m.tournament;
   const libelle = m.match_participants.map((p) => nom(p.profile_id)).join(" vs ");
   const lienTournoi = `${URL_SITE}/lol/tournois/${tournoi.slug}`;
-  const constat = partieRetrouvee
-    ? `Partie retrouvée chez Riot (${partieRetrouvee}), mais son résultat n'a pas pu être enregistré automatiquement.`
-    : "Aucune partie retrouvée dans l'historique Riot.";
+  // Partie retrouvée mais pas enregistrée : les joueurs n'ont rien à
+  // rejouer ; l'organisateur reçoit les identifiants Riot pour vérifier.
+  const plusieurs = (partieRetrouvee ?? "").includes(",");
+  const constatJoueur = plusieurs
+    ? "Tes parties ont été retrouvées chez Riot, mais le résultat n'a pas pu être enregistré automatiquement."
+    : "Ta partie a été retrouvée chez Riot, mais son résultat n'a pas pu être enregistré automatiquement.";
 
   // Duel entre deux joueurs (audit N16) ou scrim entre deux équipes (N22) :
   // pas d'organisateur à déranger ; sans partie retrouvée dans les 24 h, le
@@ -365,9 +368,11 @@ async function passerEnLitige(
         envoyerRappel(
           p.profile_id,
           `${scrim ? "Scrim" : "Duel"} sans résultat — ${tournoi.nom}`,
-          scrim
-            ? `${constat} La recherche continue pendant 24 h : jouez la partie maintenant avec les dix joueurs inscrits, sinon le scrim sera annulé.`
-            : `${constat} La recherche continue pendant 24 h : jouez la partie maintenant, sinon le défi sera annulé.`,
+          partieRetrouvee
+            ? `${constatJoueur} Nous réessayons à chaque recherche : inutile de la rejouer pour l'instant. Si rien n'est enregistré dans les 24 h, ${scrim ? "le scrim" : "le défi"} sera annulé.`
+            : scrim
+              ? "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant avec les dix joueurs inscrits, sinon le scrim sera annulé."
+              : "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant, sinon le défi sera annulé.",
           `${lienTournoi}#ton-match`,
         ),
       ),
@@ -383,7 +388,7 @@ async function passerEnLitige(
       tournoi.organisateur_id,
       `Match en litige — ${tournoi.nom}`,
       partieRetrouvee
-        ? `${libelle} : ${constat} La recherche continue 24 h ; sinon, tranche depuis ton cockpit.`
+        ? `${libelle} : une partie a été retrouvée chez Riot (${partieRetrouvee}), mais son résultat n'a pas pu être enregistré automatiquement. La recherche continue 24 h. Si rien ne change, vérifie la partie avant de trancher à la main depuis ton cockpit.`
         : `Aucune partie retrouvée pour ${libelle}. La recherche continue 24 h ; si le match n'a pas eu lieu, tranche depuis ton cockpit.`,
       `${URL_SITE}/moi/organisation/${m.tournament_id}`,
       { push: false },
@@ -393,16 +398,16 @@ async function passerEnLitige(
       `Match en litige — ${tournoi.nom}`,
       "Un match attend ta décision",
       (partieRetrouvee
-        ? `<p>Match ${echapperHtml(libelle)} : ${echapperHtml(constat)} La recherche continue pendant 24 h ; sinon, tranche depuis ton cockpit (verdict manuel, motif public).</p>`
+        ? `<p>Match ${echapperHtml(libelle)} : une partie a été retrouvée chez Riot (${echapperHtml(partieRetrouvee)}), mais son résultat n'a pas pu être enregistré automatiquement. La recherche continue pendant 24 h. Si rien ne change, vérifie la partie avant de trancher à la main depuis ton cockpit (verdict manuel, motif public).</p>`
         : `<p>Aucune partie officielle n'a été retrouvée pour le match ${echapperHtml(libelle)}. La recherche continue pendant 24 h ; si les joueurs n'ont pas joué ou ne peuvent pas jouer, tranche depuis ton cockpit (verdict manuel, motif public).</p>`) +
         `\n       <p><a href="${URL_SITE}/moi/organisation/${m.tournament_id}">Ouvrir le cockpit</a></p>`,
     ),
     ...m.match_participants.map((p) =>
       envoyerRappel(
         p.profile_id,
-        `${partieRetrouvee ? "Résultat à confirmer" : "Résultat introuvable"} — ${tournoi.nom}`,
+        `${partieRetrouvee ? "Résultat en attente" : "Résultat introuvable"} — ${tournoi.nom}`,
         partieRetrouvee
-          ? `${constat} La recherche continue ; l'organisateur a été prévenu et tranchera si besoin.`
+          ? `${constatJoueur} La recherche continue ; l'organisateur a été prévenu et tranchera si besoin.`
           : "Aucune partie retrouvée dans l'historique Riot pour ton match. La recherche continue ; l'organisateur a été prévenu. Si la partie n'a pas eu lieu, jouez-la maintenant en partie personnalisée.",
         lienTournoi,
       ),

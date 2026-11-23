@@ -562,8 +562,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <section className="mt-10">
         <SectionTitre>Attribuer une offre</SectionTitre>
         <p className="mt-1 text-sm text-muted">
-          Comptes offerts, tests, streamers partenaires. Une offre donnée ici n&apos;est jamais retirée
-          automatiquement. Un joueur abonné chez Stripe se gère chez Stripe : son offre suit son abonnement.
+          Comptes offerts, tests, streamers partenaires. Une offre donnée ici reste en place tant que tu ne la
+          retires pas toi-même (choisis « gratuit »). Un joueur abonné chez Stripe se gère chez Stripe : son offre
+          suit son abonnement.
         </p>
         <form action={attribuerOffreAdmin} className="mt-3 flex flex-col gap-2 sm:flex-row">
           <label className="flex-1">

@@ -84,14 +84,16 @@ export async function attribuerOffreAdmin(formData: FormData) {
   // offre suit son abonnement. Une offre donnée ici n'est jamais retirée par
   // la fin d'un abonnement (elle resterait à vie après un remboursement), et
   // une révocation serait défaite par la vérification quotidienne. On passe
-  // donc par Stripe, ou par la suspension du compte.
+  // donc par Stripe.
   const { data: abonnement, error: erreurAbonnement } = await admin
     .from("abonnements_stripe")
     .select("statut, client_stripe_id")
     .eq("profile_id", profil.id)
     .maybeSingle();
   if (erreurAbonnement) {
-    redirect(`/admin?erreur=${encodeURIComponent("Lecture de l'abonnement impossible pour l'instant : réessaie.")}`);
+    redirect(
+      `/admin?erreur=${encodeURIComponent(`Impossible de lire l'abonnement de ${pseudo} dans la base pour l'instant : réessaie dans quelques minutes.`)}`,
+    );
   }
   // Client Stripe connu : on demande à Stripe lui-même (la base peut ignorer
   // un abonnement dont le message de paiement s'est perdu).
@@ -99,14 +101,14 @@ export async function attribuerOffreAdmin(formData: FormData) {
   if (chezStripe === "inconnu") {
     redirect(
       `/admin?erreur=${encodeURIComponent(
-        `Impossible de vérifier l'abonnement Stripe de ${pseudo} pour l'instant : réessaie plus tard.`,
+        `Impossible de vérifier l'abonnement Stripe de ${pseudo} : Stripe ne répond pas, réessaie dans quelques minutes.`,
       )}`,
     );
   }
   if ((abonnement?.statut && abonnementEnVie(abonnement.statut)) || chezStripe === "oui") {
     redirect(
       `/admin?erreur=${encodeURIComponent(
-        `${pseudo} a un abonnement Stripe en cours : change sa formule, rembourse-le ou résilie-le chez Stripe (l'offre suivra), ou suspends le compte.`,
+        `${pseudo} a un abonnement Stripe en cours : son offre suit cet abonnement et ne se modifie pas ici. Pour la changer, modifie ou résilie l'abonnement dans Stripe (l'offre suivra).`,
       )}`,
     );
   }
