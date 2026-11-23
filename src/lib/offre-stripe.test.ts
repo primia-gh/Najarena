@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { abonnementEnVie, joueurDeLAbonnement, listePrix, offreDepuisPrix, prixCourant } from "./offre-stripe";
+import {
+  abonnementEnVie,
+  decisionVerification,
+  joueurDeLAbonnement,
+  listePrix,
+  offreDepuisPrix,
+  prixConfigures,
+  prixCourant,
+} from "./offre-stripe";
 
 const PRIX = { verifie: "price_plus", elite: "price_pro, price_pro_ancien", organisateur: "price_orga" };
 
@@ -55,5 +63,40 @@ describe("abonnementEnVie", () => {
     for (const statut of ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"]) {
       expect(abonnementEnVie(statut)).toBe(true);
     }
+  });
+});
+
+describe("decisionVerification (vérification quotidienne)", () => {
+  const prix = { verifie: "price_plus", elite: "price_pro", organisateur: undefined };
+  const stripe = (statutStripe: string, prixFacture = "price_plus") => ({ statutStripe, prixFacture, prix });
+
+  it("ne touche jamais une offre donnée à la main", () => {
+    expect(decisionVerification({ ...stripe("canceled"), offreActuelle: { offre: "elite", manuelle: true } })).toEqual({ action: "aucune" });
+  });
+  it("retire l'offre d'un abonnement qui n'est plus en cours", () => {
+    for (const statut of ["canceled", "past_due", "unpaid", "incomplete", "incomplete_expired", "paused"]) {
+      expect(decisionVerification({ ...stripe(statut), offreActuelle: { offre: "verifie", manuelle: false } })).toEqual({ action: "retirer" });
+    }
+  });
+  it("rien à retirer sans offre", () => {
+    expect(decisionVerification({ ...stripe("canceled"), offreActuelle: null })).toEqual({ action: "aucune" });
+  });
+  it("accorde l'offre manquante ou différente d'un abonnement payé ou en essai", () => {
+    expect(decisionVerification({ ...stripe("active"), offreActuelle: null })).toEqual({ action: "accorder", offre: "verifie" });
+    expect(decisionVerification({ ...stripe("trialing", "price_pro"), offreActuelle: { offre: "verifie", manuelle: false } })).toEqual({
+      action: "accorder",
+      offre: "elite",
+    });
+    expect(decisionVerification({ ...stripe("active"), offreActuelle: { offre: "verifie", manuelle: false } })).toEqual({ action: "aucune" });
+  });
+  it("signale un prix inconnu sans rien retirer", () => {
+    expect(decisionVerification({ ...stripe("active", "price_autre"), offreActuelle: { offre: "verifie", manuelle: false } })).toEqual({
+      action: "signaler",
+      raison: "prix_inconnu",
+    });
+  });
+  it("prixConfigures : au moins un prix réglé", () => {
+    expect(prixConfigures({ verifie: undefined, elite: " , ", organisateur: "" })).toBe(false);
+    expect(prixConfigures({ verifie: undefined, elite: "price_pro", organisateur: "" })).toBe(true);
   });
 });

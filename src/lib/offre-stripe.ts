@@ -71,3 +71,47 @@ export function joueurDeLAbonnement(
 export function abonnementEnVie(statut: string): boolean {
   return statut !== "canceled" && statut !== "incomplete_expired";
 }
+
+/** Abonnement qui donne droit à son offre : payé ou en période d'essai. */
+export function abonnementEnCours(statut: string): boolean {
+  return statut === "active" || statut === "trialing";
+}
+
+/**
+ * Vérification quotidienne des abonnements (23/11/2026) : ce qu'il faut
+ * faire de l'offre d'un abonné d'après l'état de son abonnement relu chez
+ * Stripe, au cas où un message de Stripe (webhook) se serait perdu.
+ * - Une offre donnée à la main par un administrateur n'est jamais touchée.
+ * - Abonnement qui n'est plus en cours (impayé, résilié…) → offre retirée.
+ * - Abonnement en cours → offre du prix facturé, accordée si elle manque
+ *   ou diffère. Un prix qui n'est celui d'aucune offre est seulement
+ *   signalé : un réglage STRIPE_PRICE_* erroné ne doit pas retirer d'un
+ *   coup l'offre de tous les abonnés (le webhook, lui, la retire à
+ *   l'événement suivant de cet abonné).
+ */
+export type DecisionVerification =
+  | { action: "aucune" }
+  | { action: "accorder"; offre: OffrePayante }
+  | { action: "retirer" }
+  | { action: "signaler"; raison: "prix_inconnu" };
+
+export function decisionVerification(entree: {
+  statutStripe: string;
+  prixFacture: string | null | undefined;
+  prix: Record<OffrePayante, string | undefined>;
+  offreActuelle: { offre: string; manuelle: boolean } | null;
+}): DecisionVerification {
+  const { statutStripe, prixFacture, prix, offreActuelle } = entree;
+  if (offreActuelle?.manuelle) return { action: "aucune" };
+  if (!abonnementEnCours(statutStripe)) {
+    return offreActuelle ? { action: "retirer" } : { action: "aucune" };
+  }
+  const offre = offreDepuisPrix(prixFacture, prix);
+  if (!offre) return { action: "signaler", raison: "prix_inconnu" };
+  return offreActuelle?.offre === offre ? { action: "aucune" } : { action: "accorder", offre };
+}
+
+/** Au moins un prix d'offre est réglé (sinon la vérification ne sert à rien et ne touche à rien). */
+export function prixConfigures(prix: Record<OffrePayante, string | undefined>): boolean {
+  return Object.values(prix).some((valeur) => listePrix(valeur).length > 0);
+}
