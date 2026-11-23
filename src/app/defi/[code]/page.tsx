@@ -61,8 +61,9 @@ export async function generateMetadata({ params }: DefiPageProps): Promise<Metad
 
 export default async function DefiPage({ params, searchParams }: DefiPageProps) {
   const { code } = await params;
-  // message : retour de la vérification du compte Riot (compte sous le
-  // niveau 30, src/lib/riot-actions.ts).
+  // message et avertissement : retour de la vérification du compte Riot
+  // (« Compte Riot vérifié. » et la réserve d'un compte sous le niveau 30,
+  // src/lib/riot-actions.ts).
   const { erreur, message, avertissement } = await searchParams;
   const donnees = await chargerInvitation(code);
   if (!donnees) notFound();

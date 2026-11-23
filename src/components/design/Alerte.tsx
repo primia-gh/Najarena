@@ -22,7 +22,7 @@ export default function Alerte({ type, className = "", children }: AlerteProps) 
         type === "erreur"
           ? "border-danger/40 bg-danger/[0.06] text-danger"
           : type === "info"
-            ? "border-line-strong bg-[rgba(245,245,244,0.03)] text-text"
+            ? "border-line-strong bg-surface text-text"
             : "border-accent/30 bg-accent/[0.05] text-text"
       } ${className}`}
     >
