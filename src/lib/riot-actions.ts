@@ -13,7 +13,7 @@ import {
 } from "@/lib/riot";
 import { ROLES, type Role } from "@/lib/roles";
 import { cookies } from "next/headers";
-import { destinationInterne } from "@/lib/redirection";
+import { avecMessage, destinationInterne } from "@/lib/redirection";
 import { COOKIE_SUITE, DUREE_COOKIE_SUITE_SECONDES } from "@/lib/suite";
 import { URL_SITE } from "@/lib/notifications";
 import { NIVEAU_COMPTE_RIOT_MIN } from "@/lib/niveau-compte-riot";
@@ -278,14 +278,6 @@ export async function verifierRiotId(formData: FormData) {
     redirect(`/moi?message=${encodeURIComponent(avertissementNiveau)}`);
   }
   redirect("/moi");
-}
-
-// Ajoute ?message= à une adresse interne du site (sa partie après « # »
-// gardée). Une page qui ne l'affiche pas l'ignore.
-function avecMessage(chemin: string, message: string): string {
-  const url = new URL(chemin, "https://najarena.invalid");
-  url.searchParams.set("message", message);
-  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 // game_accounts n'a aucune policy client UPDATE — volontairement : des

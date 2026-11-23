@@ -16087,6 +16087,15 @@ declare
 begin
   select * into v_defi from public.defis where id = p_defi_id for update;
 
+  -- Une création de duel à la fois sur tout le site (contrôle de sécurité
+  -- du 22/11/2026) : sans ce verrou, plusieurs défis acceptés au même
+  -- instant (script) comptaient chacun les duels du jour sans voir les
+  -- autres, et dépassaient les 5 duels classés, la règle d'un duel classé
+  -- par paire et les 3 défis en cours. Un seul verrou, toujours pris après
+  -- la ligne du défi ou de la rencontre : aucun blocage croisé possible.
+  -- La création est rare et courte : l'attente est imperceptible.
+  perform pg_advisory_xact_lock(hashtext('najarena:creation-duel'));
+
   v_region := public.region_compte_verifie(v_defi.lanceur_id);
   if v_region is null or public.region_compte_verifie(v_defi.adversaire_id) is null then
     raise exception 'COMPTE_RIOT_REQUIS';
@@ -16200,6 +16209,10 @@ begin
     end if;
   end if;
 
+  -- Même verrou que creer_duel, avant les contrôles (match ouvert, défis en
+  -- cours, duels classés du jour) : deux lancements simultanés se suivent.
+  perform pg_advisory_xact_lock(hashtext('najarena:creation-duel'));
+
   -- Contrôlé dès le premier clic : sinon le premier arrivé attendrait un
   -- duel qui ne peut pas partir (contrôle du 17/10/2026).
   -- Un match déjà ouvert entre eux (tournoi, défi) se joue d'abord : une
@@ -16295,3 +16308,7 @@ end;
 $$;
 revoke execute on function public.je_suis_la_division(uuid) from public, anon;
 grant execute on function public.je_suis_la_division(uuid) to authenticated;
+
+-- L'API Supabase relit la liste des fonctions (signature de
+-- enregistrer_verdict_historique changée).
+notify pgrst, 'reload schema';

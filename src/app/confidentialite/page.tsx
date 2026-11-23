@@ -192,8 +192,8 @@ export default function ConfidentialitePage() {
               30&nbsp;jours. Visibles de toi seul&nbsp;; les couper efface ton réglage, supprimer ton compte efface aussi la liste.
             </li>
             <li>
-              <strong>Offre payante</strong>&nbsp;: si tu en souscris une, ton identifiant client et l&apos;état de ton
-              abonnement chez Stripe (jamais tes coordonnées bancaires).
+              <strong>Offre payante</strong>&nbsp;: dès que tu ouvres le paiement d&apos;une offre, ton identifiant client
+              chez Stripe, puis l&apos;état de ton abonnement si tu en souscris un (jamais tes coordonnées bancaires).
             </li>
           </ul>
         </section>
@@ -280,10 +280,10 @@ export default function ConfidentialitePage() {
               pseudo, résultat), jamais ton e-mail ni tes données de compte.
             </li>
             <li>
-              <strong>Stripe</strong> — uniquement si tu souscris à un
-              palier payant&nbsp;: ton identifiant Najarena et ton e-mail lui sont transmis. Tes
-              coordonnées bancaires sont saisies directement chez Stripe et ne passent jamais
-              par Najarena.
+              <strong>Stripe</strong> — uniquement si tu ouvres le paiement d&apos;un palier payant,
+              même sans aller jusqu&apos;au bout&nbsp;: ton identifiant Najarena et ton e-mail lui sont
+              transmis, et Stripe garde cette fiche client selon ses propres règles. Tes coordonnées
+              bancaires sont saisies directement chez Stripe et ne passent jamais par Najarena.
             </li>
             {/* Cash prizes (audit N32) : seulement une fois activés. */}
             {cashPrizesActifs() && (

@@ -107,3 +107,47 @@ select refus('Un joueur n''écrit pas de verdict lu chez Riot',
 select verifie('Le niveau gardé est lisible avec le verdict (preuve publique)',
   (select niveau_compte_min = 12 from match_verdicts where riot_match_id = 'EUW1_99W1'));
 reset role;
+
+-- ---- Créations de duel simultanées (contrôle de sécurité du 22/11/2026) ----
+select verifie('creer_duel prend le verrou de création de duel',
+  (select pg_get_functiondef('public.creer_duel(uuid)'::regprocedure) like '%pg_advisory_xact_lock(hashtext(''najarena:creation-duel''))%'));
+select verifie('je_suis_la_division prend le même verrou',
+  (select pg_get_functiondef('public.je_suis_la_division(uuid)'::regprocedure) like '%pg_advisory_xact_lock(hashtext(''najarena:creation-duel''))%'));
+
+-- Preuve par l'exemple, quand dblink est disponible : pendant qu'une
+-- session tient le verrou, une acceptation venue d'une autre session
+-- attend (coupée ici au bout de 500 ms) au lieu de passer.
+do $$ begin create extension if not exists dblink; exception when others then null; end $$;
+insert into defis (id, lanceur_id, adversaire_id, expire_le) values
+  ('b22bdef1-0000-0000-0000-000000000000', 'b22b0002-0000-0000-0000-000000000000', 'b22b0004-0000-0000-0000-000000000000', now() + interval '1 day');
+create or replace function pg_temp.acceptation_concurrente()
+returns text
+language plpgsql
+as $$
+declare
+  v_connexion text;
+begin
+  if not exists (select 1 from pg_extension where extname = 'dblink') then
+    return 'indisponible';
+  end if;
+  v_connexion := format('host=%s port=%s dbname=%s user=%s',
+    split_part(current_setting('unix_socket_directories'), ',', 1), current_setting('port'), current_database(), current_user);
+  perform pg_advisory_xact_lock(hashtext('najarena:creation-duel'));
+  begin
+    perform * from dblink(v_connexion,
+      'set statement_timeout = 500; select public.creer_duel(''b22bdef1-0000-0000-0000-000000000000'')') as t(slug text);
+    return 'passe';
+  exception
+    -- L'attente coupée par statement_timeout (« query_canceled » n'est pas
+    -- compris dans « others »).
+    when query_canceled then
+      return 'attend';
+    when others then
+      return 'indisponible';
+  end;
+end;
+$$;
+select case pg_temp.acceptation_concurrente()
+  when 'attend' then verifie('Une acceptation simultanée attend la fin de la première', true)
+  when 'passe' then verifie('Une acceptation simultanée attend la fin de la première', false)
+  else null end;

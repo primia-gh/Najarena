@@ -40,7 +40,9 @@ jusqu'à la fin du fichier :
    `enregistrer_verdict_historique` prend un 4e paramètre facultatif (niveau Riot le plus bas des
    deux comptes) — l'ancienne version à 3 paramètres est remplacée, l'appel de l'ancien code
    passe toujours ; `duels_classes_du_jour` et `duel_classe_possible` (5 duels classés au plus par
-   joueur et par 24 h) ; `creer_duel` et `je_suis_la_division` redéfinies pour s'en servir.
+   joueur et par 24 h) ; `creer_duel` et `je_suis_la_division` redéfinies pour s'en servir, avec
+   un verrou unique de création de duel (deux acceptations simultanées se suivent) ; en fin de
+   section, `notify pgrst, 'reload schema'` (l'API Supabase relit la liste des fonctions).
 
 Aucune donnée existante n'est modifiée. Les tournois déjà lancés ont `lance_le` vide, mais le
 lancement réel compte aussi leur premier match démarré : un tournoi d'organisateur lancé en avance
@@ -56,8 +58,9 @@ les liste.
   refuse). Contrôle et réparation à l'étape 4 ;
 - l'inscription ne prévient plus d'un pseudo refusé par la modération (l'ancien code appelle
   `texte_acceptable` avec le compte du visiteur, désormais refusé) : la base le remplace toujours
-  par un pseudo automatique à la création du compte. Le nouveau code le signale après la
-  création du compte (« Un pseudo provisoire t'a été donné : change-le dans ton profil »).
+  par un pseudo automatique à la création du compte. Le nouveau code n'en dit rien à
+  l'inscription (un message révélait si une adresse e-mail avait déjà un compte) : le joueur
+  l'apprend dans son tableau de bord, carte « Choisis ton pseudo ».
 
 `vercel.json` : la tâche de changement de saison passe de mensuelle à quotidienne (elle ne fait
 rien tant qu'aucune saison n'est due ; un échec n'attend plus un mois). Pris en compte par Vercel
@@ -110,6 +113,9 @@ select column_name from information_schema.columns
  where table_name = 'match_verdicts' and column_name = 'niveau_compte_min';  -- 1 ligne
 select pg_get_function_identity_arguments('public.enregistrer_verdict_historique'::regproc);
 -- p_match_id uuid, p_gagnant_id uuid, p_riot_match_id text, p_niveau_compte_min integer
+select has_function_privilege('anon', 'public.enregistrer_verdict_historique(uuid,uuid,text,integer)', 'execute'),
+       has_function_privilege('authenticated', 'public.enregistrer_verdict_historique(uuid,uuid,text,integer)', 'execute'),
+       has_function_privilege('authenticated', 'public.duel_classe_possible(uuid,uuid)', 'execute'); -- false, false, false
 
 select count(*) from public.comptes_riot_suspendus;                          -- comptes des suspendus en cours
 ```
@@ -124,8 +130,8 @@ select count(*) from public.comptes_riot_suspendus;                          -- 
 - Cockpit d'un tournoi d'organisateur publié depuis moins de 24 h et annoncé plus tard : la
   phrase « Lancé maintenant, ce tournoi ne sera pas classé… » apparaît au-dessus du bouton.
 - Cockpit d'un tournoi dont le check-in n'est pas ouvert : plus de bouton « Absent ».
-- `/inscription` avec un pseudo grossier : compte créé avec un pseudo « Joueur-… » et message
-  « Un pseudo provisoire t'a été donné : change-le dans ton profil ».
+- `/inscription` avec un pseudo grossier : compte créé avec un pseudo « Joueur-… », sans message ;
+  à la première connexion, `/moi` dit que le pseudo demandé a été refusé.
 - Une page de joueur, de tournoi et d'équipe qui n'existe pas : vraie page « Page introuvable »
   (code 404), plus une page vide en 200.
 - Un duel lancé après 5 duels classés dans la journée : « amical » sur sa page.

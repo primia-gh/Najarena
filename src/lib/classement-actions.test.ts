@@ -101,6 +101,8 @@ interface Options {
   classe?: boolean;
   /** La base ne répond pas à figer_classement_tournoi. */
   erreurClassement?: boolean;
+  /** Tables dont la lecture échoue (contrôle de sécurité du 22/11/2026). */
+  lecturesEnEchec?: string[];
 }
 
 const TOUS = ["u1", "u2", "u3", "u4"];
@@ -115,6 +117,9 @@ const matchsNormaux = [
 
 function installer(o: Options = {}, avecAdmin = true) {
   const repondre: Repondeur = (a) => {
+    if (a.op === "select" && (o.lecturesEnEchec ?? []).includes(a.table)) {
+      return { data: null, error: { message: "boum" } };
+    }
     if (a.table === "tournaments" && a.op === "select") {
       return ok({ id: "T1", game_id: 1, season_id: "S1", statut: "en_cours", compte_pour_classement: true, ...o.tournoi });
     }
@@ -356,6 +361,16 @@ describe("cloturerTournoi", () => {
     await cloturerTournoi("T1");
     for (const j of TOUS) expect(rpcDe(j).p_matchs_comptes).toBe(1);
   });
+
+  for (const table of ["seasons", "matches", "match_verdicts", "ratings", "rating_events"]) {
+    it(`lecture ratée (${table}) : clôture reportée, jamais « terminé » sans points`, async () => {
+      installer({ lecturesEnEchec: [table] });
+      expect(await cloturerTournoi("T1")).toBe(false);
+      expect(misesAJourStatut(journalAdmin)).toHaveLength(0);
+      expect(misesAJourStatut(journalSession)).toHaveLength(0);
+      expect(rpcs).toHaveLength(0);
+    });
+  }
 
   it("plafond anti-abus : au-delà de 3 victoires récentes contre le même adversaire, la victoire est ignorée", async () => {
     installer({ victoiresRecentes: 3 });

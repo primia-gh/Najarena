@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { destinationInterne } from "./redirection";
+import { avecMessage, destinationInterne } from "./redirection";
 
 describe("destinationInterne", () => {
   it("accepte un chemin du site", () => {
@@ -28,5 +28,25 @@ describe("destinationInterne", () => {
 
   it("sans destination : le tableau de bord", () => {
     expect(destinationInterne(null)).toBe("/moi");
+  });
+});
+
+describe("avecMessage", () => {
+  it("ajoute le message à une page du site, en gardant sa partie après #", () => {
+    expect(avecMessage("/defi/abc123", "Compte vérifié.")).toBe("/defi/abc123?message=Compte+v%C3%A9rifi%C3%A9.");
+    expect(avecMessage("/lol/tournois/x?onglet=1#ton-match", "ok")).toBe("/lol/tournois/x?onglet=1&message=ok#ton-match");
+  });
+
+  it("remplace un message déjà présent au lieu d'en garder deux", () => {
+    expect(avecMessage("/defi/abc?message=ancien", "nouveau")).toBe("/defi/abc?message=nouveau");
+  });
+
+  it("ne mène jamais hors du site", () => {
+    for (const piege of ["//exemple.com/x", "https://exemple.com", "/\\exemple.com", "/a/../../x", "/%2e%2e/x", "@exemple.com", ""]) {
+      const resultat = avecMessage(piege, "m");
+      expect(resultat.startsWith("/")).toBe(true);
+      expect(resultat.startsWith("//")).toBe(false);
+      expect(resultat).not.toContain("exemple.com");
+    }
   });
 });
