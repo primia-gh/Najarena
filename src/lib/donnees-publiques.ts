@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { arrondir, calibrationPct, trouverPalier } from "@/lib/classement";
 import { estMatchVide } from "@/lib/double-elim";
+import { niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
 import { estVisiblePubliquement } from "@/lib/tournois";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import {
@@ -84,7 +85,10 @@ export interface JoueurPublic {
   palier: string | null;
   confiancePct: number;
   matchsJoues: number;
-  /** Matchs dont le résultat a été lu chez Riot (niveaux 2 et 3). */
+  /**
+   * Matchs dont le résultat a été lu chez Riot (niveaux 2 et 3), sans ceux
+   * joués avec un compte Riot sous le niveau 30 (23/11/2026), comme le CV.
+   */
   matchsVerifies: number;
   url: string;
 }
@@ -105,7 +109,7 @@ export async function chargerJoueurPublic(supabase: Client, slug: string): Promi
       .maybeSingle(),
     supabase
       .from("match_participants")
-      .select("match:matches(match_verdicts(niveau, est_definitif))")
+      .select("match:matches(match_verdicts(niveau, est_definitif, niveau_compte_min))")
       .eq("profile_id", profil.id)
       .limit(1000),
     chargerPaliers(supabase),
@@ -121,7 +125,9 @@ export async function chargerJoueurPublic(supabase: Client, slug: string): Promi
     confiancePct: rating ? calibrationPct(Number(rating.rd)) : 0,
     matchsJoues: rating?.matchs_joues ?? 0,
     matchsVerifies: (participations ?? []).filter((p) =>
-      (p.match?.match_verdicts ?? []).some((v) => v.est_definitif && v.niveau !== "manuel"),
+      (p.match?.match_verdicts ?? []).some(
+        (v) => v.est_definitif && v.niveau !== "manuel" && niveauCompteSuffisant(v.niveau_compte_min),
+      ),
     ).length,
     url: `${URL_PUBLIQUE}/joueur/${profil.slug}`,
   };

@@ -8,6 +8,9 @@ import { chargerOffre, LABEL_OFFRE, COULEUR_OFFRE } from "@/lib/offres";
 import Badge from "@/components/ui/Badge";
 import BoutonImprimer from "@/components/ui/BoutonImprimer";
 import { adresseActuelleProfil } from "@/lib/visites-profil";
+import { chiffresCV, resumeMatchsVerifies } from "@/lib/chiffres-cv";
+import { niveauCompteSuffisant, REGLE_NIVEAU_COMPTE_CV } from "@/lib/niveau-compte-riot";
+import { typographie } from "@/lib/typographie";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -72,14 +75,14 @@ async function chargerCV(slug: string) {
     matchIds.length > 0
       ? await supabase
           .from("match_verdicts")
-          .select("match_id, niveau, cree_le")
+          .select("match_id, niveau, cree_le, niveau_compte_min")
           .in("match_id", matchIds)
           .eq("est_definitif", true)
       : { data: [] };
 
   const verdictParMatch = new Map((verdictsData ?? []).map((v) => [v.match_id, v]));
 
-  const historique = participations
+  const tousLesMatchs = participations
     .map((p) => {
       const verdict = verdictParMatch.get(p.match_id);
       if (!verdict) return null;
@@ -89,17 +92,19 @@ async function chargerCV(slug: string) {
         tournoi: p.match?.tournament?.nom ?? null,
         niveau: verdict.niveau,
         creeLe: verdict.cree_le,
+        // Compte Riot sous le niveau 30 : listé, hors des chiffres (23/11/2026).
+        horsClassementNiveau: verdict.niveau !== "manuel" && !niveauCompteSuffisant(verdict.niveau_compte_min),
       };
     })
     .filter((h): h is NonNullable<typeof h> => h !== null)
-    .sort((a, b) => new Date(b.creeLe).getTime() - new Date(a.creeLe).getTime())
-    .slice(0, 10);
+    .sort((a, b) => new Date(b.creeLe).getTime() - new Date(a.creeLe).getTime());
+  // Chiffres sur tous les matchs, comme en tête du CV ; registre : les 10 derniers.
+  const historique = tousLesMatchs.slice(0, 10);
 
-  const matchsCalibres = historique.length;
-  const victoires = historique.filter((h) => h.estGagnant).length;
-  const tauxVictoire = matchsCalibres > 0 ? Math.round((victoires / matchsCalibres) * 100) : null;
+  const chiffres = chiffresCV(tousLesMatchs);
+  const { tauxVictoire } = chiffres;
 
-  return { profil, compteRiot, rating, infoOffre, historique, matchsCalibres, victoires, tauxVictoire };
+  return { profil, compteRiot, rating, infoOffre, historique, chiffres, tauxVictoire };
 }
 
 export default async function CvPage({ params }: CvPageProps) {
@@ -110,7 +115,7 @@ export default async function CvPage({ params }: CvPageProps) {
     notFound();
   }
 
-  const { profil, compteRiot, rating, infoOffre, historique, matchsCalibres, victoires, tauxVictoire } =
+  const { profil, compteRiot, rating, infoOffre, historique, chiffres, tauxVictoire } =
     donnees;
   const pct = rating ? calibrationPct(rating.rd) : 0;
 
@@ -197,7 +202,10 @@ export default async function CvPage({ params }: CvPageProps) {
                   <span className="hidden font-texte tabular-nums text-mini text-black print:inline">
                     {LABEL_NIVEAU[h.niveau]}
                   </span>
-                  <span className={`font-texte tabular-nums text-sm font-bold ${h.estGagnant ? "text-accent" : "text-accent"} print:text-black`}>
+                  {h.horsClassementNiveau && (
+                    <span className="font-texte text-mini text-muted print:text-black">Sans points</span>
+                  )}
+                  <span className={`font-texte tabular-nums text-sm font-bold ${h.estGagnant ? "text-accent" : "text-danger"} print:text-black`}>
                     {h.estGagnant ? "V" : "D"}
                   </span>
                 </li>
@@ -207,7 +215,11 @@ export default async function CvPage({ params }: CvPageProps) {
         </section>
 
         <footer className="mt-10 font-texte tabular-nums text-mini text-muted print:text-black">
-          {matchsCalibres} matchs vérifiés · {victoires} victoires — profil complet : najarena.vercel.app/joueur/{profil.slug}
+          {chiffres.matchsSansPoints > 0 && (
+            <p className="mb-2">{typographie(`Sans points : ${REGLE_NIVEAU_COMPTE_CV.charAt(0).toLowerCase()}${REGLE_NIVEAU_COMPTE_CV.slice(1)}`)}</p>
+          )}
+          {typographie(resumeMatchsVerifies(chiffres))} ·{" "}
+          {typographie(`${chiffres.victoires} victoire${chiffres.victoires > 1 ? "s" : ""} sur ${chiffres.matchsComptes} match${chiffres.matchsComptes > 1 ? "s" : ""}`)} — profil complet : najarena.vercel.app/joueur/{profil.slug}
         </footer>
       </div>
     </main>
