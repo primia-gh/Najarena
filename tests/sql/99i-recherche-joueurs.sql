@@ -53,10 +53,10 @@ select ('9990f000-0000-0000-0000-0000000000b' || n)::uuid, v.p::uuid, v.slot,
        case when n = 3 and v.slot = 2 then null else now() - interval '6 days' end
 from generate_series(1, 3) n
 cross join (values (:'ana', 1), (:'bob', 2)) as v(p, slot);
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif) values
-  ('9990f000-0000-0000-0000-0000000000b1', 'historique', :'ana', true),
-  ('9990f000-0000-0000-0000-0000000000b2', 'historique', :'ana', true),
-  ('9990f000-0000-0000-0000-0000000000b3', 'manuel', :'ana', true);
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, niveau_compte_min) values
+  ('9990f000-0000-0000-0000-0000000000b1', 'historique', :'ana', true, 120),
+  ('9990f000-0000-0000-0000-0000000000b2', 'historique', :'ana', true, 120),
+  ('9990f000-0000-0000-0000-0000000000b3', 'manuel', :'ana', true, null);
 insert into stats_match_joueur (match_id, profile_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne) values
   ('9990f000-0000-0000-0000-0000000000b1', :'ana', 'Ahri', 1, 0, 0, 100, 4000, 600, true),
   ('9990f000-0000-0000-0000-0000000000b2', :'ana', 'Ahri', 1, 0, 0, 100, 4000, 600, true),

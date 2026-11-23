@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NIVEAU_COMPTE_RIOT_MIN, niveauCompteSuffisant, niveauMinimumSerie } from "./niveau-compte-riot";
+import { listeFrancaise, matchsSansPoints, NIVEAU_COMPTE_RIOT_MIN, niveauCompteSuffisant, niveauMinimumSerie } from "./niveau-compte-riot";
 
 describe("niveau Riot minimum pour le classement", () => {
   it("le seuil est le niveau 30", () => {
@@ -29,3 +29,18 @@ describe("niveau Riot minimum pour le classement", () => {
     expect(niveauMinimumSerie([Number.NaN, 40])).toBeNull();
   });
 });
+
+describe("textes", () => {
+  it("accorde le nombre de matchs", () => {
+    expect(matchsSansPoints(1)).toBe("1 match sans points");
+    expect(matchsSansPoints(3)).toBe("3 matchs sans points");
+  });
+
+  it("liste à la française : virgules, puis « et » avant le dernier", () => {
+    expect(listeFrancaise(["A"])).toBe("A");
+    expect(listeFrancaise(["A", "B"])).toBe("A et B");
+    expect(listeFrancaise(["A", "B", "C"])).toBe("A, B et C");
+    expect(listeFrancaise([])).toBe("");
+  });
+});
+

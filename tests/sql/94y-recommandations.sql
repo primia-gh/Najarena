@@ -20,10 +20,10 @@ insert into matches (id, tournament_id, tour, position, statut) values
   ('a7e00000-0000-0000-0000-000000000013', 'a7e00000-0000-0000-0000-000000000001', 1, 3, 'termine');
 -- m11 : Pia contre Quentin, lu chez Riot. m12 : Pia contre Rose, verdict
 -- manuel (ne compte pas). m13 : Sam contre Pia, lu chez Riot.
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif) values
-  ('a7e00000-0000-0000-0000-000000000011', 'historique', '00000000-0000-0000-0000-0000000003b0', true),
-  ('a7e00000-0000-0000-0000-000000000012', 'manuel', '00000000-0000-0000-0000-0000000003b0', true),
-  ('a7e00000-0000-0000-0000-000000000013', 'historique', '00000000-0000-0000-0000-0000000003b3', true);
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, niveau_compte_min) values
+  ('a7e00000-0000-0000-0000-000000000011', 'historique', '00000000-0000-0000-0000-0000000003b0', true, 120),
+  ('a7e00000-0000-0000-0000-000000000012', 'manuel', '00000000-0000-0000-0000-0000000003b0', true, null),
+  ('a7e00000-0000-0000-0000-000000000013', 'historique', '00000000-0000-0000-0000-0000000003b3', true, 120);
 insert into stats_match_joueur (match_id, profile_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne) values
   ('a7e00000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-0000000003b0', 'Ahri', 5, 2, 1, 120, 6000, 900, true),
   ('a7e00000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-0000000003b1', 'Zed', 2, 5, 1, 110, 5000, 900, false),
@@ -112,8 +112,8 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000003b5', 'uma94y@test', '{"pseudo":"Uma94y","slug":"uma94y"}');
 insert into matches (id, tournament_id, tour, position, statut) values
   ('a7e00000-0000-0000-0000-000000000014', 'a7e00000-0000-0000-0000-000000000001', 1, 4, 'termine');
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif) values
-  ('a7e00000-0000-0000-0000-000000000014', 'historique', '00000000-0000-0000-0000-0000000003b5', true);
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, niveau_compte_min) values
+  ('a7e00000-0000-0000-0000-000000000014', 'historique', '00000000-0000-0000-0000-0000000003b5', true, 120);
 insert into stats_match_joueur (match_id, profile_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne) values
   ('a7e00000-0000-0000-0000-000000000014', '00000000-0000-0000-0000-0000000003b5', 'Ahri', 5, 2, 1, 120, 6000, 900, true),
   ('a7e00000-0000-0000-0000-000000000014', '00000000-0000-0000-0000-0000000003b1', 'Zed', 2, 5, 1, 110, 5000, 900, false);

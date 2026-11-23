@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { abonnementEnVie, joueurDeLAbonnement, listePrix, offreDepuisPrix, prixCourant } from "./offre-stripe";
+import {
+  abonnementCourant,
+  abonnementEnVie,
+  decisionVerification,
+  joueurDeLAbonnement,
+  listePrix,
+  offreDepuisPrix,
+  prixConfigures,
+  prixCourant,
+} from "./offre-stripe";
 
 const PRIX = { verifie: "price_plus", elite: "price_pro, price_pro_ancien", organisateur: "price_orga" };
 
@@ -55,5 +64,74 @@ describe("abonnementEnVie", () => {
     for (const statut of ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"]) {
       expect(abonnementEnVie(statut)).toBe(true);
     }
+  });
+});
+
+describe("decisionVerification (vérification quotidienne)", () => {
+  const prix = { verifie: "price_plus", elite: "price_pro", organisateur: undefined };
+  const stripe = (statutStripe: string, prixFacture = "price_plus") => ({ statutStripe, prixFacture, prix });
+
+  it("ne retire jamais une offre donnée à la main", () => {
+    expect(decisionVerification({ ...stripe("canceled"), offreActuelle: { offre: "elite", manuelle: true } })).toEqual({ action: "aucune" });
+    expect(decisionVerification({ ...stripe("active"), offreActuelle: { offre: "elite", manuelle: true } })).toEqual({ action: "aucune" });
+  });
+  it("une offre payée plus haute remplace une offre donnée à la main", () => {
+    expect(decisionVerification({ ...stripe("active", "price_pro"), offreActuelle: { offre: "verifie", manuelle: true } })).toEqual({
+      action: "accorder",
+      offre: "elite",
+    });
+  });
+  it("retire l'offre d'un abonnement qui n'est plus en cours", () => {
+    for (const statut of ["canceled", "past_due", "unpaid", "incomplete", "incomplete_expired", "paused"]) {
+      expect(decisionVerification({ ...stripe(statut), offreActuelle: { offre: "verifie", manuelle: false } })).toEqual({ action: "retirer" });
+    }
+  });
+  it("rien à retirer sans offre", () => {
+    expect(decisionVerification({ ...stripe("canceled"), offreActuelle: null })).toEqual({ action: "aucune" });
+  });
+  it("accorde l'offre manquante ou différente d'un abonnement payé ou en essai", () => {
+    expect(decisionVerification({ ...stripe("active"), offreActuelle: null })).toEqual({ action: "accorder", offre: "verifie" });
+    expect(decisionVerification({ ...stripe("trialing", "price_pro"), offreActuelle: { offre: "verifie", manuelle: false } })).toEqual({
+      action: "accorder",
+      offre: "elite",
+    });
+    expect(decisionVerification({ ...stripe("active"), offreActuelle: { offre: "verifie", manuelle: false } })).toEqual({ action: "aucune" });
+  });
+  it("signale un prix inconnu sans rien retirer", () => {
+    expect(decisionVerification({ ...stripe("active", "price_autre"), offreActuelle: { offre: "verifie", manuelle: false } })).toEqual({
+      action: "signaler",
+      raison: "prix_inconnu",
+    });
+  });
+  it("prixConfigures : au moins un prix réglé", () => {
+    expect(prixConfigures({ verifie: undefined, elite: " , ", organisateur: "" })).toBe(false);
+    expect(prixConfigures({ verifie: undefined, elite: "price_pro", organisateur: "" })).toBe(true);
+  });
+});
+
+describe("abonnementCourant", () => {
+  const J = "joueur";
+  const ab = (id: string, status: string, created: number, profil: string | null = J) => ({
+    id,
+    status,
+    created,
+    metadata: (profil ? { profile_id: profil } : {}) as Record<string, string>,
+  });
+
+  it("un abonnement en cours l'emporte, le plus récent d'abord", () => {
+    const liste = [ab("a", "canceled", 3), ab("b", "active", 1), ab("c", "trialing", 2)];
+    expect(abonnementCourant(liste, J, "a")?.id).toBe("c");
+  });
+  it("sinon un abonnement encore en vie (il facture encore), avant celui déjà suivi", () => {
+    const liste = [ab("a", "canceled", 1), ab("b", "past_due", 2)];
+    expect(abonnementCourant(liste, J, "a")?.id).toBe("b");
+  });
+  it("sinon celui déjà suivi, sinon le plus récent", () => {
+    const liste = [ab("a", "canceled", 1), ab("b", "incomplete_expired", 2)];
+    expect(abonnementCourant(liste, J, "a")?.id).toBe("a");
+    expect(abonnementCourant(liste, J, null)?.id).toBe("b");
+  });
+  it("ignore les abonnements sans étiquette ou étiquetés pour un autre compte", () => {
+    expect(abonnementCourant([ab("a", "active", 1, null), ab("b", "active", 2, "autre")], J, null)).toBeNull();
   });
 });

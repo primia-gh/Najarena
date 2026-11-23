@@ -10,13 +10,16 @@
 // (match_verdicts.niveau_compte_min). Un match sous ce niveau reste
 // vérifié — le résultat est vrai — mais ne rapporte ni ne coûte de points.
 // Mêmes règles à la clôture (classement-actions.ts) et dans le recalcul
-// public (recalcul.ts).
+// public (recalcul.ts). Le même seuil est écrit en base dans
+// matchs_communs (recommandations, docs/schema.sql) : les deux à changer
+// ensemble.
 
 export const NIVEAU_COMPTE_RIOT_MIN = 30;
 
 /**
  * Le niveau gardé avec le verdict permet-il de compter ce match ? Vide
- * (verdict d'avant le 22/11/2026, 5v5) : rien à reprocher, il compte.
+ * (verdict d'avant le 22/11/2026, 5v5 ; la base n'accepte plus de verdict
+ * 1v1 lu chez Riot sans niveau) : rien à reprocher, il compte.
  */
 export function niveauCompteSuffisant(niveauCompteMin: number | null | undefined): boolean {
   return niveauCompteMin === null || niveauCompteMin === undefined || niveauCompteMin >= NIVEAU_COMPTE_RIOT_MIN;
@@ -24,8 +27,9 @@ export function niveauCompteSuffisant(niveauCompteMin: number | null | undefined
 
 /**
  * Plus bas niveau Riot des comptes donnés sur toutes les parties d'une
- * série. Nul si Riot ne l'a pas fourni pour l'un d'eux (le match compte
- * alors comme avant).
+ * série. Nul si Riot ne l'a pas fourni pour l'un d'eux : la base refuse
+ * alors le verdict 1v1 (NIVEAU_COMPTE_REQUIS, 23/11/2026), rien n'est
+ * enregistré et l'organisateur tranche après le délai.
  */
 export function niveauMinimumSerie(niveaux: (number | undefined)[]): number | null {
   if (niveaux.length === 0) return null;
@@ -36,3 +40,26 @@ export function niveauMinimumSerie(niveaux: (number | undefined)[]): number | nu
   }
   return Math.floor(minimum);
 }
+
+/**
+ * Mention d'un match lu chez Riot mais joué avec un compte sous le niveau
+ * 30 (revue design du 23/11/2026) : la même partout (face-à-face, CV,
+ * page du tournoi). Le résultat reste vérifié : seuls les points (et le
+ * bilan du face-à-face) l'ignorent.
+ */
+export const MENTION_SANS_POINTS = `Sans points : compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN}`;
+
+/** « 1 match sans points » / « 3 matchs sans points ». */
+export function matchsSansPoints(n: number): string {
+  return `${n} match${n > 1 ? "s" : ""} sans points`;
+}
+
+/** La règle en une phrase, avec ce qu'il faut faire. */
+export const REGLE_NIVEAU_COMPTE = `Un match joué avec un compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN} reste vérifié, mais ne rapporte aucun point. Atteins le niveau ${NIVEAU_COMPTE_RIOT_MIN} pour que tes matchs comptent.`;
+
+/** « A », « A et B », « A, B et C ». */
+export function listeFrancaise(elements: string[]): string {
+  if (elements.length <= 1) return elements[0] ?? "";
+  return `${elements.slice(0, -1).join(", ")} et ${elements[elements.length - 1]}`;
+}
+

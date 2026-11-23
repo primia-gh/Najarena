@@ -68,7 +68,7 @@ begin
     where m.tournament_id = '9e0e0000-0000-0000-0000-0000000000a1' and m.tour = p_tour and m.statut = 'en_cours'
     order by m.position
   loop
-    perform public.enregistrer_verdict_historique(r.id, r.gagnant, 'EUW_99N_' || p_tour || '_' || left(r.id::text, 8));
+    perform public.enregistrer_verdict_historique(r.id, r.gagnant, 'EUW_99N_' || p_tour || '_' || left(r.id::text, 8), 120);
   end loop;
 end $$;
 
@@ -225,7 +225,7 @@ select verifie('Les deux matchs restent ouverts, défaite reconnue par celui qui
    from matches m where m.tournament_id = '9e0e0000-0000-0000-0000-0000000000a3' and m.tour = 1
      and (select count(*) from match_participants x where x.match_id = m.id) = 2));
 select verifie('La partie J1-J3 retrouvée chez Riot après l''abandon est acceptée',
-  public.enregistrer_verdict_historique(pg_temp.match_de(1::smallint, '3'), '9e0e0000-0000-0000-0000-000000000001', 'EUW_99N_ABANDON_1'));
+  public.enregistrer_verdict_historique(pg_temp.match_de(1::smallint, '3'), '9e0e0000-0000-0000-0000-000000000001', 'EUW_99N_ABANDON_1', 120));
 select verifie('… et compte : verdict « historique » pour J1',
   (select niveau = 'historique' and gagnant_id = '9e0e0000-0000-0000-0000-000000000001' from match_verdicts where match_id = pg_temp.match_de(1::smallint, '3')));
 select verifie('Partie J2-J4 jamais retrouvée : la tâche donne le match à J4',

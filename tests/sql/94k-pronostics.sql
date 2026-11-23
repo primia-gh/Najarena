@@ -93,12 +93,12 @@ reset role;
 
 -- Jo951a gagne sa demi-finale (lue chez Riot) ; l'autre demi se termine
 -- par une décision manuelle, la finale est lue chez Riot.
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif) values
-  ('94a00000-0000-0000-0000-0000000000b1', 'historique', '00000000-0000-0000-0000-0000000000f1', true);
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, niveau_compte_min) values
+  ('94a00000-0000-0000-0000-0000000000b1', 'historique', '00000000-0000-0000-0000-0000000000f1', true, 120);
 insert into pronostics (match_id, profile_id, gagnant_prevu) values
   ('94a00000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000f8', '00000000-0000-0000-0000-0000000000f2');
-insert into match_verdicts (match_id, niveau, gagnant_id, motif, est_definitif) values
-  ('94a00000-0000-0000-0000-0000000000b2', 'manuel', '00000000-0000-0000-0000-0000000000f2', 'Forfait', true);
+insert into match_verdicts (match_id, niveau, gagnant_id, motif, est_definitif, niveau_compte_min) values
+  ('94a00000-0000-0000-0000-0000000000b2', 'manuel', '00000000-0000-0000-0000-0000000000f2', 'Forfait', true, null);
 insert into match_participants (match_id, profile_id, slot) values
   ('94a00000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000f1', 1),
   ('94a00000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000f2', 2);
@@ -107,8 +107,8 @@ set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000000f9');
 select essai('Quin pronostique la finale', $q$select public.pronostiquer('94a00000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000f1')$q$, 'passe');
 reset role;
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif) values
-  ('94a00000-0000-0000-0000-0000000000c1', 'code_tournoi', '00000000-0000-0000-0000-0000000000f1', true);
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, niveau_compte_min) values
+  ('94a00000-0000-0000-0000-0000000000c1', 'code_tournoi', '00000000-0000-0000-0000-0000000000f1', true, 120);
 
 set role authenticated;
 select en_tant_que('00000000-0000-0000-0000-0000000000f8');

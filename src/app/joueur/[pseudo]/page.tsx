@@ -41,6 +41,8 @@ import BlocRecommandations from "@/components/profil/BlocRecommandations";
 import CourbeProgression from "@/components/profil/CourbeProgression";
 import BoutonPartager from "@/components/profil/BoutonPartager";
 import { DUELS_CLASSES_PAR_JOUR_MAX } from "@/lib/defis";
+import { MENTION_SANS_POINTS, matchsSansPoints, NIVEAU_COMPTE_RIOT_MIN, niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
+import { typographie } from "@/lib/typographie";
 
 // Refonte « Venin » du 23/09/2026 (design-system/najarena/pages/profil.md,
 // maquette najarena-design/maquettes/profil.dc.html) : seule l'apparence a
@@ -207,7 +209,7 @@ const chargerJoueur = cache(async (slug: string) => {
     matchIds.length > 0
       ? supabase
           .from("match_verdicts")
-          .select("match_id, niveau, motif, cree_le")
+          .select("match_id, niveau, motif, cree_le, niveau_compte_min")
           .in("match_id", matchIds)
           .eq("est_definitif", true)
       : Promise.resolve({ data: [] }),
@@ -276,6 +278,9 @@ const chargerJoueur = cache(async (slug: string) => {
         niveau: verdict.niveau,
         motif: verdict.motif,
         creeLe: verdict.cree_le,
+        // Lu chez Riot, mais un compte sous le niveau 30 (22/11/2026) : le
+        // résultat reste vérifié, sans points ni place dans le face-à-face.
+        horsClassementNiveau: verdict.niveau !== "manuel" && !niveauCompteSuffisant(verdict.niveau_compte_min),
         stats,
         revue: stats ? genererRevue(stats, moyennesVictoires) : null,
         revueIA: revuesIA.get(p.match_id) ?? null,
@@ -416,10 +421,11 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
 
   // Face-à-face : uniquement les adversaires affrontés au moins deux fois —
   // une seule rencontre n'est pas une rivalité, juste un match. Comme la
-  // page face-à-face (19/11/2026) : matchs 1v1 lus chez Riot seulement.
+  // page face-à-face (19/11/2026) : matchs 1v1 lus chez Riot seulement,
+  // entre comptes Riot de niveau 30 (23/11/2026).
   const rivalites = Array.from(
     historique.reduce((carte, h) => {
-      if (!h.adversaire || h.niveau === "manuel" || h.tournoi?.format !== "1v1") return carte;
+      if (!h.adversaire || h.niveau === "manuel" || h.horsClassementNiveau || h.tournoi?.format !== "1v1") return carte;
       const existant = carte.get(h.adversaire.slug);
       if (existant) {
         existant.victoires += h.estGagnant ? 1 : 0;
@@ -438,6 +444,12 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
   )
     .filter((r) => r.victoires + r.defaites >= 2)
     .sort((a, b) => b.victoires + b.defaites - (a.victoires + a.defaites));
+  // Matchs 1v1 lus chez Riot écartés des rivalités (compte sous le niveau
+  // 30) : dits sous le bloc, pour qu'un adversaire absent ne passe pas pour
+  // un oubli (revue design du 23/11/2026).
+  const matchsEcartesRivalites = historique.filter(
+    (h) => h.adversaire && h.niveau !== "manuel" && h.horsClassementNiveau && h.tournoi?.format === "1v1",
+  ).length;
 
   const complements = await chargerComplementsProfil(profil.id);
   const matchsVerifies = historique.filter((h) => h.niveau !== "manuel").length;
@@ -989,6 +1001,9 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                                 {h.niveau === "manuel" && h.motif && (
                                   <span className="max-w-[220px] text-xs text-muted">Motif : {h.motif}</span>
                                 )}
+                                {h.horsClassementNiveau && (
+                                  <span className="max-w-[220px] text-xs text-text-2">{typographie(MENTION_SANS_POINTS)}</span>
+                                )}
                               </span>
                             </td>
                           </tr>
@@ -1329,6 +1344,13 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                     </li>
                   ))}
                 </ul>
+                {matchsEcartesRivalites > 0 && (
+                  <p className="text-xs text-text-2">
+                    {typographie(
+                      `${matchsSansPoints(matchsEcartesRivalites)} (compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN}) ne compte${matchsEcartesRivalites > 1 ? "nt" : ""} pas ici.`,
+                    )}
+                  </p>
+                )}
               </Panneau>
             )}
 

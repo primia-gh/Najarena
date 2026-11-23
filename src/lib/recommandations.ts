@@ -29,7 +29,7 @@ const REFUS: Record<string, string> = {
   JOUEUR_INTROUVABLE: "Ce joueur n'existe plus.",
   TEXTE_LONGUEUR: `Ta recommandation doit faire entre ${RECOMMANDATION_MIN} et ${RECOMMANDATION_MAX} caractères.`,
   PAS_JOUE_ENSEMBLE:
-    "Seuls les joueurs qui ont joué avec ou contre lui une partie lue chez Riot peuvent le recommander.",
+    "Pour recommander ce joueur, il faut avoir joué ensemble ou l'un contre l'autre une partie lue chez Riot, chacun avec un compte Riot de niveau\u00a030 ou plus, encore lié et vérifié sur son profil. Si tu as délié le compte avec lequel tu as joué, relie-le.",
   LIMITE_RECOMMANDATIONS: "Tu as déjà écrit 10 recommandations en 24 heures : réessaie demain.",
   TEXTE_INTERDIT: "Ce texte n'est pas accepté : il contient un terme refusé ou un lien.",
 };

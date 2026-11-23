@@ -6,6 +6,27 @@ import { createClient } from "@/lib/supabase/server";
 import { creerClientAdmin } from "@/lib/supabase/admin";
 import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
 import { lienExterneSur, MESSAGE_LIEN_INVALIDE } from "@/lib/lien-externe";
+import Stripe from "stripe";
+import { abonnementEnVie, joueurDeLAbonnement } from "@/lib/offre-stripe";
+
+// Un abonnement Stripe encore en vie pour ce joueur, lu chez Stripe même si
+// la base ne le connaît pas (message de paiement perdu, contrôle de sécurité
+// du 23/11/2026). « inconnu » si Stripe ne peut pas répondre.
+async function abonneChezStripe(clientId: string, profileId: string): Promise<"oui" | "non" | "inconnu"> {
+  const cle = process.env.STRIPE_SECRET_KEY;
+  if (!cle) return "inconnu";
+  try {
+    const stripe = new Stripe(cle, { timeout: 10_000, maxNetworkRetries: 1 });
+    const liste = await stripe.subscriptions.list({ customer: clientId, status: "all", limit: 100 });
+    return liste.data.some(
+      (a) => joueurDeLAbonnement(a.metadata?.profile_id) === profileId && abonnementEnVie(a.status),
+    )
+      ? "oui"
+      : "non";
+  } catch {
+    return "inconnu";
+  }
+}
 
 async function verifierAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: userData } = await supabase.auth.getUser();
@@ -56,6 +77,39 @@ export async function attribuerOffreAdmin(formData: FormData) {
   if (!admin) {
     redirect(
       `/admin?erreur=${encodeURIComponent("Attribution indisponible (SUPABASE_SERVICE_ROLE_KEY manquante).")}`,
+    );
+  }
+
+  // Joueur abonné chez Stripe (contrôle de sécurité du 23/11/2026) : son
+  // offre suit son abonnement. Une offre donnée ici n'est jamais retirée par
+  // la fin d'un abonnement (elle resterait à vie après un remboursement), et
+  // une révocation serait défaite par la vérification quotidienne. On passe
+  // donc par Stripe.
+  const { data: abonnement, error: erreurAbonnement } = await admin
+    .from("abonnements_stripe")
+    .select("statut, client_stripe_id")
+    .eq("profile_id", profil.id)
+    .maybeSingle();
+  if (erreurAbonnement) {
+    redirect(
+      `/admin?erreur=${encodeURIComponent(`Impossible de lire l'abonnement de ${pseudo} dans la base pour l'instant : réessaie dans quelques minutes.`)}`,
+    );
+  }
+  // Client Stripe connu : on demande à Stripe lui-même (la base peut ignorer
+  // un abonnement dont le message de paiement s'est perdu).
+  const chezStripe = abonnement?.client_stripe_id ? await abonneChezStripe(abonnement.client_stripe_id, profil.id) : "non";
+  if (chezStripe === "inconnu") {
+    redirect(
+      `/admin?erreur=${encodeURIComponent(
+        `Impossible de vérifier l'abonnement Stripe de ${pseudo} : Stripe ne répond pas, réessaie dans quelques minutes.`,
+      )}`,
+    );
+  }
+  if ((abonnement?.statut && abonnementEnVie(abonnement.statut)) || chezStripe === "oui") {
+    redirect(
+      `/admin?erreur=${encodeURIComponent(
+        `${pseudo} a un abonnement Stripe en cours : son offre suit cet abonnement et ne se modifie pas ici. Pour la changer, modifie ou résilie l'abonnement dans Stripe (l'offre suivra).`,
+      )}`,
     );
   }
 

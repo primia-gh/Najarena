@@ -1,7 +1,9 @@
 // Webhook Stripe — source de vérité pour comptes_offres une fois Stripe
 // activé (voir src/lib/stripe-actions.ts). Écrit exclusivement via le
 // client service_role, jamais via le client RLS : comptes_offres n'a
-// aucune policy client, par construction (voir la migration).
+// aucune policy client, par construction (voir la migration). Traitement
+// d'un abonnement commun avec la vérification quotidienne :
+// src/lib/abonnements-stripe-serveur.ts.
 //
 // Sans STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET, répond 503 plutôt que de
 // planter — ce fichier peut être mergé avant que Stripe soit configuré.
@@ -9,9 +11,9 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { creerClientAdmin } from "@/lib/supabase/admin";
-import type { Offre } from "@/lib/offres";
 import { compteStripeVerifie } from "@/lib/versements-stripe";
-import { joueurDeLAbonnement, offreDepuisPrix, prixParOffre } from "@/lib/offre-stripe";
+import { joueurDeLAbonnement } from "@/lib/offre-stripe";
+import { appliquerAbonnement, relireAbonnement } from "@/lib/abonnements-stripe-serveur";
 
 const cleSecrete = process.env.STRIPE_SECRET_KEY;
 const stripe = cleSecrete ? new Stripe(cleSecrete) : null;
@@ -20,103 +22,6 @@ const secretWebhook = process.env.STRIPE_WEBHOOK_SECRET;
 // comptes Connect arrivent par un point d'écoute « Connect », qui a son
 // propre secret de signature chez Stripe.
 const secretWebhookConnect = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
-
-type ClientAdmin = NonNullable<ReturnType<typeof creerClientAdmin>>;
-
-function identifiant(objet: string | { id: string } | null | undefined): string | null {
-  if (!objet) return null;
-  return typeof objet === "string" ? objet : objet.id;
-}
-
-// État de l'abonnement (active, past_due, canceled…), gardé pour le
-// tableau de bord et la suppression de compte. Faux si l'écriture a
-// échoué : l'événement est alors refusé et Stripe le renverra (contrôle de
-// sécurité du 22/11/2026 — un « reçu » après une écriture ratée laissait
-// par exemple son offre à un abonné résilié).
-async function suivreAbonnement(admin: ClientAdmin, profileId: string, abonnement: Stripe.Subscription): Promise<boolean> {
-  const clientId = identifiant(abonnement.customer);
-  if (!clientId) return true;
-  const { error } = await admin.from("abonnements_stripe").upsert({
-    profile_id: profileId,
-    client_stripe_id: clientId,
-    abonnement_stripe_id: abonnement.id,
-    statut: abonnement.status,
-    maj_le: new Date().toISOString(),
-  });
-  return !error;
-}
-
-// L'abonnement tel qu'il est maintenant chez Stripe (contrôle de sécurité
-// du 21/11/2026, F1) : les événements peuvent arriver en retard ou dans le
-// désordre (un « active » ancien après une résiliation), et un paiement
-// différé laisse l'abonnement « incomplete » après le paiement en ligne.
-// On n'écrit donc jamais d'après le contenu de l'événement, seulement
-// d'après l'état relu. Nul si Stripe ne répond pas : l'événement est
-// refusé et Stripe le renverra.
-async function relireAbonnement(client: Stripe, id: string): Promise<Stripe.Subscription | null> {
-  try {
-    return await client.subscriptions.retrieve(id);
-  } catch {
-    return null;
-  }
-}
-
-// Offre accordée d'après l'état relu : en cours (active, trialing) → offre
-// du prix facturé ; sinon (paiement échoué, en attente, résilié…) → offre
-// retirée, quel que soit le prix — retirer est toujours sans risque.
-// Faux si une écriture a échoué (l'événement sera renvoyé par Stripe).
-async function appliquerAbonnement(
-  client: Stripe,
-  admin: ClientAdmin,
-  profileId: string,
-  abonnement: Stripe.Subscription,
-): Promise<boolean> {
-  const enCours = abonnement.status === "active" || abonnement.status === "trialing";
-  if (!enCours) {
-    // Un ancien abonnement qui se termine (renvoi tardif, doublon) ne touche
-    // ni l'offre ni le suivi de l'abonnement actuel du joueur, s'il en a un
-    // autre (contrôle de sécurité du 22/11/2026).
-    const { data: suivi, error: erreurSuivi } = await admin
-      .from("abonnements_stripe")
-      .select("abonnement_stripe_id")
-      .eq("profile_id", profileId)
-      .maybeSingle();
-    if (erreurSuivi) return false;
-    if (suivi?.abonnement_stripe_id && suivi.abonnement_stripe_id !== abonnement.id) return true;
-    if (!(await suivreAbonnement(admin, profileId, abonnement))) return false;
-    const { error } = await admin.from("comptes_offres").delete().eq("profile_id", profileId);
-    return !error;
-  }
-  if (!(await suivreAbonnement(admin, profileId, abonnement))) return false;
-  // Offre lue dans le prix facturé, pas dans les métadonnées (un
-  // changement de formule dans le portail Stripe ne les met pas à jour).
-  const prixFacture = abonnement.items?.data?.[0]?.price?.id;
-  const offre: Offre | null = offreDepuisPrix(prixFacture, prixParOffre());
-  if (!offre) {
-    // Prix qui n'est celui d'aucune offre : réglage à revoir (variables
-    // STRIPE_PRICE_*, ancien prix compris). Rien n'est accordé, et une
-    // offre déjà accordée est retirée (contrôle de sécurité du 22/11/2026).
-    console.error(`Webhook Stripe : prix ${prixFacture ?? "absent"} sans offre correspondante.`);
-    const { error } = await admin.from("comptes_offres").delete().eq("profile_id", profileId);
-    return !error;
-  }
-  const { error } = await admin.from("comptes_offres").upsert({
-    profile_id: profileId,
-    offre,
-    attribue_le: new Date().toISOString(),
-  });
-  if (error) return false;
-  // Seconde lecture après avoir accordé l'offre (contrôle de sécurité du
-  // 22/11/2026) : si une résiliation a été traitée entre la première
-  // lecture et l'écriture, l'offre écrite à l'instant ne doit pas rester.
-  const relu = await relireAbonnement(client, abonnement.id);
-  if (!relu) return false;
-  if (relu.status !== "active" && relu.status !== "trialing") {
-    const { error: erreurRetrait } = await admin.from("comptes_offres").delete().eq("profile_id", profileId);
-    return !erreurRetrait;
-  }
-  return true;
-}
 
 const A_RENVOYER = () => NextResponse.json({ erreur: "Écriture impossible pour l'instant, à renvoyer." }, { status: 503 });
 
@@ -169,7 +74,8 @@ export async function POST(request: Request) {
   switch (evenement.type) {
     case "checkout.session.completed": {
       const session = evenement.data.object as Stripe.Checkout.Session;
-      const abonnementId = identifiant(session.subscription);
+      const abonnementId =
+        typeof session.subscription === "string" ? session.subscription : (session.subscription?.id ?? null);
       // Nos paiements sont toujours des abonnements : l'offre suit l'état
       // relu de l'abonnement (un paiement différé ne l'accorde pas encore ;
       // customer.subscription.updated le fera une fois payé).
@@ -181,7 +87,7 @@ export async function POST(request: Request) {
       // créé hors du site n'accorde rien (joueurDeLAbonnement).
       const profileId = joueurDeLAbonnement(abonnement.metadata?.profile_id, session.client_reference_id);
       if (!profileId) break;
-      if (!(await appliquerAbonnement(stripe, admin, profileId, abonnement))) return A_RENVOYER();
+      if ((await appliquerAbonnement(stripe, admin, profileId, abonnement)) === "echec") return A_RENVOYER();
       break;
     }
 
@@ -191,7 +97,7 @@ export async function POST(request: Request) {
       const abonnement = await relireAbonnement(stripe, recu.id);
       if (!abonnement) return A_RENVOYER();
       const profileId = joueurDeLAbonnement(abonnement.metadata?.profile_id);
-      if (profileId && !(await appliquerAbonnement(stripe, admin, profileId, abonnement))) return A_RENVOYER();
+      if (profileId && (await appliquerAbonnement(stripe, admin, profileId, abonnement)) === "echec") return A_RENVOYER();
       break;
     }
 

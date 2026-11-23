@@ -190,8 +190,8 @@ select verifie('Duel ordinaire : nature défi, en cours, deux joueurs confirmés
    join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1));
 
 -- Verdict lu chez Riot : joueur 2 gagne.
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif)
-select m.id, 'historique', '00000000-0000-0000-0000-0000000003f2', true
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, niveau_compte_min)
+select m.id, 'historique', '00000000-0000-0000-0000-0000000003f2', true, 120
 from rencontres_division r join matches m on m.tournament_id = r.tournament_id
 join poules_division p on p.id = r.poule_id where p.niveau = 1 and r.semaine = 1;
 select set_config('request.jwt.claim.sub', '', false);

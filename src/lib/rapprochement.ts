@@ -211,17 +211,27 @@ async function enregistrerSerie(
 ): Promise<boolean> {
   const gagnantId = serie.gagnantPuuid === compteA.puuid ? compteA.profile_id : compteB.profile_id;
 
+  // 1v1 : plus bas niveau Riot des deux comptes sur la série, lu dans les
+  // parties déjà récupérées (sous 30, le match ne compte pas au classement,
+  // src/lib/niveau-compte-riot.ts). Le 5v5 n'est pas classé.
+  const niveauCompteMin = equipes
+    ? null
+    : niveauMinimumSerie(serie.parties.flatMap((p) => [p.participantA.summonerLevel, p.participantB.summonerLevel]));
+  if (!equipes && niveauCompteMin === null) {
+    // Riot n'a pas donné le niveau d'un compte : la base refuse un verdict
+    // 1v1 sans lui (NIVEAU_COMPTE_REQUIS, 23/11/2026). Rien n'est écrit, et
+    // le match suit le chemin ordinaire (litige après le délai, tranché par
+    // l'organisateur) : jamais de niveau inventé.
+    console.error(`Recherche des résultats : niveau Riot absent pour le match ${m.id}, résultat non enregistré.`);
+    return false;
+  }
+
   const { data: ecrit } = await admin.rpc("enregistrer_verdict_historique", {
     p_match_id: m.id,
     p_gagnant_id: gagnantId,
     // Toutes les manches de la série, dans l'ordre (une seule en Bo1).
     p_riot_match_id: serie.parties.map((p) => p.riotMatchId).join(","),
-    // 1v1 : plus bas niveau Riot des deux comptes sur la série, lu dans les
-    // parties déjà récupérées (sous 30, le match ne compte pas au
-    // classement, src/lib/niveau-compte-riot.ts). Le 5v5 n'est pas classé.
-    p_niveau_compte_min: equipes
-      ? null
-      : niveauMinimumSerie(serie.parties.flatMap((p) => [p.participantA.summonerLevel, p.participantB.summonerLevel])),
+    p_niveau_compte_min: niveauCompteMin,
   });
   if (!ecrit) return false;
 
@@ -236,6 +246,9 @@ async function enregistrerSerie(
     profile_id: profileId,
     // Compte qui a joué ce match (comptes secondaires déclarés, audit N15).
     puuid: stat.puuid,
+    // Son niveau Riot dans cette partie (23/11/2026) : sous 30, la partie ne
+    // compte pas pour une recommandation (matchs_communs).
+    niveau_compte: typeof stat.summonerLevel === "number" ? Math.floor(stat.summonerLevel) : null,
     champion: stat.championName,
     kills: stat.kills,
     deaths: stat.deaths,
@@ -320,7 +333,13 @@ async function appliquerForfait(
   return true;
 }
 
-async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat, nom: (profileId: string) => string): Promise<void> {
+async function passerEnLitige(
+  admin: ClientAdmin,
+  m: MatchCandidat,
+  nom: (profileId: string) => string,
+  // Manches retrouvées chez Riot mais pas enregistrées, s'il y en a.
+  partieRetrouvee: string | null = null,
+): Promise<void> {
   const { data: bascule } = await admin
     .from("matches")
     .update({ statut: "litige" })
@@ -332,6 +351,12 @@ async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat, nom: (profil
   const tournoi = m.tournament;
   const libelle = m.match_participants.map((p) => nom(p.profile_id)).join(" vs ");
   const lienTournoi = `${URL_SITE}/lol/tournois/${tournoi.slug}`;
+  // Partie retrouvée mais pas enregistrée : les joueurs n'ont rien à
+  // rejouer ; l'organisateur reçoit les identifiants Riot pour vérifier.
+  const plusieurs = (partieRetrouvee ?? "").includes(",");
+  const constatJoueur = plusieurs
+    ? "Tes parties ont été retrouvées chez Riot, mais le résultat n'a pas pu être enregistré automatiquement."
+    : "Ta partie a été retrouvée chez Riot, mais son résultat n'a pas pu être enregistré automatiquement.";
 
   // Duel entre deux joueurs (audit N16) ou scrim entre deux équipes (N22) :
   // pas d'organisateur à déranger ; sans partie retrouvée dans les 24 h, le
@@ -343,9 +368,11 @@ async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat, nom: (profil
         envoyerRappel(
           p.profile_id,
           `${scrim ? "Scrim" : "Duel"} sans résultat — ${tournoi.nom}`,
-          scrim
-            ? "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant avec les dix joueurs inscrits, sinon le scrim sera annulé."
-            : "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant, sinon le défi sera annulé.",
+          partieRetrouvee
+            ? `${constatJoueur} Nous réessayons à chaque recherche : inutile de la rejouer pour l'instant. Si rien n'est enregistré dans les 24 h, ${scrim ? "le scrim" : "le défi"} sera annulé.`
+            : scrim
+              ? "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant avec les dix joueurs inscrits, sinon le scrim sera annulé."
+              : "Aucune partie retrouvée dans l'historique Riot. La recherche continue pendant 24 h : jouez la partie maintenant, sinon le défi sera annulé.",
           `${lienTournoi}#ton-match`,
         ),
       ),
@@ -360,7 +387,9 @@ async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat, nom: (profil
     envoyerRappel(
       tournoi.organisateur_id,
       `Match en litige — ${tournoi.nom}`,
-      `Aucune partie retrouvée pour ${libelle}. La recherche continue 24 h ; si le match n'a pas eu lieu, tranche depuis ton cockpit.`,
+      partieRetrouvee
+        ? `${libelle} : une partie a été retrouvée chez Riot (${partieRetrouvee}), mais son résultat n'a pas pu être enregistré automatiquement. La recherche continue 24 h. Si rien ne change, vérifie la partie avant de trancher à la main depuis ton cockpit.`
+        : `Aucune partie retrouvée pour ${libelle}. La recherche continue 24 h ; si le match n'a pas eu lieu, tranche depuis ton cockpit.`,
       `${URL_SITE}/moi/organisation/${m.tournament_id}`,
       { push: false },
     ),
@@ -368,14 +397,18 @@ async function passerEnLitige(admin: ClientAdmin, m: MatchCandidat, nom: (profil
       tournoi.organisateur_id,
       `Match en litige — ${tournoi.nom}`,
       "Un match attend ta décision",
-      `<p>Aucune partie officielle n'a été retrouvée pour le match ${echapperHtml(libelle)}. La recherche continue pendant 24 h ; si les joueurs n'ont pas joué ou ne peuvent pas jouer, tranche depuis ton cockpit (verdict manuel, motif public).</p>
-       <p><a href="${URL_SITE}/moi/organisation/${m.tournament_id}">Ouvrir le cockpit</a></p>`,
+      (partieRetrouvee
+        ? `<p>Match ${echapperHtml(libelle)} : une partie a été retrouvée chez Riot (${echapperHtml(partieRetrouvee)}), mais son résultat n'a pas pu être enregistré automatiquement. La recherche continue pendant 24 h. Si rien ne change, vérifie la partie avant de trancher à la main depuis ton cockpit (verdict manuel, motif public).</p>`
+        : `<p>Aucune partie officielle n'a été retrouvée pour le match ${echapperHtml(libelle)}. La recherche continue pendant 24 h ; si les joueurs n'ont pas joué ou ne peuvent pas jouer, tranche depuis ton cockpit (verdict manuel, motif public).</p>`) +
+        `\n       <p><a href="${URL_SITE}/moi/organisation/${m.tournament_id}">Ouvrir le cockpit</a></p>`,
     ),
     ...m.match_participants.map((p) =>
       envoyerRappel(
         p.profile_id,
-        `Résultat introuvable — ${tournoi.nom}`,
-        "Aucune partie retrouvée dans l'historique Riot pour ton match. La recherche continue ; l'organisateur a été prévenu. Si la partie n'a pas eu lieu, jouez-la maintenant en partie personnalisée.",
+        `${partieRetrouvee ? "Résultat en attente" : "Résultat introuvable"} — ${tournoi.nom}`,
+        partieRetrouvee
+          ? `${constatJoueur} La recherche continue ; l'organisateur a été prévenu et tranchera si besoin.`
+          : "Aucune partie retrouvée dans l'historique Riot pour ton match. La recherche continue ; l'organisateur a été prévenu. Si la partie n'a pas eu lieu, jouez-la maintenant en partie personnalisée.",
         lienTournoi,
       ),
     ),
@@ -475,6 +508,9 @@ export async function traiterRechercheResultats(): Promise<{
     const ageMinutes = (Date.now() - new Date(m.demarre_le).getTime()) / 60000;
     const bestOf = m.tournament.best_of;
     const participantIds = m.match_participants.map((p) => p.profile_id);
+    // Partie retrouvée chez Riot mais résultat pas enregistré (niveau des
+    // comptes absent, base indisponible…) : identifiants des manches.
+    let serieNonEnregistree: string | null = null;
 
     if (participantIds.length === 2 && doitChercher(statut, ageMinutes)) {
       const compteA = compteParJoueurEtJeu.get(`${participantIds[0]}:${m.tournament.game_id}`);
@@ -517,15 +553,32 @@ export async function traiterRechercheResultats(): Promise<{
               return new Set((data ?? []).map((p) => p.riot_match_id));
             },
           );
-          if (serie && (await enregistrerSerie(admin, m, serie, compteA, compteB, equipesDuMatch))) {
-            trouves += 1;
-            continue;
+          if (serie) {
+            if (await enregistrerSerie(admin, m, serie, compteA, compteB, equipesDuMatch)) {
+              trouves += 1;
+              continue;
+            }
+            serieNonEnregistree = serie.parties.map((p) => p.riotMatchId).join(", ");
           }
         } catch {
           // Erreur API Riot (quota, réseau, clé expirée...) : jamais de
           // résultat inventé, on retentera au prochain passage.
         }
       }
+    }
+
+    // Une partie a été retrouvée chez Riot mais pas enregistrée (contrôle de
+    // sécurité du 23/11/2026) : ni forfait ni défaite reconnue ne la
+    // contredisent. Retentée à chaque passage ; après le délai, l'organisateur
+    // tranche, prévenu que la partie existe.
+    if (serieNonEnregistree) {
+      if (statut === "en_cours" && doitPasserEnLitige(ageMinutes, bestOf)) {
+        await passerEnLitige(admin, m, nomDans(m), serieNonEnregistree);
+        litiges += 1;
+      } else {
+        ignores += 1;
+      }
+      continue;
     }
 
     // Défaite reconnue : tranchée si Riot n'a toujours rien après le délai

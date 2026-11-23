@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { arrondir, trouverPalier, type Palier } from "@/lib/classement";
 import { probabiliteVictoire } from "@/lib/glicko2";
 import { formaterDate } from "@/lib/tournois";
-import { adresseCanonique, bilanFaceAFace, compteAuBilan, depuisLigne } from "@/lib/face-a-face";
+import { adresseCanonique, bilanFaceAFace, compteAuBilan, depuisLigne, horsClassementNiveau } from "@/lib/face-a-face";
+import { listeFrancaise, MENTION_SANS_POINTS, matchsSansPoints, REGLE_NIVEAU_COMPTE } from "@/lib/niveau-compte-riot";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { typographie } from "@/lib/typographie";
 import Apparition from "@/components/design/Apparition";
@@ -182,16 +183,18 @@ export default async function FaceAFacePage({ params }: PageProps) {
                 )}
               </li>
             )}
-            {(bilan.manuels > 0 || bilan.forfaits > 0) && (
+            {(bilan.manuels > 0 || bilan.forfaits > 0 || bilan.horsClassement > 0) && (
               <li className="text-muted">
                 {typographie(
-                  `Hors bilan : ${[
-                    bilan.manuels > 0 ? `${bilan.manuels} décision${bilan.manuels > 1 ? "s" : ""} de l'organisateur` : null,
-                    bilan.forfaits > 0 ? `${bilan.forfaits} forfait${bilan.forfaits > 1 ? "s" : ""}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" et ")}, listés ci-dessous.`,
+                  `Hors bilan : ${listeFrancaise(
+                    [
+                      bilan.manuels > 0 ? `${bilan.manuels} décision${bilan.manuels > 1 ? "s" : ""} de l'organisateur` : null,
+                      bilan.forfaits > 0 ? `${bilan.forfaits} forfait${bilan.forfaits > 1 ? "s" : ""}` : null,
+                      bilan.horsClassement > 0 ? matchsSansPoints(bilan.horsClassement) : null,
+                    ].filter((x): x is string => x !== null),
+                  )}, listés ci-dessous.`,
                 )}
+                {bilan.horsClassement > 0 && <> {typographie(REGLE_NIVEAU_COMPTE)}</>}
               </li>
             )}
           </ul>
@@ -241,7 +244,12 @@ export default async function FaceAFacePage({ params }: PageProps) {
                         {m.forfait && <span className="text-muted"> (forfait)</span>}
                       </td>
                       <td>
-                        <BadgeVerdict niveau={m.niveau} compact />
+                        <span className="inline-flex flex-col items-start gap-1">
+                          <BadgeVerdict niveau={m.niveau} compact />
+                          {horsClassementNiveau(m) && (
+                            <span className="text-xs text-text-2">{typographie(MENTION_SANS_POINTS)}</span>
+                          )}
+                        </span>
                       </td>
                       <td className="text-right">
                         <Link
