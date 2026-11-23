@@ -36,3 +36,26 @@ export function niveauMinimumSerie(niveaux: (number | undefined)[]): number | nu
   }
   return Math.floor(minimum);
 }
+
+/**
+ * Mention d'un match lu chez Riot mais joué avec un compte sous le niveau
+ * 30 (revue design du 23/11/2026) : la même partout (face-à-face, CV,
+ * page du tournoi). Le résultat reste vérifié : seuls les points (et le
+ * bilan du face-à-face) l'ignorent.
+ */
+export const MENTION_SANS_POINTS = `Sans points : compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN}`;
+
+/** « 1 match sans points » / « 3 matchs sans points ». */
+export function matchsSansPoints(n: number): string {
+  return `${n} match${n > 1 ? "s" : ""} sans points`;
+}
+
+/** La règle en une phrase, avec ce qu'il faut faire. */
+export const REGLE_NIVEAU_COMPTE = `Un match joué avec un compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN} reste vérifié, mais ne rapporte aucun point. Atteins le niveau ${NIVEAU_COMPTE_RIOT_MIN} pour que tes matchs comptent.`;
+
+/** « A », « A et B », « A, B et C ». */
+export function listeFrancaise(elements: string[]): string {
+  if (elements.length <= 1) return elements[0] ?? "";
+  return `${elements.slice(0, -1).join(", ")} et ${elements[elements.length - 1]}`;
+}
+

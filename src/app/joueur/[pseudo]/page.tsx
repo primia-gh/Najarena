@@ -41,7 +41,8 @@ import BlocRecommandations from "@/components/profil/BlocRecommandations";
 import CourbeProgression from "@/components/profil/CourbeProgression";
 import BoutonPartager from "@/components/profil/BoutonPartager";
 import { DUELS_CLASSES_PAR_JOUR_MAX } from "@/lib/defis";
-import { niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
+import { MENTION_SANS_POINTS, matchsSansPoints, NIVEAU_COMPTE_RIOT_MIN, niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
+import { typographie } from "@/lib/typographie";
 
 // Refonte « Venin » du 23/09/2026 (design-system/najarena/pages/profil.md,
 // maquette najarena-design/maquettes/profil.dc.html) : seule l'apparence a
@@ -443,6 +444,12 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
   )
     .filter((r) => r.victoires + r.defaites >= 2)
     .sort((a, b) => b.victoires + b.defaites - (a.victoires + a.defaites));
+  // Matchs 1v1 lus chez Riot écartés des rivalités (compte sous le niveau
+  // 30) : dits sous le bloc, pour qu'un adversaire absent ne passe pas pour
+  // un oubli (revue design du 23/11/2026).
+  const matchsEcartesRivalites = historique.filter(
+    (h) => h.adversaire && h.niveau !== "manuel" && h.horsClassementNiveau && h.tournoi?.format === "1v1",
+  ).length;
 
   const complements = await chargerComplementsProfil(profil.id);
   const matchsVerifies = historique.filter((h) => h.niveau !== "manuel").length;
@@ -995,7 +1002,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                                   <span className="max-w-[220px] text-xs text-muted">Motif : {h.motif}</span>
                                 )}
                                 {h.horsClassementNiveau && (
-                                  <span className="max-w-[220px] text-xs text-muted">Hors classement (niveau Riot)</span>
+                                  <span className="max-w-[220px] text-xs text-text-2">{typographie(MENTION_SANS_POINTS)}</span>
                                 )}
                               </span>
                             </td>
@@ -1337,6 +1344,13 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                     </li>
                   ))}
                 </ul>
+                {matchsEcartesRivalites > 0 && (
+                  <p className="text-xs text-text-2">
+                    {typographie(
+                      `${matchsSansPoints(matchsEcartesRivalites)} (compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN}) ne compte${matchsEcartesRivalites > 1 ? "nt" : ""} pas ici.`,
+                    )}
+                  </p>
+                )}
               </Panneau>
             )}
 

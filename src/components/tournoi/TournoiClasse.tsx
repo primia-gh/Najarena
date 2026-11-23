@@ -3,7 +3,7 @@ import Panneau from "@/components/design/Panneau";
 import Icone from "@/components/design/Icone";
 import type { EvaluationClassement, StatutClassement } from "@/lib/tournoi-classe";
 import { typographie } from "@/lib/typographie";
-import { NIVEAU_COMPTE_RIOT_MIN } from "@/lib/niveau-compte-riot";
+import { matchsSansPoints, REGLE_NIVEAU_COMPTE } from "@/lib/niveau-compte-riot";
 
 // Label « tournoi classé » (28/09/2026, audit E12 et N12) : la page du
 // tournoi dit, critère par critère, s'il compte au classement. Le vert est
@@ -80,10 +80,11 @@ export function CriteresClassement({
           })}
         </ul>
         {matchsHorsNiveau > 0 && (
-          <p className="text-sm leading-normal text-muted">
-            {typographie(
-              `${matchsHorsNiveau} match${matchsHorsNiveau > 1 ? "s" : ""} joué${matchsHorsNiveau > 1 ? "s" : ""} avec un compte Riot sous le niveau ${NIVEAU_COMPTE_RIOT_MIN} : résultat vérifié, mais sans points.`,
-            )}
+          <p className="flex gap-3 text-sm leading-normal text-text-2">
+            <Icone nom="alerte" taille={16} className="mt-0.5 shrink-0 text-muted" />
+            <span>
+              {typographie(`${matchsSansPoints(matchsHorsNiveau)} dans ce tournoi. ${REGLE_NIVEAU_COMPTE}`)}
+            </span>
           </p>
         )}
         <Link
