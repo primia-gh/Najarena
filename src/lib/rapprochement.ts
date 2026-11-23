@@ -211,17 +211,27 @@ async function enregistrerSerie(
 ): Promise<boolean> {
   const gagnantId = serie.gagnantPuuid === compteA.puuid ? compteA.profile_id : compteB.profile_id;
 
+  // 1v1 : plus bas niveau Riot des deux comptes sur la série, lu dans les
+  // parties déjà récupérées (sous 30, le match ne compte pas au classement,
+  // src/lib/niveau-compte-riot.ts). Le 5v5 n'est pas classé.
+  const niveauCompteMin = equipes
+    ? null
+    : niveauMinimumSerie(serie.parties.flatMap((p) => [p.participantA.summonerLevel, p.participantB.summonerLevel]));
+  if (!equipes && niveauCompteMin === null) {
+    // Riot n'a pas donné le niveau d'un compte : la base refuse un verdict
+    // 1v1 sans lui (NIVEAU_COMPTE_REQUIS, 23/11/2026). Rien n'est écrit, et
+    // le match suit le chemin ordinaire (litige après le délai, tranché par
+    // l'organisateur) : jamais de niveau inventé.
+    console.error(`Recherche des résultats : niveau Riot absent pour le match ${m.id}, résultat non enregistré.`);
+    return false;
+  }
+
   const { data: ecrit } = await admin.rpc("enregistrer_verdict_historique", {
     p_match_id: m.id,
     p_gagnant_id: gagnantId,
     // Toutes les manches de la série, dans l'ordre (une seule en Bo1).
     p_riot_match_id: serie.parties.map((p) => p.riotMatchId).join(","),
-    // 1v1 : plus bas niveau Riot des deux comptes sur la série, lu dans les
-    // parties déjà récupérées (sous 30, le match ne compte pas au
-    // classement, src/lib/niveau-compte-riot.ts). Le 5v5 n'est pas classé.
-    p_niveau_compte_min: equipes
-      ? null
-      : niveauMinimumSerie(serie.parties.flatMap((p) => [p.participantA.summonerLevel, p.participantB.summonerLevel])),
+    p_niveau_compte_min: niveauCompteMin,
   });
   if (!ecrit) return false;
 

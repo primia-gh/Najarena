@@ -22,20 +22,20 @@ insert into match_participants (match_id, profile_id, slot) values
 
 set role service_role;
 select verifie('La partie EUW1_99C_A tranche le match de tournoi',
-  public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c0', '00000000-0000-0000-0000-0000000009c0', 'EUW1_99C_A'));
+  public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c0', '00000000-0000-0000-0000-0000000009c0', 'EUW1_99C_A', 120));
 select refus('La même partie pour le défi entre les mêmes joueurs',
-  $q$select public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c1', '00000000-0000-0000-0000-0000000009c0', 'EUW1_99C_A')$q$,
+  $q$select public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c1', '00000000-0000-0000-0000-0000000009c0', 'EUW1_99C_A', 120)$q$,
   'PARTIE_DEJA_UTILISEE');
 select refus('Une série dont une manche est déjà prise',
-  $q$select public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c1', '00000000-0000-0000-0000-0000000009c1', 'EUW1_99C_B, EUW1_99C_A')$q$,
+  $q$select public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c1', '00000000-0000-0000-0000-0000000009c1', 'EUW1_99C_B, EUW1_99C_A', 120)$q$,
   'PARTIE_DEJA_UTILISEE');
 select verifie('Le refus n''a rien laissé : ni verdict pour le défi, ni manche réservée',
   not exists (select 1 from match_verdicts where match_id = '50000000-0000-0000-0000-0000000009c1')
   and not exists (select 1 from parties_utilisees where riot_match_id = 'EUW1_99C_B'));
 select verifie('Une autre partie tranche le défi',
-  public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c1', '00000000-0000-0000-0000-0000000009c1', 'EUW1_99C_B'));
+  public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c1', '00000000-0000-0000-0000-0000000009c1', 'EUW1_99C_B', 120));
 select verifie('Relance pour le match de tournoi : rien d''écrit deux fois',
-  not public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c0', '00000000-0000-0000-0000-0000000009c0', 'EUW1_99C_A'));
+  not public.enregistrer_verdict_historique('50000000-0000-0000-0000-0000000009c0', '00000000-0000-0000-0000-0000000009c0', 'EUW1_99C_A', 120));
 reset role;
 select verifie('Chaque partie est réservée à un seul match',
   (select count(*) = 2 from parties_utilisees where riot_match_id like 'EUW1_99C_%')

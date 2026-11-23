@@ -75,6 +75,8 @@ Une partie de l'historique est retenue si **toutes** ces conditions sont vraies 
 
 Les parties retenues sont rejouées dans l'ordre chronologique : en Bo1 la première décide, en Bo3 / Bo5 la série s'arrête dès qu'un joueur atteint 2 / 3 victoires. Une série inachevée (1-1) n'est jamais tranchée par déduction. Le verdict garde les identifiants Riot de toutes les manches (`riot_match_id`, séparés par des virgules) ; les statistiques enregistrées sont celles de la manche décisive.
 
+**Niveau des comptes Riot** (22-23/11/2026, `src/lib/niveau-compte-riot.ts`) : un verdict 1v1 garde le plus bas niveau Riot des deux comptes sur la série (`match_verdicts.niveau_compte_min`, lu dans les parties déjà récupérées) ; chaque fiche de partie garde le niveau du compte qui l'a jouée (`stats_match_joueur.niveau_compte`). Sous 30, le résultat reste vérifié mais ne rapporte aucun point (voir §5). **Depuis le 23/11/2026, la base refuse tout nouveau verdict 1v1 de niveau 2 ou 3 sans ce niveau** (déclencheur `niveau_compte_verdict`, refus `NIVEAU_COMPTE_REQUIS`), quel que soit le chemin qui l'écrit — y compris les futurs codes de tournoi (niveau 3), qui devront le transmettre. Si Riot ne donne pas le niveau d'un compte, la recherche des résultats n'écrit rien et le match suit le chemin ordinaire (litige après le délai, tranché par l'organisateur) : jamais de niveau inventé. Les verdicts écrits avant la règle ne sont jamais complétés après coup (le recalcul public divergerait du registre scellé).
+
 ---
 
 ## 4. Calcul du classement
@@ -137,6 +139,8 @@ Appliqués au moment du calcul, avant la mise à jour Glicko-2.
 | Forfait | Aucun point, des deux côtés |
 | Verdict manuel | Le match est ignoré dans le calcul |
 | Tournoi marqué non classé | Aucun match du tournoi ne compte |
+| Match 1v1 avec un compte Riot sous le niveau 30 | Le match est ignoré dans le calcul (résultat vérifié, sans points) |
+| Plus de 5 duels classés par joueur sur 24 h | Les suivants se jouent en amical |
 
 À journaliser dans `rating_events` avec le motif approprié même quand le résultat est ignoré : la transparence prime.
 

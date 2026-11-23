@@ -16579,3 +16579,45 @@ revoke execute on function public.face_a_face(uuid, uuid) from public;
 grant execute on function public.face_a_face(uuid, uuid) to anon, authenticated;
 
 notify pgrst, 'reload schema';
+
+-- ---------- Niveau Riot obligatoire pour un résultat 1v1 lu chez Riot (2026-11-23) ----------
+-- À appliquer sur la base APRÈS la mise en ligne du code du 22/11/2026
+-- (src/lib/rapprochement.ts transmet déjà le niveau des comptes), et
+-- seulement si cette requête rend 0 (aucun résultat 1v1 récent sans niveau) :
+--   select count(*) from public.match_verdicts v
+--   join public.matches m on m.id = v.match_id
+--   join public.tournaments t on t.id = m.tournament_id and t.format = '1v1'
+--   where v.niveau in ('historique', 'code_tournoi') and v.niveau_compte_min is null
+--     and v.cree_le > '2026-11-22 18:00+00';
+-- Décision du porteur du projet du 23/11/2026 : depuis le 22/11/2026, un
+-- verdict 1v1 lu chez Riot sans niveau de compte comptait « comme avant »,
+-- c'est-à-dire au classement. Plus maintenant : la base refuse tout nouveau
+-- verdict 1v1 de niveau 2 ou 3 sans ce niveau (NIVEAU_COMPTE_REQUIS), quel
+-- que soit le chemin qui l'écrit (recherche des résultats, futurs codes de
+-- tournoi). Le code n'écrit alors rien et le match suit le chemin ordinaire
+-- (litige après le délai, tranché par l'organisateur) : jamais de niveau
+-- inventé. Les verdicts déjà écrits ne sont jamais touchés (registre scellé).
+create or replace function public.controler_niveau_compte_verdict()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.niveau in ('historique', 'code_tournoi')
+     and new.niveau_compte_min is null
+     and exists (
+       select 1 from public.matches m
+       join public.tournaments t on t.id = m.tournament_id
+       where m.id = new.match_id and t.format = '1v1'
+     ) then
+    raise exception 'NIVEAU_COMPTE_REQUIS';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.controler_niveau_compte_verdict() from public, anon, authenticated;
+
+drop trigger if exists niveau_compte_verdict on public.match_verdicts;
+create trigger niveau_compte_verdict
+  before insert or update of niveau, niveau_compte_min on public.match_verdicts
+  for each row execute function public.controler_niveau_compte_verdict();

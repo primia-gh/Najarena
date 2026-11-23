@@ -24,13 +24,13 @@ from generate_series(1, 20) n;
 -- m01 : Hana contre Ivo, lu chez Riot il y a une heure.
 -- m02 : Hana, verdict manuel. m03 : Hana, lu chez Riot il y a 8 jours.
 -- m04 : Jade, lu chez Riot. m05 : Hana, déjà analysé. m06 : Kim, suspendue.
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, cree_le) values
-  ('9f000000-0000-0000-0000-000000000001', 'historique', '00000000-0000-0000-0000-000000000140', true, now() - interval '1 hour'),
-  ('9f000000-0000-0000-0000-000000000002', 'manuel', '00000000-0000-0000-0000-000000000140', true, now() - interval '50 minutes'),
-  ('9f000000-0000-0000-0000-000000000003', 'historique', '00000000-0000-0000-0000-000000000140', true, now() - interval '8 days'),
-  ('9f000000-0000-0000-0000-000000000004', 'historique', '00000000-0000-0000-0000-000000000142', true, now() - interval '40 minutes'),
-  ('9f000000-0000-0000-0000-000000000005', 'historique', '00000000-0000-0000-0000-000000000140', true, now() - interval '30 minutes'),
-  ('9f000000-0000-0000-0000-000000000006', 'historique', '00000000-0000-0000-0000-000000000143', true, now() - interval '20 minutes');
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, cree_le, niveau_compte_min) values
+  ('9f000000-0000-0000-0000-000000000001', 'historique', '00000000-0000-0000-0000-000000000140', true, now() - interval '1 hour', 120),
+  ('9f000000-0000-0000-0000-000000000002', 'manuel', '00000000-0000-0000-0000-000000000140', true, now() - interval '50 minutes', null),
+  ('9f000000-0000-0000-0000-000000000003', 'historique', '00000000-0000-0000-0000-000000000140', true, now() - interval '8 days', 120),
+  ('9f000000-0000-0000-0000-000000000004', 'historique', '00000000-0000-0000-0000-000000000142', true, now() - interval '40 minutes', 120),
+  ('9f000000-0000-0000-0000-000000000005', 'historique', '00000000-0000-0000-0000-000000000140', true, now() - interval '30 minutes', 120),
+  ('9f000000-0000-0000-0000-000000000006', 'historique', '00000000-0000-0000-0000-000000000143', true, now() - interval '20 minutes', 120);
 insert into stats_match_joueur (match_id, profile_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne)
 select m::uuid, p::uuid, 'Yasuo', 5, 2, 1, 120, 6000, 900, true
 from (values
@@ -64,8 +64,8 @@ reset role;
 insert into revues_match_ia (match_id, profile_id, points, conseil, modele)
 select ('9f000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid, '00000000-0000-0000-0000-000000000140', array['Point'], 'Conseil', 'test'
 from generate_series(7, 14) n;
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, cree_le) values
-  ('9f000000-0000-0000-0000-000000000015', 'historique', '00000000-0000-0000-0000-000000000140', true, now() - interval '10 minutes');
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, cree_le, niveau_compte_min) values
+  ('9f000000-0000-0000-0000-000000000015', 'historique', '00000000-0000-0000-0000-000000000140', true, now() - interval '10 minutes', 120);
 insert into stats_match_joueur (match_id, profile_id, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne) values
   ('9f000000-0000-0000-0000-000000000015', '00000000-0000-0000-0000-000000000140', 'Yasuo', 1, 5, 0, 90, 4000, 800, false);
 set role service_role;

@@ -15,9 +15,8 @@ insert into admins (profile_id) values ('00000000-0000-0000-0000-00000000000d') 
 
 -- Un duel joué et lu chez Riot entre deux joueurs, avec le niveau de chacun
 -- (et le compte Riot qui a joué). Le niveau gardé avec le verdict est le
--- plus bas des deux, sauf s'il est donné (vide pour imiter un 5v5).
-create or replace function pg_temp.duel_99x(p_a int, p_b int, p_niveau_a int, p_niveau_b int, p_partie text,
-                                            p_verdict_sans_niveau boolean default false)
+-- plus bas des deux.
+create or replace function pg_temp.duel_99x(p_a int, p_b int, p_niveau_a int, p_niveau_b int, p_partie text)
 returns uuid
 language plpgsql
 as $$
@@ -35,8 +34,7 @@ begin
   insert into stats_match_joueur (match_id, profile_id, puuid, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne, niveau_compte) values
     (v_match, v_a, 'P99X-' || p_a, 'Ahri', 3, 1, 2, 150, 9000, 1500, true, p_niveau_a),
     (v_match, v_b, 'P99X-' || p_b, 'Zed', 1, 3, 0, 120, 7000, 1500, false, p_niveau_b);
-  perform public.enregistrer_verdict_historique(v_match, v_a, p_partie,
-    case when p_verdict_sans_niveau then null else least(p_niveau_a, p_niveau_b) end);
+  perform public.enregistrer_verdict_historique(v_match, v_a, p_partie, least(p_niveau_a, p_niveau_b));
   update tournaments set statut = 'termine' where slug = v_slug;
   return v_match;
 end;
@@ -61,7 +59,11 @@ select verifie('Fiche sans niveau, mais verdict 1v1 sous le niveau 30 : ne compt
    from public.matchs_communs('b33b0001-0000-0000-0000-000000000000', 'b33b0003-0000-0000-0000-000000000000')));
 
 -- Partie d'avant la règle : aucun niveau nulle part, elle compte comme avant.
+-- (Depuis le 23/11/2026, la base refuse un tel verdict : on l'imite en
+-- coupant la règle le temps de l'écrire.)
+alter table match_verdicts disable trigger niveau_compte_verdict;
 select pg_temp.duel_99x(4, 5, null, null, 'EUW1_99X3');
+alter table match_verdicts enable trigger niveau_compte_verdict;
 select verifie('Aucun niveau connu (partie d''avant le 22/11/2026) : compte comme avant',
   (select contre = 1
    from public.matchs_communs('b33b0004-0000-0000-0000-000000000000', 'b33b0005-0000-0000-0000-000000000000')));
@@ -105,11 +107,11 @@ select verifie('Compte Riot relié mais pas vérifié : ne compte pas',
    from public.matchs_communs('b33b0001-0000-0000-0000-000000000000', 'b33b0002-0000-0000-0000-000000000000')));
 update game_accounts set verifie_le = now() where puuid = 'P99X-1';
 
--- ---- Coéquipiers d'une partie 5v5 (verdict sans niveau, niveau par joueur) ----
+-- ---- Coéquipiers d'une partie 5v5 (niveau lu joueur par joueur) ----
 do $$
 declare v_match uuid;
 begin
-  v_match := pg_temp.duel_99x(4, 2, 80, 60, 'EUW1_99X4', true);
+  v_match := pg_temp.duel_99x(4, 2, 80, 60, 'EUW1_99X4');
   insert into stats_match_joueur (match_id, profile_id, puuid, champion, kills, deaths, assists, cs, or_gagne, duree_secondes, gagne, niveau_compte) values
     (v_match, 'b33b0003-0000-0000-0000-000000000000', 'P99X-3', 'Lux', 0, 1, 9, 30, 6000, 1500, true, 50),
     (v_match, 'b33b0006-0000-0000-0000-000000000000', 'P99X-6', 'Leona', 0, 2, 7, 20, 5000, 1500, true, 5);

@@ -89,15 +89,29 @@ select refus('Un niveau impossible est refusé',
           and exists (select 1 from match_participants p where p.match_id = m.id and p.profile_id = 'b22b0005-0000-0000-0000-000000000000')),
        'b22b0005-0000-0000-0000-000000000000', 'EUW1_99W2', -3)$q$,
   'NIVEAU_COMPTE_INVALIDE');
-select essai('L''ancien appel, sans niveau, passe encore (code d''avant la mise en ligne)',
+select refus('Un verdict 1v1 lu chez Riot sans niveau de compte est refusé (23/11/2026)',
   $q$select public.enregistrer_verdict_historique(
        p_match_id => (select m.id from matches m join tournaments t on t.id = m.tournament_id
         where t.nature = 'defi' and t.statut = 'en_cours'
           and exists (select 1 from match_participants p where p.match_id = m.id and p.profile_id = 'b22b0005-0000-0000-0000-000000000000')),
        p_gagnant_id => 'b22b0006-0000-0000-0000-000000000000', p_riot_match_id => 'EUW1_99W3')$q$,
+  'NIVEAU_COMPTE_REQUIS');
+select verifie('Sans niveau : rien n''est écrit, ni verdict ni partie réservée (le match attend l''organisateur)',
+  not exists (select 1 from match_verdicts where riot_match_id = 'EUW1_99W3')
+  and not exists (select 1 from parties_utilisees where riot_match_id = 'EUW1_99W3'));
+select refus('Un verdict 1v1 lu chez Riot ne perd pas son niveau après coup',
+  $q$update match_verdicts set niveau_compte_min = null where riot_match_id = 'EUW1_99W1'$q$,
+  'NIVEAU_COMPTE_REQUIS');
+set role authenticated;
+select en_tant_que('00000000-0000-0000-0000-00000000000d');
+select essai('Une décision manuelle n''a pas besoin de niveau',
+  $q$select public.enregistrer_verdict_manuel(
+       (select m.id from matches m join tournaments t on t.id = m.tournament_id
+        where t.nature = 'defi' and t.statut = 'en_cours'
+          and exists (select 1 from match_participants p where p.match_id = m.id and p.profile_id = 'b22b0005-0000-0000-0000-000000000000')),
+       'b22b0005-0000-0000-0000-000000000000', 'Partie jouée hors Riot') where true$q$,
   'passe');
-select verifie('Sans niveau : la colonne reste vide (le match compte comme avant)',
-  (select niveau_compte_min is null from match_verdicts where riot_match_id = 'EUW1_99W3'));
+reset role;
 
 set role authenticated;
 select en_tant_que('b22b0003-0000-0000-0000-000000000000');

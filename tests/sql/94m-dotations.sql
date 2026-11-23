@@ -44,8 +44,9 @@ insert into match_participants (match_id, profile_id, slot)
 select ('9d000000-0000-0000-0000-0000000000' || m)::uuid, ('00000000-0000-0000-0000-00000000012' || j)::uuid, s
 from (values (11, 1, 1), (11, 2, 2), (12, 3, 1), (12, 4, 2), (13, 5, 1), (13, 6, 2), (14, 7, 1), (14, 8, 2),
              (21, 1, 1), (21, 3, 2), (22, 5, 1), (22, 7, 2), (31, 1, 1), (31, 5, 2)) as x(m, j, s);
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif)
-select ('9d000000-0000-0000-0000-0000000000' || m)::uuid, n::verdict_level, ('00000000-0000-0000-0000-00000000012' || g)::uuid, true
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, niveau_compte_min)
+select ('9d000000-0000-0000-0000-0000000000' || m)::uuid, n::verdict_level, ('00000000-0000-0000-0000-00000000012' || g)::uuid, true,
+       case when n = 'manuel' then null else 120 end
 from (values (11, 'historique', 1), (12, 'historique', 3), (13, 'historique', 5), (14, 'historique', 7),
              (21, 'historique', 1), (22, 'manuel', 5), (31, 'historique', 1)) as v(m, n, g);
 

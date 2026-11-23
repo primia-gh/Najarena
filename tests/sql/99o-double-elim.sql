@@ -95,7 +95,7 @@ begin
     select m.id into v_m from matches m where m.tournament_id = p_t and m.statut = 'en_cours' order by m.tour, m.position limit 1;
     exit when v_m is null or i > 60;
     select profile_id into v_g from match_participants where match_id = v_m and slot = 1;
-    perform public.enregistrer_verdict_historique(v_m, v_g, 'EUW_99O_' || replace(v_m::text, '-', ''));
+    perform public.enregistrer_verdict_historique(v_m, v_g, 'EUW_99O_' || replace(v_m::text, '-', ''), 120);
     i := i + 1;
   end loop;
   return i;
@@ -163,7 +163,7 @@ select en_tant_que('9f0f0000-0000-0000-0000-000000000000');
 select verifie('Quatre joueurs : lancé', (select public.demarrer_double_elim('9f0f0000-0000-0000-0000-0000000000a3') = 2));
 reset role;
 -- J1 bat J4 chez Riot : J4 descend seul chez les perdants.
-select public.enregistrer_verdict_historique(m.id, '9f0f0000-0000-0000-0000-000000000001', 'EUW_99O_C1')
+select public.enregistrer_verdict_historique(m.id, '9f0f0000-0000-0000-0000-000000000001', 'EUW_99O_C1', 120)
 from matches m join match_participants mp on mp.match_id = m.id
 where m.tournament_id = '9f0f0000-0000-0000-0000-0000000000a3' and m.tableau = 'gagnants' and m.tour = 1
   and mp.profile_id = '9f0f0000-0000-0000-0000-000000000001';
@@ -183,7 +183,7 @@ select refus('Ni un match déjà décidé chez Riot',
   'MATCH_DEJA_DECIDE');
 reset role;
 -- J2 bat J3 : J3 rejoint J4 chez les perdants, le match s'ouvre.
-select public.enregistrer_verdict_historique(m.id, '9f0f0000-0000-0000-0000-000000000002', 'EUW_99O_C2')
+select public.enregistrer_verdict_historique(m.id, '9f0f0000-0000-0000-0000-000000000002', 'EUW_99O_C2', 120)
 from matches m join match_participants mp on mp.match_id = m.id
 where m.tournament_id = '9f0f0000-0000-0000-0000-0000000000a3' and m.tableau = 'gagnants' and m.tour = 1
   and mp.profile_id = '9f0f0000-0000-0000-0000-000000000002';

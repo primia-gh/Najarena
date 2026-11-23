@@ -22,10 +22,10 @@ insert into match_participants (match_id, profile_id, slot) values
   ('94800000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000c1', 1),
   ('94800000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000c2', 2),
   ('94800000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-0000000000c1', 1);
-insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif) values
-  ('94800000-0000-0000-0000-0000000000a1', 'historique', '00000000-0000-0000-0000-0000000000c1', true),
-  ('94800000-0000-0000-0000-0000000000a2', 'manuel', '00000000-0000-0000-0000-0000000000c2', true),
-  ('94800000-0000-0000-0000-0000000000a3', 'manuel', '00000000-0000-0000-0000-0000000000c1', true);
+insert into match_verdicts (match_id, niveau, gagnant_id, est_definitif, niveau_compte_min) values
+  ('94800000-0000-0000-0000-0000000000a1', 'historique', '00000000-0000-0000-0000-0000000000c1', true, 120),
+  ('94800000-0000-0000-0000-0000000000a2', 'manuel', '00000000-0000-0000-0000-0000000000c2', true, null),
+  ('94800000-0000-0000-0000-0000000000a3', 'manuel', '00000000-0000-0000-0000-0000000000c1', true, null);
 insert into disputes (match_id, ouvert_par, motif, cree_le, resolution, resolu_le) values
   ('94800000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000c1', 'Contestation', now() - interval '10 hours', 'Rejoué', now() - interval '7 hours'),
   ('94800000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000c2', 'Autre', now() - interval '1 hour', null, null);
