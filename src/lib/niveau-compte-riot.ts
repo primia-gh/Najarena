@@ -10,7 +10,9 @@
 // (match_verdicts.niveau_compte_min). Un match sous ce niveau reste
 // vérifié — le résultat est vrai — mais ne rapporte ni ne coûte de points.
 // Mêmes règles à la clôture (classement-actions.ts) et dans le recalcul
-// public (recalcul.ts).
+// public (recalcul.ts). Le même seuil est écrit en base dans
+// matchs_communs (recommandations, docs/schema.sql) : les deux à changer
+// ensemble.
 
 export const NIVEAU_COMPTE_RIOT_MIN = 30;
 

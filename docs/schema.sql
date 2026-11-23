@@ -16484,7 +16484,15 @@ notify pgrst, 'reload schema';
 --    sans appel de plus). Vide avant le 23/11/2026.
 -- 2. Recommandations : une partie ne compte comme « jouée ensemble » ou
 --    « l'un contre l'autre » que si les deux comptes avaient le niveau 30
---    (un niveau vide, d'avant la règle, compte comme avant).
+--    (un niveau vide, d'avant la règle, compte comme avant ; pour un 1v1, le
+--    niveau gardé avec le verdict depuis le 22/11/2026 compte aussi), et
+--    que si le compte Riot qui l'a jouée est toujours lié et vérifié sur le
+--    même profil (contrôle de sécurité du 23/11/2026) : un seul compte Riot
+--    passé de profil en profil ne fabrique pas une recommandation par
+--    profil. Délier ce compte masque les recommandations qu'il portait ;
+--    le relier les rend.
+--    Seuil 30 : le même que NIVEAU_COMPTE_RIOT_MIN
+--    (src/lib/niveau-compte-riot.ts), les deux à changer ensemble.
 -- 3. Face-à-face : le niveau des comptes de chaque match est rendu ; la
 --    page liste ces matchs sans les compter au bilan.
 
@@ -16508,11 +16516,23 @@ as $$
     and p_a <> p_b
     -- Deux comptes Riot d'au moins niveau 30 (23/11/2026) : une partie
     -- contre un compte jetable ne fait pas une recommandation « vérifiée ».
+    -- Seuil : NIVEAU_COMPTE_RIOT_MIN (src/lib/niveau-compte-riot.ts).
     and coalesce(sa.niveau_compte, 30) >= 30
     and coalesce(sb.niveau_compte, 30) >= 30
+    -- Le compte Riot qui a joué est toujours lié et vérifié sur ce profil
+    -- (une fiche d'avant le 03/10/2026, sans compte noté, compte comme avant).
+    and (sa.puuid is null or exists (
+      select 1 from public.game_accounts g
+      where g.profile_id = p_a and g.puuid = sa.puuid and g.verifie_le is not null))
+    and (sb.puuid is null or exists (
+      select 1 from public.game_accounts g
+      where g.profile_id = p_b and g.puuid = sb.puuid and g.verifie_le is not null))
     and exists (
       select 1 from public.match_verdicts v
       where v.match_id = sa.match_id and v.est_definitif and v.niveau in ('code_tournoi', 'historique')
+        -- Niveau gardé avec le verdict 1v1 depuis le 22/11/2026 : couvre les
+        -- fiches écrites sans niveau pendant la mise en ligne.
+        and coalesce(v.niveau_compte_min, 30) >= 30
     );
 $$;
 revoke execute on function public.matchs_communs(uuid, uuid) from public;
