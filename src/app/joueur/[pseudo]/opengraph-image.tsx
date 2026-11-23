@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { creerClientPublic } from "@/lib/supabase/public";
 import { arrondir, calibrationPct, progressionPalier, RD_INITIAL } from "@/lib/classement";
 import { ContenuCarteProfil, ContenuIntrouvable, ressourcesImage, type CarteProfil } from "@/lib/image-partage";
-import { niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
+import { verdictCompteAuCV } from "@/lib/niveau-compte-riot";
 
 // Carte CV partageable (28/09/2026, audit N7) : ce qui s'affiche quand on
 // colle le lien d'un profil sur Discord, X, WhatsApp ou LinkedIn. Mêmes
@@ -65,7 +65,7 @@ async function chargerCarte(slug: string): Promise<CarteProfil | null> {
   // Lus chez Riot, sans les comptes sous le niveau 30 (23/11/2026).
   const verifies = new Set(
     (verdicts ?? [])
-      .filter((v) => v.niveau !== "manuel" && niveauCompteSuffisant(v.niveau_compte_min))
+      .filter((v) => verdictCompteAuCV(v))
       .map((v) => v.match_id),
   );
   const joues = (participations ?? []).filter((p) => verifies.has(p.match_id));

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { arrondir, calibrationPct, trouverPalier } from "@/lib/classement";
 import { estMatchVide } from "@/lib/double-elim";
-import { niveauCompteSuffisant } from "@/lib/niveau-compte-riot";
+import { verdictCompteAuCV } from "@/lib/niveau-compte-riot";
 import { estVisiblePubliquement } from "@/lib/tournois";
 import { chargerEquipesDesTournois, cleEquipe } from "@/lib/equipes-tournoi";
 import {
@@ -86,8 +86,9 @@ export interface JoueurPublic {
   confiancePct: number;
   matchsJoues: number;
   /**
-   * Matchs dont le résultat a été lu chez Riot (niveaux 2 et 3), sans ceux
-   * joués avec un compte Riot sous le niveau 30 (23/11/2026), comme le CV.
+   * Matchs 1v1 dont le résultat a été lu chez Riot (niveaux 2 et 3), sans
+   * ceux joués avec un compte Riot sous le niveau 30 (23/11/2026) : le même
+   * chiffre que le CV (un match 5v5 n'est pas un résultat individuel).
    */
   matchsVerifies: number;
   url: string;
@@ -109,8 +110,9 @@ export async function chargerJoueurPublic(supabase: Client, slug: string): Promi
       .maybeSingle(),
     supabase
       .from("match_participants")
-      .select("match:matches(match_verdicts(niveau, est_definitif, niveau_compte_min))")
+      .select("match:matches!inner(tournament:tournaments!inner(format), match_verdicts(niveau, est_definitif, niveau_compte_min))")
       .eq("profile_id", profil.id)
+      .eq("match.tournament.format", "1v1")
       .limit(1000),
     chargerPaliers(supabase),
   ]);
@@ -125,9 +127,7 @@ export async function chargerJoueurPublic(supabase: Client, slug: string): Promi
     confiancePct: rating ? calibrationPct(Number(rating.rd)) : 0,
     matchsJoues: rating?.matchs_joues ?? 0,
     matchsVerifies: (participations ?? []).filter((p) =>
-      (p.match?.match_verdicts ?? []).some(
-        (v) => v.est_definitif && v.niveau !== "manuel" && niveauCompteSuffisant(v.niveau_compte_min),
-      ),
+      (p.match?.match_verdicts ?? []).some((v) => verdictCompteAuCV(v)),
     ).length,
     url: `${URL_PUBLIQUE}/joueur/${profil.slug}`,
   };

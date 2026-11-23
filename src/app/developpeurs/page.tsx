@@ -34,7 +34,7 @@ const WIDGETS = [
   {
     titre: "Carte CV d'un joueur",
     chemin: "/widget/joueur/ADRESSE-DU-PROFIL",
-    texte: "Rating et palier une fois le joueur classé, sinon son indice de confiance ; nombre de matchs vérifiés.",
+    texte: "Rating et palier une fois le joueur classé, sinon son indice de confiance ; nombre de matchs 1v1 vérifiés (comme sur le CV).",
     hauteur: 170,
   },
 ];
@@ -69,7 +69,7 @@ const POINTS_API = [
   {
     chemin: "/api/public/v1/joueurs/ADRESSE-DU-PROFIL",
     texte:
-      "Résumé du CV : classé ou non, rating et palier (seulement une fois classé), confiance, matchs joués et vérifiés.",
+      "Résumé du CV : classé ou non, rating et palier (seulement une fois classé), confiance, matchs joués et matchs 1v1 vérifiés (comme sur le CV).",
   },
   {
     chemin: "/api/public/v1/joueurs/ADRESSE-DU-PROFIL/recalcul",
