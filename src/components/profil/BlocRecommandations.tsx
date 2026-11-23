@@ -59,8 +59,8 @@ export default async function BlocRecommandations({ profilId, slug, pseudo, visi
         </LibelleSection>
         <p className="text-sm text-muted">
           Écrites seulement par des joueurs qui ont réellement joué avec ou contre {pseudo} une partie lue chez Riot,
-          avec des comptes Riot de niveau&nbsp;30 ou plus.
-          Le nombre de matchs communs est recompté par Najarena, jamais déclaré.
+          chacun avec un compte Riot de niveau&nbsp;30 ou plus, encore lié à son profil. Le nombre de matchs communs
+          est calculé par Najarena à chaque affichage, jamais déclaré.
         </p>
       </div>
 

@@ -87,7 +87,8 @@ export default function ConfidentialitePage() {
               <strong>Statistiques des parties vérifiées</strong>&nbsp;: lues chez Riot avec le résultat (champion, poste, KDA, sbires, or,
               dégâts, vision, objets, runes, sorts d&apos;invocateur et niveau du compte Riot). Comme chez Riot, celles d&apos;un match sont
               publiques. Elles servent à ton bilan (forces, axes de travail, builds), visible de toi seul, et, sans ton
-              nom, aux moyennes de référence calculées sur l&apos;ensemble des parties vérifiées.
+              nom, aux moyennes de référence calculées sur l&apos;ensemble des parties vérifiées. Le niveau du compte sert à savoir si
+              un match compte au classement et pour une recommandation (niveau&nbsp;30 ou plus).
             </li>
             <li>
               <strong>Parties classées</strong>&nbsp;: seulement si tu le demandes depuis ton bilan, Najarena lit chez Riot tes parties classées
