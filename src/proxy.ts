@@ -22,6 +22,8 @@ export const config = {
     // .png laissait « /equipe/x.png?message=… » échapper au filtre des
     // messages (contrôle de sécurité du 11/10/2026). robots.txt et
     // sitemap.xml : lus par les moteurs de recherche, sans session ni message.
-    "/((?!_next/static|_next/image|favicon.ico|widget/|api/public/|avatars/|brand/|fonts/|icon\\.png|icon-192\\.png|icon-512\\.png|apple-icon\\.png|logo-najarena|sw\\.js|robots\\.txt$|sitemap\\.xml$).*)",
+    // riot.txt : vérification du domaine par le portail développeur Riot
+    // (24/11/2026), lu tel quel.
+    "/((?!_next/static|_next/image|favicon.ico|widget/|api/public/|avatars/|brand/|fonts/|icon\\.png|icon-192\\.png|icon-512\\.png|apple-icon\\.png|logo-najarena|sw\\.js|robots\\.txt$|riot\\.txt$|sitemap\\.xml$).*)",
   ],
 };
