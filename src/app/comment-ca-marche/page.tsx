@@ -215,6 +215,12 @@ export default function CommentCaMarchePage() {
             de confiance de ton profil, jusqu&apos;à « Confirmé ». Un joueur non calibré n&apos;entre pas dans le classement
             tant que le RD n&apos;est pas descendu sous {RD_SEUIL_CLASSEMENT}.
           </p>
+          <p className="max-w-2xl text-courant text-text-2">
+            C&apos;est le classement de Najarena, et de rien d&apos;autre&nbsp;: il ne compte que les matchs organisés ici
+            (tournois, défis, divisions), joués en parties personnalisées. Il ne remplace ni n&apos;estime ton rang en
+            partie classée chez Riot&nbsp;; ses paliers (Mue, Écaille, Crochet, Venin, Cobra, Basilic) sont propres à
+            Najarena.
+          </p>
           <dl className="grid grid-cols-2 gap-x-8 gap-y-8 border-t border-line pt-8 sm:grid-cols-4">
             {[
               { valeur: String(RATING_INITIAL), libelle: "Rating de départ" },

@@ -47,7 +47,7 @@ import CarteDuo from "@/components/duo/CarteDuo";
 export const metadata: Metadata = {
   title: "Trouver un duo — Najarena",
   description:
-    "Trouve ton duo League of Legends : un joueur de ton serveur qui joue le poste que tu cherches, sur au moins un de tes créneaux, avec son rating officiel quand il est classé.",
+    "Trouve ton duo League of Legends : un joueur de ton serveur qui joue le poste que tu cherches, sur au moins un de tes créneaux, avec son rating Najarena quand il est classé.",
   alternates: { canonical: "/lol/duo" },
 };
 

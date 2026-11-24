@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { STATUTS_PUBLICS } from "@/lib/tournois";
+import { ARENE_OUVERTE } from "@/lib/arene";
 
 // NEXT_PUBLIC_SITE_URL : à définir avec le vrai domaine avant mise en
 // production (voir .env.local) — repli sur localhost en dev, jamais un
@@ -41,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/lol/coequipiers`, changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/lol/duo`, changeFrequency: "daily", priority: 0.6 },
     { url: `${BASE_URL}/lol/recrutement`, changeFrequency: "daily", priority: 0.6 },
-    { url: `${BASE_URL}/lol/arene`, changeFrequency: "monthly", priority: 0.5 },
+    ...(ARENE_OUVERTE ? [{ url: `${BASE_URL}/lol/arene`, changeFrequency: "monthly" as const, priority: 0.5 }] : []),
     { url: `${BASE_URL}/lol/a-la-demande`, changeFrequency: "daily", priority: 0.5 },
     { url: `${BASE_URL}/lol/divisions`, changeFrequency: "daily", priority: 0.5 },
     { url: `${BASE_URL}/lol/meteo`, changeFrequency: "daily", priority: 0.4 },

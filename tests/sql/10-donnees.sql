@@ -126,3 +126,8 @@ create or replace function public.en_tant_que(p uuid) returns void language sql 
   select set_config('request.jwt.claim.sub', p::text, false);
 $$;
 grant execute on function public.en_tant_que(uuid) to anon, authenticated, service_role;
+
+-- Arène en pause depuis le 24/11/2026 (déclencheur arene_en_pause) : les
+-- scénarios gardent ses règles à l'essai pour le jour où elle rouvrira ;
+-- 99z-paliers-arene.sql rallume la pause pour la vérifier.
+alter table file_arene disable trigger arene_en_pause;

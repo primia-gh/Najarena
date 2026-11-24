@@ -16946,3 +16946,61 @@ end;
 $$;
 revoke execute on function public.emettre_certificat(smallint) from public, anon;
 grant execute on function public.emettre_certificat(smallint) to authenticated;
+
+-- ---------- Paliers renommés, arène en pause (2026-11-24) ----------
+-- À appliquer sur la base AVANT la mise en ligne du code du même commit.
+-- Préparation de la demande de clé production Riot (décision du porteur du
+-- projet du 24/11/2026). Les règles des développeurs Riot interdisent de
+-- créer une alternative au classement officiel (la file classée) et de
+-- ressembler de près à ses produits :
+-- 1. Les paliers ne reprennent plus les rangs de la file classée de Riot :
+--    Bronze → Mue, Argent → Écaille, Or → Crochet, Platine → Venin,
+--    Diamant → Cobra, Champion → Basilic. Seuils, ordre et couleurs
+--    inchangés (CLAUDE.md §4) ; les certificats déjà émis gardent le nom de
+--    leur jour (figés). Mêmes noms dans src/lib/niveau-tournoi.ts et
+--    src/lib/paliers.ts : les trois à changer ensemble.
+-- 2. est_coach_eligible ne cherche plus le palier par son nom (« Diamant »)
+--    mais par son rang (5e palier) : un renommage ne la casse plus.
+-- 3. L'arène 1v1 (file d'attente appariée au rating) est en pause jusqu'à
+--    la réponse de Riot : la base refuse toute entrée dans la file
+--    (ARENE_EN_PAUSE) et vide celle qui existe ; l'appariement n'a alors
+--    plus personne à apparier. Pour la rouvrir : supprimer le déclencheur
+--    arene_en_pause et mettre ARENE_OUVERTE à true (src/lib/arene.ts).
+update public.tiers set nom = case ordre
+    when 1 then 'Mue' when 2 then 'Écaille' when 3 then 'Crochet'
+    when 4 then 'Venin' when 5 then 'Cobra' when 6 then 'Basilic' end
+where game_id = 1 and ordre between 1 and 6;
+
+create or replace function public.est_coach_eligible(p_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.ratings r
+    join public.seasons s on s.id = r.season_id and s.est_courante
+    where r.profile_id = p_profile_id and r.game_id = 1 and r.est_classe
+      -- 5e palier (Cobra, ex-Diamant), 1750 par défaut.
+      and r.rating >= coalesce((select t.rating_min from public.tiers t where t.game_id = 1 and t.ordre = 5), 1750)
+  );
+$$;
+revoke execute on function public.est_coach_eligible(uuid) from public;
+grant execute on function public.est_coach_eligible(uuid) to anon, authenticated, service_role;
+
+create or replace function public.refuser_file_arene_en_pause()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  raise exception 'ARENE_EN_PAUSE';
+end;
+$$;
+revoke execute on function public.refuser_file_arene_en_pause() from public, anon, authenticated;
+
+delete from public.file_arene;
+drop trigger if exists arene_en_pause on public.file_arene;
+create trigger arene_en_pause
+  before insert on public.file_arene
+  for each row execute function public.refuser_file_arene_en_pause();

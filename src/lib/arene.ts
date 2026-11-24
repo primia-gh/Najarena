@@ -6,6 +6,14 @@
 
 import { messageRefusDefi } from "@/lib/defis";
 
+/**
+ * Arène en pause depuis le 24/11/2026, le temps de la demande de clé
+ * production Riot : une file appariée au rating pourrait passer pour une
+ * alternative à la file classée de Riot. La base refuse aussi l'entrée
+ * (déclencheur arene_en_pause, docs/schema.sql) : pour rouvrir, les deux.
+ */
+export const ARENE_OUVERTE = false;
+
 export const ECART_ARENE_BASE = 100;
 export const ECART_ARENE_PAR_MINUTE = 20;
 export const ECART_ARENE_MAX = 500;
@@ -36,6 +44,7 @@ const MESSAGES_ARENE: Record<string, string> = {
   COMPTE_RIOT_REQUIS:
     "Il faut un compte Riot vérifié pour entrer dans l'arène : c'est lui qui permet de lire le résultat.",
   COMPTE_SUSPENDU: "Ton compte est suspendu : impossible d'entrer dans l'arène.",
+  ARENE_EN_PAUSE: "L'arène est en pause pour l'instant. Les défis entre joueurs restent ouverts.",
 };
 
 /** Message lisible pour un refus de la base. */

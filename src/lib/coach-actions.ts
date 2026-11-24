@@ -40,7 +40,7 @@ export async function reglerEleves(formData: FormData) {
       slug,
       "erreur",
       error.message.includes("COACH_NON_ELIGIBLE")
-        ? typographie("Ton rating officiel n'atteint pas 1750 (palier Diamant Najarena) : cette case ne se coche pas pour l'instant.")
+        ? typographie("Ton rating Najarena n'atteint pas 1750 (palier Cobra) : cette case ne se coche pas pour l'instant.")
         : messageRefusCoach(error.message),
     );
   }

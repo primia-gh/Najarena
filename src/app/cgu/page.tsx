@@ -139,7 +139,7 @@ export default function CguPage() {
             soumis à la même modération que le reste du site. Rejoindre une
             communauté est libre et gratuit ; son fondateur ou ses
             administrateurs peuvent en retirer un membre. Le classement
-            interne d&apos;une communauté reprend le rating officiel de ses
+            interne d&apos;une communauté reprend le rating Najarena de ses
             membres, sans jamais le modifier. Un serveur Discord n&apos;est lié
             à une communauté que par un membre autorisé à gérer ce serveur.
           </p>
@@ -151,7 +151,7 @@ export default function CguPage() {
             de l&apos;établissement : une adresse ne vérifie qu&apos;un seul
             compte, et utiliser celle d&apos;un autre est interdit. Le
             classement des écoles fait la moyenne des cinq meilleurs ratings
-            officiels de leurs membres vérifiés. Un tournoi publié dans une
+            Najarena de leurs membres vérifiés. Un tournoi publié dans une
             communauté peut être réservé à ses membres (à ses membres
             vérifiés, pour une école) : ce choix est figé à la publication, et
             toute autre inscription est refusée, en 5v5 pour chacun des cinq
@@ -159,7 +159,7 @@ export default function CguPage() {
           </p>
           <p className="mt-2 text-muted">
             Un tournoi 1v1 peut aussi être réservé à un niveau, c&apos;est-à-dire
-            à une fourchette de paliers (par exemple «&nbsp;Argent à Or&nbsp;»)&nbsp;:
+            à une fourchette de paliers (par exemple «&nbsp;Mue à Écaille&nbsp;»)&nbsp;:
             le rating Najarena de la saison du joueur (1500 s&apos;il n&apos;a pas
             encore joué) est vérifié à l&apos;inscription, puis de nouveau au
             check-in. Ce niveau suit le compte Riot, pas le compte Najarena. Un

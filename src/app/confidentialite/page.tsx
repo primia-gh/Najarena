@@ -114,7 +114,7 @@ export default function ConfidentialitePage() {
             </li>
             <li>
               <strong>Communautés</strong>&nbsp;: la liste des membres d&apos;une communauté (pseudo, rôle, date d&apos;arrivée) est publique,
-              comme son classement interne (rating officiel des membres classés). Pour un serveur Discord lié, seul son
+              comme son classement interne (rating Najarena des membres classés). Pour un serveur Discord lié, seul son
               identifiant technique est conservé, pas la liste de ses membres.
             </li>
             <li>
@@ -124,7 +124,7 @@ export default function ConfidentialitePage() {
               l&apos;adresse elle-même. Le badge «&nbsp;vérifié&nbsp;» de la liste des membres est public.
             </li>
             <li>
-              <strong>Coach</strong>&nbsp;: un joueur classé Diamant ou plus n&apos;apparaît comme coach que s&apos;il a coché «&nbsp;J&apos;accepte des élèves&nbsp;».
+              <strong>Coach</strong>&nbsp;: un joueur au palier Cobra ou plus n&apos;apparaît comme coach que s&apos;il a coché «&nbsp;J&apos;accepte des élèves&nbsp;».
               Un suivi accepté est public sur le CV du coach&nbsp;: pseudo de l&apos;élève, dates du suivi, nombre de
               tournois et somme des points pendant le suivi (ces points sont déjà publics dans le registre). Il le
               reste après la fin du suivi, même si le coach décoche sa case. Une demande en attente n&apos;est visible

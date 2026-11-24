@@ -53,6 +53,13 @@ export default function Footer() {
           League of Legends et Riot Games sont des marques déposées de Riot Games, Inc. Najarena
           n&apos;est ni produit, ni approuvé, ni sponsorisé par Riot Games.
         </p>
+        {/* Mention exigée par les règles des développeurs Riot, telle quelle
+            (developer.riotgames.com/policies/general). */}
+        <p lang="en" className="-mt-2 max-w-[900px] text-[13px] leading-[1.6] text-faint">
+          Najarena isn&apos;t endorsed by Riot Games and doesn&apos;t reflect the views or opinions of Riot Games or
+          anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated
+          properties are trademarks or registered trademarks of Riot Games, Inc.
+        </p>
       </div>
     </footer>
   );

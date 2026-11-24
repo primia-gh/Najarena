@@ -22,7 +22,7 @@ import Tableau from "@/components/design/Tableau";
 export const metadata: Metadata = {
   title: "Ligue des écoles — League of Legends — Najarena",
   description:
-    "Écoles et universités classées par le niveau vérifié de leurs joueurs League of Legends : moyenne des 5 meilleurs ratings officiels de leurs membres à l'adresse d'établissement vérifiée.",
+    "Écoles et universités classées par le niveau vérifié de leurs joueurs League of Legends : moyenne des 5 meilleurs ratings Najarena de leurs membres à l'adresse d'établissement vérifiée.",
   alternates: { canonical: "/lol/ecoles" },
 };
 
@@ -51,7 +51,7 @@ export default async function EcolesPage() {
           <h1 className="mt-6 font-titre text-section font-black tracking-[1px] uppercase">Ligue des écoles</h1>
           <p className="mt-3 max-w-2xl text-courant text-text-2">
             Les écoles et universités, classées par la moyenne des {ETUDIANTS_CLASSEMENT_ECOLES} meilleurs ratings
-            officiels de leurs membres vérifiés — des joueurs qui ont prouvé leur adresse de l&apos;établissement.
+            Najarena de leurs membres vérifiés — des joueurs qui ont prouvé leur adresse de l&apos;établissement.
             Aucun point à part : chacun gagne son rating dans les tournois classés, résultats lus chez Riot.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
 import { calibrationPct } from "@/lib/classement";
-import { ecartArene, EXPIRATION_ARENE_MINUTES, minutesEnFile } from "@/lib/arene";
+import { ARENE_OUVERTE, ecartArene, EXPIRATION_ARENE_MINUTES, minutesEnFile } from "@/lib/arene";
 import { entrerDansArene, quitterArene } from "@/lib/arene-actions";
 import { CARTE_1V1, REGLE_FORFAIT } from "@/lib/reglement";
 import { DUELS_CLASSES_PAR_JOUR_MAX } from "@/lib/defis";
@@ -23,9 +23,12 @@ import { classeChamp } from "@/lib/design";
 
 export const metadata: Metadata = {
   title: "Arène 1v1 — Najarena",
-  description:
-    "Un duel League of Legends tout de suite contre un joueur de ton niveau : une partie, résultat lu chez Riot, classé.",
+  description: ARENE_OUVERTE
+    ? "Un duel League of Legends tout de suite contre un joueur de ton niveau : une partie, résultat lu chez Riot, classé."
+    : "L'arène 1v1 est en pause. Défie un joueur depuis son profil ou inscris-toi à un tournoi.",
   alternates: { canonical: "/lol/arene" },
+  // En pause (24/11/2026) : la page ne doit pas être proposée par Google.
+  ...(ARENE_OUVERTE ? {} : { robots: { index: false, follow: true } }),
 };
 
 // 16 px sur téléphone (sinon iOS zoome la page au toucher d'un champ).
@@ -42,6 +45,7 @@ interface ArenePageProps {
 
 export default async function ArenePage({ searchParams }: ArenePageProps) {
   const { erreur, message } = await searchParams;
+  if (!ARENE_OUVERTE) return <ArenePause />;
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   const moi = userData.user?.id ?? null;
@@ -241,6 +245,39 @@ export default async function ArenePage({ searchParams }: ArenePageProps) {
             </li>
           </ul>
         </Apparition>
+      </div>
+    </main>
+  );
+}
+
+/** Arène en pause (24/11/2026) : ce qui reste ouvert pour jouer tout de suite. */
+function ArenePause() {
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+      <FondEcailles />
+      <div className="relative px-grille *:max-w-3xl">
+        <Link
+          href="/lol"
+          className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
+        >
+          ← League of Legends
+        </Link>
+        <h1 className="mt-6 font-titre text-section font-black tracking-[1px] uppercase">
+          Arène <span className="text-accent">1v1</span>
+        </h1>
+        <Panneau className="mt-8 flex flex-col gap-4 p-6">
+          <LibelleSection as="h2">En pause</LibelleSection>
+          <p className="text-courant text-text-2">
+            L&apos;arène est fermée pour l&apos;instant. Pour jouer un duel, défie un joueur depuis son profil, ou
+            inscris-toi au prochain tournoi.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <BoutonLien href="/lol/tournois">Voir les tournois</BoutonLien>
+            <BoutonLien href="/lol/classement" variante="secondaire">
+              Trouver un joueur à défier
+            </BoutonLien>
+          </div>
+        </Panneau>
       </div>
     </main>
   );

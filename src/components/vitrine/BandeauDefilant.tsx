@@ -7,7 +7,7 @@ import styles from "./vitrine.module.css";
 // Texte décoratif (aria-hidden) ; pause au survol, bouton Pause pour toute
 // la page (WCAG 2.2.2), arrêt complet si moins d'animations est demandé.
 
-const MOTS = ["Résultats vérifiés", "Rating officiel", "CV e-sport", "Zéro triche", "Repéré par les équipes"];
+const MOTS = ["Résultats vérifiés", "Rating Najarena", "CV e-sport", "Zéro triche", "Repéré par les équipes"];
 
 export default function BandeauDefilant() {
   const serie = [...MOTS, ...MOTS];

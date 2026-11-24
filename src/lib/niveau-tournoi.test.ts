@@ -12,31 +12,31 @@ import {
 
 describe("libelleNiveau", () => {
   it("nomme la fourchette par ses paliers", () => {
-    expect(libelleNiveau(1450, null)).toBe("Or et plus");
-    expect(libelleNiveau(null, 1450)).toBe("Bronze à Argent");
-    expect(libelleNiveau(null, 1300)).toBe("Bronze");
-    expect(libelleNiveau(1300, 1600)).toBe("Argent à Or");
-    expect(libelleNiveau(1450, 1600)).toBe("Or");
+    expect(libelleNiveau(1450, null)).toBe("Crochet et plus");
+    expect(libelleNiveau(null, 1450)).toBe("Mue à Écaille");
+    expect(libelleNiveau(null, 1300)).toBe("Mue");
+    expect(libelleNiveau(1300, 1600)).toBe("Écaille à Crochet");
+    expect(libelleNiveau(1450, 1600)).toBe("Crochet");
     expect(libelleNiveau(null, null)).toBeNull();
   });
 });
 
 describe("palierDuRating", () => {
   it("suit les seuils fixes", () => {
-    expect(palierDuRating(1299)).toBe("Bronze");
-    expect(palierDuRating(1300)).toBe("Argent");
-    expect(palierDuRating(1500)).toBe("Or");
-    expect(palierDuRating(2050)).toBe("Champion");
+    expect(palierDuRating(1299)).toBe("Mue");
+    expect(palierDuRating(1300)).toBe("Écaille");
+    expect(palierDuRating(1500)).toBe("Crochet");
+    expect(palierDuRating(2050)).toBe("Basilic");
   });
 });
 
 describe("situationNiveau", () => {
   it("dit au joueur où il se situe et ce qui manque", () => {
     expect(situationNiveau(1380, 1450, null)).toBe(
-      "Ton rating de la saison : 1\u202f380 (Argent). Ce tournoi est réservé aux joueurs de niveau Or et plus : il te manque 70 points.",
+      "Ton rating de la saison : 1\u202f380 (Écaille). Ce tournoi est réservé aux joueurs de niveau Crochet et plus : il te manque 70 points.",
     );
-    expect(situationNiveau(null, 1600, null)).toContain("Tu n'as pas encore joué cette saison : ton rating compte pour 1\u202f500 (Or).");
-    expect(situationNiveau(1700, null, 1600)).toContain("réservé aux joueurs de niveau Bronze à Or : ton niveau le dépasse");
+    expect(situationNiveau(null, 1600, null)).toContain("Tu n'as pas encore joué cette saison : ton rating compte pour 1\u202f500 (Crochet).");
+    expect(situationNiveau(1700, null, 1600)).toContain("réservé aux joueurs de niveau Mue à Crochet : ton niveau le dépasse");
   });
 });
 
@@ -50,7 +50,7 @@ describe("limite haute : meilleur rating de la saison", () => {
 
   it("le dit au joueur, avec son meilleur rating", () => {
     expect(situationNiveau(1350, null, 1450, 1500)).toContain(
-      "Ton rating actuel convient, mais pour la limite haute, c'est ton meilleur rating de la saison en cours ou de la précédente qui compte : 1\u202f500 (Or), au-dessus.",
+      "Ton rating actuel convient, mais pour la limite haute, c'est ton meilleur rating de la saison en cours ou de la précédente qui compte : 1\u202f500 (Crochet), au-dessus.",
     );
   });
 });
@@ -79,7 +79,7 @@ describe("lireNiveau", () => {
 
   it("propose cinq minimums et cinq maximums", () => {
     expect(CHOIX_MINIMUM).toHaveLength(5);
-    expect(CHOIX_MAXIMUM[0]).toEqual({ valeur: 1300, libelle: "jusqu'à Bronze" });
+    expect(CHOIX_MAXIMUM[0]).toEqual({ valeur: 1300, libelle: "jusqu'à Mue" });
   });
 });
 

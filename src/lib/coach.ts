@@ -1,5 +1,5 @@
 // Coach vérifié (09/10/2026, idée en réserve n°8) : un joueur classé
-// Diamant ou plus suit des élèves ; leur progression est lue dans le
+// Cobra ou plus suit des élèves ; leur progression est lue dans le
 // registre des points (fonction eleves_coach en base : variations
 // « tournoi » pendant le suivi). Logique d'affichage pure, testée dans
 // coach.test.ts. Une progression n'est montrée qu'à partir de
@@ -69,7 +69,7 @@ const REFUS: Record<string, string> = {
   NON_CONNECTE: "Connecte-toi d'abord.",
   COACH_SOI_MEME: "Tu ne peux pas être ton propre coach.",
   COMPTE_SUSPENDU: "Ton compte est suspendu.",
-  COACH_NON_ELIGIBLE: "Ce coach n'a pas un rating officiel de 1750 ou plus (palier Diamant Najarena) : pas de suivi possible.",
+  COACH_NON_ELIGIBLE: "Ce coach n'a pas un rating Najarena de 1750 ou plus (palier Cobra) : pas de suivi possible.",
   COACH_FERME: "Ce joueur n'accepte pas d'élèves pour l'instant.",
   JOUEUR_INDISPONIBLE: "Ce joueur n'est pas disponible pour un suivi.",
   SUIVI_EN_COURS: "Tu as déjà un suivi en cours ou demandé : termine-le d'abord.",

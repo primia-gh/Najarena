@@ -12,27 +12,27 @@ export const RATING_DEPART = 1500;
 
 /** Paliers et leur seuil, du plus bas au plus haut. */
 export const SEUILS_PALIERS: { nom: string; min: number }[] = [
-  { nom: "Bronze", min: 0 },
-  { nom: "Argent", min: 1300 },
-  { nom: "Or", min: 1450 },
-  { nom: "Platine", min: 1600 },
-  { nom: "Diamant", min: 1750 },
-  { nom: "Champion", min: 1900 },
+  { nom: "Mue", min: 0 },
+  { nom: "Écaille", min: 1300 },
+  { nom: "Crochet", min: 1450 },
+  { nom: "Venin", min: 1600 },
+  { nom: "Cobra", min: 1750 },
+  { nom: "Basilic", min: 1900 },
 ];
 
 /** Pour l'aide des formulaires : pourquoi la limite haute lit le meilleur rating. */
 export const AIDE_LIMITE_HAUTE =
   "Limite haute : on regarde le meilleur rating atteint dans la saison en cours ou la précédente, pas seulement le rating actuel.";
 
-/** Seuils lisibles pour l'aide des formulaires : « Argent 1 300 · Or 1 450 · … ». */
+/** Seuils lisibles pour l'aide des formulaires : « Écaille 1 300 · Crochet 1 450 · … ». */
 export const SEUILS_LISIBLES = SEUILS_PALIERS.slice(1)
   .map((p) => `${p.nom} ${p.min.toLocaleString("fr-FR")}`)
   .join(" · ");
 
-/** Choix du palier minimum : « Argent et plus » … « Champion ». */
+/** Choix du palier minimum : « Écaille et plus » … « Basilic et plus ». */
 export const CHOIX_MINIMUM = SEUILS_PALIERS.slice(1).map((p) => ({ valeur: p.min, libelle: `${p.nom} et plus` }));
 
-/** Choix du palier maximum : « jusqu'à Bronze » … « jusqu'à Diamant » (borne = seuil du palier suivant).
+/** Choix du palier maximum : « jusqu'à Mue » … « jusqu'à Cobra » (borne = seuil du palier suivant).
  *  Dans une liste intitulée « Palier maximum », « jusqu'à » se lit bien. */
 export const CHOIX_MAXIMUM = SEUILS_PALIERS.slice(0, -1).map((p, i) => ({
   valeur: SEUILS_PALIERS[i + 1].min,
@@ -48,14 +48,14 @@ function palierSousLeSeuil(max: number): string | null {
   return i > 0 ? SEUILS_PALIERS[i - 1].nom : null;
 }
 
-/** « Or et plus », « Bronze à Argent », « Argent à Or », « Or » ; nul sans niveau. */
+/** « Crochet et plus », « Mue à Écaille », « Écaille à Crochet », « Crochet » ; nul sans niveau. */
 export function libelleNiveau(min: number | null, max: number | null): string | null {
   const bas = min !== null ? palierDuSeuil(min) : null;
   const haut = max !== null ? palierSousLeSeuil(max) : null;
   if (bas && haut) return bas === haut ? bas : `${bas} à ${haut}`;
   if (bas) return `${bas} et plus`;
-  // Sans minimum, la fourchette part du premier palier : « Bronze à Argent »
-  // se lit mieux que « jusqu'à Argent » dans une phrase.
+  // Sans minimum, la fourchette part du premier palier : « Mue à Écaille »
+  // se lit mieux que « jusqu'à Écaille » dans une phrase.
   if (haut) return haut === SEUILS_PALIERS[0].nom ? haut : `${SEUILS_PALIERS[0].nom} à ${haut}`;
   return null;
 }
@@ -74,8 +74,8 @@ function formaterRatingNiveau(rating: number): string {
 
 /**
  * Pourquoi un joueur n'entre pas dans un tournoi par niveau, avec son
- * rating : « Ton rating de la saison : 1 380 (Argent). Ce tournoi est
- * réservé aux joueurs de niveau Or et plus : il te manque 70 points. »
+ * rating : « Ton rating de la saison : 1 380 (Écaille). Ce tournoi est
+ * réservé aux joueurs de niveau Crochet et plus : il te manque 70 points. »
  * `meilleur` : meilleur rating atteint dans la saison en cours ou la précédente (limite haute).
  */
 export function situationNiveau(

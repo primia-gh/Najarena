@@ -4,7 +4,7 @@ type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 
 // Offre payante d'un compte (Plus / Pro / Organisateur ; clés historiques
 // « verifie » et « elite » en base, jamais affichées) — distinct du
-// "palier" de classement (Bronze/Argent/Or..., voir src/lib/paliers.ts) :
+// "palier" de classement (Mue/Écaille/Crochet..., voir src/lib/paliers.ts) :
 // deux concepts sans rapport, jamais le même mot dans le code.
 export type Offre = "gratuit" | "verifie" | "elite" | "organisateur";
 
@@ -18,8 +18,8 @@ export const COULEUR_OFFRE: Record<Exclude<Offre, "gratuit">, string> = {
   // Audit E10 (19/11/2026) : un badge acheté ne doit jamais pouvoir passer
   // pour une preuve ni pour un niveau. Ni le vert (réservé au verdict lu
   // chez Riot et au compte vérifié), ni une couleur de palier (l'or de Pro
-  // était celui du palier Or, le bleu-vert d'Organisateur celui de
-  // Platine) : un seul gris clair pour les trois offres, que distingue leur
+  // était celui du palier Crochet (ex-Or), le bleu-vert d'Organisateur celui
+  // de Venin (ex-Platine)) : un seul gris clair pour les trois offres, que distingue leur
   // seul nom.
   verifie: "var(--color-text-2)",
   elite: "var(--color-text-2)",

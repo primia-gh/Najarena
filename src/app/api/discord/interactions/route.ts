@@ -183,7 +183,7 @@ async function repondreCommunaute(guildId: string | undefined): Promise<string> 
     }
   }
   if ((top ?? []).length > 0) {
-    lignes.push("", "**Classement interne (rating officiel)**");
+    lignes.push("", "**Classement interne (rating Najarena)**");
     (top ?? []).forEach((r, i) =>
       lignes.push(`${i + 1}. ${echapperDiscord(r.profile?.pseudo ?? "Joueur")} — ${arrondir(r.rating)}`),
     );

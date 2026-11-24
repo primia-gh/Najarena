@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ARENE_OUVERTE } from "@/lib/arene";
 import {
   conseilDe,
   detailConstat,
@@ -948,13 +949,15 @@ export default function VueBilan({ bilan, builds, donnees, complet, extras }: Vu
             <>
               <p className="text-text-2">
                 Il faut {PARTIES_MIN_BILAN} parties vérifiées pour un premier bilan. Chaque partie lue chez Riot compte :
-                tournoi, arène ou défi.
+                {ARENE_OUVERTE ? "tournoi, arène ou défi." : "tournoi ou défi."}
               </p>
               <div className="flex flex-wrap gap-4">
                 <BoutonLien href="/lol/tournois">Voir les tournois</BoutonLien>
-                <BoutonLien href="/lol/arene" variante="secondaire">
-                  Entrer dans l&apos;arène
-                </BoutonLien>
+                {ARENE_OUVERTE && (
+                  <BoutonLien href="/lol/arene" variante="secondaire">
+                    Entrer dans l&apos;arène
+                  </BoutonLien>
+                )}
               </div>
             </>
           )}
