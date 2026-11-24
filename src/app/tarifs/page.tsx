@@ -284,7 +284,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                       {(exact?.periode ?? p.periode) && (
                         <span className="text-sm text-muted">
                           {exact?.periode ?? p.periode}
-                          {exact && " TTC"}
+                          {(exact || p.cle) && " TTC"}
                         </span>
                       )}
                     </p>
@@ -347,7 +347,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
             <p className="max-w-2xl text-sm text-muted">
               {tousExacts
                 ? "Prix toutes taxes comprises. "
-                : "Plus, Pro et Organisateur sont en cours de lancement — ces prix sont indicatifs et pourront évoluer. "}
+                : "Plus, Pro et Organisateur sont en cours de lancement — ces prix sont indicatifs, toutes taxes comprises, et pourront évoluer. "}
               Abonnement mensuel sans engagement, résiliable en ligne à tout moment depuis ton tableau de bord&nbsp;;{" "}
               {DELAI_RETRACTATION_JOURS}&nbsp;jours pour te rétracter. Voir les{" "}
               <Link href="/cgv" className="text-text-2 underline underline-offset-3 hover:text-text">
