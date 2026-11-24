@@ -6,7 +6,7 @@ import { prixCourant } from "@/lib/offre-stripe";
 
 // Prix exacts des offres, lus chez Stripe (19/11/2026, audit E11) : la page
 // Tarifs affiche le prix réellement facturé, toutes taxes comprises, plutôt
-// qu'une fourchette. Gardés une heure en cache (un changement de prix chez
+// qu'un prix indicatif. Gardés une heure en cache (un changement de prix chez
 // Stripe apparaît dans l'heure). Sans clé Stripe, ou pour un prix hors
 // taxes, mal réglé ou injoignable : rien, et la page garde ses prix
 // indicatifs.

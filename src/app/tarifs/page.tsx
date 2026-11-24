@@ -107,7 +107,7 @@ const PALIERS: Palier[] = [
   {
     nom: "Plus",
     cle: "verifie",
-    prix: "3–4\u00a0€",
+    prix: "4,99\u00a0€",
     periode: "/mois",
     accroche: "Une identité qui se remarque.",
     inclus: [
@@ -121,7 +121,7 @@ const PALIERS: Palier[] = [
   {
     nom: "Pro",
     cle: "elite",
-    prix: "7–8\u00a0€",
+    prix: "9,99\u00a0€",
     periode: "/mois",
     accroche: "Pour suivre sa progression de près.",
     inclus: [
@@ -140,7 +140,7 @@ const PALIERS: Palier[] = [
   {
     nom: "Organisateur",
     cle: "organisateur",
-    prix: "10–15\u00a0€",
+    prix: "14,99\u00a0€",
     periode: "/mois",
     accroche: "Pour organiser et recruter.",
     inclus: [
@@ -202,7 +202,8 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
   // Un seul palier mis en avant, un seul bouton vert (MASTER §2 : le vert
   // est rare) : Pro pour un joueur, Organisateur pour qui organise.
   const enAvant: Offre = pour === "organiser" ? "organisateur" : "elite";
-  // Prix exacts lus chez Stripe (audit E11), sinon la fourchette indicative.
+  // Prix exacts lus chez Stripe (audit E11), sinon le prix indicatif décidé le
+  // 25/11/2026 (4,99 / 9,99 / 14,99 € TTC par mois), à créer tel quel chez Stripe.
   const prix = await prixOffres();
   const prixExact = (offre: Offre) => (offre === "gratuit" ? undefined : prix[offre]);
   const tousExacts = paliersVisibles.every((p) => !p.cle || prixExact(p.cle));
@@ -283,7 +284,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                       {(exact?.periode ?? p.periode) && (
                         <span className="text-sm text-muted">
                           {exact?.periode ?? p.periode}
-                          {exact && " TTC"}
+                          {(exact || p.cle) && " TTC"}
                         </span>
                       )}
                     </p>
@@ -346,7 +347,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
             <p className="max-w-2xl text-sm text-muted">
               {tousExacts
                 ? "Prix toutes taxes comprises. "
-                : "Plus, Pro et Organisateur sont en cours de lancement — ces prix sont indicatifs et pourront évoluer. "}
+                : "Plus, Pro et Organisateur sont en cours de lancement — ces prix sont indicatifs, toutes taxes comprises, et pourront évoluer. "}
               Abonnement mensuel sans engagement, résiliable en ligne à tout moment depuis ton tableau de bord&nbsp;;{" "}
               {DELAI_RETRACTATION_JOURS}&nbsp;jours pour te rétracter. Voir les{" "}
               <Link href="/cgv" className="text-text-2 underline underline-offset-3 hover:text-text">
