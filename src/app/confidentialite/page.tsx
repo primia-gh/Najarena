@@ -22,7 +22,7 @@ export default function ConfidentialitePage() {
       <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
         Politique de confidentialité
       </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 23&nbsp;novembre 2026.</p>
+      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 24&nbsp;novembre 2026.</p>
 
       <div className="mt-8 flex flex-col gap-8 text-courant text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>
@@ -309,7 +309,7 @@ export default function ConfidentialitePage() {
               mesure d&apos;audience et de performance des pages, anonymisée et sans cookie.
             </li>
             <li>
-              <strong>Sentry</strong> (États-Unis) — suivi des erreurs
+              <strong>Sentry</strong> (données hébergées dans l&apos;Union européenne) — suivi des erreurs
               techniques du site&nbsp;: page concernée, navigateur, message d&apos;erreur. Ni ton
               e-mail ni ton mot de passe ne lui sont transmis.
             </li>
