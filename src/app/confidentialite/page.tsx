@@ -309,8 +309,8 @@ export default function ConfidentialitePage() {
               mesure d&apos;audience et de performance des pages, anonymisée et sans cookie.
             </li>
             <li>
-              <strong>Sentry</strong> (données hébergées dans l&apos;Union européenne) — suivi des erreurs
-              techniques du site&nbsp;: page concernée, navigateur, message d&apos;erreur. Ni ton
+              <strong>Sentry</strong> (États-Unis) — suivi des erreurs techniques du site, données
+              hébergées dans l&apos;Union européenne&nbsp;: page concernée, navigateur, message d&apos;erreur. Ni ton
               e-mail ni ton mot de passe ne lui sont transmis.
             </li>
             <li>
