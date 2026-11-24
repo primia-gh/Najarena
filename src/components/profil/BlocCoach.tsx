@@ -13,9 +13,9 @@ import { Choix } from "@/components/design/Formulaire";
 import { typographie } from "@/lib/typographie";
 
 // Coach vérifié (09/10/2026, idée en réserve n°8) : un joueur classé
-// Diamant ou plus et la progression de ses élèves, lue dans le registre
+// Cobra ou plus et la progression de ses élèves, lue dans le registre
 // des points pendant leur suivi. Absent du CV d'un joueur qui n'est pas
-// (ou plus) Diamant, sauf pour l'élève dont le suivi est en cours.
+// (ou plus) Cobra, sauf pour l'élève dont le suivi est en cours.
 
 interface Props {
   profilId: string;
@@ -78,17 +78,17 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
         : "Suivi";
   const lecture =
     "Les points des élèves sont lus dans le registre : variations en tournoi pendant le suivi, rien de déclaré. C'est ce qui s'est passé pendant le suivi, pas une mesure de l'effet du coach.";
-  // Accords neutres (« rating officiel de 1750 ou plus ») : le site ne
+  // Accords neutres (« rating Najarena de 1750 ou plus ») : le site ne
   // connaît pas le genre des joueurs.
   const texte = typographie(
     ouvert
-      ? `${pseudo} a un rating officiel de 1750 ou plus (palier Diamant Najarena) et accepte des élèves. ${lecture}`
+      ? `${pseudo} a un rating Najarena de 1750 ou plus (palier Cobra) et accepte des élèves. ${lecture}`
       : estProprietaire
         ? eligible
           ? suivis.length > 0
             ? "Tu ne reçois pas de nouvelle demande : coche la case ci-dessous pour accepter des élèves. La progression de tes élèves reste visible sur ton CV."
-            : "Ton rating officiel est de 1750 ou plus (palier Diamant Najarena) : tu peux suivre des élèves. « Coach vérifié » n'apparaît sur ton CV, et tu ne reçois de demandes, que si tu coches la case ci-dessous."
-          : `Ton rating officiel est passé sous 1750 (palier Diamant Najarena) : pas de nouvel élève possible.${caseCochee ? " Ta case reste cochée : elle reprendra effet si tu remontes au palier Diamant ; décoche-la si tu ne le souhaites pas." : ""}`
+            : "Ton rating Najarena est de 1750 ou plus (palier Cobra) : tu peux suivre des élèves. « Coach vérifié » n'apparaît sur ton CV, et tu ne reçois de demandes, que si tu coches la case ci-dessous."
+          : `Ton rating Najarena est passé sous 1750 (palier Cobra) : pas de nouvel élève possible.${caseCochee ? " Ta case reste cochée : elle reprendra effet si tu remontes au palier Cobra ; décoche-la si tu ne le souhaites pas." : ""}`
         : suiviIci?.statut === "demande"
           ? `${pseudo} n'accepte plus de nouvelle demande ; la tienne est toujours en attente. ${lecture}`
           : suiviIci

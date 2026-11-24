@@ -9,8 +9,9 @@
 // renvoi aux conditions générales de vente des offres payantes, tournois
 // par niveau. 22/11/2026 : le niveau d'accès aux tournois suit le compte
 // Riot, comptes Riot d'un joueur suspendu bloqués.
-export const VERSION_CGU = "2026-11-22";
-export const DATE_CGU_LISIBLE = "22 novembre 2026";
+// 24/11/2026 : paliers renommés (Mue à Basilic), « rating Najarena ».
+export const VERSION_CGU = "2026-11-24";
+export const DATE_CGU_LISIBLE = "24 novembre 2026";
 
 // Connexion via Discord : le consentement coché avant de partir chez
 // Discord est gardé le temps de l'aller-retour (10 minutes au plus), puis

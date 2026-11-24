@@ -10,6 +10,13 @@ export interface EntreeJournal {
 
 export const JOURNAL: EntreeJournal[] = [
   {
+    date: "24 novembre",
+    titre: "Les paliers changent de nom",
+    texte:
+      "Bronze, Argent, Or, Platine, Diamant et Champion deviennent Mue, Écaille, Crochet, Venin, Cobra et Basilic. Les seuils ne bougent pas : seul le nom change. Ce sont les paliers du classement des tournois Najarena, calculé sur les seuls matchs organisés ici (tournois, défis, divisions) ; ils n'ont rien à voir avec les rangs des parties classées de Riot, et leurs noms ne doivent pas le laisser croire. L'arène 1v1 est en pause pour quelque temps ; les défis entre joueurs restent ouverts.",
+    tags: ["Classement"],
+  },
+  {
     date: "23 novembre",
     titre: "Recommandations et face-à-face : seuls les comptes de niveau 30 comptent",
     texte:
@@ -153,7 +160,7 @@ export const JOURNAL: EntreeJournal[] = [
     date: "3 octobre",
     titre: "Une page pour ta communauté",
     texte:
-      "Serveur Discord, association, école : une communauté a maintenant sa page, avec ses tournois, le classement interne de ses membres — leur rating officiel, rien de recalculé — et ses membres. Lie ton serveur avec la commande /lier du bot, puis /communaute et /organiser y fonctionnent : le bot prépare le tournoi, tu le valides sur le site.",
+      "Serveur Discord, association, école : une communauté a maintenant sa page, avec ses tournois, le classement interne de ses membres — leur rating Najarena, rien de recalculé — et ses membres. Lie ton serveur avec la commande /lier du bot, puis /communaute et /organiser y fonctionnent : le bot prépare le tournoi, tu le valides sur le site.",
     tags: ["Fonctionnalité"],
   },
   {

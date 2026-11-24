@@ -11,7 +11,7 @@ describe("postesValides", () => {
 describe("libellés", () => {
   it("postes et niveau", () => {
     expect(libellePostes(["jungle", "support"])).toBe("Jungle, Support");
-    expect(libelleNiveauRecrutement(1450)).toBe("Or et plus");
+    expect(libelleNiveauRecrutement(1450)).toBe("Crochet et plus");
     expect(libelleNiveauRecrutement(null)).toBeNull();
   });
 });

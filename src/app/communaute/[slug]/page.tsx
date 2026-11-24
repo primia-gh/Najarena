@@ -360,7 +360,7 @@ export default async function CommunautePage({ params, searchParams }: Communaut
         <section className="flex flex-col gap-4">
           <LibelleSection as="h2">Classement interne</LibelleSection>
           <p className="max-w-2xl text-sm text-muted">
-            Le rating officiel Najarena des membres, saison en cours — gagné dans tous les tournois classés, pas
+            Le rating Najarena des membres, saison en cours — gagné dans tous les tournois classés, pas
             seulement ceux de la communauté. Un joueur apparaît une fois classé (une dizaine de matchs vérifiés).
           </p>
           {classes.length === 0 ? (

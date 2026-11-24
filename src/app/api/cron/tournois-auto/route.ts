@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { executerTournoisAuto } from "@/lib/tournois-auto/execution";
 import { doitSynchroniserClash, synchroniserClash } from "@/lib/echeances-serveur";
 import { apparierArene } from "@/lib/arene-serveur";
+import { ARENE_OUVERTE } from "@/lib/arene";
 import { ouvrirTournoisALaDemande } from "@/lib/a-la-demande-serveur";
 import { executerDivisions } from "@/lib/divisions-serveur";
 import { envoyerAlertesTournoi } from "@/lib/alertes-tournoi-serveur";
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     !simulation && doitSynchroniserClash(new Date()) ? await synchroniserClash().catch(() => null) : undefined;
   // Arène 1v1 (audit N19) : l'attente élargit l'écart toléré, on réessaie
   // donc d'apparier à chaque passage.
-  const arene = simulation ? undefined : await apparierArene().catch(() => null);
+  const arene = simulation || !ARENE_OUVERTE ? undefined : await apparierArene().catch(() => null);
   // Tournois à la demande (idée en réserve n°11) : une heure qui a réuni
   // assez de joueurs disponibles devient un tournoi.
   const aLaDemande = simulation ? undefined : await ouvrirTournoisALaDemande().catch(() => null);

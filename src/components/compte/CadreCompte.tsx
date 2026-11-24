@@ -21,7 +21,7 @@ const PROMESSES: { icone: NomIcone; titre: string; texte: string }[] = [
   },
   {
     icone: "coche",
-    titre: "Rating officiel",
+    titre: "Rating Najarena",
     texte: "Un seul classement Glicko-2 pour tous les joueurs, recalculé à la fin de chaque tournoi classé.",
   },
   {

@@ -80,10 +80,10 @@ const EXEMPLE_MATCHS: { res: "V" | "D"; date: string; tournoi: string; delta: st
 ];
 
 const EXEMPLE_TOP: LigneClassement[] = [
-  { pseudo: "Vipere", slug: null, avatarUrl: null, palier: "Champion", rating: 2214, tendance: "monte" },
-  { pseudo: "Crochet", slug: null, avatarUrl: null, palier: "Champion", rating: 2187, tendance: "baisse" },
-  { pseudo: "Mue", slug: null, avatarUrl: null, palier: "Diamant", rating: 1842, tendance: "stable" },
-  { pseudo: "Ecaille", slug: null, avatarUrl: null, palier: "Platine", rating: 1655, tendance: "monte" },
+  { pseudo: "Vipere", slug: null, avatarUrl: null, palier: "Basilic", rating: 2214, tendance: "monte" },
+  { pseudo: "Aspic", slug: null, avatarUrl: null, palier: "Basilic", rating: 2187, tendance: "baisse" },
+  { pseudo: "Naja", slug: null, avatarUrl: null, palier: "Cobra", rating: 1842, tendance: "stable" },
+  { pseudo: "Mamba", slug: null, avatarUrl: null, palier: "Venin", rating: 1655, tendance: "monte" },
 ];
 
 const EXEMPLE_COURBE = [1500, 1512, 1506, 1531, 1548, 1539, 1566, 1590, 1583, 1612, 1640].map((rating, i) => ({

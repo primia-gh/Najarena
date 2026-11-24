@@ -56,7 +56,7 @@ export const SCHEMA_RECHERCHE = {
 const SYSTEME_RECHERCHE = `Tu traduis, pour Najarena, la demande d'un recruteur League of Legends en filtres de recherche. Seuls ces filtres existent :
 - role : rôle préféré déclaré par le joueur ("top", "jungle", "mid", "adc", "support"), ou "" si non précisé ;
 - region : serveur du compte Riot vérifié (${CODES_REGION.join(", ")}), ou "" si non précisé ;
-- rating_min : rating Glicko-2 minimum de la saison en cours (départ à 1500 ; paliers : Bronze sous 1300, Argent 1300, Or 1450, Platine 1600, Diamant 1750, Champion 1900 et plus), ou 0 si non précisé ;
+- rating_min : rating Glicko-2 minimum de la saison en cours (départ à 1500 ; paliers Najarena : Mue sous 1300, Écaille 1300, Crochet 1450, Venin 1600, Cobra 1750, Basilic 1900 et plus ; les rangs de la file classée de Riot, comme Diamant ou Challenger, ne sont pas des paliers Najarena), ou 0 si non précisé ;
 - disponible : true si le recruteur veut des joueurs qui cherchent une équipe (ils ont publié une annonce), sinon false ;
 - classes_seulement : true s'il veut des joueurs entrés au classement (niveau confirmé), sinon false ;
 - sans_equipe : true s'il veut des joueurs qui ne sont membres d'aucune équipe, sinon false ;
