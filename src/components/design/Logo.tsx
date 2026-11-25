@@ -22,6 +22,9 @@ export default function Logo({ hauteur = 44, avecNom = true, className = "" }: L
         alt={avecNom ? "" : "Najarena"}
         width={Math.round(hauteur * RATIO)}
         height={hauteur}
+        // Hauteur imposée, largeur déduite du dessin : sans cela, l'arrondi de la
+        // largeur peut décaler la hauteur d'un pixel (avertissement Next.js).
+        style={{ height: hauteur, width: "auto" }}
         unoptimized
         loading="eager"
       />

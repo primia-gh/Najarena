@@ -214,7 +214,8 @@ export default async function Home() {
               Résultats lus dans la donnée Riot
             </p>
             <h1 className="font-titre text-ouverture font-black tracking-[-1px] uppercase">
-              Prouve
+              {/* Espace avant le saut de ligne : sans lui, les lecteurs d'écran lisent « Prouveton ». */}
+              Prouve{" "}
               <br />
               ton <span className="text-accent">niveau.</span>
             </h1>
