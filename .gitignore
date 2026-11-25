@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Journaux et instantanés du navigateur Playwright (MCP)
+.playwright-mcp/
