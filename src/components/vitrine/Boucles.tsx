@@ -24,7 +24,7 @@ export function BoucleCompte() {
     <div aria-hidden="true" className={`${CADRE} flex flex-col items-center justify-center gap-9`}>
       <div className="flex items-center">
         <div className="flex h-[84px] w-[84px] items-center justify-center rounded-panneau border border-[rgba(245,245,244,0.15)] bg-[#0B0C0B]">
-          <Image src="/brand/najarena-logo-blanc.svg" alt="" width={39} height={52} unoptimized />
+          <Image src="/brand/najarena-logo-blanc.svg" alt="" width={39} height={52} className="h-[52px] w-auto" unoptimized />
         </div>
         {/* 110 px comme la maquette, sauf de 1024 à 1279 px où la colonne ne fait que ~270 px. */}
         <div className="relative h-0.5 w-[110px] bg-[rgba(245,245,244,0.08)] lg:w-[80px] xl:w-[110px]">
