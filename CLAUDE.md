@@ -206,6 +206,8 @@ Les agents nécessaires se lancent **en parallèle**, une fois le code écrit. C
 
 Ensuite, résumer au porteur du projet, en langage simple : ce qui a été vérifié, ce qui a été corrigé, ce qui reste ouvert (problèmes Moyens, « À améliorer », points non vérifiables depuis le code) et ce qu'il doit décider.
 
+**Économie de limites :** pour toute recherche dans le code (où se trouve quelque chose, quels fichiers sont concernés, lecture de journaux, résumé d'un fichier long), délègue à l'agent `explorateur` (Haiku) au lieu de le faire toi-même. Garde ta propre réflexion pour la conception et les modifications.
+
 Exception : une modification minime sans effet sur le comportement (faute de frappe dans un commentaire, documentation interne) ne demande aucun agent.
 
 <!-- BEGIN:nextjs-agent-rules -->
