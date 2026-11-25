@@ -19,6 +19,7 @@ Ne jamais régénérer ce fichier avec `--force` sans accord explicite du propri
 | `--color-bg` | `#080908` | Fond de page |
 | `--color-bg-alt` | `#0C0D0C` | Sections alternées |
 | `--color-surface` | `#131513` → `#0D0F0D` | Panneaux (dégradé 160°) |
+| `--color-reflet` | `#161A15` | Reflet verdâtre au centre du fond des hauts de page (accueil, tournoi) |
 | `--color-text` | `#F5F5F4` | Texte principal |
 | `--color-text-2` | `#B9BEB9` | Paragraphes |
 | `--color-muted` | `#9CA39C` | Libellés, infos secondaires |
