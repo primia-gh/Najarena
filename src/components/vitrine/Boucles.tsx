@@ -9,7 +9,7 @@ import styles from "./vitrine.module.css";
 // lecteurs d'écran.
 
 const CADRE =
-  "relative h-[300px] w-full overflow-hidden rounded-carte bg-[linear-gradient(160deg,#141614,#0C0E0C)] font-texte text-text";
+  "relative h-[300px] w-full overflow-hidden rounded-carte bg-[linear-gradient(160deg,var(--color-surface),var(--color-surface-fin))] font-texte text-text";
 
 const BADGE_CONFIRMATION =
   "flex items-center gap-2.5 whitespace-nowrap rounded-bouton border border-accent/40 bg-accent/8 px-4 py-2.5 text-xs font-semibold tracking-[3px] text-accent";
@@ -23,20 +23,20 @@ export function BoucleCompte() {
   return (
     <div aria-hidden="true" className={`${CADRE} flex flex-col items-center justify-center gap-9`}>
       <div className="flex items-center">
-        <div className="flex h-[84px] w-[84px] items-center justify-center rounded-panneau border border-[rgba(245,245,244,0.15)] bg-[#0B0C0B]">
+        <div className="flex h-[84px] w-[84px] items-center justify-center rounded-panneau border border-text/15 bg-bg-alt">
           <Image src="/brand/najarena-logo-blanc.svg" alt="" width={39} height={52} className="h-[52px] w-auto" unoptimized />
         </div>
         {/* 110 px comme la maquette, sauf de 1024 à 1279 px où la colonne ne fait que ~270 px. */}
-        <div className="relative h-0.5 w-[110px] bg-[rgba(245,245,244,0.08)] lg:w-[80px] xl:w-[110px]">
+        <div className="relative h-0.5 w-[110px] bg-line lg:w-[80px] xl:w-[110px]">
           <div className={`absolute inset-0 bg-accent ${styles.b1Ligne}`} />
           <div className={`absolute inset-0 ${styles.b1Point}`}>
             <div className="absolute -top-[3px] -ml-1 h-2 w-2 rounded-full bg-text" />
           </div>
         </div>
         <div
-          className={`flex h-[84px] w-[84px] flex-col items-center justify-center gap-1.5 rounded-panneau border border-[rgba(245,245,244,0.15)] bg-[#0B0C0B] ${styles.b1Noeud}`}
+          className={`flex h-[84px] w-[84px] flex-col items-center justify-center gap-1.5 rounded-panneau border border-text/15 bg-bg-alt ${styles.b1Noeud}`}
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F5F5F4" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-text)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="6" width="20" height="12" rx="3" />
             <path d="M6 12h4M8 10v4M15 11h.01M18 13h.01" />
           </svg>
@@ -60,7 +60,7 @@ function Ligne({ equipe, score, gagnant, classeScore = "", classeNom = "" }: {
 }) {
   return (
     <div
-      className={`flex w-[118px] justify-between rounded-bouton border border-[rgba(245,245,244,0.1)] bg-[#0B0C0B] px-2.5 py-2 text-xs ${
+      className={`flex w-[118px] justify-between rounded-bouton border border-text/10 bg-bg-alt px-2.5 py-2 text-xs ${
         gagnant ? "font-semibold" : "text-faint"
       }`}
     >
@@ -116,11 +116,11 @@ export function BoucleRating() {
         <span className={`pb-2 text-base font-bold text-accent ${styles.b3Apparait}`}>▲ +64</span>
       </div>
       <svg className="h-auto w-full" viewBox="0 0 317 90" fill="none">
-        <line x1="0" y1="89" x2="317" y2="89" stroke="rgba(245,245,244,.1)" strokeWidth="1" />
+        <line x1="0" y1="89" x2="317" y2="89" className="stroke-text/10" strokeWidth="1" />
         <polyline
           className={styles.b3Trace}
           points="0,78 32,72 64,75 96,60 128,64 160,48 192,52 224,34 256,30 317,10"
-          stroke="#B6FF3B"
+          stroke="var(--color-accent)"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
