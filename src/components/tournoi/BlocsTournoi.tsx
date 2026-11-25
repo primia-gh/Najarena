@@ -61,7 +61,7 @@ export function EnTeteTournoi({ nom, etiquettes, details, infos, action }: EnTet
     <section className="relative isolate overflow-hidden px-gouttiere pt-32 pb-14 lg:flex lg:min-h-[480px] lg:items-end">
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_75%_30%,var(--color-reflet)_0%,var(--color-bg-alt)_55%,var(--color-bg)_100%)]"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_75%_30%,var(--color-halo)_0%,var(--color-bg-alt)_55%,var(--color-bg)_100%)]"
       />
       <div
         aria-hidden="true"

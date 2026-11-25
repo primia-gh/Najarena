@@ -199,7 +199,7 @@ export default async function Home() {
       <section className="relative isolate overflow-hidden px-gouttiere pt-32 pb-20 lg:flex lg:min-h-[860px] lg:items-center lg:pt-28 lg:pb-24">
         <div
           aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_70%_40%,var(--color-reflet)_0%,var(--color-bg-alt)_55%,var(--color-bg)_100%)]"
+          className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_70%_40%,var(--color-halo)_0%,var(--color-bg-alt)_55%,var(--color-bg)_100%)]"
         />
         <OuvertureLogo className="-z-10 top-14 -left-[10%] aspect-[1440/860] w-[140%] opacity-70 lg:inset-0 lg:aspect-auto lg:w-auto lg:opacity-100" />
         <div
