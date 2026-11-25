@@ -6,9 +6,9 @@ import Image from "next/image";
 // en pourcentages pour suivre la largeur de la colonne.
 
 const VARIANTES = {
-  1: { hauteur: "158%", gauche: "48.8%", haut: "-25%", rotation: "0deg", fond: "radial-gradient(circle at 80% 20%, rgba(182,255,59,.22), rgba(182,255,59,0) 55%)" },
-  2: { hauteur: "192%", gauche: "-30.8%", haut: "-62.5%", rotation: "-18deg", fond: "radial-gradient(circle at 15% 30%, rgba(182,255,59,.2), rgba(182,255,59,0) 55%)" },
-  3: { hauteur: "125%", gauche: "30.8%", haut: "-8.3%", rotation: "24deg", fond: "linear-gradient(120deg, rgba(182,255,59,0) 35%, rgba(182,255,59,.16) 50%, rgba(182,255,59,0) 65%)" },
+  1: { hauteur: "158%", gauche: "48.8%", haut: "-25%", rotation: "0deg", fond: "radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent 55%)" },
+  2: { hauteur: "192%", gauche: "-30.8%", haut: "-62.5%", rotation: "-18deg", fond: "radial-gradient(circle at 15% 30%, color-mix(in srgb, var(--color-accent) 20%, transparent), transparent 55%)" },
+  3: { hauteur: "125%", gauche: "30.8%", haut: "-8.3%", rotation: "24deg", fond: "linear-gradient(120deg, transparent 35%, color-mix(in srgb, var(--color-accent) 16%, transparent) 50%, transparent 65%)" },
 } as const;
 
 export type VarianteAffiche = keyof typeof VARIANTES;
@@ -25,7 +25,7 @@ export default function AfficheTournoi({ nom, format, date, variante = 1 }: Affi
   return (
     <div
       aria-hidden="true"
-      className="relative aspect-[389/240] w-full overflow-hidden rounded-carte bg-[#0B0C0B] font-texte text-text"
+      className="relative aspect-[389/240] w-full overflow-hidden rounded-carte bg-bg-alt font-texte text-text"
     >
       <div className="absolute inset-0" style={{ background: v.fond }} />
       <Image
@@ -37,13 +37,13 @@ export default function AfficheTournoi({ nom, format, date, variante = 1 }: Affi
         className="pointer-events-none absolute w-auto max-w-none opacity-[0.16]"
         style={{ height: v.hauteur, left: v.gauche, top: v.haut, transform: `rotate(${v.rotation})` }}
       />
-      <div className="absolute inset-x-0 bottom-0 h-[62%] bg-[linear-gradient(180deg,rgba(11,12,11,0),rgba(11,12,11,.92))]" />
+      <div className="absolute inset-x-0 bottom-0 h-[62%] bg-[linear-gradient(180deg,transparent,color-mix(in_srgb,var(--color-bg-alt)_92%,transparent))]" />
       <div className="absolute top-5 right-[22px] left-[22px] flex items-center justify-between text-mini font-semibold">
         <span className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-accent" />
           LOL
         </span>
-        <span className="rounded-bouton border border-[rgba(245,245,244,0.3)] px-2 py-1 uppercase">{format}</span>
+        <span className="rounded-bouton border border-text/30 px-2 py-1 uppercase">{format}</span>
       </div>
       <div className="absolute right-[22px] bottom-5 left-[22px] flex flex-col gap-2">
         <span className="line-clamp-2 font-titre text-[clamp(2rem,3.1vw,2.75rem)] leading-[0.9] font-black uppercase [overflow-wrap:anywhere]">

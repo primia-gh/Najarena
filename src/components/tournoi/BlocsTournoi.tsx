@@ -61,11 +61,11 @@ export function EnTeteTournoi({ nom, etiquettes, details, infos, action }: EnTet
     <section className="relative isolate overflow-hidden px-gouttiere pt-32 pb-14 lg:flex lg:min-h-[480px] lg:items-end">
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_75%_30%,#171B16_0%,#0B0C0B_55%,#080908_100%)]"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_75%_30%,#171B16_0%,var(--color-bg-alt)_55%,var(--color-bg)_100%)]"
       />
       <div
         aria-hidden="true"
-        className="absolute -top-[380px] -right-36 -z-10 aspect-square w-[900px] rounded-full bg-[radial-gradient(circle,rgba(182,255,59,.16)_0%,rgba(182,255,59,0)_62%)]"
+        className="absolute -top-[380px] -right-36 -z-10 aspect-square w-[900px] rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--color-accent)_16%,transparent)_0%,transparent_62%)]"
       />
       <Image
         src="/brand/najarena-logo-blanc.svg"
@@ -78,7 +78,7 @@ export function EnTeteTournoi({ nom, etiquettes, details, infos, action }: EnTet
       />
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 -z-10 h-[200px] bg-[linear-gradient(180deg,rgba(8,9,8,0),#080908)]"
+        className="absolute inset-x-0 bottom-0 -z-10 h-[200px] bg-[linear-gradient(180deg,transparent,var(--color-bg))]"
       />
 
       <div className="mx-auto flex w-full max-w-contenu flex-col gap-10 lg:flex-row lg:items-end lg:gap-[60px]">
@@ -97,7 +97,7 @@ export function EnTeteTournoi({ nom, etiquettes, details, infos, action }: EnTet
           <p className="text-[17px] text-text-2">{details}</p>
         </div>
 
-        <Panneau className="flex w-full shrink-0 flex-col gap-[22px] bg-[rgba(13,15,13,.85)]! p-7 lg:w-[380px]">
+        <Panneau className="flex w-full shrink-0 flex-col gap-[22px] bg-surface-fin/85! p-7 lg:w-[380px]">
           <dl className="grid grid-cols-2 gap-5">
             {infos.map((info) => (
               <div key={info.libelle} className="flex flex-col gap-1.5">

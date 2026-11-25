@@ -199,12 +199,12 @@ export default async function Home() {
       <section className="relative isolate overflow-hidden px-gouttiere pt-32 pb-20 lg:flex lg:min-h-[860px] lg:items-center lg:pt-28 lg:pb-24">
         <div
           aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_70%_40%,#161A15_0%,#0B0C0B_55%,#080908_100%)]"
+          className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_70%_40%,#161A15_0%,var(--color-bg-alt)_55%,var(--color-bg)_100%)]"
         />
         <OuvertureLogo className="-z-10 top-14 -left-[10%] aspect-[1440/860] w-[140%] opacity-70 lg:inset-0 lg:aspect-auto lg:w-auto lg:opacity-100" />
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 -z-10 h-60 bg-[linear-gradient(180deg,rgba(8,9,8,0),#080908)]"
+          className="absolute inset-x-0 bottom-0 -z-10 h-60 bg-[linear-gradient(180deg,transparent,var(--color-bg))]"
         />
 
         <div className="mx-auto flex w-full max-w-contenu flex-col gap-16 lg:flex-row lg:items-center">
@@ -269,7 +269,7 @@ export default async function Home() {
               <li key={e.numero}>
                 <Apparition delai={i * 0.08} className="flex flex-col gap-7">
                   {e.boucle}
-                  <div className="flex gap-[22px] border-t border-[rgba(245,245,244,0.1)] pt-6">
+                  <div className="flex gap-[22px] border-t border-text/10 pt-6">
                     <span aria-hidden="true" className="font-titre text-xl font-extrabold text-accent">
                       {e.numero}
                     </span>
@@ -353,7 +353,7 @@ export default async function Home() {
                     <span>LoL · {a.format}</span>
                     <span className="tabular-nums">{a.etiquette}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-4 border-t border-[rgba(245,245,244,0.1)] pt-5">
+                  <div className="flex items-center justify-between gap-4 border-t border-text/10 pt-5">
                     <span className="text-sm text-muted">{a.info}</span>
                     <Link
                       href={a.lien}
@@ -456,7 +456,7 @@ export default async function Home() {
       {/* ================= 7. APPEL FINAL ================= */}
       <section
         id="rejoindre"
-        className="relative isolate flex flex-col items-center gap-9 overflow-hidden border-t border-[rgba(245,245,244,0.06)] px-gouttiere py-[clamp(6rem,11vw,10rem)] text-center"
+        className="relative isolate flex flex-col items-center gap-9 overflow-hidden border-t border-text/6 px-gouttiere py-[clamp(6rem,11vw,10rem)] text-center"
       >
         <div aria-hidden="true" className="fond-ecailles absolute inset-0 -z-10" />
         <div aria-hidden="true" className="absolute -top-[260px] left-1/2 -z-10 w-[800px] max-w-[180vw] -translate-x-1/2">
@@ -468,7 +468,7 @@ export default async function Home() {
           width={126}
           height={170}
           unoptimized
-          className="h-[clamp(120px,12vw,170px)] w-auto drop-shadow-[0_0_40px_rgba(182,255,59,0.35)]"
+          className="h-[clamp(120px,12vw,170px)] w-auto drop-shadow-[0_0_40px_color-mix(in_srgb,var(--color-accent)_35%,transparent)]"
         />
         <h2 className="font-titre text-[clamp(4rem,9.7vw,8.75rem)] leading-[0.88] font-black uppercase">
           L&apos;arène
