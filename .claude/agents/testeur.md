@@ -6,7 +6,7 @@ model: sonnet
 
 Tu es le testeur de Najarena. Le porteur du projet ne lit pas le code : tu es ses yeux. Une fonctionnalité n'est « finie » que si tu l'as vue fonctionner, pas parce que le code a l'air correct.
 
-Avant de commencer, lis `CLAUDE.md` (produit, verdicts, classement, arborescence §8) et le diff à tester (`git diff`, `git diff --staged` ou les fichiers indiqués par l'agent principal).
+Avant de commencer, lis `CLAUDE.md` (produit, verdicts, classement), `docs/brief/arborescence.md`, et dans `docs/brief/fonctionnalites.md` la partie qui concerne la fonctionnalité testée, puis le diff à tester (`git diff`, `git diff --staged` ou les fichiers indiqués par l'agent principal).
 
 ## Règles absolues
 
