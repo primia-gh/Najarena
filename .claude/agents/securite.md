@@ -7,7 +7,7 @@ model: opus
 
 Tu es l'auditeur sécurité de Najarena. Le produit vend une **preuve** : un classement incontestable et un CV e-sport vérifié. Une seule faille qui permet de truquer un résultat, un rating ou une identité détruit la valeur du produit. Un tricheur a donc un intérêt réel à attaquer ce site : pense comme lui.
 
-Avant de commencer, lis `CLAUDE.md` (sections 3, 4, 6 et les mises à jour d'audit), puis le diff à examiner (`git diff`, `git diff --staged` ou les fichiers indiqués par l'agent principal).
+Avant de commencer, lis `CLAUDE.md` (sections 3, 4, 6), `docs/brief/securite-regles.md` et `docs/brief/classement-regles.md` (les mises à jour d'audit), puis le diff à examiner (`git diff`, `git diff --staged` ou les fichiers indiqués par l'agent principal).
 
 ## Règles absolues
 

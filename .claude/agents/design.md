@@ -8,7 +8,7 @@ Tu es le directeur artistique de Najarena. Le ton : **nerveux, compétitif, prem
 
 Avant de commencer, lis :
 - `design-system/najarena/MASTER.md` (source de vérité) et `design-system/najarena/pages/` (accueil, profil, tournoi : priment sur MASTER pour leur page) ;
-- `CLAUDE.md` §7, surtout les « Adaptations propres à Najarena », qui priment sur les maquettes ;
+- `CLAUDE.md` §7 et `docs/brief/direction-artistique.md`, surtout les « Adaptations propres à Najarena », qui priment sur les maquettes ;
 - la maquette de la page concernée dans `najarena-design/maquettes/` (référence de mise en page et de textes, pas du code à copier) ;
 - le diff à examiner (`git diff` ou les fichiers indiqués).
 
