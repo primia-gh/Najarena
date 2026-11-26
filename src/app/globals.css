@@ -227,12 +227,63 @@ html[data-animations="pause"] *::after {
   animation-play-state: paused !important;
 }
 
+/* Boucles décoratives hors de l'écran (audit web du 26/11/2026, U7) :
+   figées tant qu'on ne les voit pas, pour épargner batterie et processeur
+   (components/vitrine/PauseHorsEcran.tsx pose data-hors-ecran). */
+[data-hors-ecran],
+[data-hors-ecran] *,
+[data-hors-ecran] *::before,
+[data-hors-ecran] *::after {
+  animation-play-state: paused !important;
+}
+
+/* Apparition au défilement (components/design/Apparition.tsx, sans
+   bibliothèque depuis le 26/11/2026, U6) : masqué jusqu'à l'entrée à
+   l'écran, puis fondu + glissement de 16 px en 400 ms. */
+[data-apparition] {
+  transition:
+    opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    translate 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-apparition]:not([data-visible]) {
+  opacity: 0;
+  translate: 0 16px;
+}
+
+/* Menu mobile de la barre de navigation (Navbar.tsx, U6) : fondu et léger
+   glissement à l'ouverture comme à la fermeture. Les navigateurs qui ne
+   connaissent pas @starting-style ou transition-behavior l'ouvrent et le
+   ferment simplement sans animation. */
+.menu-mobile {
+  /* Propriétés détaillées, pas le raccourci « transition » : à la
+     compilation, le minifieur plaçait transition-behavior AVANT le
+     raccourci, qui le remettait à « normal » (fermeture sans animation). */
+  transition-property: opacity, translate, display;
+  transition-duration: 0.22s;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-behavior: allow-discrete;
+}
+.menu-mobile.hidden {
+  opacity: 0;
+  translate: 0 -8px;
+}
+@starting-style {
+  .menu-mobile {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Apparition.tsx (corrigé le 05/10/2026) : contenu affiché d'emblée,
      sans fondu ni glissement — l'élément arrive masqué du serveur. */
   [data-apparition] {
     opacity: 1 !important;
-    transform: none !important;
+    translate: none !important;
+    transition: none;
+  }
+  .menu-mobile {
+    transition: none;
   }
   .reflet::after,
   .animate-balayage,

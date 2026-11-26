@@ -12,7 +12,7 @@ const MOTS = ["Résultats vérifiés", "Rating Najarena", "CV e-sport", "Zéro t
 export default function BandeauDefilant() {
   const serie = [...MOTS, ...MOTS];
   return (
-    <div className="relative border-y border-line bg-[#0A0B0A]">
+    <div data-boucle="" className="relative border-y border-line bg-[#0A0B0A]">
       <div aria-hidden="true" className={`overflow-hidden py-[30px] ${styles.bandeauCadre}`}>
         <div className={`flex w-max gap-12 ${styles.bandeau}`}>
           {serie.map((mot, i) => (

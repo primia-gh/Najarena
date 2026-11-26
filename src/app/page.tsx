@@ -9,6 +9,7 @@ import Icone from "@/components/design/Icone";
 import Apparition from "@/components/design/Apparition";
 import OuvertureLogo from "@/components/vitrine/OuvertureLogo";
 import BandeauDefilant from "@/components/vitrine/BandeauDefilant";
+import PauseHorsEcran from "@/components/vitrine/PauseHorsEcran";
 import { BoucleBracket, BoucleCompte, BoucleRating } from "@/components/vitrine/Boucles";
 import { CarteCvDetail, CarteCvFlottante } from "@/components/vitrine/CartesCvExemple";
 import AfficheTournoi, { type VarianteAffiche } from "@/components/vitrine/AfficheTournoi";
@@ -195,8 +196,10 @@ export default async function Home() {
 
   return (
     <main className="bg-bg font-texte text-text">
+      {/* Boucles des blocs data-boucle figées hors de l'écran (U7). */}
+      <PauseHorsEcran />
       {/* ================= 1. OUVERTURE ================= */}
-      <section className="relative isolate overflow-hidden px-gouttiere pt-32 pb-20 lg:flex lg:min-h-[860px] lg:items-center lg:pt-28 lg:pb-24">
+      <section data-boucle="" className="relative isolate overflow-hidden px-gouttiere pt-32 pb-20 lg:flex lg:min-h-[860px] lg:items-center lg:pt-28 lg:pb-24">
         <div
           aria-hidden="true"
           className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_70%_40%,var(--color-halo)_0%,var(--color-bg-alt)_55%,var(--color-bg)_100%)]"
@@ -248,7 +251,7 @@ export default async function Home() {
       <BandeauDefilant />
 
       {/* ================= 2. COMMENT ÇA MARCHE ================= */}
-      <section className="relative isolate px-gouttiere py-section">
+      <section data-boucle="" className="relative isolate px-gouttiere py-section">
         <NumeroFiligrane numero="01" className="top-10 right-[4%]" />
         <div className="mx-auto flex max-w-contenu flex-col gap-[72px]">
           <Apparition className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end lg:gap-20">
@@ -418,7 +421,7 @@ export default async function Home() {
       </section>
 
       {/* ================= 6. DEUX PORTES D'ENTRÉE ================= */}
-      <section className="px-gouttiere py-section">
+      <section data-boucle="" className="px-gouttiere py-section">
         <div className="mx-auto grid max-w-contenu gap-16 md:grid-cols-2 md:gap-10">
           <Apparition className="flex flex-col gap-8">
             <IllustrationEquipe />
@@ -456,6 +459,7 @@ export default async function Home() {
       {/* ================= 7. APPEL FINAL ================= */}
       <section
         id="rejoindre"
+        data-boucle=""
         className="relative isolate flex flex-col items-center gap-9 overflow-hidden border-t border-text/6 px-gouttiere py-[clamp(6rem,11vw,10rem)] text-center"
       >
         <div aria-hidden="true" className="fond-ecailles absolute inset-0 -z-10" />

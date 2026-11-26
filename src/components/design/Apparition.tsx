@@ -1,21 +1,24 @@
 "use client";
 
 // Apparition au défilement de la nouvelle identité (MASTER §7 : apparitions
-// 300–450 ms) : fondu + léger glissement vers le haut, une seule fois,
-// durées recalées sur MASTER.
+// 300–450 ms) : fondu + léger glissement vers le haut, une seule fois.
 //
-// Mouvement réduit (corrigé le 05/10/2026) : le composant rendait un simple
-// <div> quand le navigateur demandait moins d'animations. Mais le serveur,
-// qui ne connaît pas ce réglage, envoyait la version animée, masquée
-// (opacity: 0) en attendant le défilement ; React ne corrige pas un
-// attribut différent à l'hydratation, et le <div> sans animation ne
-// l'enlevait jamais : tout le contenu restait invisible pour ces visiteurs.
-// Désormais le même élément est rendu pour tous, et c'est la feuille de
-// style (globals.css, [data-apparition]) qui l'affiche d'emblée, sans
-// mouvement, quand prefers-reduced-motion vaut « reduce ».
+// Sans bibliothèque depuis le 26/11/2026 (audit web, U6) : la bibliothèque
+// motion pesait ~40 Ko compressés sur chaque page pour ce seul effet. Le
+// navigateur signale l'entrée à l'écran (IntersectionObserver) et la
+// feuille de style fait le fondu (globals.css, [data-apparition]).
+//
+// Même élément rendu pour tous (règle CLAUDE.md §7, corrigé le 05/10/2026) :
+// masqué en attendant le défilement par la feuille de style, affiché
+// d'emblée sans mouvement si prefers-reduced-motion vaut « reduce » ou si
+// JavaScript est désactivé (<noscript> du layout).
+//
+// Attention : la règle [data-apparition] de globals.css fixe « transition »
+// et elle l'emporte sur les classes Tailwind. Ne pas mettre de classe
+// transition-*, translate-* ou d'effet hover animé sur l'Apparition
+// elle-même : les placer sur un élément enfant.
 
-import type { ReactNode } from "react";
-import { motion, type Variants } from "motion/react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 interface ApparitionProps {
   children: ReactNode;
@@ -24,23 +27,35 @@ interface ApparitionProps {
   className?: string;
 }
 
-const variantes: Variants = {
-  cache: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0 },
-};
-
 export default function Apparition({ children, delai = 0, className }: ApparitionProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observateur = new IntersectionObserver(
+      (entrees) => {
+        if (!entrees.some((e) => e.isIntersecting)) return;
+        // Attribut posé hors de React : React ne le gère pas, il ne
+        // l'effacera pas au rendu suivant.
+        element.dataset.visible = "";
+        observateur.disconnect();
+      },
+      // Comme avant : apparaît quand le bloc dépasse de 60 px dans l'écran.
+      { rootMargin: "-60px" },
+    );
+    observateur.observe(element);
+    return () => observateur.disconnect();
+  }, []);
+
   return (
-    <motion.div
+    <div
+      ref={ref}
       data-apparition=""
       className={className}
-      initial="cache"
-      whileInView="visible"
-      viewport={{ once: true, margin: "-60px" }}
-      variants={variantes}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: delai }}
+      style={delai ? { transitionDelay: `${delai}s` } : undefined}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

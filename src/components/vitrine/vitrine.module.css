@@ -109,9 +109,16 @@
   0%, 10% { transform: scaleX(0); }
   40%, 100% { transform: scaleX(1); }
 }
+/* Le halo vert n'anime plus box-shadow (redessiné à chaque image) : il est
+   posé une fois sur un calque ::after dont seule l'opacité varie (audit web
+   du 26/11/2026, U7). Même rendu, même rythme. */
 @keyframes b1Noeud {
-  0%, 35% { border-color: color-mix(in srgb, var(--color-text) 15%, transparent); box-shadow: none; }
-  45%, 100% { border-color: var(--color-accent); box-shadow: 0 0 30px color-mix(in srgb, var(--color-accent) 25%, transparent); }
+  0%, 35% { border-color: color-mix(in srgb, var(--color-text) 15%, transparent); }
+  45%, 100% { border-color: var(--color-accent); }
+}
+@keyframes b1Halo {
+  0%, 35% { opacity: 0; }
+  45%, 100% { opacity: 1; }
 }
 @keyframes b1Badge {
   0%, 50% { opacity: 0; transform: translateY(8px); }
@@ -126,7 +133,17 @@
   to { transform: translateX(100%); }
 }
 .b1Ligne { transform-origin: left center; animation: b1Ligne 5s ease-in-out infinite; }
-.b1Noeud { animation: b1Noeud 5s ease-in-out infinite; }
+.b1Noeud { position: relative; animation: b1Noeud 5s ease-in-out infinite; }
+.b1Noeud::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 30px color-mix(in srgb, var(--color-accent) 25%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  animation: b1Halo 5s ease-in-out infinite;
+}
 .b1Badge { animation: b1Badge 5s ease-in-out infinite; }
 .b1Point { animation: b1Point 1.2s linear infinite; }
 
@@ -188,7 +205,8 @@
   .b2L1,
   .b2L2,
   .b3Trace,
-  .b3Apparait {
+  .b3Apparait,
+  .b1Noeud::after {
     animation: none;
   }
   /* États finaux : logo dessiné, badges visibles, courbe tracée. */

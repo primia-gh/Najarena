@@ -11,7 +11,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/design/Logo";
 
@@ -117,8 +116,6 @@ export default function Navbar() {
   const masquerCta = pathname === cibleCompte;
 
   const masquerRejoindre = connecte || pathname === "/inscription";
-  // Mouvement réduit demandé : le menu mobile s'ouvre sans animation.
-  const mouvementReduit = useReducedMotion();
   const estActif = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
@@ -181,46 +178,43 @@ export default function Navbar() {
         </button>
       </div>
 
-      <AnimatePresence>
-        {menuOuvert && (
-          <motion.div
-            id="menu-mobile"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: mouvementReduit ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-x-0 top-full flex flex-col overflow-hidden border-b border-line bg-bg px-grille py-4 xl:hidden"
+      {/* Toujours présent, masqué (display: none) quand il est fermé : le
+          fondu d'ouverture et de fermeture est fait par la feuille de style
+          (globals.css, .menu-mobile), sans bibliothèque (audit web, U6). */}
+      <div
+        id="menu-mobile"
+        className={`menu-mobile absolute inset-x-0 top-full flex-col border-b border-line bg-bg px-grille py-4 xl:hidden ${
+          menuOuvert ? "flex" : "hidden"
+        }`}
+      >
+        {LIENS.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            onClick={() => setMenuOuvert(false)}
+            aria-current={estActif(l.href) ? "page" : undefined}
+            className={`${LIEN_TEXTE} ${estActif(l.href) ? "text-accent" : "text-text"}`}
           >
-            {LIENS.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={() => setMenuOuvert(false)}
-                aria-current={estActif(l.href) ? "page" : undefined}
-                className={`${LIEN_TEXTE} ${estActif(l.href) ? "text-accent" : "text-text"}`}
-              >
-                {l.label}
-              </Link>
-            ))}
-            <div className="mt-3 flex flex-wrap items-center gap-x-7 gap-y-3 border-t border-line pt-4 sm:hidden">
-              {!masquerCta && (
-                <Link
-                  href={cibleCompte}
-                  onClick={() => setMenuOuvert(false)}
-                  className={connecte ? BOUTON_CONTOUR : `${LIEN_TEXTE} text-text`}
-                >
-                  {libelleCompte}
-                </Link>
-              )}
-              {!masquerRejoindre && (
-                <Link href="/inscription" onClick={() => setMenuOuvert(false)} className={BOUTON_CONTOUR}>
-                  Rejoindre
-                </Link>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {l.label}
+          </Link>
+        ))}
+        <div className="mt-3 flex flex-wrap items-center gap-x-7 gap-y-3 border-t border-line pt-4 sm:hidden">
+          {!masquerCta && (
+            <Link
+              href={cibleCompte}
+              onClick={() => setMenuOuvert(false)}
+              className={connecte ? BOUTON_CONTOUR : `${LIEN_TEXTE} text-text`}
+            >
+              {libelleCompte}
+            </Link>
+          )}
+          {!masquerRejoindre && (
+            <Link href="/inscription" onClick={() => setMenuOuvert(false)} className={BOUTON_CONTOUR}>
+              Rejoindre
+            </Link>
+          )}
+        </div>
+      </div>
     </nav>
   );
 }

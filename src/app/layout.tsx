@@ -72,7 +72,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Sans JavaScript, les blocs <Apparition> (masqués jusqu'au
             défilement) ne s'afficheraient jamais : on les montre d'emblée. */}
         <noscript>
-          <style>{"[data-apparition]{opacity:1!important;transform:none!important}"}</style>
+          <style>{"[data-apparition]{opacity:1!important;translate:none!important}"}</style>
         </noscript>
         <Navbar />
         <div id="contenu" tabIndex={-1} className="outline-none" />
