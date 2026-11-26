@@ -25,7 +25,6 @@ import { adresseActuelleProfil, enregistrerVisite } from "@/lib/visites-profil";
 import { emettreCertificat } from "@/lib/profil-actions";
 import { lancerDefi } from "@/lib/defi-actions";
 import { CONDITIONS_VICTOIRE } from "@/lib/conditions-1v1";
-import { COULEUR_PALIER } from "@/lib/paliers";
 import { classeBoutonContour, classeBoutonPrincipal, classeChamp } from "@/lib/design";
 import BoutonLien from "@/components/design/BoutonLien";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -464,9 +463,10 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
   const deltaSaison =
     courbe.length > 1 ? arrondir(courbe[courbe.length - 1].rating) - arrondir(courbe[0].rating) : null;
   const equipeActuelle = complements.equipes[0] ?? null;
-  const couleurPalier = complements.palier
-    ? (COULEUR_PALIER[complements.palier.nom.toLowerCase()] ?? "var(--color-muted)")
-    : null;
+  // Palier d'un joueur encore provisoire (RD > 150) : affiché, mais estompé
+  // et dit provisoire — jamais présenté comme un palier confirmé (relecture
+  // design du 26/11/2026).
+  const palierProvisoire = Boolean(complements.palier) && !rating?.est_classe;
 
   const kpis = [
     {
@@ -479,12 +479,13 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
     {
       libelle: "Palier",
       valeur: complements.palier?.nom ?? "—",
-      sous: complements.palierSuivant
-        ? `Prochain : ${complements.palierSuivant.nom} à ${complements.palierSuivant.ratingMin}`
-        : complements.palier
-          ? "Palier maximal"
-          : "Après le premier tournoi",
-      couleur: couleurPalier,
+      sous: palierProvisoire
+        ? "Provisoire · confirmé à RD ≤ 150"
+        : complements.palierSuivant
+          ? `Prochain : ${complements.palierSuivant.nom} à ${complements.palierSuivant.ratingMin}`
+          : complements.palier
+            ? "Palier maximal"
+            : "Après le premier tournoi",
       embleme: true,
       // Un mot, pas un chiffre : composé plus petit, sinon « CHAMPION »
       // débordait sur la case voisine (relecture design du 12/10/2026).
@@ -865,7 +866,11 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 }`}
               >
                 {"embleme" in k && k.embleme && (
-                  <EmblemePalier palier={complements.palier?.nom ?? null} taille={40} className="-my-1" />
+                  <EmblemePalier
+                    palier={complements.palier?.nom ?? null}
+                    taille={40}
+                    className={`-my-1 ${palierProvisoire ? "opacity-40" : ""}`}
+                  />
                 )}
                 {k.valeur}
               </span>

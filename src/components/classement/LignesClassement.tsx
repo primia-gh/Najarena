@@ -165,9 +165,7 @@ export function EchellePaliers({ paliers }: { paliers: { nom: string; ratingMin:
           <li key={p.nom} className="flex flex-col gap-2">
             <span aria-hidden="true" className="h-1 rounded-full" style={{ background: couleur }} />
             <EmblemePalier palier={p.nom} taille={48} className="mt-2" />
-            <span className="font-texte text-mini font-semibold uppercase" style={{ color: couleur }}>
-              {p.nom}
-            </span>
+            <span className="font-texte text-mini font-semibold text-text uppercase">{p.nom}</span>
             <span className="text-sm text-muted tabular-nums">{seuil}</span>
           </li>
         );

@@ -15,13 +15,19 @@ import { COULEUR_PALIER } from "@/lib/paliers";
 // l'emblème grandit légèrement en fondu à l'entrée à l'écran (globals.css,
 // .embleme-palier) ; sinon il est affiché d'emblée.
 
-const NOIR = "#080908";
+const NOIR = "var(--color-bg)";
 const BOUCLIER = "32,3 54,11 56,30 46,50 32,61 18,50 8,30 10,11";
 const BOUCLIER_INTERIEUR = "32,9 49.4,15.4 50.8,30 42,46.5 32,54.5 22,46.5 13.2,30 14.6,15.4";
 
 type ClePalier = "mue" | "ecaille" | "crochet" | "venin" | "cobra" | "basilic";
 
 const RANG: Record<ClePalier, number> = { mue: 1, ecaille: 2, crochet: 3, venin: 4, cobra: 5, basilic: 6 };
+
+/** Couleur d'un palier depuis sa clé : lib/paliers.ts garde la clé accentuée « écaille ». */
+export function couleurPalier(cle: ClePalier | null): string {
+  if (!cle) return "var(--color-faint)";
+  return COULEUR_PALIER[cle === "ecaille" ? "écaille" : cle] ?? "var(--color-muted)";
+}
 
 /** « Écaille » → « ecaille » ; nom inconnu → null (traité comme non classé). */
 export function clePalier(nom: string | null | undefined): ClePalier | null {
@@ -30,7 +36,7 @@ export function clePalier(nom: string | null | undefined): ClePalier | null {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
-  return cle in RANG ? (cle as ClePalier) : null;
+  return Object.hasOwn(RANG, cle) ? (cle as ClePalier) : null;
 }
 
 function Cadre({ rang, c }: { rang: number; c: string }) {
@@ -277,7 +283,7 @@ interface EmblemePalierProps {
 export default function EmblemePalier({ palier, taille = 32, decoratif = true, className = "" }: EmblemePalierProps) {
   const cle = clePalier(palier);
   const rang = cle ? RANG[cle] : 0;
-  const c = cle ? (COULEUR_PALIER[palier!.toLowerCase()] ?? "var(--color-muted)") : "#798079";
+  const c = couleurPalier(cle);
   const libelle = cle ? `Palier ${palier}` : "Non classé";
   return (
     <svg
