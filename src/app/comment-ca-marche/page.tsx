@@ -162,7 +162,9 @@ export default function CommentCaMarchePage() {
             partie classée chez Riot&nbsp;; ses paliers (Mue, Écaille, Crochet, Venin, Cobra, Basilic) sont propres à
             Najarena.
           </p>
-          <SchemaCalibration />
+          <Apparition>
+            <SchemaCalibration />
+          </Apparition>
           <dl className="grid grid-cols-2 gap-x-8 gap-y-8 border-t border-line pt-8 sm:grid-cols-4">
             {[
               { valeur: String(RATING_INITIAL), libelle: "Rating de départ" },
