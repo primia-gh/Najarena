@@ -90,14 +90,7 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
 
         <Apparition delai={0.08}>
           {suivis.length === 0 ? (
-            <EtatVide
-              titre="Aucun joueur suivi."
-              actions={
-                <BoutonLien href="/lol/recherche" variante="secondaire">
-                  Rechercher des joueurs
-                </BoutonLien>
-              }
-            >
+            <EtatVide titre="Aucun joueur suivi.">
               Suis un joueur depuis la recherche ou depuis son CV (bouton « Suivre »).
             </EtatVide>
           ) : (

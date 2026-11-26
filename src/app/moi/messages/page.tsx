@@ -71,6 +71,7 @@ export default async function MessagesPage() {
           retour={{ href: "/moi", libelle: "Mon compte" }}
           surtitre={`Messagerie${nonLues > 0 ? ` · ${nonLues} non lue${nonLues > 1 ? "s" : ""}` : ""}`}
           titre="Messages"
+          intro="Tes échanges avec les organisateurs qui t'ont contacté depuis ton CV."
         />
 
         <Apparition delai={0.08}>

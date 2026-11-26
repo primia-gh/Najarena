@@ -70,7 +70,7 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
           titre="Lier mon Riot ID"
           intro="Cette vérification prouve que le compte t'appartient — elle sert de base à ton CV e-sport vérifié."
         />
-        <Apparition>
+        <Apparition delai={0.08}>
           <ol className="grid grid-cols-3 gap-3" aria-label="Étapes de la vérification">
             {["Riot ID", "Icône de profil", "Vérifié"].map((libelle, i) => {
               const n = i + 1;

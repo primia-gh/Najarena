@@ -29,7 +29,8 @@ interface EnTetePageProps {
    *  (pages légales, où il est l'élément principal). */
   sansApparition?: boolean;
   /** Page de formulaire (profil, création d'équipe, de tournoi…) : titre
-   *  en text-sous-titre, règle du 09/10/2026 (jamais text-section). */
+   *  en text-sous-titre, règle du 09/10/2026 (jamais text-section),
+   *  et introduction en taille de base comme avant la migration. */
   formulaire?: boolean;
 }
 
