@@ -16,6 +16,7 @@ import { jeSuisLa, quitterDivision, sInscrireDivision } from "@/lib/division-act
 import PouleDivision, { type JoueurPoule, type RencontrePoule } from "@/components/divisions/PouleDivision";
 import type { NiveauVerdict } from "@/lib/tournois";
 import { BadgeVerdict } from "@/components/design/Badges";
+import EtatVide from "@/components/design/EtatVide";
 import PastilleResultat from "@/components/design/PastilleResultat";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
@@ -406,7 +407,14 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
               </div>
             </>
           ) : (
-            <p className="text-sm text-muted">Pas de ligue en cours sur {region} : inscris-toi à la prochaine.</p>
+            <EtatVide
+              titre={`Pas de ligue en cours sur ${region}.`}
+              actions={
+                <BoutonLien href="#inscription" variante="secondaire">
+                  S&apos;inscrire à la prochaine
+                </BoutonLien>
+              }
+            />
           )}
         </section>
 

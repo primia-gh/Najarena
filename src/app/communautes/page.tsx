@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import FondEcailles from "@/components/design/FondEcailles";
+import EtatVide from "@/components/design/EtatVide";
 import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
-import Panneau from "@/components/design/Panneau";
 
 // Liste des espaces communauté (03/10/2026, audit N30), les plus grands
 // d'abord.
@@ -52,11 +52,16 @@ export default async function CommunautesPage() {
         />
 
         {communautes.length === 0 ? (
-          <Panneau className="p-6">
-            <p className="text-sm text-muted">
-              Aucune communauté pour l&apos;instant. Crée la première pour ton serveur Discord ou ton association.
-            </p>
-          </Panneau>
+          <EtatVide
+            titre="Aucune communauté pour l'instant."
+            actions={
+              <BoutonLien href="/communaute/nouvelle" variante="secondaire">
+                Créer une communauté
+              </BoutonLien>
+            }
+          >
+            Crée la première pour ton serveur Discord, ton association ou ton école.
+          </EtatVide>
         ) : (
           <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {communautes.map((c) => (

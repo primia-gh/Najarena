@@ -8,6 +8,7 @@ import { estUnLundi, lundiDeLaSemaine, resumeCompetitions } from "@/lib/recap-se
 import { chargerRecapSemaine } from "@/lib/recap-semaine-serveur";
 import { dateLongue } from "@/lib/saisons";
 import FondEcailles from "@/components/design/FondEcailles";
+import EtatVide from "@/components/design/EtatVide";
 import Apparition from "@/components/design/Apparition";
 import EnTetePage from "@/components/design/EnTetePage";
 import Panneau from "@/components/design/Panneau";
@@ -88,9 +89,9 @@ export default async function RecapSemainePage({ params }: SemainePageProps) {
 
         <Apparition delai={0.08}>
           {!recap ? (
-            <p className="mt-8 text-sm text-muted">
-              Aucun tournoi clôturé cette semaine. Le classement ne bouge qu&apos;à la clôture d&apos;un tournoi.
-            </p>
+            <EtatVide className="mt-8" titre="Aucun tournoi clôturé cette semaine.">
+              Le classement ne bouge qu&apos;à la clôture d&apos;un tournoi.
+            </EtatVide>
           ) : (
             <div className="mt-8 flex flex-col gap-4">
               <p className="text-sm text-text-2">

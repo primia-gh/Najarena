@@ -25,6 +25,7 @@ import {
   retirerMembreCommunaute,
 } from "@/lib/communaute-actions";
 import FondEcailles from "@/components/design/FondEcailles";
+import EtatVide from "@/components/design/EtatVide";
 import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonLien from "@/components/design/BoutonLien";
@@ -329,12 +330,11 @@ export default async function CommunautePage({ params, searchParams }: Communaut
         <section className="flex flex-col gap-4">
           <LibelleSection as="h2">Tournois</LibelleSection>
           {tournois.length === 0 ? (
-            <Panneau className="p-6">
-              <p className="text-sm text-muted">
-                Aucun tournoi publié dans la communauté pour l&apos;instant.
-                {gere ? " Organise le premier : il apparaîtra ici et sur la liste des tournois." : ""}
-              </p>
-            </Panneau>
+            <EtatVide titre="Aucun tournoi publié pour l'instant.">
+              {gere
+                ? "Organise le premier : il apparaîtra ici et sur la liste des tournois."
+                : "Les tournois de la communauté apparaîtront ici."}
+            </EtatVide>
           ) : (
             <ul className="flex flex-col gap-2">
               {[...[...enCours].reverse(), ...passes].map((t) => (

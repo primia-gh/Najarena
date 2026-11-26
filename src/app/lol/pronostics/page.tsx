@@ -11,6 +11,8 @@ import {
   type MatchPronostiquable,
 } from "@/lib/pronostics";
 import FondEcailles from "@/components/design/FondEcailles";
+import EtatVide from "@/components/design/EtatVide";
+import BoutonLien from "@/components/design/BoutonLien";
 import EnTetePage from "@/components/design/EnTetePage";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
@@ -110,16 +112,18 @@ export default async function PronosticsPage() {
         <section className="flex flex-col gap-4">
           <LibelleSection as="h2">À pronostiquer maintenant</LibelleSection>
           {ouverts.length === 0 ? (
-            <Panneau className="p-6">
-              <p className="text-sm text-muted">
-                Aucun match ouvert aux pronostics pour l&apos;instant : ils ouvrent dès que les adversaires d&apos;une
-                demi-finale ou d&apos;une finale sont connus, et ferment dès qu&apos;un joueur se déclare prêt (
-                {DELAI_PRONOSTIC_MINUTES} minutes après l&apos;ouverture du match au plus tard).{" "}
-                <Link href="/lol/tournois" className="text-accent underline underline-offset-3">
+            <EtatVide
+              titre="Aucun match à pronostiquer pour l'instant."
+              actions={
+                <BoutonLien href="/lol/tournois" variante="secondaire">
                   Voir les tournois
-                </Link>
-              </p>
-            </Panneau>
+                </BoutonLien>
+              }
+            >
+              Les pronostics ouvrent dès que les adversaires d&apos;une demi-finale ou d&apos;une finale sont connus, et
+              ferment dès qu&apos;un joueur se déclare prêt ({DELAI_PRONOSTIC_MINUTES} minutes après l&apos;ouverture du
+              match au plus tard).
+            </EtatVide>
           ) : (
             <ul className="grid gap-4 md:grid-cols-2">
               {ouverts.map((m) => {

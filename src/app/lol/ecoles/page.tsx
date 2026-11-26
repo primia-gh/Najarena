@@ -4,10 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { arrondir } from "@/lib/classement";
 import { classementEcoles, ETUDIANTS_CLASSEMENT_ECOLES, libelleDomaines } from "@/lib/ecoles";
 import FondEcailles from "@/components/design/FondEcailles";
+import EtatVide from "@/components/design/EtatVide";
 import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
-import Panneau from "@/components/design/Panneau";
 import Tableau from "@/components/design/Tableau";
 
 // Ligue des écoles (04/10/2026, analyse concurrentielle de l'audit :
@@ -79,12 +79,10 @@ export default async function EcolesPage() {
         <section className="flex flex-col gap-4">
           <LibelleSection as="h2">Classement — saison en cours</LibelleSection>
           {classees.length === 0 ? (
-            <Panneau className="p-6">
-              <p className="text-sm text-muted">
-                Aucune école classée pour l&apos;instant : il faut {ETUDIANTS_CLASSEMENT_ECOLES} membres vérifiés
-                entrés au classement (une dizaine de matchs vérifiés chacun) pour y figurer.
-              </p>
-            </Panneau>
+            <EtatVide titre="Aucune école classée pour l'instant.">
+              Il faut {ETUDIANTS_CLASSEMENT_ECOLES} membres vérifiés entrés au classement (une dizaine de matchs vérifiés
+              chacun) pour y figurer.
+            </EtatVide>
           ) : (
             <Tableau legende="Classement des écoles, saison en cours">
               <thead>

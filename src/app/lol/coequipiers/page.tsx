@@ -11,6 +11,7 @@ import { formaterDate } from "@/lib/tournois";
 import { LIBELLE_TYPE_ECHEANCE, typeEcheance } from "@/lib/echeances";
 import { LABEL_ROLE, ROLES, type Role } from "@/lib/roles";
 import Alerte from "@/components/design/Alerte";
+import EtatVide from "@/components/design/EtatVide";
 import Apparition from "@/components/design/Apparition";
 import EnTetePage from "@/components/design/EnTetePage";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -279,13 +280,10 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                 </p>
               )}
               {annonces.length === 0 ? (
-                <Panneau reperes className="flex flex-col items-start gap-3 p-8">
-                  <p className="font-titre text-3xl font-black uppercase">Personne pour l&apos;instant.</p>
-                  <p className="max-w-md text-text-2">
-                    Aucun joueur ne s&apos;est encore déclaré disponible{echeanceFiltree ? " pour cette échéance" : ""}.
-                    Publie la première annonce.
-                  </p>
-                </Panneau>
+                <EtatVide titre="Personne pour l'instant.">
+                  Aucun joueur ne s&apos;est encore déclaré disponible{echeanceFiltree ? " pour cette échéance" : ""}.
+                  Publie la première annonce.
+                </EtatVide>
               ) : (
                 <ul className="grid gap-4 xl:grid-cols-2">
                   {annonces.map((a) => {

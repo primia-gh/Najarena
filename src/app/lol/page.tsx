@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { COLONNES_TOURNOI_LISTE, INSCRIPTIONS_ACTIVES, versTournoiListe } from "@/lib/tournois";
 import FondEcailles from "@/components/design/FondEcailles";
+import EtatVide from "@/components/design/EtatVide";
 import Apparition from "@/components/design/Apparition";
 import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
@@ -303,17 +304,19 @@ export default async function LolHubPage() {
 
           {prochainsTournois.length === 0 ? (
             <Apparition delai={0.08}>
-              <Panneau reperes className="flex flex-col items-start gap-4 px-8 py-10">
-                <p className="font-titre text-sous-titre font-extrabold uppercase">Aucun tournoi ouvert pour l&apos;instant.</p>
-                <div className="flex flex-wrap gap-x-8 gap-y-2">
-                  <BoutonLien href="/organiser/nouveau" variante="secondaire">
-                    Organiser le premier
-                  </BoutonLien>
-                  <BoutonLien href="/lol/tournois/demo" variante="secondaire">
-                    Voir le tournoi d&apos;exemple
-                  </BoutonLien>
-                </div>
-              </Panneau>
+              <EtatVide
+                titre="Aucun tournoi ouvert pour l'instant."
+                actions={
+                  <>
+                    <BoutonLien href="/organiser/nouveau" variante="secondaire">
+                      Organiser le premier
+                    </BoutonLien>
+                    <BoutonLien href="/lol/tournois/demo" variante="secondaire">
+                      Voir le tournoi d&apos;exemple
+                    </BoutonLien>
+                  </>
+                }
+              />
             </Apparition>
           ) : (
             <Apparition delai={0.08}>

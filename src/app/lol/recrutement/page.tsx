@@ -9,6 +9,7 @@ import { formaterDate } from "@/lib/tournois";
 import { classeChamp } from "@/lib/design";
 import { typographie } from "@/lib/typographie";
 import Apparition from "@/components/design/Apparition";
+import EtatVide from "@/components/design/EtatVide";
 import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
@@ -174,20 +175,23 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
               <span className="text-faint tabular-nums">· {(annonces ?? []).length}</span>
             </LibelleSection>
             {(annonces ?? []).length === 0 ? (
-              <Panneau reperes className="flex flex-col items-start gap-3 p-8">
-                <p className="font-titre text-3xl font-black uppercase">Aucune équipe ne recrute ici.</p>
-                <p className="max-w-md text-text-2">
-                  {typographie(
-                    "Publie une annonce « cherche une équipe » pour que les capitaines te trouvent, ou crée ton équipe et recrute.",
-                  )}
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <BoutonLien href="/lol/coequipiers">Je cherche une équipe</BoutonLien>
-                  <BoutonLien href="/equipe/nouvelle" variante="contour">
-                    Créer une équipe
-                  </BoutonLien>
-                </div>
-              </Panneau>
+              <EtatVide
+                titre="Aucune équipe ne recrute ici."
+                actions={
+                  <>
+                    <BoutonLien href="/lol/coequipiers" variante="secondaire">
+                      Je cherche une équipe
+                    </BoutonLien>
+                    <BoutonLien href="/equipe/nouvelle" variante="secondaire">
+                      Créer une équipe
+                    </BoutonLien>
+                  </>
+                }
+              >
+                {typographie(
+                  "Publie une annonce « cherche une équipe » pour que les capitaines te trouvent, ou crée ton équipe et recrute.",
+                )}
+              </EtatVide>
             ) : (
               <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {(annonces ?? []).map((a) => {

@@ -5,6 +5,7 @@ import { arrondir, progressionPalier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { dateLongue, joursRestants, libelleJoursRestants, periodeSaison } from "@/lib/saisons";
 import FondEcailles from "@/components/design/FondEcailles";
+import EtatVide from "@/components/design/EtatVide";
 import Apparition from "@/components/design/Apparition";
 import EnTetePage from "@/components/design/EnTetePage";
 import Panneau from "@/components/design/Panneau";
@@ -140,10 +141,9 @@ export default async function SaisonsPage() {
               Saisons terminées
             </LibelleSection>
             {archives.length === 0 ? (
-              <p className="text-sm text-muted">
-                Aucune saison terminée pour l&apos;instant : le premier classement final sera archivé ici à la fin de la
-                saison en cours.
-              </p>
+              <EtatVide titre="Aucune saison terminée pour l'instant.">
+                Le premier classement final sera archivé ici à la fin de la saison en cours.
+              </EtatVide>
             ) : (
               archives.map(({ saison, top, total }) => (
                 <div key={saison.id} className="flex flex-col gap-3">

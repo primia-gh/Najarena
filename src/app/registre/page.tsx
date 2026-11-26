@@ -6,8 +6,8 @@ import { formaterDate } from "@/lib/tournois";
 import { empreinteCourte, LABEL_MOTIF_REGISTRE } from "@/lib/registre";
 import { URL_SITE } from "@/lib/notifications";
 import { adresseFichier, depotAncrage } from "@/lib/ancrage-github";
-import { classeCarte } from "@/lib/ui";
 import FondEcailles from "@/components/design/FondEcailles";
+import EtatVide from "@/components/design/EtatVide";
 import Apparition from "@/components/design/Apparition";
 import EnTetePage from "@/components/design/EnTetePage";
 import Panneau from "@/components/design/Panneau";
@@ -184,9 +184,10 @@ export default async function RegistrePage() {
               Dernières lignes
             </LibelleSection>
             {!lignes || lignes.length === 0 ? (
-              <p className={"mt-3 " + classeCarte("none") + " text-sm text-muted"}>
-                Le registre est vide : aucun tournoi n&apos;a encore été clôturé.
-              </p>
+              <EtatVide className="mt-3" titre="Le registre est vide.">
+                Aucun tournoi n&apos;a encore été clôturé. La première ligne s&apos;inscrira à la clôture du premier
+                tournoi classé.
+              </EtatVide>
             ) : (
               <Tableau legende="Dernières lignes du registre des points" className="mt-3">
                 <thead>
