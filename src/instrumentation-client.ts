@@ -8,7 +8,7 @@
 // désormais dans un fichier à part, une fois la page chargée et le
 // navigateur libre. Les erreurs survenues avant son arrivée ne sont pas
 // perdues : elles sont gardées puis transmises dès qu'il est prêt.
-import type * as SentryModule from "@sentry/nextjs";
+import type * as SentryModule from "@/lib/sentry-navigateur";
 
 const DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -27,7 +27,7 @@ function garderRejet(evenement: PromiseRejectionEvent) {
 }
 
 function chargerSentry() {
-  void import("@sentry/nextjs").then((module) => {
+  void import("@/lib/sentry-navigateur").then((module) => {
     module.init({
       dsn: DSN,
       tracesSampleRate: 0.1,
