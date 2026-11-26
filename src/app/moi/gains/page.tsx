@@ -6,7 +6,7 @@ import { cashPrizesActifs, formaterEuros, LIBELLE_RANG } from "@/lib/dotations";
 import { LIBELLE_STATUT_VERSEMENT, PAYS_VERSEMENT } from "@/lib/versements-stripe";
 import { ouvrirCompteVersement } from "@/lib/versement-actions";
 import FondEcailles from "@/components/design/FondEcailles";
-import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
@@ -53,20 +53,12 @@ export default async function GainsPage({ searchParams }: GainsPageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille *:max-w-3xl">
-        <Apparition>
-          <Link
-            href="/moi"
-            className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            ← Mon compte
-          </Link>
-          <h1 className="mt-6 font-titre text-section font-black tracking-[1px] uppercase">Mes gains</h1>
-          <p className="mt-3 text-courant text-text-2">
-            Les dotations sont financées par des sponsors : l&apos;inscription aux tournois reste gratuite. Pour
-            recevoir un gain, fais vérifier ton identité par Stripe, notre prestataire de paiement ; Najarena ne voit
-            ni ta pièce d&apos;identité ni tes coordonnées bancaires.
-          </p>
-        </Apparition>
+        <EnTetePage
+          retour={{ href: "/moi", libelle: "Mon compte" }}
+          surtitre="Dotations"
+          titre="Mes gains"
+          intro="Les dotations sont financées par des sponsors : l'inscription aux tournois reste gratuite. Pour recevoir un gain, fais vérifier ton identité par Stripe, notre prestataire de paiement ; Najarena ne voit ni ta pièce d'identité ni tes coordonnées bancaires."
+        />
 
         {erreur && <Alerte type="erreur">{erreur}</Alerte>}
         {message && <Alerte type="succes">{message}</Alerte>}

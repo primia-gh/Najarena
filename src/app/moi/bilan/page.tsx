@@ -26,7 +26,7 @@ import { hygieneDeJeu } from "@/lib/hygiene-jeu";
 import { carteDesMorts } from "@/lib/carte-morts";
 import { chargerDonneesJeu, estObjetDeBuild } from "@/lib/ddragon";
 import FondEcailles from "@/components/design/FondEcailles";
-import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import Panneau from "@/components/design/Panneau";
 import VueBilan, { MethodeBilan, type ExtrasClassees } from "@/components/bilan/VueBilan";
@@ -148,19 +148,12 @@ export default async function BilanPage({ searchParams }: BilanPageProps) {
   );
 
   const enTete = (
-    <Apparition>
-      <Link
-        href="/moi"
-        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-      >
-        ← Mon compte
-      </Link>
-      <h1 className="mt-6 font-titre text-section font-black tracking-[1px] uppercase">Mon bilan</h1>
-      <p className="mt-3 max-w-3xl text-courant text-text-2">
-        Ce que disent tes parties vérifiées : tes forces, ce qui te coûte des victoires, et quoi travailler. Chaque
-        constat donne ses chiffres et le nombre de parties sur lequel il repose. Visible de toi seul.
-      </p>
-    </Apparition>
+    <EnTetePage
+      retour={{ href: "/moi", libelle: "Mon compte" }}
+      surtitre="Analyse"
+      titre="Mon bilan"
+      intro="Ce que disent tes parties vérifiées : tes forces, ce qui te coûte des victoires, et quoi travailler. Chaque constat donne ses chiffres et le nombre de parties sur lequel il repose. Visible de toi seul."
+    />
   );
 
   const retours = (

@@ -496,7 +496,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
           <div className="mt-4 flex flex-col gap-2">
             <h3 className="font-texte text-mini font-medium text-muted uppercase">Propositions reçues</h3>
             {propositionsRecues.map((p) => (
-              <div key={p.id} className={"flex flex-col gap-3 " + classeCarte("atteste")}>
+              <div key={p.id} className={"flex flex-col gap-3 " + classeCarte("ardoise")}>
                 <p className="text-sm text-text">
                   {p.equipe_a ? (
                     <Link href={`/equipe/${p.equipe_a.slug}`} className="font-semibold hover:underline">

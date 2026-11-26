@@ -12,12 +12,11 @@ import { chargerOffre } from "@/lib/offres";
 import { AssistantOrganisateur } from "@/components/AssistantOrganisateur";
 import { classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
+import EnTetePage from "@/components/design/EnTetePage";
 import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import FondEcailles from "@/components/design/FondEcailles";
 import { Champ, Choix, GroupeFormulaire } from "@/components/design/Formulaire";
-import Icone from "@/components/design/Icone";
-import LibelleSection from "@/components/design/LibelleSection";
 
 export const metadata: Metadata = {
   title: "Organiser un tournoi — Najarena",
@@ -80,29 +79,23 @@ export default async function OrganiserNouveauPage({
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille *:max-w-xl">
-        <Apparition>
-          <Link
-            href="/moi"
-            className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            <Icone nom="fleche-gauche" taille={14} />
-            Mon compte
-          </Link>
-          <LibelleSection className="mt-6">League of Legends</LibelleSection>
-          <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Organiser un tournoi</h1>
-          <p className="mt-4 text-text-2">
-            En 1v1 ou en 5v5. Une fois publié, ton tournoi apparaît immédiatement dans la liste et les joueurs peuvent
-            s&apos;inscrire ; en brouillon, il reste visible de toi seul.
-          </p>
-          {estOrganisateurPremium && (
-            <Link
-              href="/lol/recherche"
-              className="mt-3 inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent"
-            >
-              Rechercher des joueurs à recruter
-            </Link>
-          )}
-        </Apparition>
+        <EnTetePage
+          formulaire
+          retour={{ href: "/moi", libelle: "Mon compte" }}
+          surtitre="League of Legends"
+          titre="Organiser un tournoi"
+          intro="En 1v1 ou en 5v5. Une fois publié, ton tournoi apparaît immédiatement dans la liste et les joueurs peuvent s'inscrire ; en brouillon, il reste visible de toi seul."
+          actions={
+            estOrganisateurPremium && (
+              <Link
+                href="/lol/recherche"
+                className="inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent"
+              >
+                Rechercher des joueurs à recruter
+              </Link>
+            )
+          }
+        />
 
         {erreur && <Alerte type="erreur">{erreur}</Alerte>}
 

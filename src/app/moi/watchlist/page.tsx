@@ -8,13 +8,12 @@ import { arrondir, trouverPalier, type Palier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
 import { formaterDate } from "@/lib/tournois";
 import Alerte from "@/components/design/Alerte";
+import EtatVide from "@/components/design/EtatVide";
+import EnTetePage from "@/components/design/EnTetePage";
 import Apparition from "@/components/design/Apparition";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
-import Icone from "@/components/design/Icone";
-import LibelleSection from "@/components/design/LibelleSection";
-import Panneau from "@/components/design/Panneau";
 import Tableau from "@/components/design/Tableau";
 
 export const metadata: Metadata = {
@@ -70,23 +69,17 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille">
-        <Apparition className="flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <Link
-              href="/moi"
-              className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-            >
-              <Icone nom="fleche-gauche" taille={14} />
-              Mon compte
-            </Link>
-            <LibelleSection className="mt-6">Offre Organisateur · {suivis.length} suivi{suivis.length > 1 ? "s" : ""}</LibelleSection>
-            <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Ma watchlist</h1>
-            <p className="mt-4 max-w-2xl text-text-2">Les joueurs que tu suis, avec leur palier et leur rating actuels.</p>
-          </div>
-          <BoutonLien href="/lol/recherche" variante="contour">
-            Rechercher des joueurs
-          </BoutonLien>
-        </Apparition>
+        <EnTetePage
+          retour={{ href: "/moi", libelle: "Mon compte" }}
+          surtitre={`Offre Organisateur · ${suivis.length} suivi${suivis.length > 1 ? "s" : ""}`}
+          titre="Ma watchlist"
+          intro="Les joueurs que tu suis, avec leur palier et leur rating actuels."
+          aside={
+            <BoutonLien href="/lol/recherche" variante="contour">
+              Rechercher des joueurs
+            </BoutonLien>
+          }
+        />
 
         {(erreur || message) && (
           <div className="flex max-w-2xl flex-col gap-3">
@@ -97,10 +90,16 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
 
         <Apparition delai={0.08}>
           {suivis.length === 0 ? (
-            <Panneau reperes className="flex flex-col items-start gap-4 p-8">
-              <p className="font-titre text-3xl font-black uppercase">Aucun joueur suivi.</p>
-              <p className="text-text-2">Suis un joueur depuis la recherche ou depuis son CV (bouton « Suivre »).</p>
-            </Panneau>
+            <EtatVide
+              titre="Aucun joueur suivi."
+              actions={
+                <BoutonLien href="/lol/recherche" variante="secondaire">
+                  Rechercher des joueurs
+                </BoutonLien>
+              }
+            >
+              Suis un joueur depuis la recherche ou depuis son CV (bouton « Suivre »).
+            </EtatVide>
           ) : (
             <Tableau legende="Joueurs suivis">
               <thead>

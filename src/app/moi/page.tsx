@@ -10,7 +10,7 @@ import { chargerOffre } from "@/lib/offres";
 import { estStatutPublic, formaterDate, grouperTournois } from "@/lib/tournois";
 import { arrondir, trouverPalier } from "@/lib/classement";
 import { COULEUR_PALIER } from "@/lib/paliers";
-import { classeChamp } from "@/lib/design";
+import { classeBoutonContour, classeChamp } from "@/lib/design";
 import { accepterInvitation, refuserInvitation } from "@/lib/equipe-actions";
 import PushOptIn from "@/components/PushOptIn";
 import SectionTitre from "@/components/ui/SectionTitre";
@@ -475,7 +475,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                     </label>
                     <button
                       type="submit"
-                      className="inline-flex min-h-11 cursor-pointer items-center rounded-bouton border border-line-strong px-4 text-sm text-text-2 hover:border-[rgba(245,245,244,0.25)] hover:text-text"
+                      className={`${classeBoutonContour()} cursor-pointer px-4! py-2! text-xs!`}
                     >
                       Enregistrer
                     </button>
@@ -506,7 +506,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                       <button
                         type="submit"
                         aria-label={`Accepter l'invitation de ${a.team?.nom}`}
-                        className="inline-flex min-h-11 cursor-pointer items-center rounded-bouton border border-line-strong px-4 text-sm font-semibold hover:border-accent hover:text-accent"
+                        className={`${classeBoutonContour()} cursor-pointer px-4! py-2! text-xs!`}
                       >
                         Accepter
                       </button>

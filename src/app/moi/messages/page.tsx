@@ -4,11 +4,10 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { formaterDate } from "@/lib/tournois";
 import FondEcailles from "@/components/design/FondEcailles";
+import EtatVide from "@/components/design/EtatVide";
+import EnTetePage from "@/components/design/EnTetePage";
 import Apparition from "@/components/design/Apparition";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
-import Icone from "@/components/design/Icone";
-import LibelleSection from "@/components/design/LibelleSection";
-import Panneau from "@/components/design/Panneau";
 
 export const metadata: Metadata = {
   title: "Messages — Najarena",
@@ -68,29 +67,18 @@ export default async function MessagesPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille *:max-w-3xl">
-        <Apparition>
-          <Link
-            href="/moi"
-            className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            <Icone nom="fleche-gauche" taille={14} />
-            Mon compte
-          </Link>
-          <LibelleSection className="mt-6">
-            Messagerie{nonLues > 0 ? ` · ${nonLues} non lue${nonLues > 1 ? "s" : ""}` : ""}
-          </LibelleSection>
-          <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Messages</h1>
-        </Apparition>
+        <EnTetePage
+          retour={{ href: "/moi", libelle: "Mon compte" }}
+          surtitre={`Messagerie${nonLues > 0 ? ` · ${nonLues} non lue${nonLues > 1 ? "s" : ""}` : ""}`}
+          titre="Messages"
+        />
 
         <Apparition delai={0.08}>
           {triees.length === 0 ? (
-            <Panneau reperes className="flex flex-col items-start gap-4 p-8">
-              <p className="font-titre text-3xl font-black uppercase">Aucune conversation.</p>
-              <p className="text-text-2">
-                Une conversation s&apos;ouvre quand un organisateur te contacte depuis ton CV (bouton « Contacter », offre
-                Organisateur). Tu lui réponds ensuite ici.
-              </p>
-            </Panneau>
+            <EtatVide titre="Aucune conversation.">
+              Une conversation s&apos;ouvre quand un organisateur te contacte depuis ton CV (bouton « Contacter », offre
+              Organisateur). Tu lui réponds ensuite ici.
+            </EtatVide>
           ) : (
             <ul className="border-t border-line-strong">
               {triees.map((c) => {

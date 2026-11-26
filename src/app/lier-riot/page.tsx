@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -15,6 +14,7 @@ import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import { REGIONS, obtenirVersionDDragon, urlIconeProfil } from "@/lib/riot";
 import { classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
+import EnTetePage from "@/components/design/EnTetePage";
 import Apparition from "@/components/design/Apparition";
 import { BadgeVerifie } from "@/components/design/Badges";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -63,20 +63,15 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille *:max-w-xl">
+        <EnTetePage
+          formulaire
+          retour={{ href: "/moi", libelle: "Mon compte" }}
+          surtitre="Compte Riot"
+          titre="Lier mon Riot ID"
+          intro="Cette vérification prouve que le compte t'appartient — elle sert de base à ton CV e-sport vérifié."
+        />
         <Apparition>
-          <Link
-            href="/moi"
-            className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            <Icone nom="fleche-gauche" taille={14} />
-            Mon compte
-          </Link>
-          <LibelleSection className="mt-6">Compte Riot</LibelleSection>
-          <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Lier mon Riot ID</h1>
-          <p className="mt-4 text-text-2">
-            Cette vérification prouve que le compte t&apos;appartient — elle sert de base à ton CV e-sport vérifié.
-          </p>
-          <ol className="mt-8 grid grid-cols-3 gap-3" aria-label="Étapes de la vérification">
+          <ol className="grid grid-cols-3 gap-3" aria-label="Étapes de la vérification">
             {["Riot ID", "Icône de profil", "Vérifié"].map((libelle, i) => {
               const n = i + 1;
               const fait = n < etape || etape === 3;

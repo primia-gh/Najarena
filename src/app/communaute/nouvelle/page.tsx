@@ -7,13 +7,12 @@ import { COMMUNAUTES_MAX_PAR_ORGANISATEUR, COULEUR_COMMUNAUTE_DEFAUT } from "@/l
 import { creerCommunaute } from "@/lib/communaute-actions";
 import { classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
+import EnTetePage from "@/components/design/EnTetePage";
 import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
 import { Champ } from "@/components/design/Formulaire";
-import Icone from "@/components/design/Icone";
-import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 
 // Création d'un espace communauté (audit N30) : offre Organisateur, trois
@@ -39,21 +38,20 @@ export default async function NouvelleCommunautePage({ searchParams }: NouvelleC
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille *:max-w-xl">
-        <Apparition>
-          <Link
-            href="/communautes"
-            className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            <Icone nom="fleche-gauche" taille={14} />
-            Communautés
-          </Link>
-          <LibelleSection className="mt-6">Offre Organisateur</LibelleSection>
-          <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Créer une communauté</h1>
-          <p className="mt-4 text-text-2">
-            Une page pour ton serveur Discord ou ton association : tes tournois, ton classement interne et tes
-            membres. {COMMUNAUTES_MAX_PAR_ORGANISATEUR} communautés au plus.
-          </p>
-          <p className="mt-3 text-sm text-muted">
+        <div className="flex flex-col gap-4">
+          <EnTetePage
+            formulaire
+            retour={{ href: "/communautes", libelle: "Communautés" }}
+            surtitre="Offre Organisateur"
+            titre="Créer une communauté"
+            intro={
+              <>
+                Une page pour ton serveur Discord ou ton association : tes tournois, ton classement interne et tes
+                membres. {COMMUNAUTES_MAX_PAR_ORGANISATEUR} communautés au plus.
+              </>
+            }
+          />
+          <p className="text-sm text-muted">
             Association d&apos;une école ou d&apos;une université ? Une fois la communauté créée, indique le domaine
             des adresses de l&apos;établissement depuis sa page : elle devient une école et entre dans la{" "}
             <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
@@ -61,7 +59,7 @@ export default async function NouvelleCommunautePage({ searchParams }: NouvelleC
             </Link>
             .
           </p>
-        </Apparition>
+        </div>
 
         {erreur && <Alerte type="erreur">{erreur}</Alerte>}
 

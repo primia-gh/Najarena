@@ -22,6 +22,8 @@ import {
 import { suivreJoueur } from "@/lib/watchlist-actions";
 import { classeBoutonContour, classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
+import EtatVide from "@/components/design/EtatVide";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import { typographie } from "@/lib/typographie";
 import Apparition from "@/components/design/Apparition";
@@ -161,30 +163,19 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille">
-        <Apparition className="flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <Link
-              href="/moi"
-              className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-            >
-              <Icone nom="fleche-gauche" taille={14} />
-              Mon compte
-            </Link>
-            <LibelleSection className="mt-6">Offre Organisateur</LibelleSection>
-            <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Recherche de joueurs</h1>
-            <p className="mt-4 max-w-2xl text-text-2">
-              {typographie(
-                "Parmi tous les comptes Riot vérifiés. Niveau, progression, activité et fiabilité sont lus dans des parties vérifiées ; seuls le poste et les annonces « cherche une équipe » ou « cherche un duo » sont déclarés par le joueur.",
-              )}
-            </p>
-          </div>
-          <Link
-            href="/moi/watchlist"
-            className="inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent"
-          >
-            Ma watchlist
-          </Link>
-        </Apparition>
+        <EnTetePage
+          retour={{ href: "/moi", libelle: "Mon compte" }}
+          surtitre="Offre Organisateur"
+          titre="Recherche de joueurs"
+          intro={typographie(
+            "Parmi tous les comptes Riot vérifiés. Niveau, progression, activité et fiabilité sont lus dans des parties vérifiées ; seuls le poste et les annonces « cherche une équipe » ou « cherche un duo » sont déclarés par le joueur.",
+          )}
+          aside={
+            <BoutonLien href="/moi/watchlist" variante="contour">
+              Ma watchlist
+            </BoutonLien>
+          }
+        />
 
         {(erreur || message) && (
           <div className="flex max-w-2xl flex-col gap-3">
@@ -345,17 +336,18 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                   : "La recherche est indisponible pour l'instant : réessaie dans un moment."}
               </Alerte>
             ) : resultats.length === 0 ? (
-              <Panneau reperes className="flex flex-col items-start gap-3 p-8">
-                <p className="font-titre text-3xl font-black uppercase">Aucun joueur.</p>
-                <p className="max-w-md text-text-2">
-                  {typographie("Personne ne correspond à tous ces critères : élargis la recherche en retirant un filtre.")}
-                </p>
-                {actifs && (
-                  <BoutonLien href="/lol/recherche" variante="contour">
-                    Réinitialiser les filtres
-                  </BoutonLien>
-                )}
-              </Panneau>
+              <EtatVide
+                titre="Aucun joueur."
+                actions={
+                  actifs && (
+                    <BoutonLien href="/lol/recherche" variante="secondaire">
+                      Réinitialiser les filtres
+                    </BoutonLien>
+                  )
+                }
+              >
+                {typographie("Personne ne correspond à tous ces critères : élargis la recherche en retirant un filtre.")}
+              </EtatVide>
             ) : (
               <Tableau legende="Joueurs correspondant à la recherche">
                 <thead>

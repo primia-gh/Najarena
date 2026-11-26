@@ -28,6 +28,9 @@ interface EnTetePageProps {
   /** Sans fondu d'apparition : titre visible dès le premier affichage
    *  (pages légales, où il est l'élément principal). */
   sansApparition?: boolean;
+  /** Page de formulaire (profil, création d'équipe, de tournoi…) : titre
+   *  en text-sous-titre, règle du 09/10/2026 (jamais text-section). */
+  formulaire?: boolean;
 }
 
 export default function EnTetePage({
@@ -40,6 +43,7 @@ export default function EnTetePage({
   classeTitre = "",
   classeIntro = "",
   sansApparition = false,
+  formulaire = false,
 }: EnTetePageProps) {
   const Conteneur = sansApparition ? "div" : Apparition;
   return (
@@ -56,11 +60,11 @@ export default function EnTetePage({
         )}
         {surtitre && <LibelleSection>{surtitre}</LibelleSection>}
         <h1
-          className={`${surtitre ? "mt-4" : ""} font-titre text-section font-black tracking-[1px] text-balance uppercase hyphens-auto [overflow-wrap:anywhere] ${classeTitre}`}
+          className={`${surtitre ? "mt-4" : ""} font-titre ${formulaire ? "text-sous-titre" : "text-section"} font-black tracking-[1px] text-balance uppercase hyphens-auto [overflow-wrap:anywhere] ${classeTitre}`}
         >
           {titre}
         </h1>
-        {intro && <p className={`mt-5 max-w-2xl text-courant text-text-2 ${classeIntro}`}>{intro}</p>}
+        {intro && <p className={`mt-5 max-w-2xl ${formulaire ? "" : "text-courant"} text-text-2 ${classeIntro}`}>{intro}</p>}
         {actions && <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">{actions}</div>}
       </div>
       {aside}

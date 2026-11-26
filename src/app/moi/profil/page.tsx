@@ -9,6 +9,7 @@ import { URL_SITE } from "@/lib/notifications";
 import { classeChamp } from "@/lib/design";
 import BoutonConfirmation from "@/components/ui/BoutonConfirmation";
 import Alerte from "@/components/design/Alerte";
+import EnTetePage from "@/components/design/EnTetePage";
 import { typographie } from "@/lib/typographie";
 import Panneau from "@/components/design/Panneau";
 import Apparition from "@/components/design/Apparition";
@@ -16,7 +17,6 @@ import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import FondEcailles from "@/components/design/FondEcailles";
 import { Champ, Choix, GroupeFormulaire } from "@/components/design/Formulaire";
 import Icone from "@/components/design/Icone";
-import LibelleSection from "@/components/design/LibelleSection";
 
 // Modifier mon profil (28/09/2026, audit E7) : pseudo, pays, visites
 // anonymes. Les règles sont appliquées par la base (modifier_mon_profil).
@@ -71,18 +71,13 @@ export default async function ModifierProfilPage({ searchParams }: ModifierProfi
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille *:max-w-xl">
-        <Apparition>
-          <Link
-            href="/moi"
-            className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            <Icone nom="fleche-gauche" taille={14} />
-            Mon compte
-          </Link>
-          <LibelleSection className="mt-6">Réglages</LibelleSection>
-          <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Modifier mon profil</h1>
-          <p className="mt-4 text-text-2">Ton pseudo est le nom affiché sur ton CV, dans les brackets et au classement.</p>
-        </Apparition>
+        <EnTetePage
+          formulaire
+          retour={{ href: "/moi", libelle: "Mon compte" }}
+          surtitre="Réglages"
+          titre="Modifier mon profil"
+          intro="Ton pseudo est le nom affiché sur ton CV, dans les brackets et au classement."
+        />
 
         {/* Première connexion par Discord (audit E7) : le pseudo d'abord. */}
         {premiere === "1" && pseudoAutomatique && (

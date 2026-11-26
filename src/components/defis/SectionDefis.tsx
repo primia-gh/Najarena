@@ -55,7 +55,7 @@ export default function SectionDefis({ defis }: { defis: MesDefis }) {
       {recus.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2">
           {recus.map((d) => (
-            <li key={d.id} className={"flex flex-wrap items-center justify-between gap-3 " + classeCarte("atteste")}>
+            <li key={d.id} className={"flex flex-wrap items-center justify-between gap-3 " + classeCarte("ardoise")}>
               <span className="text-sm text-text">
                 {d.autre ? (
                   <Link href={`/joueur/${d.autre.slug}`} className="font-semibold hover:text-accent">
@@ -104,7 +104,7 @@ export default function SectionDefis({ defis }: { defis: MesDefis }) {
           {invitations.map((d) => {
             const lien = `${URL_SITE}/defi/${d.code}`;
             return (
-              <li key={d.id} className={"flex flex-col gap-2 " + classeCarte("laiton")}>
+              <li key={d.id} className={"flex flex-col gap-2 " + classeCarte("ardoise")}>
                 <span className="text-sm text-text">
                   Lien de défi <span className="text-muted">· {regle(d.condition)} · valable jusqu&apos;au {formaterDate(d.expireLe)}</span>
                 </span>

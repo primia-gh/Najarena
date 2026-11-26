@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
@@ -6,12 +5,11 @@ import { creerEquipe } from "@/lib/equipe-actions";
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { classeChamp } from "@/lib/design";
 import Alerte from "@/components/design/Alerte";
+import EnTetePage from "@/components/design/EnTetePage";
 import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import FondEcailles from "@/components/design/FondEcailles";
 import { Champ } from "@/components/design/Formulaire";
-import Icone from "@/components/design/Icone";
-import LibelleSection from "@/components/design/LibelleSection";
 
 export const metadata: Metadata = {
   title: "Créer une équipe — Najarena",
@@ -35,21 +33,18 @@ export default async function EquipeNouvellePage({ searchParams }: EquipeNouvell
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille *:max-w-xl">
-        <Apparition>
-          <Link
-            href="/moi"
-            className="inline-flex min-h-11 items-center gap-2 font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            <Icone nom="fleche-gauche" taille={14} />
-            Mon compte
-          </Link>
-          <LibelleSection className="mt-6">League of Legends · 5v5</LibelleSection>
-          <h1 className="mt-3 font-titre text-sous-titre font-black uppercase">Créer une équipe</h1>
-          <p className="mt-4 text-text-2">
-            Pour jouer les tournois 5v5 : c&apos;est toi qui y inscriras l&apos;équipe. Tu en es automatiquement le
-            capitaine, avec jusqu&apos;à {TAILLE_MAX_EQUIPE - 1} coéquipiers à inviter ensuite.
-          </p>
-        </Apparition>
+        <EnTetePage
+          formulaire
+          retour={{ href: "/moi", libelle: "Mon compte" }}
+          surtitre="League of Legends · 5v5"
+          titre="Créer une équipe"
+          intro={
+            <>
+              Pour jouer les tournois 5v5 : c&apos;est toi qui y inscriras l&apos;équipe. Tu en es automatiquement le
+              capitaine, avec jusqu&apos;à {TAILLE_MAX_EQUIPE - 1} coéquipiers à inviter ensuite.
+            </>
+          }
+        />
 
         {erreur && <Alerte type="erreur">{erreur}</Alerte>}
 
