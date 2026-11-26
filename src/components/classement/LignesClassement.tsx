@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { COULEUR_PALIER } from "@/lib/paliers";
+import EmblemePalier from "@/components/design/EmblemePalier";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import ChiffreRating from "@/components/design/ChiffreRating";
 import Tableau from "@/components/design/Tableau";
@@ -27,7 +28,7 @@ function Palier({ nom }: { nom: string | null }) {
   if (!nom) return <span className="text-faint">—</span>;
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
-      <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: COULEUR_PALIER[nom.toLowerCase()] ?? "var(--color-muted)" }} />
+      <EmblemePalier palier={nom} taille={24} />
       {nom}
     </span>
   );
@@ -163,7 +164,10 @@ export function EchellePaliers({ paliers }: { paliers: { nom: string; ratingMin:
         return (
           <li key={p.nom} className="flex flex-col gap-2">
             <span aria-hidden="true" className="h-1 rounded-full" style={{ background: couleur }} />
-            <span className="font-texte text-mini font-semibold text-text uppercase">{p.nom}</span>
+            <EmblemePalier palier={p.nom} taille={48} className="mt-2" />
+            <span className="font-texte text-mini font-semibold uppercase" style={{ color: couleur }}>
+              {p.nom}
+            </span>
             <span className="text-sm text-muted tabular-nums">{seuil}</span>
           </li>
         );

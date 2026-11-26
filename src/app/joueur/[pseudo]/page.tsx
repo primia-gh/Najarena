@@ -1,5 +1,6 @@
 import { cache, Fragment } from "react";
 import Link from "next/link";
+import EmblemePalier from "@/components/design/EmblemePalier";
 import Image from "next/image";
 import { notFound, permanentRedirect } from "next/navigation";
 import { after } from "next/server";
@@ -484,6 +485,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
           ? "Palier maximal"
           : "Après le premier tournoi",
       couleur: couleurPalier,
+      embleme: true,
       // Un mot, pas un chiffre : composé plus petit, sinon « CHAMPION »
       // débordait sur la case voisine (relecture design du 12/10/2026).
       mot: true,
@@ -862,8 +864,8 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                     : "text-[clamp(2.25rem,3.6vw,3.25rem)]"
                 }`}
               >
-                {k.couleur && (
-                  <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full" style={{ background: k.couleur }} />
+                {"embleme" in k && k.embleme && (
+                  <EmblemePalier palier={complements.palier?.nom ?? null} taille={40} className="-my-1" />
                 )}
                 {k.valeur}
               </span>
