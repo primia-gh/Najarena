@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { progressionPalier, type Palier } from "@/lib/classement";
+import { chargerRatingsClasses, construireRepartition, type Repartition } from "@/lib/apercu-donnees";
 import { LABEL_ROLE, type Role } from "@/lib/roles";
 import { libelleEquipe, parcoursDansTournoi } from "@/lib/cinq-contre-cinq";
 import { lignesFiche } from "@/lib/fiche-organisateur";
@@ -100,6 +101,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
   let ratingSaison: { rating: number; est_classe: boolean | null } | null = null;
   let rangGeneral: number | null = null;
   let totalClasses = 0;
+  let repartition: Repartition | null = null;
   let courbe: PointCourbe[] = [];
 
   if (saison) {
@@ -128,6 +130,10 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     ]);
     ratingSaison = r ?? null;
     totalClasses = total ?? 0;
+
+    // Répartition de tous les joueurs classés (visuel « place », 27/11/2026) :
+    // seulement à partir de 10 classés et si la lecture est complète.
+    repartition = construireRepartition((await chargerRatingsClasses(supabase, saison.id, totalClasses)) ?? []);
 
     if (ratingSaison?.est_classe) {
       const { count: devant } = await supabase
@@ -317,6 +323,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     saison,
     rangGeneral,
     totalClasses,
+    repartition,
     palier,
     palierSuivant,
     courbe,

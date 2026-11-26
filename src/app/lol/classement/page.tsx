@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { arrondir, trouverPalier } from "@/lib/classement";
+import { chargerRatingsClasses, construireRepartition, type Repartition } from "@/lib/apercu-donnees";
+import { GrapheRepartition } from "@/components/donnees/Visuels";
 import { formaterDate } from "@/lib/tournois";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
@@ -96,6 +98,13 @@ export default async function ClassementPage() {
     }));
   }
 
+  // Répartition de tous les joueurs classés (27/11/2026) : à partir de 10
+  // classés et si la lecture est complète (le tableau, lui, s'arrête aux 100 premiers).
+  const repartition: Repartition | null =
+    saison && !erreurClassement
+      ? construireRepartition((await chargerRatingsClasses(supabase, saison.id, nombreClasses)) ?? [])
+      : null;
+
   const podium = joueurs.slice(0, 3);
   const suite = joueurs.slice(3);
 
@@ -154,6 +163,17 @@ export default async function ClassementPage() {
             </EtatVide>
           ) : (
             <>
+              {repartition && (
+                <section aria-labelledby="classement-repartition" className="panneau flex flex-col gap-4 p-6 sm:p-8">
+                  <LibelleSection as="h2" id="classement-repartition">
+                    Répartition des {repartition.total} joueurs classés
+                  </LibelleSection>
+                  <p className="sr-only">
+                    Nombre de joueurs classés par tranche de {repartition.pas} points de rating, sur les zones des paliers.
+                  </p>
+                  <GrapheRepartition repartition={repartition} comptes />
+                </section>
+              )}
               <section aria-label="Podium">
                 <Podium joueurs={podium} />
               </section>

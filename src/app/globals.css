@@ -331,6 +331,20 @@ select:not([multiple]):not([size]) {
   transform: scaleY(0);
 }
 
+/* Barres des visuels de données (components/donnees, 27/11/2026) : elles
+   montent une fois depuis leur base quand le bloc entre à l'écran. */
+.monte {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  transition-property: transform;
+  transition-duration: 0.55s;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--delai, 0s);
+}
+[data-apparition]:not([data-visible]) .monte {
+  transform: scaleY(0);
+}
+
 /* Emblèmes de paliers (EmblemePalier.tsx, 26/11/2026) : sous un
    Apparition, l'emblème grandit légèrement pendant le fondu du bloc, une
    seule fois. Ailleurs, il est affiché d'emblée. */
@@ -410,6 +424,7 @@ select:not([multiple]):not([size]) {
     transition: none;
   }
   .etape-schema,
+  .monte,
   .trace-v {
     opacity: 1 !important;
     translate: none !important;

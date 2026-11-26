@@ -17,6 +17,9 @@ import Logo from "@/components/design/Logo";
 import AfficheTournoi from "@/components/vitrine/AfficheTournoi";
 import ApercuClassement, { type LigneClassement } from "@/components/vitrine/ApercuClassement";
 import CourbeProgression from "@/components/profil/CourbeProgression";
+import Apparition from "@/components/design/Apparition";
+import { ActiviteSemaines, AnneauPalier, GrapheRepartition, PlaceParmiJoueurs, PreuveForme } from "@/components/donnees/Visuels";
+import { construireRepartition } from "@/lib/apercu-donnees";
 
 // Charte vivante de la nouvelle identité : chaque composant de
 // components/design/ rendu tel qu'il sortira sur le site, pour valider la
@@ -101,6 +104,11 @@ function Bloc({ numero, titre, children }: { numero: string; titre: string; chil
     </section>
   );
 }
+
+// Visuels de données (27/11/2026) : exemples fictifs, seulement ici (charte
+// locale). Sur le site, ces visuels n'affichent que de vraies données.
+const EXEMPLE_RATINGS = Array.from({ length: 207 }, (_, i) => 1500 + Math.round(Math.sin(i * 12.9898) * 43758.5453 % 1 * 260));
+const EXEMPLE_REPARTITION = construireRepartition(EXEMPLE_RATINGS);
 
 export default function PageCharte() {
   if (process.env.VERCEL_ENV === "production") notFound();
@@ -292,6 +300,24 @@ export default function PageCharte() {
           <Panneau className="p-6 sm:p-8">
             <CourbeProgression points={EXEMPLE_COURBE} />
           </Panneau>
+        </Bloc>
+
+        <Bloc numero="11" titre="Profil et classement : visuels de données (exemples)">
+          <Apparition className="grid gap-4 lg:grid-cols-2">
+            <AnneauPalier rating={1688} rd={92} estClasse palier={{ nom: "Venin", ratingMin: 1600 }} palierSuivant={{ nom: "Cobra", ratingMin: 1750 }} />
+            <AnneauPalier rating={1500} rd={262} estClasse={false} palier={null} palierSuivant={null} />
+            <PlaceParmiJoueurs repartition={EXEMPLE_REPARTITION} rating={1688} rang={30} total={207} saison="Saison 1" />
+            <PlaceParmiJoueurs repartition={null} rating={null} rang={null} total={0} saison="Saison 1" />
+            <ActiviteSemaines semaines={[0, 1, 2, 0, 3, 2, 1, 4, 2, 3, 0, 2]} />
+            <ActiviteSemaines semaines={[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]} />
+            <PreuveForme lusChezRiot={22} manuels={2} forme={["V", "V", "D", "V", "M", "V", "D", "V", "V", "D"]} />
+            <PreuveForme lusChezRiot={0} manuels={0} forme={[]} />
+          </Apparition>
+          {EXEMPLE_REPARTITION && (
+            <Apparition className="panneau mt-4 p-6 sm:p-8">
+              <GrapheRepartition repartition={EXEMPLE_REPARTITION} comptes />
+            </Apparition>
+          )}
         </Bloc>
       </div>
     </main>
