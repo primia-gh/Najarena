@@ -6,7 +6,7 @@ import { candidatureExpiree, DUREE_CANDIDATURE_JOURS, libelleNiveauRecrutement, 
 import { LABEL_ROLE } from "@/lib/roles";
 import { estRole } from "@/lib/duo";
 import { formaterDate } from "@/lib/tournois";
-import { classeChamp } from "@/lib/design";
+import { classeBoutonContour, classeChamp } from "@/lib/design";
 import { typographie } from "@/lib/typographie";
 import Apparition from "@/components/design/Apparition";
 import EtatVide from "@/components/design/EtatVide";
@@ -120,7 +120,7 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
           </label>
           <button
             type="submit"
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-bouton border border-line-strong px-4 text-sm hover:border-text"
+            className={`${classeBoutonContour()} cursor-pointer`}
           >
             Afficher
           </button>

@@ -5,6 +5,7 @@ import { ORDRE_OFFRE, type Offre } from "@/lib/offres";
 import { prixOffres } from "@/lib/prix-stripe";
 import { DELAI_RETRACTATION_JOURS, offreEnVente } from "@/lib/cgv";
 import Alerte from "@/components/design/Alerte";
+import PuceFiltre from "@/components/design/PuceFiltre";
 import Apparition from "@/components/design/Apparition";
 import EnTetePage from "@/components/design/EnTetePage";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
@@ -245,16 +246,9 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                 {FILTRES.map((f) => {
                   const actif = f.pour === pour;
                   return (
-                    <Link
-                      key={f.libelle}
-                      href={f.href}
-                      aria-current={actif ? "page" : undefined}
-                      className={`inline-flex min-h-11 items-center rounded-bouton border px-4 font-texte text-sm font-semibold tracking-[2px] uppercase transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent ${
-                        actif ? "border-text text-text" : "border-line-strong text-muted hover:border-[rgba(245,245,244,0.25)] hover:text-text"
-                      }`}
-                    >
+                    <PuceFiltre key={f.libelle} href={f.href} actif={actif}>
                       {f.libelle}
-                    </Link>
+                    </PuceFiltre>
                   );
                 })}
               </nav>

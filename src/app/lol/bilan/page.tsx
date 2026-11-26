@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import {
   BILAN_CLASSEES_EXEMPLE,
@@ -10,6 +9,7 @@ import {
 } from "@/lib/bilan-exemple";
 import { chargerDonneesJeu } from "@/lib/ddragon";
 import FondEcailles from "@/components/design/FondEcailles";
+import PuceFiltre from "@/components/design/PuceFiltre";
 import Apparition from "@/components/design/Apparition";
 import BoutonLien from "@/components/design/BoutonLien";
 import VueBilan from "@/components/bilan/VueBilan";
@@ -66,16 +66,9 @@ export default async function BilanExemplePage({ searchParams }: BilanExemplePag
             { href: "/lol/bilan", libelle: "Tournois 1v1", actif: !classees },
             { href: "/lol/bilan?format=classees", libelle: "Classées", actif: classees },
           ].map((o) => (
-            <Link
-              key={o.href}
-              href={o.href}
-              aria-current={o.actif ? "page" : undefined}
-              className={`inline-flex min-h-11 items-center rounded-bouton border px-4 font-texte text-sm font-semibold tracking-[2px] uppercase ${
-                o.actif ? "border-accent text-accent" : "border-line-strong text-muted hover:text-text"
-              }`}
-            >
+            <PuceFiltre key={o.href} href={o.href} actif={o.actif}>
               {o.libelle}
-            </Link>
+            </PuceFiltre>
           ))}
         </nav>
         {classees ? (

@@ -16,6 +16,7 @@ import {
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 import { declarerDisponibilite, retirerDisponibilite } from "@/lib/disponibilite-actions";
 import Alerte from "@/components/design/Alerte";
+import PuceFiltre from "@/components/design/PuceFiltre";
 import Apparition from "@/components/design/Apparition";
 import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
@@ -169,16 +170,16 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
             <Panneau className="flex max-w-2xl flex-col items-start gap-4 p-6">
               <p className="text-text-2">Connecte-toi pour indiquer tes heures. Les nombres ci-dessous sont ceux de la région {region}.</p>
               <BoutonLien href={`/connexion?suite=${encodeURIComponent("/lol/a-la-demande")}`}>Se connecter</BoutonLien>
-              <nav aria-label="Choisir la région" className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <nav aria-label="Choisir la région" className="flex flex-wrap gap-2">
                 {REGIONS.map((r) => (
-                  <Link
+                  <PuceFiltre
                     key={r.code}
                     href={`/lol/a-la-demande?region=${r.code}#heures`}
-                    aria-current={r.code === region ? "true" : undefined}
-                    className={`inline-flex min-h-11 min-w-11 items-center justify-center px-1 ${r.code === region ? "font-semibold text-text" : "text-muted hover:text-text"}`}
+                    actif={r.code === region}
+                    compacte
                   >
                     {r.code}
-                  </Link>
+                  </PuceFiltre>
                 ))}
               </nav>
             </Panneau>

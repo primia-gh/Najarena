@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -13,6 +12,7 @@ import {
   type TournoiListe,
 } from "@/lib/tournois";
 import Alerte from "@/components/design/Alerte";
+import PuceFiltre from "@/components/design/PuceFiltre";
 import Apparition from "@/components/design/Apparition";
 import BoutonLien from "@/components/design/BoutonLien";
 import EnTetePage from "@/components/design/EnTetePage";
@@ -62,20 +62,6 @@ function lien(statut: StatutPublic | null, region: string | undefined) {
   if (region) p.set("region", region);
   const q = p.toString();
   return q ? `/lol/tournois?${q}` : "/lol/tournois";
-}
-
-function Puce({ href, actif, children }: { href: string; actif: boolean; children: ReactNode }) {
-  return (
-    <Link
-      href={href}
-      aria-current={actif ? "page" : undefined}
-      className={`inline-flex min-h-11 items-center rounded-bouton border px-4 font-texte text-[13px] font-semibold tracking-[2px] whitespace-nowrap uppercase transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent ${
-        actif ? "border-text text-text" : "border-line-strong text-muted hover:border-[rgba(245,245,244,0.25)] hover:text-text"
-      }`}
-    >
-      {children}
-    </Link>
-  );
 }
 
 export default async function TournoisPage({ searchParams }: TournoisPageProps) {
@@ -160,21 +146,21 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
         <Apparition delai={0.08} className="flex flex-col gap-3">
           <nav aria-label="Filtrer par statut" className="flex gap-2 overflow-x-auto pb-1">
             {FILTRES.map((f) => (
-              <Puce key={f.libelle} href={lien(f.statut, regionFiltre)} actif={(statutFiltre ?? null) === f.statut}>
+              <PuceFiltre key={f.libelle} href={lien(f.statut, regionFiltre)} actif={(statutFiltre ?? null) === f.statut}>
                 {f.libelle}
-              </Puce>
+              </PuceFiltre>
             ))}
           </nav>
           {regions.length > 1 && (
             <nav aria-label="Filtrer par région" className="flex flex-wrap items-center gap-2">
               <span className="mr-2 font-texte text-mini font-medium text-faint uppercase">Région</span>
-              <Puce href={lien(statutFiltre ?? null, undefined)} actif={!regionFiltre}>
+              <PuceFiltre href={lien(statutFiltre ?? null, undefined)} actif={!regionFiltre}>
                 Toutes
-              </Puce>
+              </PuceFiltre>
               {regions.map((r) => (
-                <Puce key={r} href={lien(statutFiltre ?? null, r)} actif={regionFiltre === r}>
+                <PuceFiltre key={r} href={lien(statutFiltre ?? null, r)} actif={regionFiltre === r}>
                   {r}
-                </Puce>
+                </PuceFiltre>
               ))}
             </nav>
           )}

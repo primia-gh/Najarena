@@ -240,6 +240,20 @@ html[data-animations="pause"] *::after {
 /* Apparition au défilement (components/design/Apparition.tsx, sans
    bibliothèque depuis le 26/11/2026, U6) : masqué jusqu'à l'entrée à
    l'écran, puis fondu + glissement de 16 px en 400 ms. */
+/* Listes déroulantes (harmonisation du 26/11/2026) : flèche au trait
+   Najarena à la place de celle du navigateur, la même sur tout le site.
+   Hors couche, exprès : la marge de droite doit l'emporter sur le px-3 de
+   classeChamp(), sinon le texte passe sous la flèche. La couleur de la
+   liste ouverte suit color-scheme: dark (:root). */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca39c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.875rem center;
+  background-size: 12px;
+  padding-right: 2.5rem;
+}
+
 [data-apparition] {
   transition:
     opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),

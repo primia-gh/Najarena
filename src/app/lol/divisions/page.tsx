@@ -16,6 +16,7 @@ import { jeSuisLa, quitterDivision, sInscrireDivision } from "@/lib/division-act
 import PouleDivision, { type JoueurPoule, type RencontrePoule } from "@/components/divisions/PouleDivision";
 import type { NiveauVerdict } from "@/lib/tournois";
 import { BadgeVerdict } from "@/components/design/Badges";
+import PuceFiltre from "@/components/design/PuceFiltre";
 import EtatVide from "@/components/design/EtatVide";
 import PastilleResultat from "@/components/design/PastilleResultat";
 import Alerte from "@/components/design/Alerte";
@@ -260,16 +261,11 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        <nav aria-label="Choisir la région" className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <nav aria-label="Choisir la région" className="flex flex-wrap gap-2">
           {REGIONS.map((r) => (
-            <Link
-              key={r.code}
-              href={`/lol/divisions?region=${r.code}`}
-              aria-current={r.code === region ? "true" : undefined}
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center px-1 ${r.code === region ? "font-semibold text-text" : "text-muted hover:text-text"}`}
-            >
+            <PuceFiltre key={r.code} href={`/lol/divisions?region=${r.code}`} actif={r.code === region} compacte>
               {r.code}
-            </Link>
+            </PuceFiltre>
           ))}
         </nav>
 

@@ -27,6 +27,7 @@ import {
 } from "@/lib/duo";
 import { annulerDemandeDuo, demanderDuo, publierAnnonceDuo, repondreDemandeDuo, retirerAnnonceDuo } from "@/lib/duo-actions";
 import Alerte from "@/components/design/Alerte";
+import PuceFiltre from "@/components/design/PuceFiltre";
 import Apparition from "@/components/design/Apparition";
 import EnTetePage from "@/components/design/EnTetePage";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
@@ -611,16 +612,16 @@ export default async function DuoPage({ searchParams }: PageProps) {
                   <span className="text-faint tabular-nums">· {autres.length}</span>
                 </LibelleSection>
                 {!compteVerifie && (
-                  <nav aria-label="Choisir le serveur" className="flex flex-wrap gap-x-3 text-sm">
+                  <nav aria-label="Choisir le serveur" className="flex flex-wrap gap-2">
                     {REGIONS.map((r) => (
-                      <Link
+                      <PuceFiltre
                         key={r.code}
                         href={`/lol/duo?region=${r.code}#annonces`}
-                        aria-current={r.code === region ? "true" : undefined}
-                        className={`inline-flex min-h-11 min-w-11 items-center justify-center px-1 ${r.code === region ? "font-semibold text-text" : "text-muted hover:text-text"}`}
+                        actif={r.code === region}
+                        compacte
                       >
                         {r.code}
-                      </Link>
+                      </PuceFiltre>
                     ))}
                   </nav>
                 )}
