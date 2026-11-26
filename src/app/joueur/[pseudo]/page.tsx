@@ -8,8 +8,8 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { calibrationPct, arrondir, RATING_INITIAL, RD_INITIAL } from "@/lib/classement";
 import Apparition from "@/components/design/Apparition";
-import { ActiviteSemaines, AnneauPalier, PlaceParmiJoueurs, PreuveForme } from "@/components/donnees/Visuels";
-import { bilanPreuve, semainesActivite } from "@/lib/apercu-donnees";
+import { ActiviteSemaines, AnneauPalier, InvitationPremierTournoi, PlaceParmiJoueurs, PreuveForme } from "@/components/donnees/Visuels";
+import { bilanPreuve, estVerifie, semainesActivite } from "@/lib/apercu-donnees";
 import { formaterDate } from "@/lib/tournois";
 import { chargerOffre, LABEL_OFFRE, COULEUR_OFFRE, ORDRE_OFFRE } from "@/lib/offres";
 import { mettreAJourBioProfile } from "@/lib/offres-actions";
@@ -902,22 +902,31 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
       {/* ============ EN UN COUP D'ŒIL (27/11/2026) ============ */}
       <section aria-label="En un coup d'œil" className="px-gouttiere pt-12">
         <Apparition className="mx-auto grid max-w-contenu gap-4 lg:grid-cols-2">
+          {/* Rating, incertitude et palier : tous de la saison courante. */}
           <AnneauPalier
-            rating={rating ? arrondir(rating.rating) : null}
-            rd={rating?.rd ?? null}
-            estClasse={Boolean(rating?.est_classe)}
+            rating={complements.ratingSaison?.rating ?? null}
+            rd={complements.ratingSaison?.rd ?? null}
+            estClasse={Boolean(complements.ratingSaison?.est_classe)}
             palier={complements.palier}
             palierSuivant={complements.palierSuivant}
           />
-          <PlaceParmiJoueurs
-            repartition={complements.repartition}
-            rating={rating?.est_classe ? arrondir(rating.rating) : null}
-            rang={complements.rangGeneral}
-            total={complements.totalClasses}
-            saison={complements.saison ? (complements.saison.nom ?? `Saison ${complements.saison.numero}`) : null}
-          />
-          <ActiviteSemaines semaines={semainesActivite(historique.map((h) => h.creeLe), maintenantMs())} />
-          <PreuveForme {...bilanPreuve(historique)} />
+          {historique.length === 0 && !complements.ratingSaison?.est_classe ? (
+            <InvitationPremierTournoi proprietaire={estProprietaire} />
+          ) : (
+            <>
+              <PlaceParmiJoueurs
+                repartition={complements.repartition}
+                rating={complements.ratingSaison?.est_classe ? complements.ratingSaison.rating : null}
+                rang={complements.rangGeneral}
+                total={complements.totalClasses}
+                saison={complements.saison ? (complements.saison.nom ?? `Saison ${complements.saison.numero}`) : null}
+              />
+              <ActiviteSemaines
+                semaines={semainesActivite(historique.filter(estVerifie).map((h) => h.creeLe), maintenantMs())}
+              />
+              <PreuveForme {...bilanPreuve(historique)} />
+            </>
+          )}
         </Apparition>
       </section>
 

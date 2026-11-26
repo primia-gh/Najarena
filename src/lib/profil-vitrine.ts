@@ -98,7 +98,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
   const paliers: Palier[] = (paliersData ?? []).map((p) => ({ nom: p.nom, ratingMin: p.rating_min }));
 
   // Rating de la saison courante : base du rang général et de la courbe.
-  let ratingSaison: { rating: number; est_classe: boolean | null } | null = null;
+  let ratingSaison: { rating: number; rd: number; est_classe: boolean | null } | null = null;
   let rangGeneral: number | null = null;
   let totalClasses = 0;
   let repartition: Repartition | null = null;
@@ -108,7 +108,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     const [{ data: r }, { count: total }, { data: evenements }] = await Promise.all([
       supabase
         .from("ratings")
-        .select("rating, est_classe")
+        .select("rating, rd, est_classe")
         .eq("profile_id", profilId)
         .eq("game_id", 1)
         .eq("season_id", saison.id)
@@ -133,7 +133,10 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
 
     // Répartition de tous les joueurs classés (visuel « place », 27/11/2026) :
     // seulement à partir de 10 classés et si la lecture est complète.
-    repartition = construireRepartition((await chargerRatingsClasses(supabase, saison.id, totalClasses)) ?? []);
+    // Lue seulement pour un joueur classé : c'est le seul cas où elle s'affiche.
+    if (ratingSaison?.est_classe) {
+      repartition = construireRepartition((await chargerRatingsClasses(supabase, saison.id, totalClasses)) ?? []);
+    }
 
     if (ratingSaison?.est_classe) {
       const { count: devant } = await supabase
@@ -324,6 +327,7 @@ export const chargerComplementsProfil = cache(async (profilId: string) => {
     rangGeneral,
     totalClasses,
     repartition,
+    ratingSaison,
     palier,
     palierSuivant,
     courbe,

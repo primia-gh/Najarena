@@ -168,9 +168,6 @@ export default async function ClassementPage() {
                   <LibelleSection as="h2" id="classement-repartition">
                     Répartition des {repartition.total} joueurs classés
                   </LibelleSection>
-                  <p className="sr-only">
-                    Nombre de joueurs classés par tranche de {repartition.pas} points de rating, sur les zones des paliers.
-                  </p>
                   <GrapheRepartition repartition={repartition} comptes />
                 </section>
               )}

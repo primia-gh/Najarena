@@ -34,15 +34,19 @@ describe("semainesActivite", () => {
 });
 
 describe("bilanPreuve", () => {
-  it("sépare lus chez Riot et manuels, forme du plus ancien au plus récent", () => {
+  it("mêmes catégories que les chiffres clés, forme du plus ancien au plus récent", () => {
     const h = [
-      { niveau: "historique", estGagnant: true, creeLe: "2026-11-03" },
-      { niveau: "manuel", estGagnant: true, creeLe: "2026-11-02" },
-      { niveau: "code_tournoi", estGagnant: false, creeLe: "2026-11-01" },
+      { niveau: "historique", estGagnant: true, creeLe: "2026-11-04", horsClassementNiveau: false },
+      { niveau: "historique", estGagnant: true, creeLe: "2026-11-03", horsClassementNiveau: true },
+      { niveau: "manuel", estGagnant: true, creeLe: "2026-11-02", horsClassementNiveau: false },
+      { niveau: "code_tournoi", estGagnant: false, creeLe: "2026-11-01", horsClassementNiveau: false },
+      { niveau: "historique", estGagnant: null, creeLe: "2026-11-05", horsClassementNiveau: false },
     ];
     const b = bilanPreuve(h);
-    expect(b.lusChezRiot).toBe(2);
+    expect(b.verifies).toBe(3);
     expect(b.manuels).toBe(1);
+    expect(b.sansPoints).toBe(1);
+    // le match sans points est écarté ; le résultat inconnu n'est pas une défaite
     expect(b.forme).toEqual(["D", "M", "V"]);
   });
 
@@ -51,6 +55,7 @@ describe("bilanPreuve", () => {
       niveau: "historique",
       estGagnant: i % 2 === 0,
       creeLe: new Date(2026, 9, i + 1).toISOString(),
+      horsClassementNiveau: false,
     }));
     expect(bilanPreuve(h).forme).toHaveLength(10);
   });

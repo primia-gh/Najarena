@@ -9,8 +9,8 @@ import type { Database } from "@/lib/supabase/types";
 /** En dessous, la répartition n'est pas montrée (trois points ne font pas une répartition). */
 export const SEUIL_REPARTITION = 10;
 export const PAS_REPARTITION = 50;
-/** Lecture de tous les ratings classés de la saison, plafonnée. */
-const PLAFOND_LECTURE = 2000;
+/** Lecture de tous les ratings classés de la saison, plafonnée (Supabase rend 1000 lignes au plus). */
+const PLAFOND_LECTURE = 1000;
 
 export interface Repartition {
   /** Début de la première classe de rating. */
@@ -70,18 +70,35 @@ export function semainesActivite(dates: string[], maintenantMs: number): number[
 
 export type ResultatForme = "V" | "D" | "M";
 
-/** Part des matchs lus chez Riot et 10 derniers résultats (le plus récent en dernier). */
-export function bilanPreuve(historique: { niveau: string; estGagnant: boolean | null; creeLe: string }[]): {
-  lusChezRiot: number;
+export interface MatchApercu {
+  niveau: string;
+  estGagnant: boolean | null;
+  creeLe: string;
+  /** Lu chez Riot, mais compte Riot sous le niveau requis : sans points (chiffresCV). */
+  horsClassementNiveau: boolean;
+}
+
+/** Match vérifié au sens des chiffres clés du profil : lu chez Riot ET compté. */
+export const estVerifie = (h: MatchApercu) => h.niveau !== "manuel" && !h.horsClassementNiveau;
+
+/**
+ * Mêmes catégories que chiffresCV : vérifiés, décisions manuelles, et à part
+ * les matchs « sans points ». Forme : 10 derniers matchs comptés (le plus
+ * récent en dernier) ; un résultat inconnu n'est jamais présenté en défaite.
+ */
+export function bilanPreuve(historique: MatchApercu[]): {
+  verifies: number;
   manuels: number;
+  sansPoints: number;
   forme: ResultatForme[];
 } {
-  const lusChezRiot = historique.filter((h) => h.niveau !== "manuel").length;
-  const manuels = historique.length - lusChezRiot;
-  const forme = [...historique]
+  const comptes = historique.filter((h) => !h.horsClassementNiveau);
+  const verifies = comptes.filter((h) => h.niveau !== "manuel").length;
+  const forme = [...comptes]
+    .filter((h) => h.niveau === "manuel" || h.estGagnant !== null)
     .sort((a, b) => new Date(b.creeLe).getTime() - new Date(a.creeLe).getTime())
     .slice(0, 10)
     .reverse()
     .map((h): ResultatForme => (h.niveau === "manuel" ? "M" : h.estGagnant ? "V" : "D"));
-  return { lusChezRiot, manuels, forme };
+  return { verifies, manuels: comptes.length - verifies, sansPoints: historique.length - comptes.length, forme };
 }

@@ -18,7 +18,7 @@ import AfficheTournoi from "@/components/vitrine/AfficheTournoi";
 import ApercuClassement, { type LigneClassement } from "@/components/vitrine/ApercuClassement";
 import CourbeProgression from "@/components/profil/CourbeProgression";
 import Apparition from "@/components/design/Apparition";
-import { ActiviteSemaines, AnneauPalier, GrapheRepartition, PlaceParmiJoueurs, PreuveForme } from "@/components/donnees/Visuels";
+import { ActiviteSemaines, AnneauPalier, GrapheRepartition, InvitationPremierTournoi, PlaceParmiJoueurs, PreuveForme } from "@/components/donnees/Visuels";
 import { construireRepartition } from "@/lib/apercu-donnees";
 
 // Charte vivante de la nouvelle identité : chaque composant de
@@ -307,11 +307,11 @@ export default function PageCharte() {
             <AnneauPalier rating={1688} rd={92} estClasse palier={{ nom: "Venin", ratingMin: 1600 }} palierSuivant={{ nom: "Cobra", ratingMin: 1750 }} />
             <AnneauPalier rating={1500} rd={262} estClasse={false} palier={null} palierSuivant={null} />
             <PlaceParmiJoueurs repartition={EXEMPLE_REPARTITION} rating={1688} rang={30} total={207} saison="Saison 1" />
-            <PlaceParmiJoueurs repartition={null} rating={null} rang={null} total={0} saison="Saison 1" />
+            <InvitationPremierTournoi proprietaire />
             <ActiviteSemaines semaines={[0, 1, 2, 0, 3, 2, 1, 4, 2, 3, 0, 2]} />
             <ActiviteSemaines semaines={[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]} />
-            <PreuveForme lusChezRiot={22} manuels={2} forme={["V", "V", "D", "V", "M", "V", "D", "V", "V", "D"]} />
-            <PreuveForme lusChezRiot={0} manuels={0} forme={[]} />
+            <PreuveForme verifies={20} manuels={2} sansPoints={2} forme={["V", "V", "D", "V", "M", "V", "D", "V", "V", "D"]} />
+            <PreuveForme verifies={3} manuels={4} sansPoints={0} forme={["M", "V", "M", "D", "M", "V", "M"]} />
           </Apparition>
           {EXEMPLE_REPARTITION && (
             <Apparition className="panneau mt-4 p-6 sm:p-8">
