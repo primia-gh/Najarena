@@ -122,11 +122,11 @@ export default function Navbar() {
     <nav
       ref={barreRef}
       aria-label="Navigation principale"
-      className={`print:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-6 px-grille font-texte text-text transition-[padding,background-color,border-color] duration-300 ${
+      className={`print:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-6 px-grille xl:grid xl:grid-cols-[1fr_auto_1fr] font-texte text-text transition-[padding,background-color,border-color] duration-300 ${
         defile ? "border-b border-line bg-bg/85 py-3 backdrop-blur-md" : "border-b border-transparent py-5"
       }`}
     >
-      <Link href="/" aria-label="Najarena — accueil" className={`inline-flex min-h-11 shrink-0 items-center rounded-bouton ${FOCUS}`}>
+      <Link href="/" aria-label="Najarena — accueil" className={`inline-flex min-h-11 shrink-0 items-center justify-self-start rounded-bouton ${FOCUS}`}>
         <Logo hauteur={defile ? 34 : 40} />
       </Link>
 
@@ -144,7 +144,11 @@ export default function Navbar() {
         ))}
       </ul>
 
-      <div className="flex items-center gap-7">
+      {/* Trois colonnes sur grand écran (26/11/2026) : les liens du milieu
+          restent centrés quel que soit le contenu de droite. Avant, ils se
+          décalaient de 73 px sur Connexion et Inscription, où « Se connecter »
+          ou « Rejoindre » est masqué. */}
+      <div className="flex items-center gap-7 justify-self-end">
         <div className="hidden items-center gap-7 sm:flex">
           {!masquerCta &&
             (connecte ? (
