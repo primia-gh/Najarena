@@ -40,7 +40,7 @@ export function ColonnesBracket({
     >
       {/* Apparition : le chemin déjà joué (connecteurs verts) se trace une
           fois, tour après tour, quand le bracket entre à l'écran (26/11/2026). */}
-      <Apparition className="flex w-max gap-[82px]">
+      <Apparition sansFondu className="flex w-max gap-[82px]">
         {tours.map((t, indexTour) => {
           const dernier = indexTour === tours.length - 1;
           return (

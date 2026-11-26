@@ -16,9 +16,9 @@ import PuceFiltre from "@/components/design/PuceFiltre";
 import Apparition from "@/components/design/Apparition";
 import BoutonLien from "@/components/design/BoutonLien";
 import EnTetePage from "@/components/design/EnTetePage";
+import EtatVide from "@/components/design/EtatVide";
 import FondEcailles from "@/components/design/FondEcailles";
 import LibelleSection from "@/components/design/LibelleSection";
-import Panneau from "@/components/design/Panneau";
 import LigneTournoi from "@/components/tournoi/LigneTournoi";
 
 export const metadata: Metadata = {
@@ -172,22 +172,21 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
               Impossible de charger les tournois pour l&apos;instant. Réessaie dans un instant.
             </Alerte>
           ) : ordre.length === 0 ? (
-            <Panneau reperes className="flex flex-col items-start gap-5 p-8 sm:p-10">
-              <p className="font-titre text-sous-titre font-black uppercase">
-                {statutFiltre || regionFiltre ? "Aucun tournoi ne correspond." : "Aucun tournoi ouvert pour l'instant."}
-              </p>
-              <p className="max-w-xl text-text-2">
-                Découvre à quoi ressemble un tournoi Najarena avec le tournoi d&apos;exemple, ou lance le tien.
-              </p>
-              <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-                <BoutonLien href="/lol/tournois/demo" variante="secondaire">
-                  Voir le tournoi d&apos;exemple
-                </BoutonLien>
-                <BoutonLien href="/organiser/nouveau" variante="secondaire">
-                  Organiser un tournoi
-                </BoutonLien>
-              </div>
-            </Panneau>
+            <EtatVide
+              titre={statutFiltre || regionFiltre ? "Aucun tournoi ne correspond." : "Aucun tournoi ouvert pour l'instant."}
+              actions={
+                <>
+                  <BoutonLien href="/lol/tournois/demo" variante="secondaire">
+                    Voir le tournoi d&apos;exemple
+                  </BoutonLien>
+                  <BoutonLien href="/organiser/nouveau" variante="secondaire">
+                    Organiser un tournoi
+                  </BoutonLien>
+                </>
+              }
+            >
+              Découvre à quoi ressemble un tournoi Najarena avec le tournoi d&apos;exemple, ou lance le tien.
+            </EtatVide>
           ) : (
             ordre.map((g) => (
               <section key={g} aria-labelledby={`tournois-${g}`} className="flex flex-col">

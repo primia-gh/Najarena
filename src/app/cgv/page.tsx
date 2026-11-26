@@ -33,7 +33,7 @@ export default function CgvPage() {
   const ouvert = paiementActif();
   return (
     <main className="px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
-      <EnTetePage surtitre={`Document légal · version du ${DATE_CGV_LISIBLE}`} titre="Conditions générales de vente" />
+      <EnTetePage sansApparition retour={{ href: "/", libelle: "Najarena" }} surtitre={`Document légal · version du ${DATE_CGV_LISIBLE}`} titre="Conditions générales de vente" />
       {!ouvert && (
         <p className="mt-6 border-l-2 border-line-strong pl-4 text-courant text-text">
           Les offres payantes ne sont pas encore en vente&nbsp;: ces conditions s&apos;appliqueront à leur ouverture.

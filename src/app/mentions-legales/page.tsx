@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function MentionsLegalesPage() {
   return (
     <main className="px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
-      <EnTetePage surtitre="Document légal" titre="Mentions légales" />
+      <EnTetePage sansApparition retour={{ href: "/", libelle: "Najarena" }} surtitre="Document légal" titre="Mentions légales" />
 
       <div className="mt-8 flex flex-col gap-8 text-courant text-text">
         <section>

@@ -123,7 +123,7 @@ export default function Navbar() {
       ref={barreRef}
       aria-label="Navigation principale"
       style={{ viewTransitionName: "barre-navigation" }}
-      className={`print:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-6 px-grille xl:grid xl:grid-cols-[1fr_auto_1fr] font-texte text-text transition-[padding,background-color,border-color] duration-300 ${
+      className={`print:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-6 px-grille xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] font-texte text-text transition-[padding,background-color,border-color] duration-300 ${
         defile ? "border-b border-line bg-bg/85 py-3 backdrop-blur-md" : "border-b border-transparent py-5"
       }`}
     >

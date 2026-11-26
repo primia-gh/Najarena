@@ -185,8 +185,7 @@ export default async function RegistrePage() {
             </LibelleSection>
             {!lignes || lignes.length === 0 ? (
               <EtatVide className="mt-3" titre="Le registre est vide.">
-                Aucun tournoi n&apos;a encore été clôturé. La première ligne s&apos;inscrira à la clôture du premier
-                tournoi classé.
+                Aucun tournoi n&apos;a encore été clôturé.
               </EtatVide>
             ) : (
               <Tableau legende="Dernières lignes du registre des points" className="mt-3">

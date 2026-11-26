@@ -6,6 +6,7 @@ import { formaterDate } from "@/lib/tournois";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
 import EnTetePage from "@/components/design/EnTetePage";
+import EtatVide from "@/components/design/EtatVide";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
 import LibelleSection from "@/components/design/LibelleSection";
@@ -140,16 +141,17 @@ export default async function ClassementPage() {
               Impossible de charger le classement pour l&apos;instant. Réessaie dans un instant.
             </Alerte>
           ) : joueurs.length === 0 ? (
-            <Panneau reperes className="flex flex-col items-start gap-4 p-8 sm:p-10">
-              <p className="font-titre text-sous-titre font-black uppercase">Aucun joueur classé pour l&apos;instant.</p>
-              <p className="max-w-xl text-text-2">
-                L&apos;entrée au classement demande une dizaine de matchs vérifiés. Les premiers tournois classés de la
-                saison feront apparaître les premiers noms.
-              </p>
-              <BoutonLien href="/lol/tournois" variante="secondaire">
-                Voir les tournois
-              </BoutonLien>
-            </Panneau>
+            <EtatVide
+              titre="Aucun joueur classé pour l'instant."
+              actions={
+                <BoutonLien href="/lol/tournois" variante="secondaire">
+                  Voir les tournois
+                </BoutonLien>
+              }
+            >
+              L&apos;entrée au classement demande une dizaine de matchs vérifiés. Les premiers tournois classés de la
+              saison feront apparaître les premiers noms.
+            </EtatVide>
           ) : (
             <>
               <section aria-label="Podium">

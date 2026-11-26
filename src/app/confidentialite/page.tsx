@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function ConfidentialitePage() {
   return (
     <main className="px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
-      <EnTetePage surtitre="Document légal · mis à jour le 24 novembre 2026" titre="Politique de confidentialité" />
+      <EnTetePage sansApparition retour={{ href: "/", libelle: "Najarena" }} surtitre="Document légal · mis à jour le 24 novembre 2026" titre="Politique de confidentialité" />
 
       <div className="mt-8 flex flex-col gap-8 text-courant text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>

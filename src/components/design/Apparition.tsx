@@ -25,9 +25,12 @@ interface ApparitionProps {
   /** Décalage en secondes, pour échelonner les éléments d'une même rangée. */
   delai?: number;
   className?: string;
+  /** Sans fondu ni glissement : le bloc reste visible, seuls ses enfants
+   *  .remplit et .trace s'animent à l'entrée à l'écran (bracket, 26/11/2026). */
+  sansFondu?: boolean;
 }
 
-export default function Apparition({ children, delai = 0, className }: ApparitionProps) {
+export default function Apparition({ children, delai = 0, className, sansFondu = false }: ApparitionProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,7 +54,8 @@ export default function Apparition({ children, delai = 0, className }: Apparitio
   return (
     <div
       ref={ref}
-      data-apparition=""
+      data-apparition={sansFondu ? undefined : ""}
+      data-revele={sansFondu ? "" : undefined}
       className={className}
       style={delai ? { transitionDelay: `${delai}s` } : undefined}
     >

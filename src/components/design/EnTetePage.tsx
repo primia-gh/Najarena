@@ -25,6 +25,9 @@ interface EnTetePageProps {
   classeTitre?: string;
   /** Classes ajoutées à l'introduction (largeur). */
   classeIntro?: string;
+  /** Sans fondu d'apparition : titre visible dès le premier affichage
+   *  (pages légales, où il est l'élément principal). */
+  sansApparition?: boolean;
 }
 
 export default function EnTetePage({
@@ -36,9 +39,11 @@ export default function EnTetePage({
   aside,
   classeTitre = "",
   classeIntro = "",
+  sansApparition = false,
 }: EnTetePageProps) {
+  const Conteneur = sansApparition ? "div" : Apparition;
   return (
-    <Apparition className="flex flex-wrap items-end justify-between gap-x-10 gap-y-8">
+    <Conteneur className="flex flex-wrap items-end justify-between gap-x-10 gap-y-8">
       <div className="min-w-0 max-w-full">
         {retour && (
           <Link
@@ -59,6 +64,6 @@ export default function EnTetePage({
         {actions && <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">{actions}</div>}
       </div>
       {aside}
-    </Apparition>
+    </Conteneur>
   );
 }
