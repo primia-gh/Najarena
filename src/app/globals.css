@@ -256,6 +256,13 @@ html[data-animations="pause"] *::after {
 :root {
   --background: var(--color-bg);
   --foreground: var(--color-text);
+  /* Le site est sombre : on le dit au navigateur pour qu'il dessine aussi en
+     sombre ce qu'il fournit lui-même (barres de défilement, listes
+     déroulantes, calendriers, cases à cocher, champs remplis
+     automatiquement). Audit web du 26/11/2026, U4. Même réglage dans
+     l'en-tête des pages (layout.tsx, viewport) et dans les widgets
+     (lib/widgets.ts). */
+  color-scheme: dark;
 }
 
 body {

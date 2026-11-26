@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Big_Shoulders, Chakra_Petch } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -44,6 +44,13 @@ export const metadata: Metadata = {
   },
   // Grande image d'aperçu sur X (images générées : opengraph-image.tsx).
   twitter: { card: "summary_large_image" },
+};
+
+// <meta name="color-scheme" content="dark"> : le navigateur sait que le site
+// est sombre avant même d'avoir lu la feuille de style (pas de flash blanc
+// au chargement). Même réglage dans globals.css (:root).
+export const viewport: Viewport = {
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -15,6 +15,7 @@ Extrait du brief CLAUDE.md le 25/11/2026, sans modification du texte. Jetons, al
 - Bouton « Pause » (bandeau de l'accueil) : fige toutes les animations du site (`html[data-animations="pause"]`, `lib/pause-animations.ts`) — exigence WCAG 2.2.2 pour tout contenu qui bouge seul plus de 5 s.
 - Charte vivante : `/charte` (tous les composants rendus en vrai ; absente du site en ligne, visible en local et en prévisualisation).
 - Typographie : Big Shoulders (titres, chiffres clés, MAJUSCULES) + Chakra Petch (texte, libellés, boutons). Tout chiffre de preuve (rating, RD, delta, horodatage) en `tabular-nums`.
+- Site sombre uniquement : `color-scheme: dark` est déclaré à trois endroits (`globals.css` `:root`, `layout.tsx` `viewport`, `lib/widgets.ts`), pour que le navigateur dessine en sombre ses propres éléments (barres de défilement, cases, listes, calendriers). Un futur thème clair devra revoir ces trois endroits (26/11/2026). Titres : police de remplacement « Big Shoulders Repli » réglée à la largeur de Big Shoulders dans `globals.css` ; à refaire si la police de titres change.
 
 **Adaptations propres à Najarena — décidées le 23/09/2026, priment sur la maquette**
 - **Niveaux de verdict** (§3) : `BadgeVerdict`. Niveaux 3 et 2 → « ✓ VÉRIFIÉ » vert + source (code tournoi / historique). Niveau 1 → « MANUEL » gris avec plume, **jamais vert, jamais « vérifié »**. La maquette n'a qu'un badge « VÉRIFIÉ » : ne jamais l'appliquer à un verdict manuel.
