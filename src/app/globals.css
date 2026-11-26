@@ -1,5 +1,40 @@
 @import "tailwindcss";
 
+/* ─── Police de remplacement des titres (audit web du 26/11/2026, I2) ──
+   Big Shoulders est très étroite et met jusqu'à 3 s à arriver sur un
+   téléphone. Next.js ne connaît pas ses mesures (« Failed to find font
+   override values », layout.tsx) : en attendant, les titres s'affichaient
+   en Chakra Petch, bien plus large, puis toute la page sautait à l'arrivée
+   de la vraie police (CLS 0,17 sur /lol/tournois/demo en mobile).
+   Ces deux polices système sont réduites pour occuper la même largeur que
+   Big Shoulders en gras (titres en majuscules, 800–900) ; ascent et descent
+   reprennent les proportions de Big Shoulders (0,984 et 0,213 de la taille)
+   pour que la hauteur des lignes ne bouge pas non plus.
+   - Arial : ordinateurs, iPhone. 64 % mesuré sur les titres du site
+     (CLS ramené à 0,002 sur la démo).
+   - Roboto : Android, où Arial n'existe pas. 67 % calculé à partir des
+     largeurs moyennes publiées (Roboto Black / Arial Bold), non mesuré sur
+     un vrai téléphone.
+   Si la police de titres change, refaire la mesure. */
+@font-face {
+  font-family: "Big Shoulders Repli";
+  src: local("Arial Bold"), local("Arial-BoldMT");
+  font-weight: 100 900;
+  size-adjust: 64%;
+  ascent-override: 153.8%;
+  descent-override: 33.3%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Big Shoulders Repli Android";
+  src: local("Roboto Black"), local("Roboto-Black"), local("Roboto");
+  font-weight: 100 900;
+  size-adjust: 67%;
+  ascent-override: 146.9%;
+  descent-override: 31.8%;
+  line-gap-override: 0%;
+}
+
 /* ─── Nouvelle identité « Venin » ───────────────────────────────────────
    Source de vérité : design-system/najarena/MASTER.md (§2 à §5). Les
    anciens jetons (encre, papier, sceau, laiton, atteste, ardoise…) ont été
@@ -32,7 +67,8 @@
   --color-line: rgba(245, 245, 244, 0.08);
   --color-line-strong: rgba(245, 245, 244, 0.12);
 
-  --font-titre: var(--font-big-shoulders), var(--font-chakra-petch), system-ui, sans-serif;
+  --font-titre: var(--font-big-shoulders), "Big Shoulders Repli", "Big Shoulders Repli Android",
+    var(--font-chakra-petch), system-ui, sans-serif;
   --font-titre--font-variation-settings: "opsz" 72;
   --font-texte: var(--font-chakra-petch), system-ui, sans-serif;
 

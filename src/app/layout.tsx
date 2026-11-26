@@ -17,7 +17,9 @@ const bigShoulders = Big_Shoulders({
   axes: ["opsz"],
   // Avertissement « Failed to find font override values » en dev : Next
   // ne connaît pas encore les métriques de cette famille récente et ne
-  // génère donc pas de police de repli ajustée. Sans effet visuel.
+  // génère donc pas de police de repli ajustée. La page sautait à l'arrivée
+  // de la police : repli réglé à la main dans globals.css (« Big Shoulders
+  // Repli », audit web du 26/11/2026).
 });
 
 const chakraPetch = Chakra_Petch({
