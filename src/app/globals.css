@@ -296,6 +296,7 @@ select:not([multiple]):not([size]) {
 .remplit,
 .trace {
   transform-origin: left center;
+  transform-box: fill-box;
   transition-property: transform;
   transition-duration: 0.5s;
   transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -304,6 +305,30 @@ select:not([multiple]):not([size]) {
 [data-apparition]:not([data-visible]) :is(.remplit, .trace),
 [data-revele]:not([data-visible]) :is(.remplit, .trace) {
   transform: scaleX(0);
+}
+
+/* Schémas explicatifs (components/schemas, 26/11/2026) : éléments qui
+   apparaissent en cascade (--delai) et trait vertical qui se trace, une
+   seule fois, quand le bloc parent (Apparition) entre à l'écran. */
+.etape-schema {
+  transition-property: opacity, translate;
+  transition-duration: 0.45s;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--delai, 0s);
+}
+[data-apparition]:not([data-visible]) .etape-schema {
+  opacity: 0;
+  translate: 0 8px;
+}
+.trace-v {
+  transform-origin: center top;
+  transition-property: transform;
+  transition-duration: 2s;
+  transition-timing-function: cubic-bezier(0.45, 0, 0.2, 1);
+  transition-delay: var(--delai, 0s);
+}
+[data-apparition]:not([data-visible]) .trace-v {
+  transform: scaleY(0);
 }
 
 /* Emblèmes de paliers (EmblemePalier.tsx, 26/11/2026) : sous un
@@ -382,6 +407,13 @@ select:not([multiple]):not([size]) {
   }
   .embleme-palier {
     scale: none !important;
+    transition: none;
+  }
+  .etape-schema,
+  .trace-v {
+    opacity: 1 !important;
+    translate: none !important;
+    transform: none !important;
     transition: none;
   }
   ::view-transition-group(*),

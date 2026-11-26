@@ -6,6 +6,7 @@ import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import Icone, { type NomIcone } from "@/components/design/Icone";
 import LibelleSection from "@/components/design/LibelleSection";
+import { SchemaCalibration, SchemaTrajet, SchemaVerdict } from "@/components/schemas/Schemas";
 import { RATING_INITIAL, RD_INITIAL, RD_SEUIL_CLASSEMENT } from "@/lib/classement";
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
 
@@ -38,28 +39,6 @@ const ETAPES = [
   },
 ] as const;
 
-const NIVEAUX = [
-  {
-    niveau: "code_tournoi" as const,
-    n: "03",
-    titre: "Code de tournoi Riot",
-    texte:
-      "Lecture directe depuis un lobby officiel Riot — la preuve la plus forte possible, sans intervention humaine. Pas encore actif : il demande un accès que Riot accorde plus tard (voir la FAQ).",
-  },
-  {
-    niveau: "historique" as const,
-    n: "02",
-    titre: "Retrouvé dans l'historique",
-    texte: "La partie jouée entre les deux inscrits est retrouvée automatiquement dans l'historique Riot des deux comptes.",
-  },
-  {
-    niveau: "manuel" as const,
-    n: "01",
-    titre: "Décision manuelle",
-    texte:
-      "Aucune partie correspondante trouvée : l'organisateur tranche. Les forfaits (joueur pas prêt à temps) et les exemptions (place vide) sont aussi des décisions manuelles, appliquées automatiquement par Najarena. Le motif reste affiché publiquement, pour toujours.",
-  },
-];
 
 const TOURNOIS_CLASSES = [
   {
@@ -149,6 +128,7 @@ export default function CommentCaMarchePage() {
         />
 
         <Partie numero="01" libelle="Parcours" titre="Du premier tournoi au classement" id="parcours" delai={0.05}>
+          <SchemaTrajet />
           <ol className="grid gap-8 md:grid-cols-3">
             {ETAPES.map((e) => (
               <li key={e.n} className="flex flex-col gap-3">
@@ -166,44 +146,7 @@ export default function CommentCaMarchePage() {
             propre niveau de fiabilité, affiché publiquement sur chaque match. On n&apos;invente jamais un résultat : en cas
             de doute, on escalade vers l&apos;organisateur.
           </p>
-          <ul className="flex flex-col">
-            {NIVEAUX.map((niv) => {
-              const compte = niv.niveau !== "manuel";
-              return (
-                <li
-                  key={niv.niveau}
-                  className="grid grid-cols-[3rem_minmax(0,1fr)] items-start gap-x-4 gap-y-2 border-b border-line py-5 sm:grid-cols-[3rem_minmax(0,1fr)_auto]"
-                >
-                  <span
-                    className={`font-titre text-4xl leading-none font-black tabular-nums ${compte ? "text-accent" : "text-faint"}`}
-                  >
-                    {niv.n}
-                  </span>
-                  <span className="flex flex-col gap-1">
-                    <span className="font-semibold">{niv.titre}</span>
-                    <span className="text-sm text-text-2">{niv.texte}</span>
-                  </span>
-                  <span
-                    className={`col-start-2 inline-flex items-center gap-1.5 font-texte text-mini font-semibold whitespace-nowrap uppercase sm:col-start-auto ${
-                      compte ? "text-accent" : "text-muted"
-                    }`}
-                  >
-                    {compte ? (
-                      <>
-                        <Icone nom="coche" taille={13} epaisseur={3} />
-                        Compte au classement
-                      </>
-                    ) : (
-                      <>
-                        <Icone nom="crayon" taille={13} />
-                        Hors classement
-                      </>
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <SchemaVerdict />
         </Partie>
 
         <Partie numero="03" libelle="Classement" titre="Le classement" id="classement" delai={0.08}>
@@ -219,6 +162,7 @@ export default function CommentCaMarchePage() {
             partie classée chez Riot&nbsp;; ses paliers (Mue, Écaille, Crochet, Venin, Cobra, Basilic) sont propres à
             Najarena.
           </p>
+          <SchemaCalibration />
           <dl className="grid grid-cols-2 gap-x-8 gap-y-8 border-t border-line pt-8 sm:grid-cols-4">
             {[
               { valeur: String(RATING_INITIAL), libelle: "Rating de départ" },

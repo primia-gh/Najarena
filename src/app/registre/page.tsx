@@ -10,6 +10,7 @@ import FondEcailles from "@/components/design/FondEcailles";
 import EtatVide from "@/components/design/EtatVide";
 import Apparition from "@/components/design/Apparition";
 import EnTetePage from "@/components/design/EnTetePage";
+import { SchemaRegistre } from "@/components/schemas/Schemas";
 import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
@@ -84,16 +85,12 @@ export default async function RegistrePage() {
         <EnTetePage
           surtitre="Preuve"
           titre="Registre des points"
-          intro={
-            <>
-              Chaque variation de points est inscrite dans ce registre, qui ne se modifie jamais. Chaque ligne porte une
-              empreinte calculée à partir de son contenu <em>et</em> de l&apos;empreinte de la ligne précédente, comme les
-              maillons d&apos;une chaîne : retoucher une seule ligne passée, même depuis l&apos;intérieur de Najarena,
-              changerait son empreinte et toutes celles qui suivent. L&apos;empreinte du jour est publiée chaque soir sur
-              notre Discord ; n&apos;importe qui peut refaire le calcul.
-            </>
-          }
+          intro="Chaque variation de points est inscrite dans ce registre, qui ne se modifie jamais, même depuis l'intérieur de Najarena. L'empreinte du jour est publiée chaque soir sur notre Discord ; n'importe qui peut refaire le calcul."
         />
+
+        <Apparition delai={0.04} className="mt-8 max-w-contenu">
+          <SchemaRegistre />
+        </Apparition>
 
         <Apparition delai={0.08}>
           <div className="mt-8 grid max-w-contenu gap-4 lg:grid-cols-2">
