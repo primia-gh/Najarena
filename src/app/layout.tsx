@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/design/Navbar";
 import RestaurerPause from "@/components/design/RestaurerPause";
+import TransitionPage from "@/components/design/TransitionPage";
 import "./globals.css";
 
 // Polices de l'identité « Venin » (design-system/najarena/MASTER.md §3).
@@ -72,11 +73,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Sans JavaScript, les blocs <Apparition> (masqués jusqu'au
             défilement) ne s'afficheraient jamais : on les montre d'emblée. */}
         <noscript>
-          <style>{"[data-apparition]{opacity:1!important;translate:none!important}"}</style>
+          <style>{"[data-apparition]{opacity:1!important;translate:none!important}.remplit,.trace{transform:none!important}"}</style>
         </noscript>
         <Navbar />
         <div id="contenu" tabIndex={-1} className="outline-none" />
-        {children}
+        {/* Passage d'une page à l'autre : barre de navigation et pied de
+            page fixes, seul le contenu change en fondu (TransitionPage). */}
+        <TransitionPage>{children}</TransitionPage>
         <Footer />
         <Analytics />
         <SpeedInsights />

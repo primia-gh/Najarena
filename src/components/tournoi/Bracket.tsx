@@ -1,3 +1,4 @@
+import Apparition from "@/components/design/Apparition";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BadgeEnDirect, BadgeVerdict } from "@/components/design/Badges";
@@ -37,7 +38,9 @@ export function ColonnesBracket({
       tabIndex={0}
       className="overflow-x-auto pb-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
     >
-      <div className="flex w-max gap-[82px]">
+      {/* Apparition : le chemin déjà joué (connecteurs verts) se trace une
+          fois, tour après tour, quand le bracket entre à l'écran (26/11/2026). */}
+      <Apparition className="flex w-max gap-[82px]">
         {tours.map((t, indexTour) => {
           const dernier = indexTour === tours.length - 1;
           return (
@@ -51,17 +54,17 @@ export function ColonnesBracket({
                       {indexTour > 0 && !sansConnecteurs && (
                         <span
                           aria-hidden="true"
-                          className={`absolute top-1/2 right-full border-t ${m.atteint ? "border-accent" : "border-line-strong"}`}
-                          style={{ width: DEMI_ECART }}
+                          className={`absolute top-1/2 right-full border-t ${m.atteint ? "trace border-accent" : "border-line-strong"}`}
+                          style={{ width: DEMI_ECART, ["--delai" as string]: `${0.2 + indexTour * 0.3}s` }}
                         />
                       )}
                       {!dernier && !sansConnecteurs && (
                         <span
                           aria-hidden="true"
                           className={`absolute left-full border-r ${haut ? "top-1/2 h-1/2 border-t" : "top-0 h-1/2 border-b"} ${
-                            m.joue ? "border-accent" : "border-line-strong"
+                            m.joue ? "trace border-accent" : "border-line-strong"
                           }`}
-                          style={{ width: DEMI_ECART }}
+                          style={{ width: DEMI_ECART, ["--delai" as string]: `${0.05 + indexTour * 0.3}s` }}
                         />
                       )}
                       <div className="w-full">{m.contenu}</div>
@@ -72,7 +75,7 @@ export function ColonnesBracket({
             </div>
           );
         })}
-      </div>
+      </Apparition>
     </div>
   );
 }

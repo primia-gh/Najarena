@@ -1290,6 +1290,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       {/* ================= EN-TÊTE D'AFFICHE ================= */}
       <EnTeteTournoi
         nom={tournoi.nom}
+        nomTransition={`titre-tournoi-${tournoi.slug}`}
         etiquettes={
           <>
             <StatutTournoi statut={statut} />

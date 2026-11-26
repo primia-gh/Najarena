@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { ViewTransition, type ReactNode } from "react";
 import Panneau from "@/components/design/Panneau";
 import BoutonLien from "@/components/design/BoutonLien";
 import Icone from "@/components/design/Icone";
@@ -49,10 +49,13 @@ interface EnTeteTournoiProps {
   infos: InfoTournoi[];
   /** Messages et bouton d'action en bas de l'encart. */
   action?: ReactNode;
+  /** Nom de transition partagé avec la ligne de la liste des tournois
+   *  (le titre « glisse » de la liste vers la page, 26/11/2026). */
+  nomTransition?: string;
 }
 
 /** En-tête d'affiche : nom géant (dernier mot en vert), logo incliné, encart d'infos. */
-export function EnTeteTournoi({ nom, etiquettes, details, infos, action }: EnTeteTournoiProps) {
+export function EnTeteTournoi({ nom, etiquettes, details, infos, action, nomTransition }: EnTeteTournoiProps) {
   const mots = nom.trim().split(/\s+/);
   const debut = mots.length > 1 ? mots.slice(0, -1).join(" ") : "";
   const fin = mots[mots.length - 1];
@@ -90,10 +93,12 @@ export function EnTeteTournoi({ nom, etiquettes, details, infos, action }: EnTet
             ← Tous les tournois
           </Link>
           <div className="flex flex-wrap items-center gap-3 text-mini font-semibold uppercase">{etiquettes}</div>
-          <h1 className="font-titre text-[clamp(3.5rem,10.4vw,9.375rem)] leading-[0.82] font-black uppercase [overflow-wrap:anywhere]">
-            {debut && <>{debut} </>}
-            <span className="text-accent">{fin}</span>
-          </h1>
+          <ViewTransition name={nomTransition} share={nomTransition ? "glisse-titre" : "none"} default="none">
+            <h1 className="font-titre text-[clamp(3.5rem,10.4vw,9.375rem)] leading-[0.82] font-black uppercase [overflow-wrap:anywhere]">
+              {debut && <>{debut} </>}
+              <span className="text-accent">{fin}</span>
+            </h1>
+          </ViewTransition>
           <p className="text-[17px] text-text-2">{details}</p>
         </div>
 

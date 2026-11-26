@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { ViewTransition, type ReactNode } from "react";
 import { partiesDate, type TournoiListe } from "@/lib/tournois";
 import { BadgeEnDirect } from "@/components/design/Badges";
 import Icone from "@/components/design/Icone";
@@ -68,9 +68,11 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
       </time>
 
       <div className="flex min-w-0 flex-col gap-2">
-        <span className="font-titre text-[1.625rem] leading-[0.95] font-black uppercase [overflow-wrap:anywhere] group-hover:text-accent">
-          {t.nom}
-        </span>
+        <ViewTransition name={`titre-tournoi-${t.slug}`} share="glisse-titre" default="none">
+          <span className="font-titre text-[1.625rem] leading-[0.95] font-black uppercase [overflow-wrap:anywhere] group-hover:text-accent">
+            {t.nom}
+          </span>
+        </ViewTransition>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted tabular-nums">
           <span>{d.heure}</span>
           <span aria-hidden="true">·</span>
@@ -92,7 +94,7 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
         </span>
         {!passe && (
           <span className="block h-1 w-full max-w-44 overflow-hidden rounded-full bg-line-strong" aria-hidden="true">
-            <span className="block h-full rounded-full bg-text-2" style={{ width: `${remplissage}%` }} />
+            <span className="remplit block h-full rounded-full bg-text-2" style={{ width: `${remplissage}%` }} />
           </span>
         )}
       </div>

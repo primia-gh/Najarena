@@ -288,6 +288,68 @@ select:not([multiple]):not([size]) {
   }
 }
 
+/* Animations « une seule fois » (26/11/2026, validées par le porteur) :
+   jauges d'inscrits qui se remplissent et chemin vert du bracket qui se
+   trace, quand le bloc parent (Apparition) entre à l'écran. Transform
+   seulement, moins d'une demi-seconde, puis plus rien ne bouge. Sans
+   JavaScript ou avec « réduire les animations » : état final d'emblée. */
+.remplit,
+.trace {
+  transform-origin: left center;
+  transition-property: transform;
+  transition-duration: 0.5s;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--delai, 0.15s);
+}
+[data-apparition]:not([data-visible]) :is(.remplit, .trace) {
+  transform: scaleX(0);
+}
+
+/* Passage d'une page à l'autre (26/11/2026, validé par le porteur) :
+   View Transitions de React (layout.tsx, LigneTournoi, EnTeteTournoi).
+   Le contenu sort en fondu (150 ms) et le nouveau entre avec un léger
+   glissement (220 ms). Le titre d'un tournoi cliqué dans la liste glisse
+   jusqu'au grand titre de sa page (350 ms). Opacité et transform
+   seulement. Les clics passent pendant le passage. */
+::view-transition {
+  pointer-events: none;
+}
+/* La barre de navigation ne bouge pas pendant le passage (Navbar.tsx). */
+::view-transition-group(barre-navigation) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(barre-navigation) {
+  display: none;
+}
+::view-transition-new(barre-navigation) {
+  animation: none;
+}
+::view-transition-group(.fondu-page) {
+  animation: none;
+}
+::view-transition-old(.fondu-page) {
+  animation: 150ms ease-in both fondu-page-sortie;
+}
+::view-transition-new(.fondu-page) {
+  animation: 220ms cubic-bezier(0.2, 0.7, 0.2, 1) 60ms both fondu-page-entree;
+}
+::view-transition-group(.glisse-titre) {
+  animation-duration: 350ms;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes fondu-page-sortie {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes fondu-page-entree {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Apparition.tsx (corrigé le 05/10/2026) : contenu affiché d'emblée,
      sans fondu ni glissement — l'élément arrive masqué du serveur. */
@@ -298,6 +360,17 @@ select:not([multiple]):not([size]) {
   }
   .menu-mobile {
     transition: none;
+  }
+  .remplit,
+  .trace {
+    transform: none !important;
+    transition: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
   }
   .reflet::after,
   .animate-balayage,
