@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SEUIL_A_LA_DEMANDE } from "@/lib/a-la-demande";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
 import { JsonLd } from "@/lib/json-ld";
@@ -115,14 +116,11 @@ export default function FaqPage() {
           en 14 px deviennent une liste numérotée séparée par des filets,
           réponses en texte courant (MASTER §3, 17–20 px). Textes inchangés. */}
       <div className="relative flex flex-col gap-14 px-grille *:max-w-3xl">
-        <Apparition>
-          <LibelleSection>FAQ</LibelleSection>
-          <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Les questions de confiance.</h1>
-          <p className="mt-6 text-courant text-text-2">
-            Les réponses que tu cherches avant de t&apos;inscrire — sans détour, et toutes vérifiées dans le fonctionnement
-            réel du site.
-          </p>
-        </Apparition>
+        <EnTetePage
+          surtitre="FAQ"
+          titre="Les questions de confiance."
+          intro="Les réponses que tu cherches avant de t'inscrire — sans détour, et toutes vérifiées dans le fonctionnement réel du site."
+        />
 
         <ol className="flex flex-col border-b border-line">
           {QUESTIONS.map((q, i) => (

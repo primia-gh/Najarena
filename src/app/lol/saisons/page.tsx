@@ -6,6 +6,7 @@ import { COULEUR_PALIER } from "@/lib/paliers";
 import { dateLongue, joursRestants, libelleJoursRestants, periodeSaison } from "@/lib/saisons";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
@@ -85,17 +86,11 @@ export default async function SaisonsPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille">
-        <Apparition>
-          <span className="block font-texte text-libelle font-medium text-muted uppercase">League of Legends</span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-            Saisons
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-            Chaque saison a son propre classement. Au passage à la suivante, le rating de chacun se rapproche de 15 % de
-            1500 et son incertitude (RD) est multipliée par 1,8 : jamais de remise à zéro, mais une vraie place à
-            reconquérir. Le classement final de chaque saison reste archivé ici, tel quel.
-          </p>
-        </Apparition>
+        <EnTetePage
+          surtitre="League of Legends"
+          titre="Saisons"
+          intro="Chaque saison a son propre classement. Au passage à la suivante, le rating de chacun se rapproche de 15 % de 1500 et son incertitude (RD) est multipliée par 1,8 : jamais de remise à zéro, mais une vraie place à reconquérir. Le classement final de chaque saison reste archivé ici, tel quel."
+        />
 
         <Apparition delai={0.08}>
           <div className="mt-8 grid max-w-contenu gap-4 lg:grid-cols-[2fr_1fr]">

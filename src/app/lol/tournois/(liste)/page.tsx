@@ -15,6 +15,7 @@ import {
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
 import BoutonLien from "@/components/design/BoutonLien";
+import EnTetePage from "@/components/design/EnTetePage";
 import FondEcailles from "@/components/design/FondEcailles";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
@@ -129,15 +130,12 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille">
-        <Apparition className="flex flex-wrap items-end justify-between gap-8">
-          <div>
-            <LibelleSection>League of Legends</LibelleSection>
-            <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Tournois</h1>
-            <p className="mt-5 max-w-2xl text-courant text-text-2">
-              Des tournois 1v1 chaque jour et des tournois 5v5 entre équipes. Les résultats sont lus dans la donnée
-              officielle de Riot : personne ne déclare son score.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-x-6">
+        <EnTetePage
+          surtitre="League of Legends"
+          titre="Tournois"
+          intro="Des tournois 1v1 chaque jour et des tournois 5v5 entre équipes. Les résultats sont lus dans la donnée officielle de Riot : personne ne déclare son score."
+          actions={
+            <>
               <Link
                 href="/lol/a-la-demande"
                 className="inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:text-accent"
@@ -150,12 +148,14 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
               >
                 Divisions : un match par semaine, à ton niveau
               </Link>
-            </div>
-          </div>
-          <BoutonLien href="/organiser/nouveau" variante="contour">
-            Organiser un tournoi
-          </BoutonLien>
-        </Apparition>
+            </>
+          }
+          aside={
+            <BoutonLien href="/organiser/nouveau" variante="contour">
+              Organiser un tournoi
+            </BoutonLien>
+          }
+        />
 
         <Apparition delai={0.08} className="flex flex-col gap-3">
           <nav aria-label="Filtrer par statut" className="flex gap-2 overflow-x-auto pb-1">

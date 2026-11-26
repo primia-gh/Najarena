@@ -6,6 +6,7 @@ import { prixOffres } from "@/lib/prix-stripe";
 import { DELAI_RETRACTATION_JOURS, offreEnVente } from "@/lib/cgv";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
@@ -215,22 +216,24 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-16 px-grille">
-        <Apparition>
-          <LibelleSection>Tarifs</LibelleSection>
-          <h1 className="mt-4 max-w-5xl font-titre text-section font-black tracking-[1px] uppercase">
-            Ton niveau reste gratuit. <span className="text-accent">Pour toujours.</span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-courant text-text-2">
-            Le classement, les verdicts et le profil public ne seront jamais payants — c&apos;est la promesse du site. Les
-            paliers ci-dessous ajoutent de l&apos;identité et du confort, jamais un péage sur la preuve.
-          </p>
+        <div className="flex flex-col gap-8">
+          <EnTetePage
+            surtitre="Tarifs"
+            classeTitre="max-w-5xl"
+            titre={
+              <>
+                Ton niveau reste gratuit. <span className="text-accent">Pour toujours.</span>
+              </>
+            }
+            intro="Le classement, les verdicts et le profil public ne seront jamais payants — c'est la promesse du site. Les paliers ci-dessous ajoutent de l'identité et du confort, jamais un péage sur la preuve."
+          />
           {(erreur || message) && (
-            <div id="retour" className="mt-8 flex max-w-2xl scroll-mt-28 flex-col gap-3">
+            <div id="retour" className="flex max-w-2xl scroll-mt-28 flex-col gap-3">
               {erreur && <Alerte type="erreur">{erreur}</Alerte>}
               {message && <Alerte type="succes">{message}</Alerte>}
             </div>
           )}
-        </Apparition>
+        </div>
 
         <Apparition delai={0.1}>
           <section aria-labelledby="tarifs-paliers" className="flex flex-col gap-8">

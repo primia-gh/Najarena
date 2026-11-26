@@ -9,6 +9,7 @@ import { formaterDate } from "@/lib/tournois";
 import { classeChamp } from "@/lib/design";
 import { typographie } from "@/lib/typographie";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
 import LibelleSection from "@/components/design/LibelleSection";
@@ -86,25 +87,23 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille">
-        <Apparition className="flex flex-wrap items-end justify-between gap-8">
-          <div>
-            <LibelleSection>League of Legends · 5v5</LibelleSection>
-            <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Équipes qui recrutent</h1>
-            <p className="mt-5 max-w-2xl text-courant text-text-2">
-              {typographie(
-                "Les capitaines indiquent les postes qu'ils cherchent et le niveau demandé. Postule depuis la page de l'équipe avec ton compte Riot vérifié : le capitaine accepte ou décline, et sa réponse t'arrive en notification.",
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <BoutonLien href="/lol/coequipiers" variante="contour">
-              Joueurs qui cherchent une équipe
-            </BoutonLien>
-            <BoutonLien href="/equipe/nouvelle" variante="contour">
-              Créer une équipe
-            </BoutonLien>
-          </div>
-        </Apparition>
+        <EnTetePage
+          surtitre="League of Legends · 5v5"
+          titre="Équipes qui recrutent"
+          intro={typographie(
+            "Les capitaines indiquent les postes qu'ils cherchent et le niveau demandé. Postule depuis la page de l'équipe avec ton compte Riot vérifié : le capitaine accepte ou décline, et sa réponse t'arrive en notification.",
+          )}
+          actions={
+            <>
+              <BoutonLien href="/lol/coequipiers" variante="contour">
+                Joueurs qui cherchent une équipe
+              </BoutonLien>
+              <BoutonLien href="/equipe/nouvelle" variante="contour">
+                Créer une équipe
+              </BoutonLien>
+            </>
+          }
+        />
 
         <form method="get" className="flex max-w-xl flex-wrap items-end gap-3">
           <label className="flex min-w-56 flex-1 flex-col gap-1.5">

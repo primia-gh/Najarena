@@ -1,4 +1,5 @@
 import Link from "next/link";
+import EnTetePage from "@/components/design/EnTetePage";
 import type { Metadata } from "next";
 import { DATE_CGU_LISIBLE } from "@/lib/cgu";
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
@@ -15,17 +16,7 @@ export const metadata: Metadata = {
 export default function CguPage() {
   return (
     <main className="px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
-      <Link
-        href="/"
-        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-      >
-        Najarena
-      </Link>
-
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-        Conditions générales d&apos;utilisation
-      </h1>
-      <p className="mt-2 text-sm text-muted">Version du {DATE_CGU_LISIBLE}.</p>
+      <EnTetePage surtitre={`Document légal · version du ${DATE_CGU_LISIBLE}`} titre="Conditions générales d'utilisation" />
 
       <div className="mt-8 flex flex-col gap-8 text-courant text-text">
         <section>

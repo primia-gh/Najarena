@@ -19,10 +19,10 @@ import { BadgeVerdict } from "@/components/design/Badges";
 import PastilleResultat from "@/components/design/PastilleResultat";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
-import Icone from "@/components/design/Icone";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 
@@ -201,26 +201,25 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille">
-        <Apparition className="flex flex-col gap-5">
-          <Link
-            href="/lol/tournois"
-            className="inline-flex min-h-11 items-center gap-2 self-start font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            <Icone nom="fleche-gauche" taille={14} />
-            Tournois
-          </Link>
-          <LibelleSection>League of Legends · 1v1</LibelleSection>
-          <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Divisions</h1>
-          <p className="max-w-2xl text-courant text-balance text-text-2">
-            Une ligue par mois&nbsp;: des poules de joueurs de ton niveau, un match par semaine contre chacun, lu chez Riot.
-            À la&nbsp;fin du mois, on monte ou on descend selon ses résultats.
-          </p>
-          {/* L'inscription est plus bas, après les règles et les régions :
-              un raccourci dès le haut de page (relecture design du 12/10/2026). */}
-          <BoutonLien href="#inscription" className="self-start text-balance">
-            {jeSuisInscrit ? "Ma prochaine ligue" : "S'inscrire à la prochaine ligue"}
-          </BoutonLien>
-        </Apparition>
+        <EnTetePage
+          retour={{ href: "/lol/tournois", libelle: "Tournois" }}
+          surtitre="League of Legends · 1v1"
+          titre="Divisions"
+          classeIntro="text-balance"
+          intro={
+            <>
+              Une ligue par mois&nbsp;: des poules de joueurs de ton niveau, un match par semaine contre chacun, lu chez
+              Riot. À la&nbsp;fin du mois, on monte ou on descend selon ses résultats.
+            </>
+          }
+          actions={
+            /* L'inscription est plus bas, après les règles et les régions :
+               un raccourci dès le haut de page (relecture design du 12/10/2026). */
+            <BoutonLien href="#inscription" className="text-balance">
+              {jeSuisInscrit ? "Ma prochaine ligue" : "S'inscrire à la prochaine ligue"}
+            </BoutonLien>
+          }
+        />
 
         <Apparition delai={0.06}>
           <ul className="grid max-w-5xl gap-6 border-y border-line py-6 md:grid-cols-3">

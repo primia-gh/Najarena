@@ -5,6 +5,7 @@ import { arrondir, trouverPalier } from "@/lib/classement";
 import { formaterDate } from "@/lib/tournois";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
 import LibelleSection from "@/components/design/LibelleSection";
@@ -101,16 +102,12 @@ export default async function ClassementPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-14 px-grille">
-        <Apparition className="flex flex-wrap items-end justify-between gap-10">
-          <div>
-            <LibelleSection>League of Legends{saison?.nom ? ` · ${saison.nom}` : ""}</LibelleSection>
-            <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Classement</h1>
-            <p className="mt-5 max-w-2xl text-courant text-text-2">
-              Calculé en Glicko-2 à partir de résultats lus chez Riot, recalculé à la clôture de chaque tournoi classé. Un
-              joueur y entre quand son incertitude (RD) descend sous 150 — une dizaine de matchs.
-            </p>
-          </div>
-          {saison && !erreurClassement && joueurs.length > 0 && (
+        <EnTetePage
+          surtitre={`League of Legends${saison?.nom ? ` · ${saison.nom}` : ""}`}
+          titre="Classement"
+          intro="Calculé en Glicko-2 à partir de résultats lus chez Riot, recalculé à la clôture de chaque tournoi classé. Un joueur y entre quand son incertitude (RD) descend sous 150 — une dizaine de matchs."
+          aside={
+            saison && !erreurClassement && joueurs.length > 0 && (
             <dl className="flex gap-10 border-l border-line-strong pl-8">
               <div className="flex flex-col gap-2">
                 <dt className="font-texte text-mini font-medium text-faint uppercase">Joueurs classés</dt>
@@ -125,8 +122,9 @@ export default async function ClassementPage() {
                 </div>
               )}
             </dl>
-          )}
-        </Apparition>
+            )
+          }
+        />
 
         <Apparition delai={0.08} className="flex flex-col gap-14">
           {!saison ? (

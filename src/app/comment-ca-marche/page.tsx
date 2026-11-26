@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import Icone, { type NomIcone } from "@/components/design/Icone";
 import LibelleSection from "@/components/design/LibelleSection";
@@ -141,14 +142,11 @@ export default function CommentCaMarchePage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-16 px-grille">
-        <Apparition>
-          <LibelleSection>Guide</LibelleSection>
-          <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Comment ça marche.</h1>
-          <p className="mt-6 max-w-2xl text-courant text-text-2">
-            Aucune capture d&apos;écran à envoyer, aucun litige à trancher entre joueurs — voici exactement comment un
-            résultat devient une preuve sur Najarena.
-          </p>
-        </Apparition>
+        <EnTetePage
+          surtitre="Guide"
+          titre="Comment ça marche."
+          intro="Aucune capture d'écran à envoyer, aucun litige à trancher entre joueurs — voici exactement comment un résultat devient une preuve sur Najarena."
+        />
 
         <Partie numero="01" libelle="Parcours" titre="Du premier tournoi au classement" id="parcours" delai={0.05}>
           <ol className="grid gap-8 md:grid-cols-3">

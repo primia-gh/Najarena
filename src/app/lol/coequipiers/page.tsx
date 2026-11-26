@@ -12,6 +12,7 @@ import { LIBELLE_TYPE_ECHEANCE, typeEcheance } from "@/lib/echeances";
 import { LABEL_ROLE, ROLES, type Role } from "@/lib/roles";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonLien from "@/components/design/BoutonLien";
 import FondEcailles from "@/components/design/FondEcailles";
@@ -225,27 +226,29 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille">
-        <Apparition className="flex flex-wrap items-end justify-between gap-8">
-          <div>
-            <LibelleSection>League of Legends · 5v5</LibelleSection>
-            <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Trouver un coéquipier</h1>
-            <p className="mt-5 max-w-2xl text-courant text-text-2">
+        <EnTetePage
+          surtitre="League of Legends · 5v5"
+          titre="Trouver un coéquipier"
+          intro={
+            <>
               Une équipe compte jusqu&apos;à {TAILLE_MAX_EQUIPE} joueurs ; son capitaine en inscrit cinq aux tournois
               5v5. Publie une annonce pour te rendre visible, ou invite un joueur disponible dans ton équipe.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <BoutonLien href="/lol/recrutement" variante="contour">
-              Équipes qui recrutent
-            </BoutonLien>
-            <BoutonLien href="/lol/duo" variante="contour">
-              Trouver un duo
-            </BoutonLien>
-            <BoutonLien href="/equipe/nouvelle" variante="contour">
-              Créer une équipe
-            </BoutonLien>
-          </div>
-        </Apparition>
+            </>
+          }
+          actions={
+            <>
+              <BoutonLien href="/lol/recrutement" variante="contour">
+                Équipes qui recrutent
+              </BoutonLien>
+              <BoutonLien href="/lol/duo" variante="contour">
+                Trouver un duo
+              </BoutonLien>
+              <BoutonLien href="/equipe/nouvelle" variante="contour">
+                Créer une équipe
+              </BoutonLien>
+            </>
+          }
+        />
 
         {(erreur || message) && (
           <div className="flex max-w-2xl flex-col gap-3">

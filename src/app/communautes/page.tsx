@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import FondEcailles from "@/components/design/FondEcailles";
-import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import Panneau from "@/components/design/Panneau";
 
@@ -32,21 +32,24 @@ export default async function CommunautesPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-10 px-grille">
-        <Apparition>
-          <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Communautés</h1>
-          <p className="mt-3 max-w-2xl text-courant text-text-2">
-            Un serveur Discord, une association, une école : sa page réunit ses tournois, le classement interne de ses
-            membres — leur rating Najarena, calculé à partir de résultats lus chez Riot — et ses membres.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <BoutonLien href="/communaute/nouvelle" variante="contour">
-              Créer une communauté
-            </BoutonLien>
-            <Link href="/lol/ecoles" className="text-sm text-muted underline underline-offset-3 hover:text-text">
-              Ligue des écoles
-            </Link>
-          </div>
-        </Apparition>
+        <EnTetePage
+          surtitre="Discord · associations · écoles"
+          titre="Communautés"
+          intro="Un serveur Discord, une association, une école : sa page réunit ses tournois, le classement interne de ses membres — leur rating Najarena, calculé à partir de résultats lus chez Riot — et ses membres."
+          actions={
+            <>
+              <BoutonLien href="/communaute/nouvelle" variante="contour">
+                Créer une communauté
+              </BoutonLien>
+              <Link
+                href="/lol/ecoles"
+                className="inline-flex min-h-11 items-center text-sm text-muted underline underline-offset-3 hover:text-text"
+              >
+                Ligue des écoles
+              </Link>
+            </>
+          }
+        />
 
         {communautes.length === 0 ? (
           <Panneau className="p-6">

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { arrondir } from "@/lib/classement";
 import { classementEcoles, ETUDIANTS_CLASSEMENT_ECOLES, libelleDomaines } from "@/lib/ecoles";
 import FondEcailles from "@/components/design/FondEcailles";
-import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import BoutonLien from "@/components/design/BoutonLien";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
@@ -41,35 +41,40 @@ export default async function EcolesPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille">
-        <Apparition>
-          <Link
-            href="/lol"
-            className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            ← League of Legends
-          </Link>
-          <h1 className="mt-6 font-titre text-section font-black tracking-[1px] uppercase">Ligue des écoles</h1>
-          <p className="mt-3 max-w-2xl text-courant text-text-2">
-            Les écoles et universités, classées par la moyenne des {ETUDIANTS_CLASSEMENT_ECOLES} meilleurs ratings
-            Najarena de leurs membres vérifiés — des joueurs qui ont prouvé leur adresse de l&apos;établissement.
-            Aucun point à part : chacun gagne son rating dans les tournois classés, résultats lus chez Riot.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <BoutonLien href="/communaute/nouvelle" variante="contour">
-              Inscrire mon école
-            </BoutonLien>
-            <Link href="/communautes" className="text-sm text-muted underline underline-offset-3 hover:text-text">
-              Toutes les communautés
-            </Link>
-          </div>
-          <p className="mt-3 max-w-2xl text-xs text-muted">
+        <div className="flex flex-col gap-4">
+          <EnTetePage
+            retour={{ href: "/lol", libelle: "League of Legends" }}
+            surtitre="Écoles et universités"
+            titre="Ligue des écoles"
+            intro={
+              <>
+                Les écoles et universités, classées par la moyenne des {ETUDIANTS_CLASSEMENT_ECOLES} meilleurs ratings
+                Najarena de leurs membres vérifiés — des joueurs qui ont prouvé leur adresse de l&apos;établissement.
+                Aucun point à part : chacun gagne son rating dans les tournois classés, résultats lus chez Riot.
+              </>
+            }
+            actions={
+              <>
+                <BoutonLien href="/communaute/nouvelle" variante="contour">
+                  Inscrire mon école
+                </BoutonLien>
+                <Link
+                  href="/communautes"
+                  className="inline-flex min-h-11 items-center text-sm text-muted underline underline-offset-3 hover:text-text"
+                >
+                  Toutes les communautés
+                </Link>
+              </>
+            }
+          />
+          <p className="max-w-2xl text-xs text-muted">
             Une association étudiante crée la communauté de son école (offre Organisateur), puis indique le ou les
             domaines des adresses de l&apos;établissement ; ses membres vérifient la leur depuis la page de l&apos;école.
             Ces domaines sont affichés sous chaque école : ce sont eux qui disent quel établissement elle représente.
             Najarena vérifie qu&apos;ils appartiennent à l&apos;établissement avant d&apos;admettre l&apos;école dans la
             ligue.
           </p>
-        </Apparition>
+        </div>
 
         <section className="flex flex-col gap-4">
           <LibelleSection as="h2">Classement — saison en cours</LibelleSection>

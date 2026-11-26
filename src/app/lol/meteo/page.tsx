@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { RD_SEUIL_CLASSEMENT } from "@/lib/classement";
 import { etatMeteo, formaterDecimal, LIBELLE_ETAT, partVerifiee } from "@/lib/meteo";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import FondEcailles from "@/components/design/FondEcailles";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
@@ -49,14 +50,11 @@ export default async function MeteoPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille">
-        <Apparition className="flex flex-col gap-5">
-          <LibelleSection>Preuve{meteo?.saison ? ` · ${meteo.saison}` : ""}</LibelleSection>
-          <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Météo du classement</h1>
-          <p className="max-w-2xl text-courant text-text-2">
-            Un classement n&apos;est précis que si chaque joueur a disputé assez de matchs vérifiés. Voici où en est le
-            nôtre, sans rien arranger : ces chiffres sont calculés par la base à chaque visite.
-          </p>
-        </Apparition>
+        <EnTetePage
+          surtitre={`Preuve${meteo?.saison ? ` · ${meteo.saison}` : ""}`}
+          titre="Météo du classement"
+          intro="Un classement n'est précis que si chaque joueur a disputé assez de matchs vérifiés. Voici où en est le nôtre, sans rien arranger : ces chiffres sont calculés par la base à chaque visite."
+        />
 
         <Apparition delai={0.04}>
           <Panneau reperes className="flex max-w-3xl flex-col gap-3 p-7">

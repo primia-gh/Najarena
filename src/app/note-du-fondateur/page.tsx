@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
-import LibelleSection from "@/components/design/LibelleSection";
+import EnTetePage from "@/components/design/EnTetePage";
 
 export const metadata: Metadata = {
   // Adresse canonique (audit M11) : sans ses paramètres de filtre ou de message.
@@ -15,10 +15,7 @@ export default function NoteDuFondateurPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille *:max-w-3xl">
-        <Apparition>
-          <LibelleSection>Pourquoi Najarena</LibelleSection>
-          <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Une note du fondateur.</h1>
-        </Apparition>
+        <EnTetePage surtitre="Pourquoi Najarena" titre="Une note du fondateur." />
 
         <Apparition delai={0.1}>
           {/* Texte de lecture en 17–20 px (revue visuelle du 09/10/2026). */}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import EnTetePage from "@/components/design/EnTetePage";
 import type { Metadata } from "next";
 import { cashPrizesActifs } from "@/lib/dotations";
 
@@ -12,17 +13,7 @@ export const metadata: Metadata = {
 export default function ConfidentialitePage() {
   return (
     <main className="px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
-      <Link
-        href="/"
-        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-      >
-        Najarena
-      </Link>
-
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-        Politique de confidentialité
-      </h1>
-      <p className="mt-2 text-sm text-muted">Dernière mise à jour&nbsp;: 24&nbsp;novembre 2026.</p>
+      <EnTetePage surtitre="Document légal · mis à jour le 24 novembre 2026" titre="Politique de confidentialité" />
 
       <div className="mt-8 flex flex-col gap-8 text-courant text-text [&_strong]:font-medium [&_strong]:text-text">
         <section>

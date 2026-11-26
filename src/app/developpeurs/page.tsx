@@ -3,7 +3,7 @@ import Link from "next/link";
 import { URL_PUBLIQUE } from "@/lib/donnees-publiques";
 import { RAFRAICHISSEMENT_WIDGET_SECONDES } from "@/lib/widgets";
 import FondEcailles from "@/components/design/FondEcailles";
-import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 import BoutonCopier from "@/components/design/BoutonCopier";
@@ -98,13 +98,11 @@ export default function DeveloppeursPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille *:max-w-3xl">
-        <Apparition>
-          <h1 className="font-titre text-section font-black tracking-[1px] uppercase">Widgets et API</h1>
-          <p className="mt-3 text-courant text-text-2">
-            Affiche les résultats vérifiés de Najarena sur le site de ton équipe ou sur ton stream, ou lis-les en JSON.
-            Gratuit, sans clé, en lecture seule : uniquement ce qui est déjà public sur le site.
-          </p>
-        </Apparition>
+        <EnTetePage
+          surtitre="Développeurs · streamers"
+          titre="Widgets et API"
+          intro="Affiche les résultats vérifiés de Najarena sur le site de ton équipe ou sur ton stream, ou lis-les en JSON. Gratuit, sans clé, en lecture seule : uniquement ce qui est déjà public sur le site."
+        />
 
         <section className="flex flex-col gap-4">
           <LibelleSection as="h2">Widgets</LibelleSection>

@@ -9,6 +9,7 @@ import { adresseFichier, depotAncrage } from "@/lib/ancrage-github";
 import { classeCarte } from "@/lib/ui";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 import Tableau from "@/components/design/Tableau";
@@ -80,19 +81,19 @@ export default async function RegistrePage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille">
-        <Apparition>
-          <span className="block font-texte text-libelle font-medium text-muted uppercase">Preuve</span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-            Registre des points
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-text-2">
-            Chaque variation de points est inscrite dans ce registre, qui ne se modifie jamais. Chaque ligne porte une
-            empreinte calculée à partir de son contenu <em>et</em> de l&apos;empreinte de la ligne précédente, comme les
-            maillons d&apos;une chaîne : retoucher une seule ligne passée, même depuis l&apos;intérieur de Najarena,
-            changerait son empreinte et toutes celles qui suivent. L&apos;empreinte du jour est publiée chaque soir sur
-            notre Discord ; n&apos;importe qui peut refaire le calcul.
-          </p>
-        </Apparition>
+        <EnTetePage
+          surtitre="Preuve"
+          titre="Registre des points"
+          intro={
+            <>
+              Chaque variation de points est inscrite dans ce registre, qui ne se modifie jamais. Chaque ligne porte une
+              empreinte calculée à partir de son contenu <em>et</em> de l&apos;empreinte de la ligne précédente, comme les
+              maillons d&apos;une chaîne : retoucher une seule ligne passée, même depuis l&apos;intérieur de Najarena,
+              changerait son empreinte et toutes celles qui suivent. L&apos;empreinte du jour est publiée chaque soir sur
+              notre Discord ; n&apos;importe qui peut refaire le calcul.
+            </>
+          }
+        />
 
         <Apparition delai={0.08}>
           <div className="mt-8 grid max-w-contenu gap-4 lg:grid-cols-2">

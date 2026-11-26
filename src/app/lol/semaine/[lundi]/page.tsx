@@ -9,6 +9,7 @@ import { chargerRecapSemaine } from "@/lib/recap-semaine-serveur";
 import { dateLongue } from "@/lib/saisons";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import Panneau from "@/components/design/Panneau";
 import LibelleSection from "@/components/design/LibelleSection";
 
@@ -62,22 +63,28 @@ export default async function RecapSemainePage({ params }: SemainePageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille *:max-w-3xl">
-        <Apparition>
-          <span className="block font-texte text-libelle font-medium text-muted uppercase">Récap de la semaine</span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-            Semaine du {dateLongue(`${lundi}T12:00:00Z`)}
-          </h1>
-          <nav aria-label="Autres semaines" className="mt-3 flex gap-5 text-sm text-muted">
-            <Link href={`/lol/semaine/${precedente}`} className="underline underline-offset-3 hover:text-text">
-              ← Semaine précédente
-            </Link>
-            {suivanteExiste && (
-              <Link href={`/lol/semaine/${suivante}`} className="underline underline-offset-3 hover:text-text">
-                Semaine suivante →
+        <EnTetePage
+          surtitre="Récap de la semaine"
+          titre={`Semaine du ${dateLongue(`${lundi}T12:00:00Z`)}`}
+          actions={
+            <nav aria-label="Autres semaines" className="flex gap-5 text-sm text-muted">
+              <Link
+                href={`/lol/semaine/${precedente}`}
+                className="inline-flex min-h-11 items-center underline underline-offset-3 hover:text-text"
+              >
+                ← Semaine précédente
               </Link>
-            )}
-          </nav>
-        </Apparition>
+              {suivanteExiste && (
+                <Link
+                  href={`/lol/semaine/${suivante}`}
+                  className="inline-flex min-h-11 items-center underline underline-offset-3 hover:text-text"
+                >
+                  Semaine suivante →
+                </Link>
+              )}
+            </nav>
+          }
+        />
 
         <Apparition delai={0.08}>
           {!recap ? (

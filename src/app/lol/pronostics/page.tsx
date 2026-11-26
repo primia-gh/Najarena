@@ -11,7 +11,7 @@ import {
   type MatchPronostiquable,
 } from "@/lib/pronostics";
 import FondEcailles from "@/components/design/FondEcailles";
-import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 import Tableau from "@/components/design/Tableau";
@@ -93,21 +93,19 @@ export default async function PronosticsPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille">
-        <Apparition>
-          <Link
-            href="/lol"
-            className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-          >
-            ← League of Legends
-          </Link>
-          <h1 className="mt-6 font-titre text-section font-black tracking-[1px] uppercase">Pronostics</h1>
-          <p className="mt-3 max-w-2xl text-courant text-text-2">
-            Qui gagne les demi-finales et la finale ? Une demi-finale juste vaut 1 point, une finale 2 points, comptés
-            seulement sur un résultat lu chez Riot (un forfait ou une décision manuelle annule le pronostic).{" "}
-            <strong className="text-text">Aucune mise, aucun gain</strong> : un classement des pronostiqueurs par
-            saison, rien d&apos;autre.
-          </p>
-        </Apparition>
+        <EnTetePage
+          retour={{ href: "/lol", libelle: "League of Legends" }}
+          surtitre="Gratuit · sans mise"
+          titre="Pronostics"
+          intro={
+            <>
+              Qui gagne les demi-finales et la finale ? Une demi-finale juste vaut 1 point, une finale 2 points, comptés
+              seulement sur un résultat lu chez Riot (un forfait ou une décision manuelle annule le pronostic).{" "}
+              <strong className="text-text">Aucune mise, aucun gain</strong> : un classement des pronostiqueurs par
+              saison, rien d&apos;autre.
+            </>
+          }
+        />
 
         <section className="flex flex-col gap-4">
           <LibelleSection as="h2">À pronostiquer maintenant</LibelleSection>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import EnTetePage from "@/components/design/EnTetePage";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -11,16 +12,7 @@ export const metadata: Metadata = {
 export default function MentionsLegalesPage() {
   return (
     <main className="px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
-      <Link
-        href="/"
-        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-      >
-        Najarena
-      </Link>
-
-      <h1 className="mt-6 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-        Mentions légales
-      </h1>
+      <EnTetePage surtitre="Document légal" titre="Mentions légales" />
 
       <div className="mt-8 flex flex-col gap-8 text-courant text-text">
         <section>

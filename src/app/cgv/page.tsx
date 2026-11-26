@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import EnTetePage from "@/components/design/EnTetePage";
 import type { Metadata } from "next";
 import { DATE_CGV_LISIBLE, DELAI_RETRACTATION_JOURS, MEDIATEUR, paiementActif } from "@/lib/cgv";
 
@@ -32,17 +33,7 @@ export default function CgvPage() {
   const ouvert = paiementActif();
   return (
     <main className="px-grille *:max-w-3xl pt-32 pb-24 font-texte text-text">
-      <Link
-        href="/"
-        className="inline-flex min-h-11 items-center font-texte text-xs tracking-[3px] text-muted uppercase hover:text-text"
-      >
-        Najarena
-      </Link>
-
-      <h1 className="mt-6 font-titre text-section font-black tracking-[1px] text-text uppercase hyphens-auto [overflow-wrap:anywhere]">
-        Conditions générales de vente
-      </h1>
-      <p className="mt-2 text-sm text-muted">Version du {DATE_CGV_LISIBLE}.</p>
+      <EnTetePage surtitre={`Document légal · version du ${DATE_CGV_LISIBLE}`} titre="Conditions générales de vente" />
       {!ouvert && (
         <p className="mt-6 border-l-2 border-line-strong pl-4 text-courant text-text">
           Les offres payantes ne sont pas encore en vente&nbsp;: ces conditions s&apos;appliqueront à leur ouverture.

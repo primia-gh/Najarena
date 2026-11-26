@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import FondEcailles from "@/components/design/FondEcailles";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import { typographie } from "@/lib/typographie";
 import { JOURNAL } from "@/lib/journal";
 
@@ -16,18 +17,11 @@ export default function JournalPage() {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative px-grille *:max-w-3xl">
-        <Apparition>
-          <span className="block font-texte text-libelle font-medium text-muted uppercase">
-            En coulisses
-          </span>
-          <h1 className="mt-1 font-titre uppercase text-section font-black tracking-[1px] text-text hyphens-auto [overflow-wrap:anywhere]">
-            Journal de bord.
-          </h1>
-          <p className="mt-3 max-w-lg text-sm text-muted">
-            Najarena avance publiquement. Voici ce qui a été construit récemment — pas de round de
-            financement à annoncer, juste du produit qui sort.
-          </p>
-        </Apparition>
+        <EnTetePage
+          surtitre="En coulisses"
+          titre="Journal de bord."
+          intro="Najarena avance publiquement. Voici ce qui a été construit récemment — pas de round de financement à annoncer, juste du produit qui sort."
+        />
 
         <Apparition delai={0.1}>
           <div className="mt-10 flex flex-col">

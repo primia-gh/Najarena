@@ -28,6 +28,7 @@ import {
 import { annulerDemandeDuo, demanderDuo, publierAnnonceDuo, repondreDemandeDuo, retirerAnnonceDuo } from "@/lib/duo-actions";
 import Alerte from "@/components/design/Alerte";
 import Apparition from "@/components/design/Apparition";
+import EnTetePage from "@/components/design/EnTetePage";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import BoutonLien from "@/components/design/BoutonLien";
@@ -423,17 +424,14 @@ export default async function DuoPage({ searchParams }: PageProps) {
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille">
-        <Apparition className="flex flex-wrap items-end justify-between gap-8">
-          <div>
-            <LibelleSection>League of Legends · Duo</LibelleSection>
-            <h1 className="mt-4 font-titre text-section font-black tracking-[1px] uppercase">Trouver un duo</h1>
-            <p className="mt-5 max-w-2xl text-courant text-text-2">
-              {typographie(
-                "Publie ton poste, celui que tu cherches et tes horaires. On te montre d'abord les joueurs de ton serveur qui jouent ce poste sur au moins un de tes créneaux ; quand vous êtes classés tous les deux, les niveaux proches passent devant. Pour contacter un joueur, envoie-lui une demande : s'il accepte, une conversation s'ouvre dans ta messagerie.",
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
+        <EnTetePage
+          surtitre="League of Legends · Duo"
+          titre="Trouver un duo"
+          intro={typographie(
+            "Publie ton poste, celui que tu cherches et tes horaires. On te montre d'abord les joueurs de ton serveur qui jouent ce poste sur au moins un de tes créneaux ; quand vous êtes classés tous les deux, les niveaux proches passent devant. Pour contacter un joueur, envoie-lui une demande : s'il accepte, une conversation s'ouvre dans ta messagerie.",
+          )}
+          actions={
+            <>
             {/* Sur mobile, le formulaire est loin : un raccourci vers lui. */}
             {!moi ? (
               <BoutonLien href={`/connexion?suite=${encodeURIComponent("/lol/duo")}`}>Se connecter</BoutonLien>
@@ -447,8 +445,9 @@ export default async function DuoPage({ searchParams }: PageProps) {
             <BoutonLien href="/lol/coequipiers" variante="contour">
               Chercher une équipe
             </BoutonLien>
-          </div>
-        </Apparition>
+            </>
+          }
+        />
 
         <Apparition delai={0.06}>
           <ul className="grid max-w-5xl gap-6 border-y border-line py-6 md:grid-cols-3">
