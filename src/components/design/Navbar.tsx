@@ -8,7 +8,7 @@
 // 23/09/2026). Barre complète à partir de 1280 px, menu repliable en dessous
 // (5 liens + 2 boutons ne tiennent pas sur une ligne à 1024 px).
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -68,6 +68,50 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Menu mobile (audit web du 26/11/2026, U3) : Échap le ferme et rend le
+  // focus au bouton ; un clic ou un toucher hors de la barre le ferme ;
+  // quitter le menu au clavier (Tab) le ferme aussi. Pas d'attribut HTML
+  // « popover » : il ferait tout cela nativement, mais il n'existe qu'à
+  // partir de Safari 17 et demanderait une bibliothèque de secours pour les
+  // téléphones plus anciens (sinon le menu y resterait ouvert en permanence).
+  // Changement de page sans clic dans le menu (bouton Retour du navigateur) :
+  // le menu se ferme. Ajustement pendant le rendu, comme le recommande React
+  // pour un état qui dépend d'une valeur reçue.
+  const [cheminDuMenu, setCheminDuMenu] = useState(pathname);
+  if (cheminDuMenu !== pathname) {
+    setCheminDuMenu(pathname);
+    setMenuOuvert(false);
+  }
+
+  const barreRef = useRef<HTMLElement>(null);
+  const boutonMenuRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOuvert) return;
+    const barre = barreRef.current;
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMenuOuvert(false);
+      boutonMenuRef.current?.focus();
+    };
+    const surPointeur = (e: PointerEvent) => {
+      if (barre && e.target instanceof Node && !barre.contains(e.target)) setMenuOuvert(false);
+    };
+    const surSortieFocus = (e: FocusEvent) => {
+      // relatedTarget nul : la fenêtre perd le focus (changement d'onglet),
+      // on laisse le menu ouvert.
+      if (barre && e.relatedTarget instanceof Node && !barre.contains(e.relatedTarget)) setMenuOuvert(false);
+    };
+    document.addEventListener("keydown", surTouche);
+    document.addEventListener("pointerdown", surPointeur);
+    barre?.addEventListener("focusout", surSortieFocus);
+    return () => {
+      document.removeEventListener("keydown", surTouche);
+      document.removeEventListener("pointerdown", surPointeur);
+      barre?.removeEventListener("focusout", surSortieFocus);
+    };
+  }, [menuOuvert]);
+
   const cibleCompte = connecte ? "/moi" : "/connexion";
   const libelleCompte = connecte ? "Mon compte" : "Se connecter";
   const masquerCta = pathname === cibleCompte;
@@ -79,6 +123,7 @@ export default function Navbar() {
 
   return (
     <nav
+      ref={barreRef}
       aria-label="Navigation principale"
       className={`print:hidden fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-6 px-grille font-texte text-text transition-[padding,background-color,border-color] duration-300 ${
         defile ? "border-b border-line bg-bg/85 py-3 backdrop-blur-md" : "border-b border-transparent py-5"
@@ -122,9 +167,11 @@ export default function Navbar() {
         </div>
 
         <button
+          ref={boutonMenuRef}
           type="button"
           onClick={() => setMenuOuvert((v) => !v)}
           aria-expanded={menuOuvert}
+          aria-controls="menu-mobile"
           aria-label={menuOuvert ? "Fermer le menu" : "Ouvrir le menu"}
           className={`flex h-11 w-11 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-bouton xl:hidden ${FOCUS}`}
         >
@@ -137,6 +184,7 @@ export default function Navbar() {
       <AnimatePresence>
         {menuOuvert && (
           <motion.div
+            id="menu-mobile"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
