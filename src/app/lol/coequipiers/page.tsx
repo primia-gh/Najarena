@@ -259,7 +259,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
           </div>
         )}
 
-        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-12 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <Apparition delai={0.08}>
             <section aria-labelledby="coequipiers-disponibles" className="flex flex-col gap-6">
               <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line-strong pb-4">

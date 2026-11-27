@@ -19,7 +19,7 @@ export default function Chargement() {
           <Squelette className="h-20 w-full" />
           <Squelette className="h-20 w-full" />
         </div>
-        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-12 lg:grid-cols-[minmax(0,1fr)_24rem]">
           <div className="grid gap-4 xl:grid-cols-2">
             <Squelette className="h-56 w-full" />
             <Squelette className="h-56 w-full" />

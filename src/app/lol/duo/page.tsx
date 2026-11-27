@@ -486,7 +486,7 @@ export default async function DuoPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-12 lg:grid-cols-[minmax(0,1fr)_24rem]">
           <div className="flex min-w-0 flex-col gap-12">
             {(recues.length > 0 || envoyees.length > 0) && (
               <section id="demandes" aria-labelledby="titre-demandes" className="flex scroll-mt-28 flex-col gap-5">
