@@ -230,6 +230,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
         <EnTetePage
           surtitre="League of Legends · 5v5"
           titre="Trouver un coéquipier"
+          illustration="enteteCoequipiers"
           intro={
             <>
               Une équipe compte jusqu&apos;à {TAILLE_MAX_EQUIPE} joueurs ; son capitaine en inscrit cinq aux tournois
@@ -280,7 +281,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
                 </p>
               )}
               {annonces.length === 0 ? (
-                <EtatVide titre="Personne pour l'instant.">
+                <EtatVide illustration="videJoueurs" titre="Personne pour l'instant.">
                   Aucun joueur ne s&apos;est encore déclaré disponible{echeanceFiltree ? " pour cette échéance" : ""}.
                   Publie la première annonce.
                 </EtatVide>

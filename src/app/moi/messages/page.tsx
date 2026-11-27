@@ -76,7 +76,7 @@ export default async function MessagesPage() {
 
         <Apparition delai={0.08}>
           {triees.length === 0 ? (
-            <EtatVide titre="Aucune conversation.">
+            <EtatVide illustration="videMessages" titre="Aucune conversation.">
               Une conversation s&apos;ouvre quand un organisateur te contacte depuis ton CV (bouton « Contacter », offre
               Organisateur). Tu lui réponds ensuite ici.
             </EtatVide>

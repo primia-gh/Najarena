@@ -304,7 +304,7 @@ export default async function LolHubPage() {
 
           {prochainsTournois.length === 0 ? (
             <Apparition delai={0.08}>
-              <EtatVide
+              <EtatVide illustration="videTournoi"
                 titre="Aucun tournoi ouvert pour l'instant."
                 actions={
                   <>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import Illustration, { type NomDessin } from "@/components/illustrations/Illustration";
 import Apparition from "./Apparition";
 import Icone from "./Icone";
 import LibelleSection from "./LibelleSection";
@@ -28,6 +29,8 @@ interface EnTetePageProps {
   /** Sans fondu d'apparition : titre visible dès le premier affichage
    *  (pages légales, où il est l'élément principal). */
   sansApparition?: boolean;
+  /** Illustration maison à droite du titre, sur grand écran seulement. */
+  illustration?: NomDessin;
   /** Page de formulaire (profil, création d'équipe, de tournoi…) : titre
    *  en text-sous-titre, règle du 09/10/2026 (jamais text-section),
    *  et introduction en taille de base comme avant la migration. */
@@ -45,11 +48,14 @@ export default function EnTetePage({
   classeIntro = "",
   sansApparition = false,
   formulaire = false,
+  illustration,
 }: EnTetePageProps) {
   const Conteneur = sansApparition ? "div" : Apparition;
   return (
-    <Conteneur className="flex flex-wrap items-end justify-between gap-x-10 gap-y-8">
-      <div className="min-w-0 max-w-full">
+    <Conteneur
+      className={`flex flex-wrap items-end justify-between gap-x-10 gap-y-8 ${illustration ? "lg:flex-nowrap" : ""}`}
+    >
+      <div className={`min-w-0 max-w-full ${illustration ? "lg:flex-1" : ""}`}>
         {retour && (
           <Link
             href={retour.href}
@@ -68,7 +74,14 @@ export default function EnTetePage({
         {intro && <p className={`mt-5 max-w-2xl ${formulaire ? "" : "text-courant"} text-text-2 ${classeIntro}`}>{intro}</p>}
         {actions && <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">{actions}</div>}
       </div>
-      {aside}
+      {illustration ? (
+        <div className="flex shrink-0 flex-col items-end gap-6">
+          <Illustration nom={illustration} className="hidden w-[23rem] lg:block xl:w-[26rem]" />
+          {aside}
+        </div>
+      ) : (
+        aside
+      )}
     </Conteneur>
   );
 }

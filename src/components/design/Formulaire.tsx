@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import LibelleSection from "@/components/design/LibelleSection";
+import Illustration, { type NomDessin } from "@/components/illustrations/Illustration";
 import { typographie } from "@/lib/typographie";
 
 // Briques des formulaires longs (revue visuelle du 09/10/2026) : création de
@@ -77,6 +78,7 @@ export function Choix({
   defaultChecked,
   titre,
   detail,
+  illustration,
 }: {
   type?: "radio" | "checkbox";
   name: string;
@@ -84,6 +86,8 @@ export function Choix({
   defaultChecked?: boolean;
   titre: ReactNode;
   detail?: ReactNode;
+  /** Schéma maison à droite (formats de tournoi), décoratif. */
+  illustration?: NomDessin;
 }) {
   return (
     <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-carte border border-line-strong p-4 transition-colors duration-200 hover:border-[rgba(245,245,244,0.25)] has-[:checked]:border-text has-[:checked]:bg-[rgba(245,245,244,0.03)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent">
@@ -98,6 +102,7 @@ export function Choix({
         <span className="text-sm font-semibold text-text">{titre}</span>
         {detail && <span className="text-xs leading-normal text-muted">{detail}</span>}
       </span>
+      {illustration && <Illustration nom={illustration} className="ml-auto w-24 shrink-0 self-center" />}
     </label>
   );
 }

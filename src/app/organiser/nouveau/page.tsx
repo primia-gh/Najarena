@@ -199,6 +199,7 @@ export default async function OrganiserNouveauPage({
                   <Choix
                     name="type_bracket"
                     value="elim_simple"
+                    illustration="formatElimination"
                     defaultChecked
                     titre="Élimination directe"
                     detail={typographie("Le perdant d'un match est éliminé, jusqu'à la finale.")}
@@ -206,6 +207,7 @@ export default async function OrganiserNouveauPage({
                   <Choix
                     name="type_bracket"
                     value="double_elim"
+                    illustration="formatDouble"
                     titre="Double élimination"
                     detail={typographie(
                       "Un joueur n'est éliminé qu'à sa deuxième défaite. Grande finale en un seul match, sans revanche. 4 joueurs confirmés au moins.",
@@ -214,6 +216,7 @@ export default async function OrganiserNouveauPage({
                   <Choix
                     name="type_bracket"
                     value="suisse"
+                    illustration="formatSuisse"
                     titre="Format suisse"
                     detail={typographie(
                       "Chacun joue toutes les rondes contre un adversaire au même bilan : 3 rondes pour 8 joueurs, 4 pour 16, 5 au plus. Plus de matchs, un classement plus précis.",

@@ -207,6 +207,7 @@ export default async function DivisionsPage({ searchParams }: PageProps) {
           retour={{ href: "/lol/tournois", libelle: "Tournois" }}
           surtitre="League of Legends · 1v1"
           titre="Divisions"
+          illustration="enteteDivisions"
           classeIntro="text-balance"
           intro={
             <>

@@ -85,6 +85,7 @@ export default async function RegistrePage() {
         <EnTetePage
           surtitre="Preuve"
           titre="Registre des points"
+          illustration="enteteRegistre"
           intro="Chaque variation de points est inscrite dans ce registre, qui ne se modifie jamais, même depuis l'intérieur de Najarena. L'empreinte du jour est publiée chaque soir sur notre Discord ; n'importe qui peut refaire le calcul."
         />
 
@@ -181,7 +182,7 @@ export default async function RegistrePage() {
               Dernières lignes
             </LibelleSection>
             {!lignes || lignes.length === 0 ? (
-              <EtatVide className="mt-3" titre="Le registre est vide.">
+              <EtatVide illustration="videRegistre" className="mt-3" titre="Le registre est vide.">
                 Aucun tournoi n&apos;a encore été clôturé.
               </EtatVide>
             ) : (

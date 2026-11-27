@@ -115,6 +115,7 @@ export default async function ClassementPage() {
         <EnTetePage
           surtitre={`League of Legends${saison?.nom ? ` · ${saison.nom}` : ""}`}
           titre="Classement"
+          illustration="enteteClassement"
           intro="Calculé en Glicko-2 à partir de résultats lus chez Riot, recalculé à la clôture de chaque tournoi classé. Un joueur y entre quand son incertitude (RD) descend sous 150 — une dizaine de matchs."
           aside={
             saison && !erreurClassement && joueurs.length > 0 && (
@@ -150,7 +151,7 @@ export default async function ClassementPage() {
               Impossible de charger le classement pour l&apos;instant. Réessaie dans un instant.
             </Alerte>
           ) : joueurs.length === 0 ? (
-            <EtatVide
+            <EtatVide illustration="videClassement"
               titre="Aucun joueur classé pour l'instant."
               actions={
                 <BoutonLien href="/lol/tournois" variante="secondaire">

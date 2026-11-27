@@ -175,7 +175,7 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
               <span className="text-faint tabular-nums">· {(annonces ?? []).length}</span>
             </LibelleSection>
             {(annonces ?? []).length === 0 ? (
-              <EtatVide
+              <EtatVide illustration="videJoueurs"
                 titre="Aucune équipe ne recrute ici."
                 actions={
                   <>

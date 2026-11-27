@@ -35,6 +35,7 @@ export default async function CommunautesPage() {
         <EnTetePage
           surtitre="Discord · associations · écoles"
           titre="Communautés"
+          illustration="enteteCommunautes"
           intro="Un serveur Discord, une association, une école : sa page réunit ses tournois, le classement interne de ses membres — leur rating Najarena, calculé à partir de résultats lus chez Riot — et ses membres."
           actions={
             <>
@@ -52,7 +53,7 @@ export default async function CommunautesPage() {
         />
 
         {communautes.length === 0 ? (
-          <EtatVide
+          <EtatVide illustration="videCommunaute"
             titre="Aucune communauté pour l'instant."
             actions={
               <BoutonLien href="/communaute/nouvelle" variante="secondaire">

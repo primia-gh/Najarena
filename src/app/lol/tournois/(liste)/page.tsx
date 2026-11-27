@@ -119,6 +119,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
         <EnTetePage
           surtitre="League of Legends"
           titre="Tournois"
+          illustration="enteteTournois"
           intro="Des tournois 1v1 chaque jour et des tournois 5v5 entre équipes. Les résultats sont lus dans la donnée officielle de Riot : personne ne déclare son score."
           actions={
             <>
@@ -172,7 +173,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
               Impossible de charger les tournois pour l&apos;instant. Réessaie dans un instant.
             </Alerte>
           ) : ordre.length === 0 ? (
-            <EtatVide
+            <EtatVide illustration="videTournoi"
               titre={statutFiltre || regionFiltre ? "Aucun tournoi ne correspond." : "Aucun tournoi ouvert pour l'instant."}
               actions={
                 <>
