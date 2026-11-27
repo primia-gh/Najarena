@@ -49,7 +49,10 @@ function Etat({ t }: { t: TournoiListe }) {
   }
 }
 
-export default function LigneTournoi({ t }: { t: TournoiListe }) {
+/** etroite : disposition téléphone quelle que soit la largeur de l'écran
+ *  (aperçu de la page Organiser, colonne étroite). */
+export default function LigneTournoi({ t, etroite = false }: { t: TournoiListe; etroite?: boolean }) {
+  const md = (classes: string) => (etroite ? "" : classes);
   const d = partiesDate(t.debute_le);
   const passe = t.statut === "termine" || t.statut === "annule";
   const unite = t.format === "5v5" ? "équipes" : "joueurs";
@@ -58,7 +61,7 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
   return (
     <Link
       href={`/lol/tournois/${t.slug}`}
-      className={`group grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-5 gap-y-3 border-b border-line py-5 transition-colors duration-200 hover:bg-[rgba(245,245,244,0.02)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:grid-cols-[4.5rem_minmax(0,1fr)_11rem_12rem_1.25rem] md:gap-x-8 ${
+      className={`group grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-5 gap-y-3 border-b border-line py-5 transition-colors duration-200 hover:bg-[rgba(245,245,244,0.02)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${md("md:grid-cols-[4.5rem_minmax(0,1fr)_11rem_12rem_1.25rem] md:gap-x-8")} ${
         passe ? "opacity-80" : ""
       }`}
     >
@@ -96,7 +99,7 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
         </span>
       </div>
 
-      <div className="col-start-2 flex flex-col gap-2 md:col-start-auto">
+      <div className={`col-start-2 flex flex-col gap-2 ${md("md:col-start-auto")}`}>
         <span className="text-sm text-text-2 tabular-nums">
           <span className="font-semibold text-text">{t.inscrits}</span>/{t.capacite} {unite}
         </span>
@@ -107,14 +110,14 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
         )}
       </div>
 
-      <div className="col-start-2 md:col-start-auto">
+      <div className={`col-start-2 ${md("md:col-start-auto")}`}>
         <Etat t={t} />
       </div>
 
       <Icone
         nom="fleche-droite"
         taille={18}
-        className="hidden text-muted transition-transform duration-200 group-hover:translate-x-1 group-hover:text-text md:block"
+        className={`hidden text-muted transition-transform duration-200 group-hover:translate-x-1 group-hover:text-text ${md("md:block")}`}
       />
     </Link>
   );

@@ -17,6 +17,7 @@ import Apparition from "@/components/design/Apparition";
 import BoutonEnvoi from "@/components/design/BoutonEnvoi";
 import FondEcailles from "@/components/design/FondEcailles";
 import { Champ, Choix, GroupeFormulaire } from "@/components/design/Formulaire";
+import ApercuTournoi from "@/components/organisation/ApercuTournoi";
 
 export const metadata: Metadata = {
   title: "Organiser un tournoi — Najarena",
@@ -78,13 +79,17 @@ export default async function OrganiserNouveauPage({
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
-      <div className="relative flex flex-col gap-10 px-grille *:max-w-xl">
+      {/* Deux colonnes sur grand écran (27/11/2026, maquette validée) : le
+          formulaire, un peu plus large que les autres (42rem), et l'aperçu en
+          direct du tournoi, collant. Sur téléphone, l'aperçu passe dessous. */}
+      <div className="relative grid items-start gap-x-14 gap-y-12 px-grille xl:grid-cols-[minmax(0,42rem)_minmax(0,1fr)]">
+      <div className="flex min-w-0 flex-col gap-10">
         <EnTetePage
           formulaire
           retour={{ href: "/moi", libelle: "Mon compte" }}
           surtitre="League of Legends"
           titre="Organiser un tournoi"
-          intro="En 1v1 ou en 5v5. Une fois publié, ton tournoi apparaît immédiatement dans la liste et les joueurs peuvent s'inscrire ; en brouillon, il reste visible de toi seul."
+          intro="En 1v1 ou en 5v5. Une fois publié, ton tournoi apparaît immédiatement dans la liste et les joueurs peuvent s'inscrire ; en brouillon, il reste visible de toi seul. L'aperçu, à côté ou plus bas, montre ce que les joueurs verront."
           actions={
             estOrganisateurPremium && (
               <Link
@@ -106,7 +111,7 @@ export default async function OrganiserNouveauPage({
         )}
 
         <Apparition delai={0.1}>
-          <form action={creerTournoi} className="flex flex-col gap-12">
+          <form id="form-tournoi" action={creerTournoi} className="flex flex-col gap-12">
             <GroupeFormulaire numero={numero()} titre="Le tournoi" id="groupe-tournoi">
               <Champ libelle="Nom du tournoi">
                 <input
@@ -385,6 +390,10 @@ export default async function OrganiserNouveauPage({
             </BoutonEnvoi>
           </form>
         </Apparition>
+      </div>
+      <aside aria-label="Aperçu du tournoi" className="max-w-2xl min-w-0 xl:sticky xl:top-28 xl:mt-[7.5rem] xl:max-w-none">
+        <ApercuTournoi formId="form-tournoi" />
+      </aside>
       </div>
     </main>
   );

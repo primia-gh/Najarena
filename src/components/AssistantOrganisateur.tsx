@@ -32,7 +32,11 @@ export function AssistantOrganisateur() {
         | HTMLInputElement
         | HTMLSelectElement
         | null;
-      if (champ) champ.value = valeur;
+      if (champ) {
+        champ.value = valeur;
+        // Prévient l'aperçu en direct (ApercuTournoi) que le champ a changé.
+        champ.dispatchEvent(new Event("input", { bubbles: true }));
+      }
     }
   }
 
