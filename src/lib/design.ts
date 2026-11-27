@@ -46,12 +46,14 @@ export function classeBoutonSecondaire(): string {
 /**
  * Bouton contour : filet blanc à 25 %, MAJUSCULES — l'action secondaire
  * des en-têtes (maquette profil : « PARTAGER LE CV », « SUIVRE »).
+ * Survol : filet blanc plein, plus de vert (27/11/2026 : le vert est
+ * réservé à la preuve et au bouton principal).
  */
 export function classeBoutonContour(): string {
   return [
     "inline-flex min-h-11 items-center justify-center gap-2 rounded-bouton border border-[rgba(245,245,244,0.25)] px-6 py-3",
     "font-texte text-sm font-semibold uppercase tracking-[2px] text-text",
-    "transition-[border-color,color,transform] duration-200 hover:border-accent hover:text-accent",
+    "transition-[border-color,color,transform] duration-200 hover:border-text",
     INTERACTION,
     FOCUS,
     "disabled:cursor-not-allowed disabled:opacity-50",

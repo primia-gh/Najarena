@@ -26,7 +26,7 @@ const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visi
 
 const LIEN_TEXTE = `inline-flex min-h-11 items-center text-[13px] font-semibold uppercase tracking-[2px] transition-colors duration-200 ${FOCUS}`;
 
-const BOUTON_CONTOUR = `inline-flex min-h-11 items-center justify-center rounded-bouton border border-[rgba(245,245,244,0.25)] px-[22px] text-[13px] font-semibold uppercase tracking-[2px] text-text transition-colors duration-200 hover:border-accent hover:text-accent ${FOCUS}`;
+const BOUTON_CONTOUR = `inline-flex min-h-11 items-center justify-center rounded-bouton border border-[rgba(245,245,244,0.25)] px-[22px] text-[13px] font-semibold uppercase tracking-[2px] text-text transition-colors duration-200 hover:border-text ${FOCUS}`;
 
 export default function Navbar() {
   const pathname = usePathname();
