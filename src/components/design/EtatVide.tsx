@@ -35,7 +35,7 @@ export default function EtatVide({ titre, children, actions, className = "", ill
   }
   return (
     <Panneau reperes className={`grid items-center gap-6 p-8 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:p-10 ${className}`}>
-      <Illustration nom={illustration} className="etape-schema w-20 sm:w-26" />
+      <Illustration nom={illustration} className="w-16 sm:w-26" />
       <div className="flex flex-col items-start gap-4">{contenu}</div>
     </Panneau>
   );

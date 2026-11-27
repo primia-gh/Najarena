@@ -76,8 +76,12 @@ export default function EnTetePage({
       </div>
       {illustration ? (
         <div className="flex shrink-0 flex-col items-end gap-6">
-          <Illustration nom={illustration} className="hidden w-[23rem] lg:block xl:w-[26rem]" />
+          {/* Le bouton ou les chiffres passent avant le dessin, qui se fait plus petit. */}
           {aside}
+          <Illustration
+            nom={illustration}
+            className={`hidden lg:block ${aside ? "w-[18rem] xl:w-[20rem]" : "w-[23rem] xl:w-[26rem]"}`}
+          />
         </div>
       ) : (
         aside

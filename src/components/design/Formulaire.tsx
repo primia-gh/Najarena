@@ -102,7 +102,7 @@ export function Choix({
         <span className="text-sm font-semibold text-text">{titre}</span>
         {detail && <span className="text-xs leading-normal text-muted">{detail}</span>}
       </span>
-      {illustration && <Illustration nom={illustration} className="ml-auto w-24 shrink-0 self-center" />}
+      {illustration && <Illustration nom={illustration} className="ml-auto hidden w-24 shrink-0 self-center sm:block" />}
     </label>
   );
 }
