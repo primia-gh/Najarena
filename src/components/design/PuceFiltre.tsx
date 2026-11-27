@@ -21,7 +21,7 @@ export default function PuceFiltre({ href, actif, compacte = false, children }: 
     <Link
       href={href}
       aria-current={actif ? "true" : undefined}
-      className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-bouton border font-texte text-[13px] font-semibold tracking-[2px] whitespace-nowrap uppercase transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent ${
+      className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-bouton border font-texte text-[13px] font-semibold tracking-[2px] whitespace-nowrap uppercase transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent ${
         compacte ? "px-3" : "px-4"
       } ${actif ? "border-text text-text" : "border-line-strong text-muted hover:border-[rgba(245,245,244,0.25)] hover:text-text"}`}
     >
