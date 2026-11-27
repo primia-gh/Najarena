@@ -125,13 +125,13 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
             <>
               <Link
                 href="/lol/a-la-demande"
-                className="inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:text-accent"
+                className="inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
               >
                 Pas de tournoi à ton heure ? Indique quand tu es libre
               </Link>
               <Link
                 href="/lol/divisions"
-                className="inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:text-accent"
+                className="inline-flex min-h-11 items-center gap-2 text-sm text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
               >
                 Divisions : un match par semaine, à ton niveau
               </Link>
@@ -207,7 +207,7 @@ export default async function TournoisPage({ searchParams }: TournoisPageProps) 
           {!statutFiltre && groupes.termines.length >= 12 && (
             <p className="text-sm text-muted">
               Les 12 derniers tournois terminés.{" "}
-              <Link href={lien("termine", regionFiltre)} className="text-text underline underline-offset-3 hover:text-accent">
+              <Link href={lien("termine", regionFiltre)} className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                 Voir tous les tournois terminés
               </Link>
             </p>

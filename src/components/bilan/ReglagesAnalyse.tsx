@@ -123,7 +123,7 @@ export default function ReglagesAnalyse({
           {!elite ? (
             <p className="text-sm text-muted">
               Fait partie de l&apos;offre Pro.{" "}
-              <Link href="/tarifs?pour=joueur" className="text-text underline underline-offset-3 hover:text-accent">
+              <Link href="/tarifs?pour=joueur" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                 Voir l&apos;offre Pro
               </Link>
             </p>

@@ -35,7 +35,7 @@ export default function LigneTournoiCompacte({ href, nom, debuteLe, details, sta
         <span className="mt-1 font-texte text-mini font-medium tracking-[2px] text-muted uppercase">{d.mois.replace(".", "")}</span>
       </time>
       <span className="flex min-w-0 flex-col gap-1">
-        <span className="truncate font-titre text-xl leading-none font-black uppercase group-hover:text-accent">{nom}</span>
+        <span className="truncate font-titre text-xl pb-1 leading-none font-black uppercase underline-offset-2 group-hover:underline">{nom}</span>
         <span className="text-sm text-muted tabular-nums">
           {d.heure} · {details}
         </span>

@@ -58,7 +58,7 @@ export default function SectionDefis({ defis }: { defis: MesDefis }) {
             <li key={d.id} className={"flex flex-wrap items-center justify-between gap-3 " + classeCarte("ardoise")}>
               <span className="text-sm text-text">
                 {d.autre ? (
-                  <Link href={`/joueur/${d.autre.slug}`} className="font-semibold hover:text-accent">
+                  <Link href={`/joueur/${d.autre.slug}`} className="font-semibold underline-offset-4 hover:underline">
                     {d.autre.pseudo}
                   </Link>
                 ) : (

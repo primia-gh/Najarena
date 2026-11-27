@@ -89,7 +89,7 @@ export default async function OrganiserNouveauPage({
             estOrganisateurPremium && (
               <Link
                 href="/lol/recherche"
-                className="inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent"
+                className="inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
               >
                 Rechercher des joueurs à recruter
               </Link>
@@ -365,7 +365,7 @@ export default async function OrganiserNouveauPage({
                   individuel.{" "}
                   <Link
                     href="/comment-ca-marche#tournois-classes"
-                    className="text-text underline underline-offset-3 hover:text-accent"
+                    className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                   >
                     Pourquoi
                   </Link>

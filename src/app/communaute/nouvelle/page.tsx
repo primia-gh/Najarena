@@ -54,7 +54,7 @@ export default async function NouvelleCommunautePage({ searchParams }: NouvelleC
           <p className="text-sm text-muted">
             Association d&apos;une école ou d&apos;une université ? Une fois la communauté créée, indique le domaine
             des adresses de l&apos;établissement depuis sa page : elle devient une école et entre dans la{" "}
-            <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               ligue des écoles
             </Link>
             .

@@ -453,7 +453,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                     )}
                   </p>
                   {!comptesRiot.verifie_le && (
-                    <Link href="/lier-riot" className="text-sm text-text underline underline-offset-3 hover:text-accent">
+                    <Link href="/lier-riot" className="text-sm text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                       Terminer la vérification
                     </Link>
                   )}
@@ -528,10 +528,11 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                     <li key={e.id}>
                       <Link
                         href={`/equipe/${e.slug}`}
-                        className="flex min-h-12 items-center justify-between gap-3 border-b border-line py-3 hover:text-accent"
+                        className="group flex min-h-12 items-center justify-between gap-3 border-b border-line py-3"
                       >
                         <span className="font-semibold">
-                          <span className="text-muted">{e.tag}</span> {e.nom}
+                          <span className="text-muted">{e.tag}</span>{" "}
+                          <span className="underline-offset-4 group-hover:underline">{e.nom}</span>
                         </span>
                         <span className="font-texte text-mini font-semibold tracking-[2px] text-text-2 uppercase">Capitaine</span>
                       </Link>
@@ -541,10 +542,11 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                     <li key={a.team_id}>
                       <Link
                         href={`/equipe/${a.team!.slug}`}
-                        className="flex min-h-12 items-center justify-between gap-3 border-b border-line py-3 hover:text-accent"
+                        className="group flex min-h-12 items-center justify-between gap-3 border-b border-line py-3"
                       >
                         <span className="font-semibold">
-                          <span className="text-muted">{a.team!.tag}</span> {a.team!.nom}
+                          <span className="text-muted">{a.team!.tag}</span>{" "}
+                          <span className="underline-offset-4 group-hover:underline">{a.team!.nom}</span>
                         </span>
                         <span className="font-texte text-mini font-semibold tracking-[2px] text-muted uppercase">Membre</span>
                       </Link>
@@ -553,7 +555,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
                 </ul>
               )}
               <span className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                <Link href="/equipe/nouvelle" className="text-text underline underline-offset-3 hover:text-accent">
+                <Link href="/equipe/nouvelle" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   Créer une équipe
                 </Link>
                 <Link href="/lol/coequipiers" className="text-muted underline underline-offset-3 hover:text-text">

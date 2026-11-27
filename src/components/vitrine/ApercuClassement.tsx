@@ -77,10 +77,10 @@ export default function ApercuClassement({ lignes, legende, lienPremierePlace }:
                 {l.slug ? (
                   <Link
                     href={`/joueur/${l.slug}`}
-                    className="inline-flex min-h-11 items-center gap-3.5 font-semibold tracking-[1px] transition-colors duration-200 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="group inline-flex min-h-11 items-center gap-3.5 font-semibold tracking-[1px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     <AvatarJoueur pseudo={l.pseudo} src={l.avatarUrl} />
-                    {l.pseudo}
+                    <span className="underline-offset-4 group-hover:underline">{l.pseudo}</span>
                   </Link>
                 ) : (
                   <span className="inline-flex items-center gap-3.5 font-semibold tracking-[1px]">

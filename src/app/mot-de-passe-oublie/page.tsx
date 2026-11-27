@@ -36,7 +36,7 @@ export default async function MotDePasseOubliePage({ searchParams }: MotDePasseO
         ) : undefined
       }
       pied={
-        <Link href="/connexion" className="font-semibold text-text underline underline-offset-3 hover:text-accent">
+        <Link href="/connexion" className="font-semibold text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
           Retour à la connexion
         </Link>
       }

@@ -146,7 +146,7 @@ export default function RecalculJoueur({ slug }: { slug: string }) {
                       <>
                         {" — "}
                         {tournoi.nature === "tournoi" ? (
-                          <Link href={`/lol/tournois/${tournoi.slug}`} className="hover:text-accent">
+                          <Link href={`/lol/tournois/${tournoi.slug}`} className="underline-offset-4 hover:underline">
                             {tournoi.nom}
                           </Link>
                         ) : (

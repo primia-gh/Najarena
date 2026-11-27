@@ -169,11 +169,11 @@ function ColonneChampion({ champion, hauteur }: { champion: ChampionTableau; hau
               </svg>
               Vainqueur
             </span>
-            <span title={champion.pseudo} className="truncate font-titre text-[34px] leading-none font-black uppercase">
+            <span title={champion.pseudo} className="truncate pb-1 font-titre text-[34px] leading-none font-black uppercase">
               {champion.slug ? (
                 <Link
                   href={`/joueur/${champion.slug}`}
-                  className="hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   {champion.pseudo}
                 </Link>
@@ -266,7 +266,7 @@ export function CaseMatch({
                   {p.lien || p.slug ? (
                     <Link
                       href={p.lien ?? `/joueur/${p.slug}`}
-                      className="hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      className="underline-offset-4 hover:text-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     >
                       {p.pseudo}
                     </Link>

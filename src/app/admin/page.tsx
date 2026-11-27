@@ -759,7 +759,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <span className="flex min-w-0 flex-col gap-0.5 text-sm">
                   <Link
                     href={`/communaute/${e.slug}`}
-                    className="font-semibold text-text underline underline-offset-3 hover:text-accent"
+                    className="font-semibold text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                   >
                     {e.nom}
                   </Link>
@@ -842,7 +842,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <li key={d.tournament_id} className={"flex flex-col gap-2 " + classeCarte("none")}>
                     <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                       <span>
-                        <Link href={`/lol/tournois/${d.tournament?.slug ?? ""}`} className="font-semibold hover:text-accent">
+                        <Link href={`/lol/tournois/${d.tournament?.slug ?? ""}`} className="font-semibold underline-offset-4 hover:underline">
                           {d.tournament?.nom ?? "Tournoi"}
                         </Link>{" "}
                         · {d.sponsor_nom} · {d.repartition.map((c) => formaterEuros(c)).join(" / ")}

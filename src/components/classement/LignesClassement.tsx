@@ -79,7 +79,7 @@ export function Podium({ joueurs }: { joueurs: JoueurClasse[] }) {
               </div>
               <span className="flex min-w-0 items-center gap-4">
                 <AvatarJoueur pseudo={j.pseudo} src={j.avatarUrl} taille={52} />
-                <span className="truncate font-titre text-[2rem] leading-none font-black uppercase group-hover:text-accent">
+                <span className="truncate pb-1 font-titre text-[2rem] leading-none font-black uppercase underline-offset-2 group-hover:underline">
                   {j.pseudo}
                 </span>
               </span>
@@ -131,10 +131,10 @@ export function TableauClassement({ joueurs, legende }: { joueurs: JoueurClasse[
             <td>
               <Link
                 href={`/joueur/${j.slug}`}
-                className="inline-flex min-h-11 items-center gap-3.5 font-semibold tracking-[1px] transition-colors duration-200 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="group inline-flex min-h-11 items-center gap-3.5 font-semibold tracking-[1px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <AvatarJoueur pseudo={j.pseudo} src={j.avatarUrl} />
-                {j.pseudo}
+                <span className="underline-offset-4 group-hover:underline">{j.pseudo}</span>
               </Link>
             </td>
             <td className="hidden text-sm text-text-2 sm:table-cell">

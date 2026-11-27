@@ -138,7 +138,7 @@ export default async function ALaDemandePage({ searchParams }: PageProps) {
               <span className="text-sm text-text-2">
                 Il compte s&apos;il s&apos;ouvre au moins {PREAVIS_TOURNOI_CLASSE_HEURES} h avant son début et réunit{" "}
                 {JOUEURS_MIN_TOURNOI_CLASSE} joueurs au départ.{" "}
-                <Link href="/comment-ca-marche#tournois-classes" className="text-text underline underline-offset-3 hover:text-accent">
+                <Link href="/comment-ca-marche#tournois-classes" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   Indique tes heures tôt
                 </Link>
                 .

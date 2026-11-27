@@ -160,7 +160,7 @@ export default async function ConversationPage({ params, searchParams }: Convers
                 <input type="hidden" name="retour" value={`/moi/messages/${conversation.id}`} />
                 <button
                   type="submit"
-                  className="inline-flex min-h-11 cursor-pointer items-center text-sm text-text underline underline-offset-3 hover:text-accent"
+                  className="inline-flex min-h-11 cursor-pointer items-center text-sm text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                 >
                   Débloquer {autre?.pseudo ?? "ce joueur"}
                 </button>

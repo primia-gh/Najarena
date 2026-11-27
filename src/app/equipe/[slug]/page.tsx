@@ -286,7 +286,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
             {capitaine && (
               <p className="text-sm text-muted">
                 Capitaine :{" "}
-                <Link href={`/joueur/${capitaine.slug}`} className="text-text hover:text-accent">
+                <Link href={`/joueur/${capitaine.slug}`} className="text-text underline-offset-4 hover:underline">
                   {capitaine.pseudo}
                 </Link>
                 {" · "}créée le {formaterDate(equipe.cree_le).split(" ")[0]}
@@ -355,7 +355,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                 </span>
                 <span className="flex min-w-0 flex-col gap-1">
                   {j.slug ? (
-                    <Link href={`/joueur/${j.slug}`} className="truncate font-titre text-2xl leading-none font-black uppercase hover:text-accent">
+                    <Link href={`/joueur/${j.slug}`} className="truncate font-titre text-2xl pb-1 leading-none font-black uppercase underline-offset-2 hover:underline">
                       {j.pseudo}
                     </Link>
                   ) : (
@@ -442,7 +442,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
         {palmares.length === 0 ? (
           <p className="mt-3 text-sm text-muted">
             Aucun tournoi 5v5 joué pour l&apos;instant.{" "}
-            <Link href="/lol/tournois" className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href="/lol/tournois" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               Voir les tournois
             </Link>
           </p>
@@ -636,7 +636,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                   </p>
                 ) : (
                   <details key={e.id} className={classeCarte("none")}>
-                    <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-text hover:text-accent [&::-webkit-details-marker]:hidden">
+                    <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-text underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
                       Proposer un scrim avec {libelleEquipe(e.tag, e.nom)}
                     </summary>
                     <form action={proposerScrim} className="mt-2 flex flex-col gap-3">

@@ -192,7 +192,7 @@ export default async function CommunautePage({ params, searchParams }: Communaut
             {estEcole && (
               <p className="mt-1 text-sm text-muted">
                 Adresses de l&apos;établissement : {libelleDomaines(communaute.domaines_email)} ·{" "}
-                <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
+                <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   Ligue des écoles
                 </Link>
                 {!communaute.ecole_validee_le && (
@@ -253,7 +253,7 @@ export default async function CommunautePage({ params, searchParams }: Communaut
             <p className="text-sm text-muted">
               Un membre vérifié a une adresse de l&apos;établissement prouvée (
               {libelleDomaines(communaute.domaines_email)}, sous-domaines compris) : il compte dans la{" "}
-              <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
+              <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                 ligue des écoles
               </Link>
               {communaute.ecole_validee_le ? " " : " dès que l'école est validée par Najarena, "}
@@ -340,7 +340,7 @@ export default async function CommunautePage({ params, searchParams }: Communaut
               {[...[...enCours].reverse(), ...passes].map((t) => (
                 <li key={t.slug}>
                   <Panneau className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                    <Link href={`/lol/tournois/${t.slug}`} className="font-semibold hover:text-accent">
+                    <Link href={`/lol/tournois/${t.slug}`} className="font-semibold underline-offset-4 hover:underline">
                       {t.nom}
                     </Link>
                     <span className="text-sm text-muted tabular-nums">
@@ -384,7 +384,7 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                     <tr key={m.profileId}>
                       <td className="tabular-nums">#{i + 1}</td>
                       <td>
-                        <Link href={`/joueur/${m.slug}`} className="hover:text-accent">
+                        <Link href={`/joueur/${m.slug}`} className="underline-offset-4 hover:underline">
                           {m.pseudo}
                         </Link>
                         {estEcole && verifies.has(m.profileId) && (
@@ -424,7 +424,7 @@ export default async function CommunautePage({ params, searchParams }: Communaut
             {membres.map((m) => (
               <li key={m.profileId}>
                 <Panneau className="flex flex-wrap items-center gap-3 px-4 py-2">
-                  <Link href={`/joueur/${m.slug}`} className="text-sm font-semibold hover:text-accent">
+                  <Link href={`/joueur/${m.slug}`} className="text-sm font-semibold underline-offset-4 hover:underline">
                     {m.pseudo}
                   </Link>
                   {m.role !== "membre" && (

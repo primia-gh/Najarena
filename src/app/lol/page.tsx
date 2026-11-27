@@ -160,11 +160,11 @@ export default async function LolHubPage() {
                 <Apparition delai={i * 0.06} className="h-full">
                   <Link
                     href={c.href}
-                    className="group panneau flex h-full flex-col gap-3 p-6 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+                    className="group panneau flex h-full flex-col gap-3 p-6 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-[rgba(245,245,244,0.3)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
                   >
                     <h3 className="font-titre text-[28px] leading-none font-extrabold uppercase">{c.titre}</h3>
                     <p className="flex-1 text-sm leading-relaxed text-muted">{c.texte}</p>
-                    <span className="inline-flex items-center gap-2 text-sm font-semibold tracking-[2px] text-text uppercase transition-colors duration-200 group-hover:text-accent">
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold tracking-[2px] text-text uppercase transition-colors duration-200 underline-offset-4 group-hover:underline">
                       {c.cta}
                       <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">
                         →
@@ -177,19 +177,19 @@ export default async function LolHubPage() {
           </ul>
           <p className="text-sm text-muted">
             Pas en lice ce soir ?{" "}
-            <Link href="/lol/pronostics" className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href="/lol/pronostics" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               Pronostique les demi-finales et les finales en cours
             </Link>{" "}
             — gratuit, sans mise ni gain. Étudiant ? Fais monter ton école dans la{" "}
-            <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href="/lol/ecoles" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               ligue des écoles
             </Link>
             . Pour progresser :{" "}
-            <Link href="/lol/bilan" className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href="/lol/bilan" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               ton bilan
             </Link>{" "}
             — forces, axes de travail et builds, mesurés sur tes parties vérifiées. Pour jouer à deux :{" "}
-            <Link href="/lol/duo" className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href="/lol/duo" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               trouve ton duo
             </Link>{" "}
             sur ton serveur, à tes horaires.

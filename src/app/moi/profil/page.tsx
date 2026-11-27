@@ -175,13 +175,13 @@ export default async function ModifierProfilPage({ searchParams }: ModifierProfi
 
         <p className="text-sm leading-relaxed text-muted">
           Riot ID :{" "}
-          <Link href="/lier-riot" className="text-text underline underline-offset-3 hover:text-accent">
+          <Link href="/lier-riot" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
             lier ou vérifier mon compte
           </Link>
           . Bio et lien externe : sur{" "}
           <Link
             href={`/joueur/${profil.slug}#personnaliser`}
-            className="text-text underline underline-offset-3 hover:text-accent"
+            className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
           >
             ton profil public
           </Link>{" "}

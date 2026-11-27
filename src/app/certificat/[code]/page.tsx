@@ -167,14 +167,14 @@ export default async function CertificatPage({ params, searchParams }: Certifica
                 <p className="text-sm text-text-2">
                   Rating <span className="font-semibold text-text tabular-nums">{arrondir(actuel.rating)}</span>{" "}
                   ({actuel.est_classe ? "classé" : "provisoire"}).{" "}
-                  <Link href={`/joueur/${c.slug}`} className="text-text underline underline-offset-3 hover:text-accent">
+                  <Link href={`/joueur/${c.slug}`} className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                     Voir le CV à jour
                   </Link>
                 </p>
               ) : (
                 <p className="text-sm text-muted">
                   Pas encore de rating cette saison.{" "}
-                  <Link href={`/joueur/${c.slug}`} className="text-text underline underline-offset-3 hover:text-accent">
+                  <Link href={`/joueur/${c.slug}`} className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                     Voir le CV
                   </Link>
                 </p>
@@ -186,7 +186,7 @@ export default async function CertificatPage({ params, searchParams }: Certifica
               {c.registre_numero !== null ? (
                 <p className="text-sm text-text-2">
                   Adossé au{" "}
-                  <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
+                  <Link href="/registre" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                     registre des points
                   </Link>{" "}
                   à la ligne <span className="tabular-nums">{c.registre_numero}</span> :{" "}
@@ -242,13 +242,13 @@ export default async function CertificatPage({ params, searchParams }: Certifica
             {c.signature && (
               <p className="text-xs text-muted">
                 Vérifie-le sans passer par ce site, avec Node.js :{" "}
-                <a href="/certificat/verifier-certificat.mjs" className="text-text underline underline-offset-3 hover:text-accent">
+                <a href="/certificat/verifier-certificat.mjs" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   télécharge le programme de vérification
                 </a>{" "}
                 puis lance{" "}
                 <code className="text-text">node verifier-certificat.mjs {c.code}</code>
                 . Il compare la signature au texte du certificat et à la{" "}
-                <a href="/api/public/v1/cle-certificats" className="text-text underline underline-offset-3 hover:text-accent">
+                <a href="/api/public/v1/cle-certificats" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   clé publique de Najarena
                 </a>
                 . Une seule lettre changée et la signature ne correspond plus.

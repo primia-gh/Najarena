@@ -677,7 +677,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                 // Lien choisi par le joueur : pas de caution de Najarena
                 // aux yeux des moteurs de recherche (audit F2).
                 rel="nofollow ugc noopener noreferrer"
-                className="inline-flex min-h-11 max-w-full items-center gap-1.5 self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-11 max-w-full items-center gap-1.5 self-start text-sm text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:decoration-text hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {/* Le nom du site seul : la vraie destination, lisible, sans
                     paramètres ni chemin à rallonge (src/lib/lien-externe.ts). */}
@@ -1017,7 +1017,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                                   {h.tournoi ? (
                                     <Link
                                       href={`/lol/tournois/${h.tournoi.slug}`}
-                                      className="hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                      className="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                                     >
                                       {h.tournoi.nom}
                                     </Link>
@@ -1031,7 +1031,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                                       Contre{" "}
                                       <Link
                                         href={`/joueur/${h.adversaire.slug}`}
-                                        className="text-muted hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                        className="text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                                       >
                                         {h.adversaire.pseudo}
                                       </Link>
@@ -1166,14 +1166,14 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                   modifiée — chaque ligne est scellée dans le{" "}
                   <Link
                     href="/registre"
-                    className="text-text underline underline-offset-3 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     registre des points
                   </Link>
                   , vérifiable par tous. Chaque ligne peut aussi être{" "}
                   <Link
                     href={`/joueur/${profil.slug}/recalcul`}
-                    className="text-text underline underline-offset-3 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     recalculée dans ton navigateur
                   </Link>
@@ -1214,7 +1214,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                             {e.motif === "tournoi" && e.tournoi ? (
                               <Link
                                 href={`/lol/tournois/${e.tournoi.slug}`}
-                                className="hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                className="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                               >
                                 {libelle}
                               </Link>
@@ -1290,7 +1290,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                         {p.lien ? (
                           <Link
                             href={p.lien}
-                            className="hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                            className="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                           >
                             {p.titre}
                           </Link>
@@ -1382,7 +1382,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                     >
                       <Link
                         href={`/joueur/${r.slug}`}
-                        className="font-semibold hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        className="font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                       >
                         {r.pseudo}
                       </Link>
@@ -1467,7 +1467,7 @@ export default async function JoueurPage({ params, searchParams }: JoueurPagePro
                         >
                           <Link
                             href={`/joueur/${v.slug}`}
-                            className="text-sm font-semibold hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                            className="text-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                           >
                             {v.pseudo}
                           </Link>

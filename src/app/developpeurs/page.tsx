@@ -152,7 +152,7 @@ export default function DeveloppeursPage() {
                     {"lienMoi" in o && (
                       <Link
                         href="/moi#moi-overlay"
-                        className="inline-flex min-h-11 items-center self-start text-sm text-text underline underline-offset-3 hover:text-accent"
+                        className="inline-flex min-h-11 items-center self-start text-sm text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                       >
                         Ton adresse toute prête, dans ton tableau de bord
                       </Link>

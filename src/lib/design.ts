@@ -36,7 +36,7 @@ export function classeBoutonSecondaire(): string {
     "inline-flex min-h-11 items-center gap-2",
     "font-texte text-bouton font-semibold uppercase text-text",
     "underline decoration-[rgba(245,245,244,0.3)] decoration-1 underline-offset-[6px]",
-    "transition-[color,text-decoration-color,transform] duration-200 hover:text-accent hover:decoration-accent",
+    "transition-[color,text-decoration-color,transform] duration-200 hover:decoration-text",
     INTERACTION,
     FOCUS,
     "disabled:cursor-not-allowed disabled:opacity-50",

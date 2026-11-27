@@ -379,11 +379,11 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                       <td className="py-3!">
                         <Link
                           href={`/joueur/${r.slug}`}
-                          className="inline-flex min-h-11 items-center gap-3 font-semibold hover:text-accent"
+                          className="group inline-flex min-h-11 items-center gap-3 font-semibold"
                         >
                           <AvatarJoueur pseudo={r.pseudo} src={r.avatarUrl} />
                           <span className="flex flex-col">
-                            {r.pseudo}
+                            <span className="underline-offset-4 group-hover:underline">{r.pseudo}</span>
                             <span className="text-xs font-normal text-text-2">
                               {[
                                 r.chercheEquipe ? "Cherche une équipe" : null,
@@ -461,7 +461,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                             <button
                               type="submit"
                               aria-label={`Suivre ${r.pseudo}`}
-                              className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-text underline underline-offset-3 hover:text-accent"
+                              className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                             >
                               Suivre
                             </button>

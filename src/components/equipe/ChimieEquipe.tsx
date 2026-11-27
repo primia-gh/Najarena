@@ -36,7 +36,7 @@ export default async function ChimieEquipe({ teamId }: { teamId: string }) {
   const nom = (id: string) => {
     const p = parId.get(id);
     return p ? (
-      <Link href={`/joueur/${p.slug}`} className="hover:text-accent">
+      <Link href={`/joueur/${p.slug}`} className="underline-offset-4 hover:underline">
         {p.pseudo}
       </Link>
     ) : (

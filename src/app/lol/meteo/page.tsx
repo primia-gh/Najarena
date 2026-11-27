@@ -147,7 +147,7 @@ export default async function MeteoPage() {
               <p className="text-xs text-muted">
                 Matchs 1v1 des tournois et des duels ; le 5v5 ne compte pas au classement individuel. Chaque match compte pour
                 ses deux joueurs.{" "}
-                <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:text-accent">
+                <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   Comment le classement est calculé
                 </Link>
               </p>

@@ -53,7 +53,7 @@ export default function ClassementSuisse({
             <tr key={l.profile_id}>
               <td className="tabular-nums">{l.rang}</td>
               <td>
-                <Link href={`/joueur/${l.slug}`} className="font-semibold hover:text-accent">
+                <Link href={`/joueur/${l.slug}`} className="font-semibold underline-offset-4 hover:underline">
                   {l.pseudo}
                 </Link>
                 {l.abandon && <span className="ml-2 text-xs text-muted">a abandonné</span>}

@@ -23,7 +23,7 @@ export default function OverlayStream({ slug, compteVerifie }: { slug: string; c
           {typographie(
             "Lie et vérifie ton Riot ID pour jouer des tournois : tu trouveras ici l'adresse d'une bannière qui montre ton match sur ton stream.",
           )}{" "}
-          <Link href="/lier-riot" className="text-text underline underline-offset-3 hover:text-accent">
+          <Link href="/lier-riot" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
             Lier mon Riot ID
           </Link>
         </p>
@@ -57,7 +57,7 @@ export default function OverlayStream({ slug, compteVerifie }: { slug: string; c
               href={apercu}
               target="_blank"
               rel="noopener"
-              className="inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent"
+              className="inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
             >
               Voir l&apos;aperçu<span className="sr-only"> (nouvel onglet)</span>
             </a>

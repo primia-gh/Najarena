@@ -209,7 +209,7 @@ export default async function RecrutementEquipe({
                     <div className="flex min-w-0 flex-col gap-1">
                       <p className="text-sm">
                         {c.profile?.slug ? (
-                          <Link href={`/joueur/${c.profile.slug}`} className="font-semibold hover:text-accent">
+                          <Link href={`/joueur/${c.profile.slug}`} className="font-semibold underline-offset-4 hover:underline">
                             {c.profile.pseudo}
                           </Link>
                         ) : (
@@ -271,7 +271,7 @@ export default async function RecrutementEquipe({
                   <li key={p.profile_id}>
                     <Panneau className="flex h-full flex-col gap-3 p-5">
                       <p className="text-sm">
-                        <Link href={`/joueur/${p.slug}`} className="font-semibold hover:text-accent">
+                        <Link href={`/joueur/${p.slug}`} className="font-semibold underline-offset-4 hover:underline">
                           {p.pseudo}
                         </Link>
                         <span className="text-muted tabular-nums">

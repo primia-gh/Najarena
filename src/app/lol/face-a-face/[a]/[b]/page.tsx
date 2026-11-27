@@ -97,7 +97,7 @@ function CarteJoueur({ j, victoires }: { j: Joueur; victoires: number }) {
     <Panneau className="flex min-w-0 flex-col gap-3 p-6">
       <Link
         href={`/joueur/${j.slug}`}
-        className="font-titre text-2xl font-black uppercase [overflow-wrap:anywhere] hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="font-titre text-2xl font-black uppercase [overflow-wrap:anywhere] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         {j.pseudo}
       </Link>
@@ -213,7 +213,7 @@ export default async function FaceAFacePage({ params }: PageProps) {
                 </p>
                 <Link
                   href={`/joueur/${jb.slug}`}
-                  className="text-sm text-text underline underline-offset-3 hover:text-accent"
+                  className="text-sm text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                 >
                   {typographie(`Voir le CV de ${jb.pseudo} pour le défier`)}
                 </Link>
@@ -236,7 +236,7 @@ export default async function FaceAFacePage({ params }: PageProps) {
                     <tr key={m.matchId} className={compteAuBilan(m) ? undefined : "text-muted"}>
                       <td className="tabular-nums whitespace-nowrap">{formaterDate(m.joueLe)}</td>
                       <td className="[overflow-wrap:anywhere]">
-                        <Link href={`/lol/tournois/${m.tournoiSlug}`} className="hover:text-accent">
+                        <Link href={`/lol/tournois/${m.tournoiSlug}`} className="underline-offset-4 hover:underline">
                           {m.tournoiNom}
                         </Link>
                       </td>
@@ -255,7 +255,7 @@ export default async function FaceAFacePage({ params }: PageProps) {
                       <td className="text-right">
                         <Link
                           href={`/lol/match/${m.matchId}`}
-                          className="inline-flex min-h-11 items-center text-sm underline underline-offset-3 hover:text-accent"
+                          className="inline-flex min-h-11 items-center text-sm underline underline-offset-3 hover:decoration-text hover:decoration-2"
                         >
                           Fiche<span className="sr-only"> de preuve du match du {formaterDate(m.joueLe)}</span>
                         </Link>

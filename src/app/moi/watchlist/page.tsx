@@ -121,10 +121,10 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
                       <td className="py-3!">
                         <Link
                           href={`/joueur/${s.joueur!.slug}`}
-                          className="inline-flex min-h-11 items-center gap-3 font-semibold hover:text-accent"
+                          className="group inline-flex min-h-11 items-center gap-3 font-semibold"
                         >
                           <AvatarJoueur pseudo={s.joueur!.pseudo} src={s.joueur!.avatar_url} />
-                          {s.joueur!.pseudo}
+                          <span className="underline-offset-4 group-hover:underline">{s.joueur!.pseudo}</span>
                         </Link>
                       </td>
                       <td className="hidden py-3! text-sm text-text-2 sm:table-cell">

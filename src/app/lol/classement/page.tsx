@@ -194,19 +194,19 @@ export default async function ClassementPage() {
               <EchellePaliers paliers={paliers} />
               <p className="max-w-2xl text-sm text-muted">
                 Chaque variation de points est inscrite au{" "}
-                <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
+                <Link href="/registre" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   registre public
                 </Link>
                 , avec le rating avant et après&nbsp;: rien n&apos;est modifié après coup.{" "}
-                <Link href="/lol/saisons" className="text-text underline underline-offset-3 hover:text-accent">
+                <Link href="/lol/saisons" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   Saisons et classements archivés
                 </Link>
                 {" · "}
-                <Link href="/lol/meteo" className="text-text underline underline-offset-3 hover:text-accent">
+                <Link href="/lol/meteo" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   Météo du classement
                 </Link>
                 {" · "}
-                <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:text-accent">
+                <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                   Comment ça marche
                 </Link>
               </p>

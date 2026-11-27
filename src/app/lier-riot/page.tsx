@@ -167,7 +167,7 @@ export default async function LierRiotPage({ searchParams }: LierRiotPageProps) 
                             <BoutonConfirmation
                               type="submit"
                               confirmation={`Faire de ${s.riot_game_name}#${s.riot_tag_line} ton compte principal ? Il t'inscrira aux tournois et servira à lire tes résultats.`}
-                              className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-text underline underline-offset-3 hover:text-accent"
+                              className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                             >
                               Définir comme principal
                             </BoutonConfirmation>

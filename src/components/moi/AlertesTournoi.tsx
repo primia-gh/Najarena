@@ -57,7 +57,7 @@ export default function AlertesTournoi({
       {!compteVerifie ? (
         <p className="text-sm text-text-2">
           {typographie("Lie et vérifie ton Riot ID : un message te signalera les tournois qui s'ouvrent sur ton serveur.")}{" "}
-          <Link href="/lier-riot" className="text-text underline underline-offset-3 hover:text-accent">
+          <Link href="/lier-riot" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
             Lier mon Riot ID
           </Link>
         </p>

@@ -81,7 +81,7 @@ export default async function BlocRecommandations({ profilId, slug, pseudo, visi
                 « {r.texte} »
               </blockquote>
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                <Link href={`/joueur/${r.auteur_slug}`} className="font-semibold text-text hover:text-accent">
+                <Link href={`/joueur/${r.auteur_slug}`} className="font-semibold text-text underline-offset-4 hover:underline">
                   {r.auteur_pseudo}
                 </Link>
                 <span aria-hidden="true">·</span>

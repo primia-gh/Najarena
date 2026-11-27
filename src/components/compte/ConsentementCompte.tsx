@@ -10,11 +10,11 @@ export default function ConsentementCompte() {
       <input name="age_confirme" type="checkbox" required className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-accent" />
       <span>
         J&apos;ai au moins 15 ans (ou l&apos;autorisation de mon représentant légal) et j&apos;accepte les{" "}
-        <Link href="/cgu" className="text-text underline underline-offset-3 hover:text-accent">
+        <Link href="/cgu" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
           CGU
         </Link>
         . Mes données sont traitées selon la{" "}
-        <Link href="/confidentialite" className="text-text underline underline-offset-3 hover:text-accent">
+        <Link href="/confidentialite" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
           politique de confidentialité
         </Link>
         .

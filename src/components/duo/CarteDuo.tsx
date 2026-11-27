@@ -53,7 +53,7 @@ export default function CarteDuo({
           <span className="flex min-w-0 flex-col gap-1">
             <Link
               href={`/joueur/${slug}`}
-              className="truncate font-titre text-2xl leading-none font-black uppercase hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="truncate font-titre text-2xl pb-1 leading-none font-black uppercase underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               {pseudo}
             </Link>

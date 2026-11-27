@@ -69,7 +69,7 @@ export default async function CommunautesPage() {
               <li key={c.slug}>
                 <Link
                   href={`/communaute/${c.slug}`}
-                  className="panneau flex h-full flex-col gap-2 border-l-4 p-5 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/40 motion-reduce:hover:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+                  className="panneau flex h-full flex-col gap-2 border-l-4 p-5 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-[rgba(245,245,244,0.3)] motion-reduce:hover:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
                   style={{ borderLeftColor: c.couleur }}
                 >
                   <span className="font-titre text-2xl font-extrabold uppercase">{c.nom}</span>

@@ -214,7 +214,7 @@ const MOMENTS = [
 
 const lienDiscret =
   "inline-flex min-h-11 cursor-pointer items-center text-sm text-muted underline underline-offset-3 hover:text-danger";
-const lienAction = "inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:text-accent";
+const lienAction = "inline-flex min-h-11 items-center text-sm text-text underline underline-offset-3 hover:decoration-text hover:decoration-2";
 
 export default async function DuoPage({ searchParams }: PageProps) {
   const params = await searchParams;
@@ -504,7 +504,7 @@ export default async function DuoPage({ searchParams }: PageProps) {
                           <AvatarJoueur pseudo={pseudo} src={d.demandeur?.avatar_url ?? null} taille={36} />
                           <span className="flex min-w-0 flex-col gap-0.5">
                             <span>
-                              <Link href={`/joueur/${d.demandeur?.slug ?? ""}`} className="font-semibold text-text hover:text-accent">
+                              <Link href={`/joueur/${d.demandeur?.slug ?? ""}`} className="font-semibold text-text underline-offset-4 hover:underline">
                                 {pseudo}
                               </Link>{" "}
                               <span className="text-text-2">te propose de jouer en duo</span>
@@ -552,7 +552,7 @@ export default async function DuoPage({ searchParams }: PageProps) {
                           <AvatarJoueur pseudo={pseudo} src={d.destinataire?.avatar_url ?? null} taille={36} />
                           <span className="min-w-0 text-text-2">
                             Ta demande à{" "}
-                            <Link href={`/joueur/${d.destinataire?.slug ?? ""}`} className="font-semibold text-text hover:text-accent">
+                            <Link href={`/joueur/${d.destinataire?.slug ?? ""}`} className="font-semibold text-text underline-offset-4 hover:underline">
                               {pseudo}
                             </Link>{" "}
                             attend sa réponse
@@ -649,7 +649,7 @@ export default async function DuoPage({ searchParams }: PageProps) {
                 <p className="text-sm text-text-2">
                   <Link
                     href={`/connexion?suite=${encodeURIComponent("/lol/duo")}`}
-                    className="text-text underline underline-offset-3 hover:text-accent"
+                    className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                   >
                     Connecte-toi
                   </Link>{" "}

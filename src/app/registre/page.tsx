@@ -158,7 +158,7 @@ export default async function RegistrePage() {
                       Aussi déposée sur GitHub, qui date chaque dépôt :{" "}
                       <a
                         href={adresseFichier(depotGithub, publication.jour)}
-                        className="text-text underline underline-offset-3 hover:text-accent"
+                        className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                         rel="noopener"
                       >
                         fichier du {publication.jour.split("-").reverse().join("/")}
@@ -204,7 +204,7 @@ export default async function RegistrePage() {
                       <td className="tabular-nums whitespace-nowrap">{formaterDate(l.cree_le)}</td>
                       <td>
                         {l.joueur ? (
-                          <Link href={`/joueur/${l.joueur.slug}`} className="hover:text-accent">
+                          <Link href={`/joueur/${l.joueur.slug}`} className="underline-offset-4 hover:underline">
                             {l.joueur.pseudo}
                           </Link>
                         ) : (
@@ -256,7 +256,7 @@ export default async function RegistrePage() {
                     ou déposée dans le dépôt public{" "}
                     <a
                       href={`https://github.com/${depotGithub}`}
-                      className="text-text underline underline-offset-3 hover:text-accent"
+                      className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                       rel="noopener"
                     >
                       github.com/{depotGithub}

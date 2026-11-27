@@ -55,7 +55,7 @@ export default async function RecapSemainePage({ params }: SemainePageProps) {
     const j = joueurs.get(id);
     if (!j || j.supprime) return <span className="text-muted">Compte supprimé</span>;
     return (
-      <Link href={`/joueur/${j.slug}`} className="font-semibold text-text hover:text-accent">
+      <Link href={`/joueur/${j.slug}`} className="font-semibold text-text underline-offset-4 hover:underline">
         {j.pseudo}
       </Link>
     );

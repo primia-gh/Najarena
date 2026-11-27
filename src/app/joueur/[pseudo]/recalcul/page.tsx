@@ -52,11 +52,11 @@ export default async function RecalculPage({ params }: { params: Promise<{ pseud
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-text-2">
             Ton navigateur refait ici, ligne par ligne, le calcul des points de{" "}
-            <Link href={`/joueur/${profil.slug}`} className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href={`/joueur/${profil.slug}`} className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               {profil.pseudo}
             </Link>{" "}
             avec la formule Glicko-2 du site, à partir des seules données publiques : son{" "}
-            <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href="/registre" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               registre des points
             </Link>
             , ses matchs et leur verdict, et le niveau de ses adversaires au début de chaque tournoi. Mêmes règles qu&apos;à
@@ -81,12 +81,12 @@ export default async function RecalculPage({ params }: { params: Promise<{ pseud
             Les données utilisées sont publiques, au format JSON :{" "}
             <a
               href={`/api/public/v1/joueurs/${profil.slug}/recalcul`}
-              className="text-text underline underline-offset-3 hover:text-accent"
+              className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
             >
               /api/public/v1/joueurs/{profil.slug}/recalcul
             </a>
             . Constantes : rating initial 1500, RD initial 350, volatilité initiale 0,06, tau 0,5 (détail sur{" "}
-            <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               Comment ça marche
             </Link>
             ). La volatilité n&apos;est pas inscrite au registre : on la reconstitue en rejouant tout l&apos;historique du

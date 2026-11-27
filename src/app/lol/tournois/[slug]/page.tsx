@@ -863,7 +863,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
   const CHAMP = classeChamp();
 
   const lienDiscret =
-    "text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+    "text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:decoration-text hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
   // Tournoi 5v5 (audit N21) : le capitaine inscrit son équipe, fait le
   // check-in et peut changer l'alignement ; les joueurs alignés suivent.
@@ -993,7 +993,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           <>
             {equipeCapitaine && (
               <details>
-                <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-[13px] text-text underline underline-offset-3 hover:text-accent [&::-webkit-details-marker]:hidden">
+                <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-[13px] text-text underline underline-offset-3 hover:decoration-text hover:decoration-2 [&::-webkit-details-marker]:hidden">
                   Modifier l&apos;alignement
                 </summary>
                 <FormulaireAlignement
@@ -1109,7 +1109,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
             </p>
           ) : (
             <details key={e.id} open={mesEquipes.length === 1}>
-              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-[13px] font-semibold text-text uppercase hover:text-accent [&::-webkit-details-marker]:hidden">
+              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-[13px] font-semibold text-text uppercase underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
                 Inscrire {libelleEquipe(e.tag, e.nom)}
               </summary>
               <FormulaireAlignement
@@ -1325,7 +1325,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 ·{" "}
                 <a
                   href={`/lol/tournois/${tournoi.slug}/agenda`}
-                  className="text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:decoration-text hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   Ajouter à mon agenda
                 </a>
@@ -1343,7 +1343,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                 · Organisé par{" "}
                 <Link
                   href={`/joueur/${organisateur.slug}`}
-                  className="text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:decoration-text hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   {organisateur.pseudo}
                 </Link>
@@ -1355,7 +1355,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                     · Communauté{" "}
                     <Link
                       href={`/communaute/${tournoi.communaute.slug}`}
-                      className="text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      className="text-text underline decoration-[rgba(245,245,244,0.3)] underline-offset-4 hover:decoration-text hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     >
                       {tournoi.communaute.nom}
                     </Link>
@@ -1716,7 +1716,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                     <tr key={l.id}>
                       <td className={l.maintenant > 0 ? "font-semibold" : "text-faint"}>
                         {l.slug ? (
-                          <Link href={`/joueur/${l.slug}`} className="hover:text-accent">
+                          <Link href={`/joueur/${l.slug}`} className="underline-offset-4 hover:underline">
                             {l.pseudo}
                           </Link>
                         ) : (
@@ -1873,7 +1873,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                       {equipe?.slug ? (
                         <Link
                           href={`/equipe/${equipe.slug}`}
-                          className="truncate font-semibold hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          className="truncate font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                         >
                           {nomDe(i.profile_id, i.equipe_nom)}
                         </Link>
@@ -1912,7 +1912,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                         {i.profile ? (
                           <Link
                             href={`/joueur/${i.profile.slug}`}
-                            className="truncate font-semibold hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                            className="truncate font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                           >
                             {i.profile.pseudo}
                           </Link>
@@ -1942,7 +1942,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                     {a.profile ? (
                       <Link
                         href={`/joueur/${a.profile.slug}`}
-                        className="font-semibold hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        className="font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                       >
                         {a.profile.pseudo}
                       </Link>

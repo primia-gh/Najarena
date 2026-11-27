@@ -74,7 +74,7 @@ export default function PouleDivision({
                 <td className="tabular-nums">{i + 1}</td>
                 <td>
                   {j ? (
-                    <Link href={`/joueur/${j.slug}`} className="hover:text-accent">
+                    <Link href={`/joueur/${j.slug}`} className="underline-offset-4 hover:underline">
                       {j.pseudo}
                     </Link>
                   ) : (

@@ -62,7 +62,7 @@ function LigneJoueur({ j, verdict, vainqueur }: { j: JoueurPreuve; verdict: Preu
       <td>
         <span className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
           {j.slug ? (
-            <Link href={`/joueur/${j.slug}`} className="font-semibold hover:text-accent">
+            <Link href={`/joueur/${j.slug}`} className="font-semibold underline-offset-4 hover:underline">
               {j.pseudo}
             </Link>
           ) : (
@@ -259,7 +259,7 @@ export default async function PreuveMatchPage({ params }: PageProps) {
                         <th scope="col">
                           <span className="sr-only">Joueurs de l&apos;équipe </span>
                           {e.slug ? (
-                            <Link href={`/equipe/${e.slug}`} className="hover:text-accent">
+                            <Link href={`/equipe/${e.slug}`} className="underline-offset-4 hover:underline">
                               {e.libelle}
                             </Link>
                           ) : (
@@ -373,7 +373,7 @@ export default async function PreuveMatchPage({ params }: PageProps) {
                     ? "Points écrits à la clôture du duel."
                     : "Le rating se calcule à la clôture du tournoi : ces lignes portent sur tout le tournoi, pas sur ce seul match."}{" "}
                   Chaque ligne est scellée : la modifier casserait la chaîne.{" "}
-                  <Link href="/registre" className="text-text underline underline-offset-3 hover:text-accent">
+                  <Link href="/registre" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                     Vérifier le registre
                   </Link>
                 </p>

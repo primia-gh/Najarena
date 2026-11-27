@@ -45,7 +45,7 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
           Pas encore de compte ?{" "}
           <Link
             href={suite ? `/inscription?suite=${encodeURIComponent(suite)}` : "/inscription"}
-            className="font-semibold text-text underline underline-offset-3 hover:text-accent"
+            className="font-semibold text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
           >
             Créer un compte
           </Link>

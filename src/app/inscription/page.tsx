@@ -44,7 +44,7 @@ export default async function InscriptionPage({ searchParams }: InscriptionPageP
           Déjà un compte ?{" "}
           <Link
             href={suite ? `/connexion?suite=${encodeURIComponent(suite)}` : "/connexion"}
-            className="font-semibold text-text underline underline-offset-3 hover:text-accent"
+            className="font-semibold text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
           >
             Se connecter
           </Link>

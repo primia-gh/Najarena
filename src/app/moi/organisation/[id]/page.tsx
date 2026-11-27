@@ -408,7 +408,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                   <td className="py-2! text-sm text-faint tabular-nums">{index + 1}</td>
                   <td className="py-2! font-semibold">
                     {i.profile?.slug ? (
-                      <Link href={`/joueur/${i.profile.slug}`} className="hover:text-accent">
+                      <Link href={`/joueur/${i.profile.slug}`} className="underline-offset-4 hover:underline">
                         {libelle}
                       </Link>
                     ) : (
@@ -431,7 +431,7 @@ export default async function CockpitPage({ params, searchParams }: CockpitPageP
                           <button
                             type="submit"
                             aria-label={`Confirmer l'inscription de ${libelle}`}
-                            className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-text underline underline-offset-3 hover:text-accent"
+                            className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
                           >
                             Confirmer
                           </button>

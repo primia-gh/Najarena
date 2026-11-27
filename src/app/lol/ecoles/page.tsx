@@ -101,7 +101,7 @@ export default async function EcolesPage() {
                     <td className="min-w-48">
                       <Link
                         href={`/communaute/${e.slug}`}
-                        className="border-l-4 pl-2 hover:text-accent"
+                        className="border-l-4 pl-2 underline-offset-4 hover:underline"
                         style={{ borderColor: e.couleur }}
                       >
                         {e.nom}
@@ -135,7 +135,7 @@ export default async function EcolesPage() {
                 <li key={e.slug}>
                   <Link
                     href={`/communaute/${e.slug}`}
-                    className="panneau flex h-full flex-col gap-2 border-l-4 p-5 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/40 motion-reduce:hover:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+                    className="panneau flex h-full flex-col gap-2 border-l-4 p-5 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-[rgba(245,245,244,0.3)] motion-reduce:hover:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
                     style={{ borderLeftColor: e.couleur }}
                   >
                     <span className="font-titre text-2xl font-extrabold uppercase">{e.nom}</span>

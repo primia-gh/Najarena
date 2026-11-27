@@ -111,7 +111,7 @@ export default async function SaisonsPage() {
                     <span className="tabular-nums">{classesCourante ?? 0}</span> joueur
                     {(classesCourante ?? 0) > 1 ? "s" : ""} classé{(classesCourante ?? 0) > 1 ? "s" : ""} pour
                     l&apos;instant.{" "}
-                    <Link href="/lol/classement" className="text-text underline underline-offset-3 hover:text-accent">
+                    <Link href="/lol/classement" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                       Voir le classement
                     </Link>
                   </p>
@@ -175,7 +175,7 @@ export default async function SaisonsPage() {
                               <td className="tabular-nums">#{i + 1}</td>
                               <td>
                                 {r.profil && !r.profil.supprime_le ? (
-                                  <Link href={`/joueur/${r.profil.slug}`} className="hover:text-accent">
+                                  <Link href={`/joueur/${r.profil.slug}`} className="underline-offset-4 hover:underline">
                                     {r.profil.pseudo}
                                   </Link>
                                 ) : (

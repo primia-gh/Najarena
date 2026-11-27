@@ -94,7 +94,7 @@ export default async function MessagesPage() {
                       <AvatarJoueur pseudo={autre?.pseudo ?? "?"} src={autre?.avatar_url ?? null} taille={44} />
                       <span className="flex min-w-0 flex-1 flex-col gap-1">
                         <span className="flex items-center gap-3">
-                          <span className={`truncate ${dernier?.nonLu ? "font-bold text-text" : "font-semibold text-text"} group-hover:text-accent`}>
+                          <span className={`truncate ${dernier?.nonLu ? "font-bold text-text" : "font-semibold text-text"} underline-offset-4 group-hover:underline`}>
                             {autre?.pseudo ?? "Joueur inconnu"}
                           </span>
                           {dernier?.nonLu && (

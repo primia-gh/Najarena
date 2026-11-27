@@ -128,7 +128,7 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
 
         {!moi && (
           <p className="max-w-3xl text-sm text-muted">
-            <Link href="/connexion?suite=%2Flol%2Frecrutement" className="text-text underline underline-offset-3 hover:text-accent">
+            <Link href="/connexion?suite=%2Flol%2Frecrutement" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
               Connecte-toi
             </Link>{" "}
             pour postuler et suivre tes candidatures.
@@ -148,7 +148,7 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-3 text-sm">
                   <span>
                     {c.team ? (
-                      <Link href={`/equipe/${c.team.slug}#recrutement`} className="font-semibold hover:text-accent">
+                      <Link href={`/equipe/${c.team.slug}#recrutement`} className="font-semibold underline-offset-4 hover:underline">
                         {c.team.tag} {c.team.nom}
                       </Link>
                     ) : (
@@ -202,7 +202,7 @@ export default async function RecrutementPage({ searchParams }: PageProps) {
                       <Panneau className="flex h-full flex-col gap-3 p-6">
                         <Link
                           href={`/equipe/${a.slug}#recrutement`}
-                          className="font-titre text-2xl leading-tight font-black uppercase [overflow-wrap:anywhere] hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                          className="font-titre text-2xl leading-tight font-black uppercase [overflow-wrap:anywhere] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                         >
                           <span className="text-muted">{a.tag}</span> {a.nom}
                         </Link>

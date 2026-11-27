@@ -78,7 +78,7 @@ export default async function GainsPage({ searchParams }: GainsPageProps) {
                   <Panneau className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                     <span className="text-sm">
                       {g.dotation?.tournament ? (
-                        <Link href={`/lol/tournois/${g.dotation.tournament.slug}`} className="font-semibold hover:text-accent">
+                        <Link href={`/lol/tournois/${g.dotation.tournament.slug}`} className="font-semibold underline-offset-4 hover:underline">
                           {g.dotation.tournament.nom}
                         </Link>
                       ) : (

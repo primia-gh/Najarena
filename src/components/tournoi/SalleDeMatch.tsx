@@ -145,7 +145,7 @@ function ListeAlignee({ titre, joueurs }: { titre: string; joueurs: JoueurAligne
           <li key={j.slug} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <Link
               href={`/joueur/${j.slug}`}
-              className="font-semibold text-text hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="font-semibold text-text underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               {j.pseudo}
             </Link>
@@ -211,7 +211,7 @@ export default function SalleDeMatch({ infos, actions, actionPret }: SalleDeMatc
             {equipes.slugAdverse ? (
               <Link
                 href={`/equipe/${equipes.slugAdverse}`}
-                className="font-titre text-2xl font-extrabold uppercase text-text hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="font-titre text-2xl font-extrabold uppercase text-text underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {adversaire.pseudo}
               </Link>
@@ -263,7 +263,7 @@ export default function SalleDeMatch({ infos, actions, actionPret }: SalleDeMatc
               <span className="text-mini text-muted uppercase">Adversaire</span>
               <Link
                 href={`/joueur/${adversaire.slug}`}
-                className="font-titre text-2xl font-extrabold uppercase text-text hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="font-titre text-2xl font-extrabold uppercase text-text underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {adversaire.pseudo}
               </Link>

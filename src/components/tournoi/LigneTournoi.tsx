@@ -69,7 +69,7 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
 
       <div className="flex min-w-0 flex-col gap-2">
         <ViewTransition name={`titre-tournoi-${t.slug}`} share="glisse-titre" default="none">
-          <span className="font-titre text-[1.625rem] leading-[0.95] font-black uppercase [overflow-wrap:anywhere] group-hover:text-accent">
+          <span className="font-titre text-[1.625rem] leading-[0.95] font-black uppercase [overflow-wrap:anywhere] underline-offset-4 group-hover:underline">
             {t.nom}
           </span>
         </ViewTransition>

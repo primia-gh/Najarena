@@ -137,7 +137,7 @@ export default function Navbar() {
             <Link
               href={l.href}
               aria-current={estActif(l.href) ? "page" : undefined}
-              className={`${LIEN_TEXTE} font-medium ${estActif(l.href) ? "text-accent" : "text-text hover:text-accent"}`}
+              className={`${LIEN_TEXTE} font-medium ${estActif(l.href) ? "text-accent" : "text-text underline-offset-4 hover:underline"}`}
             >
               {l.label}
             </Link>
@@ -157,7 +157,7 @@ export default function Navbar() {
                 {libelleCompte}
               </Link>
             ) : (
-              <Link href={cibleCompte} className={`${LIEN_TEXTE} text-text hover:text-accent`}>
+              <Link href={cibleCompte} className={`${LIEN_TEXTE} text-text underline-offset-4 hover:underline`}>
                 {libelleCompte}
               </Link>
             ))}

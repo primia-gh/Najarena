@@ -21,7 +21,7 @@ interface Props {
   erreur?: string;
 }
 
-const lien = "text-text underline underline-offset-3 hover:text-accent";
+const lien = "text-text underline underline-offset-3 hover:decoration-text hover:decoration-2";
 
 export default async function BourseRemplacants({ tournoi, utilisateurId, message, erreur }: Props) {
   const supabase = await createClient();
@@ -115,7 +115,7 @@ export default async function BourseRemplacants({ tournoi, utilisateurId, messag
             {bourse.map((b) => (
               <li key={b.profile_id} className="panneau px-3 py-2 text-sm">
                 {b.profile ? (
-                  <Link href={`/joueur/${b.profile.slug}`} className="font-semibold hover:text-accent">
+                  <Link href={`/joueur/${b.profile.slug}`} className="font-semibold underline-offset-4 hover:underline">
                     {b.profile.pseudo}
                   </Link>
                 ) : (

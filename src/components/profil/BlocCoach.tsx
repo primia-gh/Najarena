@@ -171,7 +171,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
                   <div className="flex flex-col gap-1">
                     <Link
                       href={`/joueur/${e.eleve_slug}`}
-                      className="inline-flex min-h-11 items-center self-start font-semibold hover:text-accent"
+                      className="inline-flex min-h-11 items-center self-start font-semibold underline-offset-4 hover:underline"
                     >
                       {e.eleve_pseudo}
                     </Link>
@@ -234,7 +234,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
           <h3 className="text-mini text-muted uppercase">Demandes de suivi · {demandes.length}</h3>
           {demandes.map((d) => (
             <div key={d.coaching_id} className="flex flex-wrap items-center gap-3">
-              <Link href={`/joueur/${d.eleve_slug}`} className="text-sm font-semibold hover:text-accent">
+              <Link href={`/joueur/${d.eleve_slug}`} className="text-sm font-semibold underline-offset-4 hover:underline">
                 {d.eleve_pseudo}
               </Link>
               <form action={repondreCoaching}>
@@ -269,7 +269,7 @@ export default async function BlocCoach({ profilId, slug, pseudo, visiteurId, es
         <p className="border-t border-line pt-6 text-sm text-text-2">
           <Link
             href={`/connexion?suite=${encodeURIComponent(`/joueur/${slug}`)}`}
-            className="inline-flex min-h-11 items-center text-text underline underline-offset-3 hover:text-accent"
+            className="inline-flex min-h-11 items-center text-text underline underline-offset-3 hover:decoration-text hover:decoration-2"
           >
             Connecte-toi
           </Link>{" "}

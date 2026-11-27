@@ -321,7 +321,7 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
                           />
                           <span>
                             J&apos;accepte les{" "}
-                            <Link href="/cgv" className="text-text underline underline-offset-3 hover:text-accent">
+                            <Link href="/cgv" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
                               CGV
                             </Link>{" "}
                             et je demande l&apos;accès immédiat. Je garde {DELAI_RETRACTATION_JOURS}&nbsp;jours pour me
@@ -426,11 +426,11 @@ export default async function TarifsPage({ searchParams }: TarifsPageProps) {
 
         <p className="text-sm text-muted">
           Une question sur les tarifs à venir ?{" "}
-          <Link href="/faq" className="text-text underline underline-offset-3 hover:text-accent">
+          <Link href="/faq" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
             Voir la FAQ
           </Link>{" "}
           ou{" "}
-          <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:text-accent">
+          <Link href="/comment-ca-marche" className="text-text underline underline-offset-3 hover:decoration-text hover:decoration-2">
             comment ça marche
           </Link>
           .

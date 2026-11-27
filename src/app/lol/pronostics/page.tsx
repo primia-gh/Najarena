@@ -173,7 +173,7 @@ export default async function PronosticsPage() {
                   <tr key={l.profile_id}>
                     <td className="tabular-nums">#{i + 1}</td>
                     <td>
-                      <Link href={`/joueur/${l.slug}`} className="hover:text-accent">
+                      <Link href={`/joueur/${l.slug}`} className="underline-offset-4 hover:underline">
                         {l.pseudo}
                       </Link>
                     </td>
@@ -209,7 +209,7 @@ export default async function PronosticsPage() {
                     <li key={match.id}>
                       <Panneau className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                         <span className="text-sm">
-                          <Link href={lienPronostics(tournoi.slug)} className="hover:text-accent">
+                          <Link href={lienPronostics(tournoi.slug)} className="underline-offset-4 hover:underline">
                             {tournoi.nom}
                           </Link>{" "}
                           <span className="text-muted">
