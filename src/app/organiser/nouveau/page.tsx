@@ -391,7 +391,10 @@ export default async function OrganiserNouveauPage({
           </form>
         </Apparition>
       </div>
-      <aside aria-label="Aperçu du tournoi" className="max-w-2xl min-w-0 xl:sticky xl:top-28 xl:mt-[7.5rem] xl:max-w-none">
+      <aside
+        aria-label="Aperçu du tournoi"
+        className="max-w-2xl min-w-0 xl:sticky xl:top-28 xl:mt-[7.5rem] xl:max-h-[calc(100dvh-8rem)] xl:max-w-none xl:overflow-y-auto xl:overscroll-contain xl:pr-2"
+      >
         <ApercuTournoi formId="form-tournoi" />
       </aside>
       </div>

@@ -157,7 +157,7 @@ export default function ApercuTournoi({ formId }: { formId: string }) {
 
       <section className="flex flex-col gap-2.5">
         <p className="text-mini text-faint uppercase">La page de ton tournoi</p>
-        <div className="relative isolate flex min-h-[340px] flex-col justify-end gap-3.5 overflow-hidden rounded-panneau border border-line-strong bg-[radial-gradient(ellipse_at_75%_25%,var(--color-halo)_0%,var(--color-bg-alt)_55%,var(--color-bg)_100%)] p-6 shadow-[0_40px_90px_-40px_rgba(0,0,0,.9)]">
+        <div className="relative isolate flex min-h-[300px] flex-col justify-end gap-3.5 overflow-hidden rounded-panneau border border-line-strong bg-[radial-gradient(ellipse_at_75%_25%,var(--color-halo)_0%,var(--color-bg-alt)_55%,var(--color-bg)_100%)] p-6 shadow-[0_40px_90px_-40px_rgba(0,0,0,.9)]">
           <div
             aria-hidden="true"
             className="absolute -top-64 -right-36 -z-10 aspect-square w-[560px] rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--color-accent)_16%,transparent)_0%,transparent_62%)]"
