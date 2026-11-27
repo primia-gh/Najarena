@@ -107,8 +107,8 @@ export default function ApercuTournoi({ formId }: { formId: string }) {
   const instant = saisie.debut ? instantDepuisSaisieParis(saisie.debut) : null;
   const instantCheckin = saisie.checkin ? instantDepuisSaisieParis(saisie.checkin) : null;
   const alertes = refus(saisie, instant, instantCheckin);
-  // Dans la vraie liste, un 5v5 (jamais compté au classement) porte l'étiquette « Amical ».
-  const amicalAffiche = saisie.amical || saisie.format === "5v5";
+  // Comme la vraie liste (versTournoiListe) : jamais « Amical » sur un 5v5.
+  const amicalAffiche = saisie.amical && saisie.format === "1v1";
   const dateLongue = instant ? DATE_LONGUE.format(instant) : "";
   const niveauRefuse = saisie.format === "5v5" || (saisie.min !== null && saisie.max !== null && saisie.max <= saisie.min);
   const minInvalide = niveauRefuse;

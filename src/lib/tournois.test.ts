@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formaterDate, grouperTournois, partiesDate } from "./tournois";
+import { formaterDate, grouperTournois, partiesDate, versTournoiListe } from "./tournois";
 
 describe("formaterDate", () => {
   it("affiche l'heure de Paris, quel que soit le fuseau du serveur", () => {
@@ -38,5 +38,32 @@ describe("grouperTournois", () => {
     expect(g.aVenir.map((x) => x.id)).toEqual(["proche", "loin"]);
     expect(g.termines.map((x) => x.id)).toEqual(["fini-recent", "fini-ancien"]);
     expect(g.annules.map((x) => x.id)).toEqual(["annule"]);
+  });
+});
+
+describe("versTournoiListe : étiquette Amical", () => {
+  const brut = {
+    id: "t",
+    slug: "t",
+    nom: "Tournoi",
+    format: "1v1",
+    capacite: 8,
+    region: "EUW",
+    statut: "ouvert" as const,
+    debute_le: "2026-12-04T20:00:00.000Z",
+    reserve_membres: false,
+    reserve_non_classes: false,
+    rating_min: null,
+    rating_max: null,
+    creneau_auto: null,
+    compte_pour_classement: false,
+    classe: null,
+    registrations: [{ count: 0 }],
+  };
+  it("un 1v1 déclaré amical porte l'étiquette", () => {
+    expect(versTournoiListe(brut)?.amical).toBe(true);
+  });
+  it("un 5v5, jamais compté au classement individuel, ne la porte pas", () => {
+    expect(versTournoiListe({ ...brut, format: "5v5" })?.amical).toBe(false);
   });
 });

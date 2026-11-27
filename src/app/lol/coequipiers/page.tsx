@@ -224,7 +224,7 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
   );
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+    <main className="relative min-h-screen overflow-clip bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       <div className="relative flex flex-col gap-12 px-grille">
         <EnTetePage
@@ -333,7 +333,10 @@ export default async function CoequipiersPage({ searchParams }: CoequipiersPageP
             </section>
           </Apparition>
 
-          <Apparition delai={0.12} className="flex flex-col gap-8 lg:sticky lg:top-28">
+          <Apparition
+            delai={0.12}
+            className="flex flex-col gap-8 lg:sticky lg:top-28 lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
+          >
             <Panneau className="flex flex-col gap-5 p-6">
               <LibelleSection as="h2">{monAnnonce ? "Mon annonce" : "Je cherche une équipe"}</LibelleSection>
               {formulaire}

@@ -131,7 +131,10 @@ export interface TournoiListe {
   paliersNiveau: string[];
   /** Tournoi quotidien créé par Najarena. */
   officiel: boolean;
-  /** Déclaré amical par son organisateur : ne compte jamais au classement. */
+  /** Déclaré amical par son organisateur : ne compte jamais au classement.
+   *  Jamais vrai pour un 5v5 (27/11/2026) : un 5v5 ne compte jamais au
+   *  classement individuel, l'étiquette « Amical » le faisait passer pour un
+   *  tournoi pour rire ; « 5v5 » est déjà écrit sur la ligne. */
   amical: boolean;
   /** Décision figée à la clôture (null avant). */
   classe: boolean | null;
@@ -183,7 +186,7 @@ export function versTournoiListe(t: LigneTournoiBrute): TournoiListe | null {
     niveau: libelleNiveau(t.rating_min, t.rating_max),
     paliersNiveau: paliersDuNiveau(t.rating_min, t.rating_max),
     officiel: estOfficiel(t.creneau_auto),
-    amical: t.compte_pour_classement === false,
+    amical: t.compte_pour_classement === false && t.format !== "5v5",
     classe: t.classe,
     inscrits: t.registrations[0]?.count ?? 0,
   };
