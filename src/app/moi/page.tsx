@@ -1,3 +1,4 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -9,7 +10,6 @@ import { ROLES, LABEL_ROLE } from "@/lib/roles";
 import { chargerOffre } from "@/lib/offres";
 import { estStatutPublic, formaterDate, grouperTournois } from "@/lib/tournois";
 import { arrondir, trouverPalier } from "@/lib/classement";
-import { COULEUR_PALIER } from "@/lib/paliers";
 import { classeBoutonContour, classeChamp } from "@/lib/design";
 import { accepterInvitation, refuserInvitation } from "@/lib/equipe-actions";
 import PushOptIn from "@/components/PushOptIn";
@@ -286,11 +286,7 @@ export default async function MoiPage({ searchParams }: MoiPageProps) {
               <dd className="flex items-center gap-2 font-titre text-3xl leading-none font-black uppercase">
                 {palier ? (
                   <>
-                    <span
-                      aria-hidden="true"
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ background: COULEUR_PALIER[palier.toLowerCase()] ?? "var(--color-muted)" }}
-                    />
+                    <EmblemePalier palier={palier} taille={28} />
                     {palier}
                   </>
                 ) : (

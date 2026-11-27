@@ -1,3 +1,4 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import Link from "next/link";
 import { cache } from "react";
 import { notFound } from "next/navigation";
@@ -8,7 +9,6 @@ import { probabiliteVictoire } from "@/lib/glicko2";
 import { formaterDate } from "@/lib/tournois";
 import { adresseCanonique, bilanFaceAFace, compteAuBilan, depuisLigne, horsClassementNiveau } from "@/lib/face-a-face";
 import { listeFrancaise, MENTION_SANS_POINTS, matchsSansPoints, REGLE_NIVEAU_COMPTE } from "@/lib/niveau-compte-riot";
-import { COULEUR_PALIER } from "@/lib/paliers";
 import { typographie } from "@/lib/typographie";
 import Apparition from "@/components/design/Apparition";
 import { BadgeVerdict } from "@/components/design/Badges";
@@ -110,7 +110,8 @@ function CarteJoueur({ j, victoires }: { j: Joueur; victoires: number }) {
             {j.palier && (
               <>
                 {" · "}
-                <span style={{ color: COULEUR_PALIER[j.palier.nom.toLowerCase()] ?? "var(--color-muted)" }}>
+                <span className="inline-flex items-center gap-1.5 align-middle">
+                  <EmblemePalier palier={j.palier.nom} taille={24} />
                   {j.palier.nom}
                 </span>
               </>

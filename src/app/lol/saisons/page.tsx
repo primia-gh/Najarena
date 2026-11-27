@@ -1,8 +1,8 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { arrondir, progressionPalier } from "@/lib/classement";
-import { COULEUR_PALIER } from "@/lib/paliers";
 import { dateLongue, joursRestants, libelleJoursRestants, periodeSaison } from "@/lib/saisons";
 import FondEcailles from "@/components/design/FondEcailles";
 import EtatVide from "@/components/design/EtatVide";
@@ -182,12 +182,15 @@ export default async function SaisonsPage() {
                                   "Compte supprimé"
                                 )}
                               </td>
-                              <td
-                                style={{
-                                  color: palier ? (COULEUR_PALIER[palier.nom.toLowerCase()] ?? undefined) : undefined,
-                                }}
-                              >
-                                {palier?.nom ?? "—"}
+                              <td>
+                                {palier ? (
+                                  <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                                    <EmblemePalier palier={palier.nom} taille={24} />
+                                    {palier.nom}
+                                  </span>
+                                ) : (
+                                  "—"
+                                )}
                               </td>
                               <td className="tabular-nums">{arrondir(r.rating)}</td>
                               <td className="tabular-nums">{r.matchs_joues}</td>

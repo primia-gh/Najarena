@@ -1,10 +1,10 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { chargerOffre } from "@/lib/offres";
 import { arrondir, calibrationPct, trouverPalier, type Palier } from "@/lib/classement";
-import { COULEUR_PALIER } from "@/lib/paliers";
 import { REGIONS } from "@/lib/regions";
 import { ROLES, LABEL_ROLE } from "@/lib/roles";
 import {
@@ -420,11 +420,7 @@ export default async function RecherchePage({ searchParams }: RecherchePageProps
                             <span className="font-titre text-2xl font-extrabold tabular-nums">{r.rating}</span>
                             <span className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap text-muted tabular-nums">
                               {r.palier && (
-                                <span
-                                  aria-hidden="true"
-                                  className="h-1.5 w-1.5 rounded-full"
-                                  style={{ background: COULEUR_PALIER[r.palier.toLowerCase()] ?? "var(--color-muted)" }}
-                                />
+                                <EmblemePalier palier={r.palier} taille={24} />
                               )}
                               {r.palier ?? ""}
                               {r.confiance !== null ? ` · confiance ${r.confiance} %` : ""}

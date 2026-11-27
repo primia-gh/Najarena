@@ -1,7 +1,7 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { COULEUR_OFFRE, LABEL_OFFRE, type Offre } from "@/lib/offres";
-import { COULEUR_PALIER } from "@/lib/paliers";
 import { formaterDate } from "@/lib/tournois";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 
@@ -79,11 +79,7 @@ export default function CarteJoueurDisponible({
               <span className="font-titre text-3xl leading-none font-black tabular-nums">{rating}</span>
               {palier && (
                 <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-                  <span
-                    aria-hidden="true"
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ background: COULEUR_PALIER[palier.toLowerCase()] ?? "var(--color-muted)" }}
-                  />
+                  <EmblemePalier palier={palier} taille={24} />
                   {palier}
                 </span>
               )}

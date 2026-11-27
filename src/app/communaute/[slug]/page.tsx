@@ -1,3 +1,4 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -5,7 +6,6 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { classeBoutonContour, classeChamp } from "@/lib/design";
 import { arrondir, trouverPalier } from "@/lib/classement";
-import { COULEUR_PALIER } from "@/lib/paliers";
 import { formaterDate, LABEL_STATUT, type StatutPublic } from "@/lib/tournois";
 import {
   classementInterne,
@@ -394,8 +394,15 @@ export default async function CommunautePage({ params, searchParams }: Communaut
                           </span>
                         )}
                       </td>
-                      <td style={{ color: palier ? COULEUR_PALIER[palier.nom.toLowerCase()] : undefined }}>
-                        {palier?.nom ?? "—"}
+                      <td>
+                        {palier ? (
+                          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                            <EmblemePalier palier={palier.nom} taille={24} />
+                            {palier.nom}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="tabular-nums">{arrondir(m.rating)}</td>
                     </tr>

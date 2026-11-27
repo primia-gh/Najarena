@@ -1,3 +1,4 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,7 +9,6 @@ import { inviterMembre, retirerMembre, refuserInvitation, mettreAJourEquipe } fr
 import { TAILLE_MAX_EQUIPE } from "@/lib/equipe";
 import { chargerOffre, ORDRE_OFFRE } from "@/lib/offres";
 import { arrondir, trouverPalier } from "@/lib/classement";
-import { COULEUR_PALIER } from "@/lib/paliers";
 import { LABEL_ROLE, ROLES, type Role } from "@/lib/roles";
 import { classeCarte } from "@/lib/ui";
 import Bouton from "@/components/ui/Bouton";
@@ -369,11 +369,7 @@ export default async function EquipePage({ params, searchParams }: EquipePagePro
                       <span className="font-titre text-3xl leading-none font-black tabular-nums">{niveau.rating}</span>
                       {niveau.palier && (
                         <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-                          <span
-                            aria-hidden="true"
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ background: COULEUR_PALIER[niveau.palier.toLowerCase()] ?? "var(--color-muted)" }}
-                          />
+                          <EmblemePalier palier={niveau.palier} taille={24} />
                           {niveau.palier}
                         </span>
                       )}

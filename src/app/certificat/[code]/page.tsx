@@ -1,3 +1,4 @@
+import EmblemePalier, { clePalier } from "@/components/design/EmblemePalier";
 import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -136,7 +137,12 @@ export default async function CertificatPage({ params, searchParams }: Certifica
               <IndicateurConfiance estClasse={c.est_classe} pct={calibrationPct(c.rd)} />
               <div className="flex flex-col gap-1">
                 <span className="text-mini text-muted uppercase">Palier</span>
-                <span className="text-lg font-semibold">{c.palier ?? "Non classé"}</span>
+                <span className="inline-flex items-center gap-2 text-lg font-semibold">
+                  {/* Un certificat figé peut porter un ancien nom (« Diamant ») : pas
+                      d'emblème plutôt qu'un bouclier « non classé » qui contredirait. */}
+                  {(c.palier === null || clePalier(c.palier)) && <EmblemePalier palier={c.palier} taille={28} />}
+                  {c.palier ?? "Non classé"}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-mini text-muted uppercase">Matchs vérifiés</span>

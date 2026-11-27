@@ -1,7 +1,7 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import Link from "next/link";
 import Tableau from "@/components/design/Tableau";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
-import { COULEUR_PALIER } from "@/lib/paliers";
 
 // Top 10 de l'accueil (maquette accueil, section 04) : rang, joueur,
 // palier, rating, tendance. La colonne « rôle » de la maquette est remplacée
@@ -92,11 +92,7 @@ export default function ApercuClassement({ lignes, legende, lienPremierePlace }:
               <td className="text-muted">
                 {l.palier ? (
                   <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                    <span
-                      aria-hidden="true"
-                      className="h-2 w-2 rounded-full"
-                      style={{ background: COULEUR_PALIER[l.palier.toLowerCase()] ?? "var(--color-muted)" }}
-                    />
+                    <EmblemePalier palier={l.palier} taille={24} />
                     {l.palier}
                   </span>
                 ) : (

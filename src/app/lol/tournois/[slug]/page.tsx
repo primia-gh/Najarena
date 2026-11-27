@@ -1,3 +1,4 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -1919,11 +1920,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                           <span className="font-semibold">Joueur inconnu</span>
                         )}
                         <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-                          <span
-                            aria-hidden="true"
-                            className="h-2 w-2 rounded-full"
-                            style={{ background: crest.nom === "Non classé" ? "var(--color-muted)" : crest.couleur }}
-                          />
+                          <EmblemePalier palier={crest.nom} taille={24} />
                           {crest.nom}
                         </span>
                       </span>

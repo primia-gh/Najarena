@@ -1,3 +1,4 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -5,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { chargerOffre } from "@/lib/offres";
 import { retirerDeLaWatchlist } from "@/lib/watchlist-actions";
 import { arrondir, trouverPalier, type Palier } from "@/lib/classement";
-import { COULEUR_PALIER } from "@/lib/paliers";
 import { formaterDate } from "@/lib/tournois";
 import Alerte from "@/components/design/Alerte";
 import EtatVide from "@/components/design/EtatVide";
@@ -130,11 +130,7 @@ export default async function WatchlistPage({ searchParams }: WatchlistPageProps
                       <td className="hidden py-3! text-sm text-text-2 sm:table-cell">
                         {palier ? (
                           <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                            <span
-                              aria-hidden="true"
-                              className="h-2 w-2 rounded-full"
-                              style={{ background: COULEUR_PALIER[palier.toLowerCase()] ?? "var(--color-muted)" }}
-                            />
+                            <EmblemePalier palier={palier} taille={24} />
                             {palier}
                           </span>
                         ) : (

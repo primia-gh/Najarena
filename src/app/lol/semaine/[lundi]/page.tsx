@@ -1,3 +1,4 @@
+import EmblemePalier from "@/components/design/EmblemePalier";
 import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -144,7 +145,11 @@ export default async function RecapSemainePage({ params }: SemainePageProps) {
                   <ul className="flex flex-col gap-1.5 text-sm">
                     {recap.nouveauxPaliers.map((p) => (
                       <li key={p.profileId}>
-                        {joueur(p.profileId)} → <span className="font-semibold">{p.palier}</span>
+                        {joueur(p.profileId)} →{" "}
+                        <span className="inline-flex items-center gap-1.5 align-middle font-semibold">
+                          <EmblemePalier palier={p.palier} taille={24} />
+                          {p.palier}
+                        </span>
                       </li>
                     ))}
                   </ul>
