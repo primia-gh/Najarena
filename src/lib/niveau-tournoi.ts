@@ -48,6 +48,18 @@ function palierSousLeSeuil(max: number): string | null {
   return i > 0 ? SEUILS_PALIERS[i - 1].nom : null;
 }
 
+/** Paliers à montrer en emblème pour un tournoi par niveau (27/11/2026) :
+ *  le palier du bas, et celui du haut s'il diffère ; vide sans niveau.
+ *  Mêmes bornes que libelleNiveau. */
+export function paliersDuNiveau(min: number | null, max: number | null): string[] {
+  const bas = min !== null ? palierDuSeuil(min) : null;
+  const haut = max !== null ? palierSousLeSeuil(max) : null;
+  if (bas && haut) return bas === haut ? [bas] : [bas, haut];
+  if (bas) return [bas];
+  if (haut) return haut === SEUILS_PALIERS[0].nom ? [haut] : [SEUILS_PALIERS[0].nom, haut];
+  return [];
+}
+
 /** « Crochet et plus », « Mue à Écaille », « Écaille à Crochet », « Crochet » ; nul sans niveau. */
 export function libelleNiveau(min: number | null, max: number | null): string | null {
   const bas = min !== null ? palierDuSeuil(min) : null;

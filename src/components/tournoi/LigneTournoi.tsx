@@ -3,6 +3,7 @@ import { ViewTransition, type ReactNode } from "react";
 import { partiesDate, type TournoiListe } from "@/lib/tournois";
 import { BadgeEnDirect } from "@/components/design/Badges";
 import Icone from "@/components/design/Icone";
+import EmblemePalier from "@/components/design/EmblemePalier";
 
 // Ligne de la liste des tournois (revue visuelle du 05/10/2026). Avant :
 // un nom et une ligne de texte gris, le statut en badge vert répété sur
@@ -16,7 +17,7 @@ export type { TournoiListe };
 
 function Etiquette({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-bouton border border-line-strong px-1.5 py-0.5 font-texte text-mini font-semibold tracking-[2px] whitespace-nowrap text-text-2 uppercase">
+    <span className="inline-flex items-center rounded-bouton border border-line-strong px-1.5 py-0.5 font-texte text-mini font-semibold tracking-[2px] text-text-2 sm:whitespace-nowrap uppercase">
       {children}
     </span>
   );
@@ -84,7 +85,14 @@ export default function LigneTournoi({ t }: { t: TournoiListe }) {
           {t.statut === "termine" && t.classe === true && <Etiquette>Classé</Etiquette>}
           {t.reserve_membres && <Etiquette>Réservé aux membres</Etiquette>}
           {t.reserve_non_classes && <Etiquette>Réservé aux nouveaux</Etiquette>}
-          {t.niveau && <Etiquette>Niveau {t.niveau}</Etiquette>}
+          {t.niveau && (
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              {t.paliersNiveau.map((p) => (
+                <EmblemePalier key={p} palier={p} taille={24} />
+              ))}
+              <Etiquette>Niveau {t.niveau}</Etiquette>
+            </span>
+          )}
         </span>
       </div>
 

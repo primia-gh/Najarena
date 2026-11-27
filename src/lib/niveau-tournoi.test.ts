@@ -6,6 +6,7 @@ import {
   lireNiveau,
   messageNiveau,
   palierDuRating,
+  paliersDuNiveau,
   ratingDansNiveau,
   situationNiveau,
 } from "./niveau-tournoi";
@@ -18,6 +19,17 @@ describe("libelleNiveau", () => {
     expect(libelleNiveau(1300, 1600)).toBe("Écaille à Crochet");
     expect(libelleNiveau(1450, 1600)).toBe("Crochet");
     expect(libelleNiveau(null, null)).toBeNull();
+  });
+});
+
+describe("paliersDuNiveau", () => {
+  it("donne les paliers des bornes, comme libelleNiveau", () => {
+    expect(paliersDuNiveau(1450, null)).toEqual(["Crochet"]);
+    expect(paliersDuNiveau(null, 1450)).toEqual(["Mue", "Écaille"]);
+    expect(paliersDuNiveau(null, 1300)).toEqual(["Mue"]);
+    expect(paliersDuNiveau(1300, 1600)).toEqual(["Écaille", "Crochet"]);
+    expect(paliersDuNiveau(1450, 1600)).toEqual(["Crochet"]);
+    expect(paliersDuNiveau(null, null)).toEqual([]);
   });
 });
 

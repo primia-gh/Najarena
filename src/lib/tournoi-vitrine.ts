@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { CRENEAU_A_LA_DEMANDE, estOfficiel } from "@/lib/a-la-demande";
-import { libelleNiveau } from "@/lib/niveau-tournoi";
+import { libelleNiveau, paliersDuNiveau } from "@/lib/niveau-tournoi";
 import { NIVEAU_COMPTE_RIOT_MIN } from "@/lib/niveau-compte-riot";
 
 // Données d'affichage ajoutées par la refonte « Venin » de la page tournoi
@@ -45,6 +45,7 @@ export async function chargerComplementsTournoi(tournoiId: string) {
   return {
     typeBracket: data ? (LABEL_BRACKET[data.type_bracket] ?? data.type_bracket) : null,
     niveau,
+    paliersNiveau: data?.reserve_non_classes ? [] : paliersDuNiveau(min, max),
     comptePourClassement: data?.compte_pour_classement ?? true,
     // Tournoi quotidien créé automatiquement (lib/tournois-auto/) ; un
     // tournoi à la demande (idée en réserve n°11) n'est pas « officiel ».

@@ -1,7 +1,7 @@
 import type { Database } from "@/lib/supabase/types";
 import { estOfficiel } from "@/lib/a-la-demande";
 import { FUSEAU_PARIS } from "@/lib/tournois-auto/creneaux";
-import { libelleNiveau } from "@/lib/niveau-tournoi";
+import { libelleNiveau, paliersDuNiveau } from "@/lib/niveau-tournoi";
 
 export type Statut = Database["public"]["Enums"]["tournament_status"];
 
@@ -127,6 +127,8 @@ export interface TournoiListe {
   reserve_non_classes: boolean;
   /** Tournoi par niveau : « Or et plus », « Argent à Or »… (null : ouvert à tous). */
   niveau: string | null;
+  /** Paliers du niveau, montrés en emblème (vide : ouvert à tous). */
+  paliersNiveau: string[];
   /** Tournoi quotidien créé par Najarena. */
   officiel: boolean;
   /** Déclaré amical par son organisateur : ne compte jamais au classement. */
@@ -179,6 +181,7 @@ export function versTournoiListe(t: LigneTournoiBrute): TournoiListe | null {
     reserve_membres: t.reserve_membres,
     reserve_non_classes: t.reserve_non_classes,
     niveau: libelleNiveau(t.rating_min, t.rating_max),
+    paliersNiveau: paliersDuNiveau(t.rating_min, t.rating_max),
     officiel: estOfficiel(t.creneau_auto),
     amical: t.compte_pour_classement === false,
     classe: t.classe,

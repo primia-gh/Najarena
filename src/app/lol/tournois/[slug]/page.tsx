@@ -856,7 +856,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
       accent: false,
     },
     { libelle: "Format", valeur: `${tournoi.format} · BO${tournoi.best_of}`, grand: false, accent: false },
-    { libelle: "Niveau", valeur: complements.niveau, grand: false, accent: false },
+    { libelle: "Niveau", valeur: complements.niveau, grand: false, accent: false, paliers: complements.paliersNiveau },
   ];
 
   // 16 px sur téléphone (sinon iOS zoome la page au toucher d'un champ).

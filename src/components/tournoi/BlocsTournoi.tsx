@@ -8,6 +8,7 @@ import { LABEL_STATUT, type StatutPublic } from "@/lib/tournois";
 import { REGLE_FORFAIT, REGLE_FORFAIT_5V5, REGLE_PARTIE_5V5, reglePartie1v1 } from "@/lib/reglement";
 import type { ConditionVictoire } from "@/lib/conditions-1v1";
 import { JOUEURS_MIN_TOURNOI_CLASSE, PREAVIS_TOURNOI_CLASSE_HEURES } from "@/lib/tournoi-classe";
+import EmblemePalier from "@/components/design/EmblemePalier";
 
 // Blocs communs à la page tournoi et au tournoi d'exemple (maquette
 // tournoi.dc.html) : en-tête d'affiche, légende du bracket,
@@ -38,6 +39,8 @@ export interface InfoTournoi {
   valeur: string;
   grand: boolean;
   accent: boolean;
+  /** Emblèmes de palier devant la valeur (niveau d'un tournoi par niveau). */
+  paliers?: string[];
 }
 
 interface EnTeteTournoiProps {
@@ -114,7 +117,16 @@ export function EnTeteTournoi({ nom, etiquettes, details, infos, action, nomTran
                       : "text-[15px] font-semibold"
                   }
                 >
-                  {info.valeur}
+                  {info.paliers && info.paliers.length > 0 ? (
+                    <span className="inline-flex flex-wrap items-center gap-1.5">
+                      {info.paliers.map((p) => (
+                        <EmblemePalier key={p} palier={p} taille={24} />
+                      ))}
+                      <span>{info.valeur}</span>
+                    </span>
+                  ) : (
+                    info.valeur
+                  )}
                 </dd>
               </div>
             ))}

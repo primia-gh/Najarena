@@ -59,6 +59,22 @@ export default function MomentBracket({ children, className = "" }: { children: 
         if (titreChampion) tl.from(titreChampion, { opacity: 0, y: -8, duration: 0.3 }, tc - 0.2);
         if (traitChampion) tl.set(traitChampion, { transformOrigin: "left center" }, 0).from(traitChampion, { scaleX: 0, duration: 0.3, ease: "power2.inOut" }, tc - 0.2);
         tl.from(carte, { scale: 0.45, opacity: 0, duration: 0.5, ease: "back.out(2)" }, tc);
+        // Tableau plus large que son cadre (téléphone, ou grand tableau sur
+        // ordinateur) : la carte est hors du cadre. On fait défiler le cadre
+        // (jamais la page) jusqu'à elle, sauf si le visiteur a déjà fait
+        // défiler le tableau lui-même ou a quitté la page.
+        const cadre = el.closest<HTMLElement>('[role="region"]');
+        const departDefilement = cadre?.scrollLeft ?? 0;
+        tl.call(
+          () => {
+            if (!cadre || !cadre.isConnected || cadre.scrollLeft !== departDefilement) return;
+            const depasse = champion.getBoundingClientRect().right - cadre.getBoundingClientRect().right;
+            if (depasse <= 0) return;
+            cadre.scrollTo({ left: cadre.scrollLeft + depasse + 16, behavior: "smooth" });
+          },
+          undefined,
+          Math.max(0, tc - 0.35),
+        );
         if (rayons) tl.from(rayons, { scale: 0.3, rotation: -25, opacity: 0, duration: 0.7, ease: "power3.out" }, tc);
       }
       // Rien ne garde un style posé par l'animation une fois finie.
