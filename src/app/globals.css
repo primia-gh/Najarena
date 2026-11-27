@@ -254,6 +254,16 @@ select:not([multiple]):not([size]) {
   padding-right: 2.5rem;
 }
 
+/* Moments forts (components/moments, 27/11/2026) : l'élément attend que
+   GSAP démarre l'animation, pour ne pas montrer l'état final puis le
+   rembobiner. Affiché d'emblée si le mouvement est réduit ou sans
+   JavaScript (<noscript> du layout) ; filet de 2,5 s dans useMomentFort. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-moment="attente"] {
+    opacity: 0;
+  }
+}
+
 [data-apparition] {
   transition:
     opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),

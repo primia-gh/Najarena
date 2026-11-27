@@ -12,15 +12,17 @@ import Apparition from "@/components/design/Apparition";
 import { BadgeVerdict } from "@/components/design/Badges";
 import BoutonCopier from "@/components/design/BoutonCopier";
 import FondEcailles from "@/components/design/FondEcailles";
+import MomentVerdict, { MomentChaine, SceauVerdict } from "@/components/moments/MomentVerdict";
 import Icone from "@/components/design/Icone";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 import Tableau from "@/components/design/Tableau";
 
 // Fiche de preuve d'un match (09/10/2026, idée en réserve n°1) : une
-// adresse par match, pour montrer d'où vient un résultat. Page outil, dense,
-// sans animation superflue. Un verdict manuel n'est jamais présenté comme
-// vérifié (CLAUDE.md §3 et §7).
+// adresse par match, pour montrer d'où vient un résultat. Page outil, dense.
+// Un seul moment animé (27/11/2026) : le sceau d'un verdict lu chez Riot et
+// la chaîne du registre (components/moments/MomentVerdict). Un verdict
+// manuel n'est jamais présenté comme vérifié (CLAUDE.md §3 et §7).
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -130,6 +132,53 @@ export default async function PreuveMatchPage({ params }: PageProps) {
               ? `tour ${preuve.tour} du tableau des gagnants (double élimination)`
               : libelleTour(preuve.tour, preuve.dernierTour).toLowerCase();
 
+  // Détail du verdict, avec ou sans sceau (verdict lu chez Riot ou manuel).
+  const detailVerdict = verdict ? (
+    <dl className="flex flex-col">
+      <Ligne libelle="Vainqueur">{verdict.gagnant ?? "Aucun (double forfait)"}</Ligne>
+      {verdict.niveau === "historique" && (
+        <Ligne libelle="Source">Partie retrouvée dans l&apos;historique officiel Riot des deux comptes.</Ligne>
+      )}
+      {verdict.niveau === "code_tournoi" && <Ligne libelle="Source">Partie jouée avec un code de tournoi Riot.</Ligne>}
+      {verdict.niveau === "manuel" && (
+        <>
+          <Ligne libelle="Source">
+            Décision manuelle{verdict.decideur ? ` de ${verdict.decideur}` : " (appliquée automatiquement par Najarena)"}.
+          </Ligne>
+          <Ligne libelle="Motif">{verdict.motif ?? "—"}</Ligne>
+        </>
+      )}
+      <Ligne libelle={verdict.niveau === "manuel" ? "Décidé le" : "Lu chez Riot le"}>
+        <span className="tabular-nums">{formaterDate(verdict.decideLe)}</span>
+      </Ligne>
+      {verdict.riotMatchId && (
+        <Ligne libelle="Partie Riot">
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <code className="font-texte tabular-nums">{verdict.riotMatchId}</code>
+            <BoutonCopier
+              texte={verdict.riotMatchId}
+              libelle="Copier"
+              libelleAccessible="Copier l'identifiant de la partie Riot"
+            />
+          </span>
+        </Ligne>
+      )}
+      {preuve.dureeSecondes !== null && <Ligne libelle="Durée de la partie">{duree(preuve.dureeSecondes)}</Ligne>}
+      {preuve.defaiteReconnue && (
+        <Ligne libelle="Défaite reconnue">
+          par {preuve.defaiteReconnue.pseudo}
+          {preuve.defaiteReconnue.le && (
+            <>
+              {" "}
+              le <span className="tabular-nums">{formaterDate(preuve.defaiteReconnue.le)}</span>
+            </>
+          )}
+        </Ligne>
+      )}
+      <Ligne libelle="Classement">{etatClassement(preuve)}</Ligne>
+    </dl>
+  ) : null;
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
@@ -152,60 +201,34 @@ export default async function PreuveMatchPage({ params }: PageProps) {
 
         <Apparition delai={0.04}>
           <Panneau className="flex flex-col gap-4 p-6 sm:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <LibelleSection as="h2">Verdict</LibelleSection>
-              {verdict && <BadgeVerdict niveau={verdict.niveau} />}
-            </div>
-            {!verdict ? (
-              <p className="text-text-2">
-                {preuve.statut === "litige"
-                  ? "Litige : la partie n'a pas été retrouvée chez Riot, l'organisateur doit trancher."
-                  : "Pas encore de résultat : la partie est cherchée dans l'historique Riot des deux joueurs."}
-              </p>
+            {verdict && verdict.niveau !== "manuel" ? (
+              // Verdict lu chez Riot : le sceau s'abat une fois (moment fort).
+              <MomentVerdict className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <LibelleSection as="h2">Verdict</LibelleSection>
+                  <BadgeVerdict niveau={verdict.niveau} />
+                </div>
+                <div className="grid items-center gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-10">
+                  <SceauVerdict niveau={verdict.niveau} className="w-32 justify-self-center sm:order-last sm:w-44" />
+                  {detailVerdict}
+                </div>
+              </MomentVerdict>
             ) : (
-              <dl className="flex flex-col">
-                <Ligne libelle="Vainqueur">{verdict.gagnant ?? "Aucun (double forfait)"}</Ligne>
-                {verdict.niveau === "historique" && (
-                  <Ligne libelle="Source">Partie retrouvée dans l&apos;historique officiel Riot des deux comptes.</Ligne>
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <LibelleSection as="h2">Verdict</LibelleSection>
+                  {verdict && <BadgeVerdict niveau={verdict.niveau} />}
+                </div>
+                {!verdict ? (
+                  <p className="text-text-2">
+                    {preuve.statut === "litige"
+                      ? "Litige : la partie n'a pas été retrouvée chez Riot, l'organisateur doit trancher."
+                      : "Pas encore de résultat : la partie est cherchée dans l'historique Riot des deux joueurs."}
+                  </p>
+                ) : (
+                  detailVerdict
                 )}
-                {verdict.niveau === "code_tournoi" && <Ligne libelle="Source">Partie jouée avec un code de tournoi Riot.</Ligne>}
-                {verdict.niveau === "manuel" && (
-                  <>
-                    <Ligne libelle="Source">
-                      Décision manuelle{verdict.decideur ? ` de ${verdict.decideur}` : " (appliquée automatiquement par Najarena)"}.
-                    </Ligne>
-                    <Ligne libelle="Motif">{verdict.motif ?? "—"}</Ligne>
-                  </>
-                )}
-                <Ligne libelle={verdict.niveau === "manuel" ? "Décidé le" : "Lu chez Riot le"}>
-                  <span className="tabular-nums">{formaterDate(verdict.decideLe)}</span>
-                </Ligne>
-                {verdict.riotMatchId && (
-                  <Ligne libelle="Partie Riot">
-                    <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <code className="font-texte tabular-nums">{verdict.riotMatchId}</code>
-                      <BoutonCopier
-                        texte={verdict.riotMatchId}
-                        libelle="Copier"
-                        libelleAccessible="Copier l'identifiant de la partie Riot"
-                      />
-                    </span>
-                  </Ligne>
-                )}
-                {preuve.dureeSecondes !== null && <Ligne libelle="Durée de la partie">{duree(preuve.dureeSecondes)}</Ligne>}
-                {preuve.defaiteReconnue && (
-                  <Ligne libelle="Défaite reconnue">
-                    par {preuve.defaiteReconnue.pseudo}
-                    {preuve.defaiteReconnue.le && (
-                      <>
-                        {" "}
-                        le <span className="tabular-nums">{formaterDate(preuve.defaiteReconnue.le)}</span>
-                      </>
-                    )}
-                  </Ligne>
-                )}
-                <Ligne libelle="Classement">{etatClassement(preuve)}</Ligne>
-              </dl>
+              </>
             )}
           </Panneau>
         </Apparition>
@@ -280,6 +303,21 @@ export default async function PreuveMatchPage({ params }: PageProps) {
               <p className="text-sm text-text-2">{etatClassement(preuve)} Aucune ligne du registre pour l&apos;instant.</p>
             ) : (
               <>
+                {/* Les trois dernières lignes, en chaîne (moment fort) : seulement si ce
+                    match est lu chez Riot, pour ne pas faire passer un verdict manuel pour vérifié. */}
+                {verdict && verdict.niveau !== "manuel" && (
+                <MomentChaine
+                  blocs={[...preuve.registre]
+                    .sort((x, y) => x.numero - y.numero)
+                    .slice(-3)
+                    .map((l) => ({
+                      numero: l.numero,
+                      pseudo: l.pseudo,
+                      empreinte: l.empreinte,
+                      empreinteCourte: empreinteCourte(l.empreinte),
+                    }))}
+                />
+                )}
                 <Tableau legende="Lignes du registre scellé produites par ce tournoi pour ces joueurs">
                   <thead>
                     <tr>

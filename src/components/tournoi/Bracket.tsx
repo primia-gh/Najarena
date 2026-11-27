@@ -1,5 +1,5 @@
-import Apparition from "@/components/design/Apparition";
 import Link from "next/link";
+import MomentBracket from "@/components/moments/MomentBracket";
 import type { ReactNode } from "react";
 import { BadgeEnDirect, BadgeVerdict } from "@/components/design/Badges";
 import type { NiveauVerdict } from "@/lib/tournois";
@@ -9,7 +9,8 @@ import type { NiveauVerdict } from "@/lib/tournois";
 // dans sa colonne, si bien que le centre d'un match tombe toujours entre
 // ses deux matchs d'origine. Les connecteurs sont dessinés en bordures :
 // sortie à droite (moitié haute ou basse vers le point de jonction),
-// entrée à gauche. Vert sur le chemin déjà joué (match avec verdict).
+// entrée à gauche. Vert sur le chemin d'une victoire lue chez Riot ; gris
+// clair pour un match tranché à la main (27/11/2026).
 // Défile horizontalement DANS son cadre sur mobile, jamais la page.
 
 const DEMI_ECART = "41px"; // maquette : 82 px entre deux colonnes
@@ -17,16 +18,35 @@ const DEMI_ECART = "41px"; // maquette : 82 px entre deux colonnes
 export interface TourBracket {
   numero: number;
   libelle: string;
-  matchs: { id: string; joue: boolean; atteint: boolean; contenu: ReactNode }[];
+  matchs: {
+    id: string;
+    joue: boolean;
+    atteint: boolean;
+    /** Verdict lu chez Riot (pas manuel) : le connecteur s'illumine au moment fort. */
+    verifie?: boolean;
+    contenu: ReactNode;
+  }[];
+}
+
+/** Vainqueur d'un tournoi à élimination directe terminé (carte au bout du tableau). */
+export interface ChampionTableau {
+  pseudo: string;
+  slug: string | null;
+  victoiresVerifiees: number;
+  /** Finale lue chez Riot : seule condition pour la carte verte. */
+  finaleVerifiee: boolean;
 }
 
 export function ColonnesBracket({
   tours,
   legende,
   sansConnecteurs = false,
+  champion = null,
 }: {
   tours: TourBracket[];
   legende: string;
+  /** Carte « Vainqueur » après la finale (élimination directe terminée). */
+  champion?: ChampionTableau | null;
   /** Format suisse (19/11/2026) : des rondes indépendantes, pas de chemin vers une finale. */
   sansConnecteurs?: boolean;
 }) {
@@ -38,36 +58,47 @@ export function ColonnesBracket({
       tabIndex={0}
       className="overflow-x-auto pb-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
     >
-      {/* Apparition : le chemin déjà joué (connecteurs verts) se trace une
-          fois, tour après tour, quand le bracket entre à l'écran (26/11/2026). */}
-      <Apparition sansFondu className="flex w-max gap-[82px]">
+      {/* Moment fort (27/11/2026) : les tours tombent l'un après l'autre, le
+          chemin joué se trace, puis le vainqueur jaillit (MomentBracket). */}
+      <MomentBracket className="flex w-max gap-[82px]">
         {tours.map((t, indexTour) => {
           const dernier = indexTour === tours.length - 1;
           return (
-            <div key={t.numero} className="flex w-[250px] flex-col gap-[22px]">
+            <div key={t.numero} data-m="colonne" className="flex w-[250px] flex-col gap-[22px]">
               <h3 className="text-mini text-muted uppercase">{t.libelle}</h3>
               <ol className="flex flex-col" style={sansConnecteurs ? undefined : { minHeight: `${matchsPremierTour * 112}px` }}>
                 {t.matchs.map((m, i) => {
                   const haut = i % 2 === 0;
+                  // Trait d'entrée vert seulement si les matchs d'où viennent
+                  // les joueurs (2i et 2i+1 du tour précédent) sont lus chez Riot.
+                  const origines = indexTour > 0 ? [tours[indexTour - 1].matchs[2 * i], tours[indexTour - 1].matchs[2 * i + 1]].filter(Boolean) : [];
+                  const entreeVerifiee = origines.length > 0 && origines.every((o) => o.verifie);
                   return (
                     <li key={m.id} className="relative flex flex-1 items-center py-3">
                       {indexTour > 0 && !sansConnecteurs && (
                         <span
                           aria-hidden="true"
-                          className={`absolute top-1/2 right-full border-t ${m.atteint ? "trace border-accent" : "border-line-strong"}`}
-                          style={{ width: DEMI_ECART, ["--delai" as string]: `${0.2 + indexTour * 0.3}s` }}
+                          data-m="trait"
+                          className={`absolute top-1/2 right-full border-t ${
+                            m.atteint ? (entreeVerifiee ? "border-accent" : "border-text-2/40") : "border-line-strong"
+                          }`}
+                          style={{ width: DEMI_ECART }}
                         />
                       )}
                       {!dernier && !sansConnecteurs && (
                         <span
                           aria-hidden="true"
+                          data-m="trait"
+                          data-verifie={m.verifie ? "" : undefined}
                           className={`absolute left-full border-r ${haut ? "top-1/2 h-1/2 border-t" : "top-0 h-1/2 border-b"} ${
-                            m.joue ? "trace border-accent" : "border-line-strong"
+                            m.verifie ? "border-accent" : m.joue ? "border-text-2/40" : "border-line-strong"
                           }`}
-                          style={{ width: DEMI_ECART, ["--delai" as string]: `${0.05 + indexTour * 0.3}s` }}
+                          style={{ width: DEMI_ECART }}
                         />
                       )}
-                      <div className="w-full">{m.contenu}</div>
+                      <div data-m="case" className="w-full">
+                        {m.contenu}
+                      </div>
                     </li>
                   );
                 })}
@@ -75,7 +106,89 @@ export function ColonnesBracket({
             </div>
           );
         })}
-      </Apparition>
+        {champion && !sansConnecteurs && <ColonneChampion champion={champion} hauteur={matchsPremierTour * 112} />}
+      </MomentBracket>
+    </div>
+  );
+}
+
+function ColonneChampion({ champion, hauteur }: { champion: ChampionTableau; hauteur: number }) {
+  const vert = champion.finaleVerifiee;
+  return (
+    <div data-m="champion" className="flex w-[230px] flex-col gap-[22px]">
+      <h3 className="text-mini text-muted uppercase">Titre</h3>
+      <div className="flex flex-col" style={{ minHeight: `${hauteur}px` }}>
+        <div className="relative flex flex-1 items-center py-3">
+          <span
+            aria-hidden="true"
+            data-m="trait"
+            data-verifie={vert ? "" : undefined}
+            className={`absolute top-1/2 right-full w-[82px] border-t ${vert ? "border-accent" : "border-line-strong"}`}
+          />
+          {vert && (
+            <svg
+              aria-hidden="true"
+              data-m="rayons"
+              viewBox="0 0 200 200"
+              className="pointer-events-none absolute top-1/2 left-1/2 size-[300px] text-accent -translate-x-1/2 -translate-y-1/2"
+            >
+              <defs>
+                <radialGradient id="rayons-champion">
+                  <stop offset="0" stopColor="currentColor" stopOpacity=".22" />
+                  <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              <circle cx="100" cy="100" r="100" fill="url(#rayons-champion)" />
+              {Array.from({ length: 12 }, (_, i) => {
+                const a = (i * Math.PI) / 6;
+                return (
+                  <line
+                    key={i}
+                    x1={100 + Math.cos(a) * 52}
+                    y1={100 + Math.sin(a) * 52}
+                    x2={100 + Math.cos(a) * 92}
+                    y2={100 + Math.sin(a) * 92}
+                    stroke="currentColor"
+                    strokeOpacity=".35"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+            </svg>
+          )}
+          <div
+            data-m="carte-champion"
+            className={`relative flex w-full flex-col gap-2 rounded-[3px] border-2 bg-surface px-5 py-4 ${
+              vert ? "border-accent shadow-[0_0_40px_color-mix(in_srgb,var(--color-accent)_18%,transparent)]" : "border-line-strong"
+            }`}
+          >
+            <span className={`flex items-center gap-2 text-mini font-semibold uppercase ${vert ? "text-accent" : "text-muted"}`}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+                <path d="M7 4h10v5a5 5 0 01-10 0zM7 6H4a3 3 0 003 4M17 6h3a3 3 0 01-3 4M10.5 14h3v3h-3zM8 20h8v-3H8z" />
+              </svg>
+              Vainqueur
+            </span>
+            <span title={champion.pseudo} className="truncate font-titre text-[34px] leading-none font-black uppercase">
+              {champion.slug ? (
+                <Link
+                  href={`/joueur/${champion.slug}`}
+                  className="hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  {champion.pseudo}
+                </Link>
+              ) : (
+                champion.pseudo
+              )}
+            </span>
+            <span className="text-xs text-muted tabular-nums">
+              {champion.victoiresVerifiees > 0
+                ? `${champion.victoiresVerifiees} victoire${champion.victoiresVerifiees > 1 ? "s" : ""} lue${champion.victoiresVerifiees > 1 ? "s" : ""} chez Riot`
+                : "Aucune victoire lue chez Riot"}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

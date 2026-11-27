@@ -11,7 +11,8 @@ import OuvertureLogo from "@/components/vitrine/OuvertureLogo";
 import BandeauDefilant from "@/components/vitrine/BandeauDefilant";
 import PauseHorsEcran from "@/components/vitrine/PauseHorsEcran";
 import { BoucleBracket, BoucleCompte, BoucleRating } from "@/components/vitrine/Boucles";
-import { CarteCvDetail, CarteCvFlottante } from "@/components/vitrine/CartesCvExemple";
+import { CarteCvDetail } from "@/components/vitrine/CartesCvExemple";
+import MomentRating from "@/components/moments/MomentRating";
 import AfficheTournoi, { type VarianteAffiche } from "@/components/vitrine/AfficheTournoi";
 import ApercuClassement, { type Tendance } from "@/components/vitrine/ApercuClassement";
 import { IllustrationEquipe, IllustrationRecherche } from "@/components/vitrine/IllustrationsPortes";
@@ -244,7 +245,7 @@ export default async function Home() {
             </ul>
           </div>
 
-          <CarteCvFlottante className="w-full max-w-[400px] lg:ml-auto lg:w-[360px] xl:w-[400px]" />
+          <MomentRating className="w-full max-w-[400px] lg:ml-auto lg:w-[360px] xl:w-[400px]" />
         </div>
       </section>
 

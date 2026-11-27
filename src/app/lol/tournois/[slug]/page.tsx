@@ -40,6 +40,7 @@ import Panneau from "@/components/design/Panneau";
 import Tableau from "@/components/design/Tableau";
 import LibelleSection from "@/components/design/LibelleSection";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
+import { bilanChampion } from "@/lib/champion-tableau";
 import { CaseMatch, ColonnesBracket, type EtatMatch, type TourBracket } from "@/components/tournoi/Bracket";
 import { chancesDeTitre, formaterChance, type MatchTitre } from "@/lib/chances-titre";
 import { ficheAdversaire } from "@/lib/fiche-adversaire";
@@ -1186,6 +1187,7 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
                   return {
                     id: m.id,
                     joue: Boolean(verdict),
+                    verifie: Boolean(verdict && verdict.niveau !== "manuel"),
                     atteint: m.match_participants.length > 0,
                     contenu: (
                       <CaseMatch
@@ -1666,6 +1668,15 @@ export default async function TournoiPage({ params, searchParams }: TournoiPageP
           ) : (
             <ColonnesBracket
               sansConnecteurs={estSuisse}
+              champion={
+                titre?.vainqueur
+                  ? {
+                      pseudo: titre.vainqueur.pseudo,
+                      slug: titre.vainqueur.slug,
+                      ...bilanChampion(matchs, verdictParMatch, titre.vainqueur.id),
+                    }
+                  : null
+              }
               legende={estSuisse ? `Rondes du tournoi ${tournoi.nom}` : `Bracket du tournoi ${tournoi.nom}`}
               tours={toursOrdonnes.map(tourBracket)}
             />

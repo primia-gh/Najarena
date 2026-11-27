@@ -1,77 +1,14 @@
 import Image from "next/image";
-import ChiffreRating from "@/components/design/ChiffreRating";
 import { BadgeChercheEquipe, BadgeVerdict, BadgeVerifie } from "@/components/design/Badges";
 import EtiquetteExemple from "@/components/vitrine/EtiquetteExemple";
-import styles from "./vitrine.module.css";
 
-// Cartes « CV e-sport » de l'accueil (maquette accueil, ouverture et
-// section 02) : illustrations du produit, comme une capture d'écran de
+// Cartes « CV e-sport » de l'accueil (maquette accueil, section 02 ; la carte de
+// l'ouverture est components/moments/MomentRating) : illustrations du produit, comme une capture d'écran de
 // vitrine, avec le badge « VÉRIFIÉ » de la maquette (décision du porteur du
 // 23/09/2026 : la vitrine sert d'abord à attirer). Le pseudo reste
 // « TON_PSEUDO » : on montre le CV que le visiteur peut avoir, jamais un faux
 // joueur. Chaque bloc existe vraiment sur un profil ; le « rating par rôle »
 // de la maquette, qui n'existe pas, est remplacé par le journal des points.
-
-const DERNIERS_RESULTATS: ("V" | "D")[] = ["V", "V", "D", "V", "V"];
-
-
-/** Carte flottante de l'ouverture. */
-export function CarteCvFlottante({ className = "" }: { className?: string }) {
-  return (
-    <figure
-      className={`relative flex flex-col gap-[26px] rounded-panneau border border-line bg-[linear-gradient(160deg,#171917_0%,#0D0F0D_100%)] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,.07),0_50px_100px_rgba(0,0,0,.7),0_0_120px_rgba(182,255,59,.06)] ${styles.flotte} ${className}`}
-    >
-      <figcaption className="sr-only">
-        Exemple fictif d&apos;un CV e-sport Najarena, au nom de TON_PSEUDO : rating, progression sur 7 jours et cinq
-        derniers résultats.
-      </figcaption>
-      <div aria-hidden="true" className="flex flex-col gap-[26px]">
-        <div className="flex items-center justify-between text-mini text-muted uppercase">
-          <span className="flex items-center gap-2">
-            CV e-sport <EtiquetteExemple />
-          </span>
-          <BadgeVerifie>Compte vérifié</BadgeVerifie>
-        </div>
-        <div className="flex items-center gap-4">
-          <Image src="/avatars/avatar-p1.svg" alt="" width={56} height={56} unoptimized className="rounded-panneau" />
-          <div className="flex flex-col gap-1">
-            <span className="font-titre text-[26px] font-extrabold tracking-[1px]">TON_PSEUDO</span>
-            <span className="text-sm text-muted">Mid · Ton équipe</span>
-          </div>
-        </div>
-        <div className="h-px bg-line" />
-        <div className="flex items-end justify-between">
-          <div className="flex flex-col gap-1.5">
-            <span className="text-mini text-muted uppercase">Rating</span>
-            <ChiffreRating valeur={1842} taille="carte" />
-          </div>
-          <span className="text-sm font-semibold text-accent">▲ +64 / 7 j</span>
-        </div>
-        <svg className="h-auto w-full" viewBox="0 0 336 56" fill="none">
-          <polyline
-            points="0,48 35,44 70,46 105,35 140,38 175,27 210,30 245,19 280,16 336,6"
-            stroke="#B6FF3B"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <div className="flex gap-1.5">
-          {DERNIERS_RESULTATS.map((r, i) => (
-            <span
-              key={i}
-              className={`flex h-9 flex-1 items-center justify-center rounded-bouton text-[13px] font-bold tracking-[1px] ${
-                r === "V" ? "bg-accent/14 text-accent" : "bg-danger/12 text-danger"
-              }`}
-            >
-              {r}
-            </span>
-          ))}
-        </div>
-      </div>
-    </figure>
-  );
-}
 
 const STATS = [
   { libelle: "Rating", valeur: "1842", accent: true },

@@ -6,6 +6,7 @@ import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
 import AvatarJoueur from "@/components/design/AvatarJoueur";
 import { CaseMatch, ColonnesBracket } from "@/components/tournoi/Bracket";
+import { bilanChampion } from "@/lib/champion-tableau";
 import {
   Deroulement,
   EnTeteTournoi,
@@ -106,6 +107,22 @@ const MATCHS_DEMO: MatchDemo[] = [
   },
 ];
 
+// Vainqueur de la finale, au bout du tableau (moment fort du 27/11/2026).
+const FINALE_DEMO = MATCHS_DEMO.reduce((a, m) => (m.tour > a.tour ? m : a));
+const PSEUDO_CHAMPION_DEMO = FINALE_DEMO.joueurs.find((j) => j.gagnant)!.pseudo;
+const CHAMPION_DEMO = {
+  pseudo: PSEUDO_CHAMPION_DEMO,
+  slug: null,
+  // Même calcul qu'un vrai tournoi (src/lib/champion-tableau.ts).
+  ...bilanChampion(
+    MATCHS_DEMO.map((m, i) => ({ id: String(i), tour: m.tour })),
+    new Map(
+      MATCHS_DEMO.map((m, i) => [String(i), { gagnant_id: m.joueurs.find((j) => j.gagnant)?.pseudo ?? null, niveau: m.niveau }]),
+    ),
+    PSEUDO_CHAMPION_DEMO,
+  ),
+};
+
 const NOM_TOUR: Record<number, string> = { 1: "Quarts", 2: "Demi-finales", 3: "Finale" };
 
 // Même récit qu'un vrai tournoi terminé (src/lib/recit-tournoi.ts) ; pas
@@ -186,12 +203,14 @@ export default function TournoiDemoPage() {
           </div>
           <ColonnesBracket
             legende="Bracket du tournoi d'exemple"
+            champion={CHAMPION_DEMO}
             tours={toursOrdonnes.map((tour) => ({
               numero: tour,
               libelle: NOM_TOUR[tour],
               matchs: rounds.get(tour)!.map((m, i) => ({
                 id: `${tour}-${i}`,
                 joue: true,
+                verifie: m.niveau !== "manuel",
                 atteint: true,
                 contenu: (
                   <CaseMatch
