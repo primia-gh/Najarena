@@ -132,7 +132,19 @@ const QUESTIONS_VERDICT = [
   },
 ];
 
-export function SchemaVerdict() {
+const NIVEAU_DU_VERDICT = { code_tournoi: "3", historique: "2", manuel: "1" } as const;
+
+/** Arbre du verdict. Sur la page de preuve d'un match (27/11/2026), la ligne
+ *  du niveau de CE match porte le repère « Ce match » (blanc, jamais vert) ;
+ *  les autres lignes perdent leur vert, sans baisser le contraste du texte.
+ *  horsClassement : ce match ne compte pas (5v5, compte Riot sous le niveau
+ *  minimum, tournoi non classé), la ligne le dit au lieu de « compte au
+ *  classement », pour ne pas contredire le panneau Verdict. */
+export function SchemaVerdict({
+  niveauDuMatch,
+  horsClassement = false,
+}: { niveauDuMatch?: keyof typeof NIVEAU_DU_VERDICT; horsClassement?: boolean } = {}) {
+  const niveauCible = niveauDuMatch ? NIVEAU_DU_VERDICT[niveauDuMatch] : null;
   return (
     <figure className="panneau relative overflow-hidden px-6 py-8 sm:px-8">
       <figcaption className="sr-only">
@@ -144,17 +156,28 @@ export function SchemaVerdict() {
         Match terminé · Najarena cherche la preuve
       </p>
       <ol className="mt-6 flex flex-col">
-        {QUESTIONS_VERDICT.map((q, i) => (
+        {QUESTIONS_VERDICT.map((q, i) => {
+          const cible = niveauCible === q.niveau;
+          const vert = q.compte && q.actif && !(niveauCible && !cible);
+          const source = cible && horsClassement && q.compte ? `${q.source.split(" · ")[0]} · hors classement pour ce match` : q.source;
+          return (
           <li
             key={q.niveau}
-            className="etape-schema grid gap-x-6 gap-y-3 border-t border-line py-5 first:border-t-0 first:pt-0 last:pb-0 xl:grid-cols-[minmax(0,1fr)_4rem_minmax(0,15rem)] xl:items-center"
+            aria-current={cible ? "true" : undefined}
+            className={`etape-schema relative grid gap-x-6 gap-y-3 border-t border-line py-5 first:border-t-0 first:pt-0 last:pb-0 xl:grid-cols-[minmax(0,1fr)_4rem_minmax(0,15rem)] xl:items-center`}
             style={delai(0.3 + i * 0.55)}
           >
+            {cible && <span aria-hidden="true" className="absolute inset-y-3 -left-6 w-0.5 bg-text sm:-left-8" />}
             <span className="flex flex-col gap-1">
               <span className="font-semibold">
                 {i > 0 && <span className="mr-2 font-texte text-mini font-medium text-faint uppercase">Sinon</span>}
                 {q.question}
-                {!q.actif && (
+                {cible && (
+                  <span className="ml-2 inline-block rounded-bouton border border-text px-1.5 py-0.5 align-middle font-texte text-mini font-semibold text-text uppercase">
+                    Ce match
+                  </span>
+                )}
+                {!q.actif && !cible && (
                   <span className="ml-2 inline-block rounded-bouton border border-line-strong px-1.5 py-0.5 align-middle font-texte text-mini font-medium text-muted uppercase">
                     Pas encore actif
                   </span>
@@ -165,20 +188,20 @@ export function SchemaVerdict() {
             <span aria-hidden="true" className="relative hidden h-px xl:block">
               <span className="absolute inset-0 bg-line-strong" />
               <span
-                className={`trace absolute inset-0 ${q.compte && q.actif ? "bg-accent" : "bg-faint"}`}
+                className={`trace absolute inset-0 ${vert ? "bg-accent" : "bg-faint"}`}
                 style={delai(0.55 + i * 0.55)}
               />
             </span>
             <span className="flex items-center gap-4">
               <span
-                className={`font-titre text-5xl leading-none font-black tabular-nums ${q.compte && q.actif ? "text-accent" : "text-faint"}`}
+                className={`font-titre text-5xl leading-none font-black tabular-nums ${vert ? "text-accent" : "text-faint"}`}
               >
                 {q.niveau}
               </span>
               <span className="flex flex-col gap-1">
                 <span
                   className={`inline-flex items-center gap-1.5 font-texte text-mini font-semibold uppercase ${
-                    q.compte && q.actif ? "text-accent" : "text-muted"
+                    vert ? "text-accent" : "text-muted"
                   }`}
                 >
                   <svg viewBox="0 0 24 24" className="size-3.5" aria-hidden="true">
@@ -190,11 +213,12 @@ export function SchemaVerdict() {
                   </svg>
                   {q.resultat}
                 </span>
-                <span className="text-xs text-muted">{q.source}</span>
+                <span className="text-xs text-muted">{source}</span>
               </span>
             </span>
           </li>
-        ))}
+          );
+        })}
       </ol>
     </figure>
   );

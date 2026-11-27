@@ -16,6 +16,7 @@ import MomentVerdict, { MomentChaine, SceauVerdict } from "@/components/moments/
 import Icone from "@/components/design/Icone";
 import LibelleSection from "@/components/design/LibelleSection";
 import Panneau from "@/components/design/Panneau";
+import { SchemaVerdict } from "@/components/schemas/Schemas";
 import Tableau from "@/components/design/Tableau";
 
 // Fiche de preuve d'un match (09/10/2026, idée en réserve n°1) : une
@@ -107,6 +108,17 @@ function etatClassement(p: PreuveMatch): string {
   return p.tournoi.nature === "defi"
     ? "Les points s'écrivent à la clôture du duel."
     : "Les points s'écrivent à la clôture du tournoi (période de notation = le tournoi).";
+}
+
+/** Ce match peut-il écrire des points ? (mêmes cas que etatClassement) */
+function compteAuClassement(p: PreuveMatch): boolean {
+  return (
+    p.tournoi.format !== "5v5" &&
+    p.verdict !== null &&
+    p.verdict.niveau !== "manuel" &&
+    niveauCompteSuffisant(p.verdict.niveauCompteMin) &&
+    p.tournoi.classe !== false
+  );
 }
 
 function duree(secondes: number): string {
@@ -293,6 +305,16 @@ export default async function PreuveMatchPage({ params }: PageProps) {
             </section>
           </Apparition>
         )}
+
+        {/* Le schéma des niveaux de preuve, avec le niveau de ce match repéré. */}
+        <Apparition delai={0.06}>
+          <section aria-labelledby="titre-niveaux" className="flex flex-col gap-4">
+            <LibelleSection as="h2" id="titre-niveaux" className="border-b border-line-strong pb-4">
+              D&apos;où vient un verdict
+            </LibelleSection>
+            <SchemaVerdict niveauDuMatch={verdict?.niveau} horsClassement={!compteAuClassement(preuve)} />
+          </section>
+        </Apparition>
 
         <Apparition delai={0.12}>
           <section aria-labelledby="titre-registre" className="flex flex-col gap-4">
