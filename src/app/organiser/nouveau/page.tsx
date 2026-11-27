@@ -77,7 +77,7 @@ export default async function OrganiserNouveauPage({
   const numero = () => String(++n).padStart(2, "0");
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-bg pt-32 pb-24 font-texte text-text">
+    <main className="relative min-h-screen overflow-clip bg-bg pt-32 pb-24 font-texte text-text">
       <FondEcailles />
       {/* Deux colonnes sur grand écran (27/11/2026, maquette validée) : le
           formulaire, un peu plus large que les autres (42rem), et l'aperçu en
